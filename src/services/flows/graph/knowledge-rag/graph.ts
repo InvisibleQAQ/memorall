@@ -126,9 +126,11 @@ export class KnowledgeRAGFlow extends GraphBase<
 		try {
 			logInfo("[KNOWLEDGE_RAG] Analyzing query:", state.query);
 
-			const prompt = QUERY_ANALYSIS_PROMPT.replace("{query}", state.query);
-
-			const messages: ChatMessage[] = [{ role: "system", content: prompt }];
+			// WebLLM requires last message to be from user or tool role
+			const messages: ChatMessage[] = [
+				{ role: "system", content: QUERY_ANALYSIS_PROMPT },
+				{ role: "user", content: state.query },
+			];
 
 			const llmResponse = (await llm.chatCompletions({
 				messages,
@@ -686,7 +688,11 @@ export class KnowledgeRAGFlow extends GraphBase<
 				state.query,
 			).replace("{context}", state.knowledgeContext);
 
-			const messages: ChatMessage[] = [{ role: "system", content: prompt }];
+			// WebLLM requires last message to be from user or tool role
+			const messages: ChatMessage[] = [
+				{ role: "system", content: RESPONSE_GENERATION_PROMPT.replace("{context}", state.knowledgeContext) },
+				{ role: "user", content: state.query },
+			];
 
 			const llmResponse = await llm.chatCompletions({
 				messages,
