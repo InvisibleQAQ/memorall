@@ -6,6 +6,7 @@ import { backgroundJob } from "./services/background-jobs/background-job";
 import { backgroundJobMessageForwarder } from "./background/message-forwarder";
 import { sharedStorageService } from "./services/shared-storage";
 import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
+import type { RememberedContent } from "@/services/database";
 
 const REMEMBER_THIS_PAGE_CONTEXT_MENU_ID = "remember-this-page";
 const REMEMBER_CONTENT_CONTEXT_MENU_ID = "remember-content";
@@ -300,7 +301,28 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 		info.menuItemId === REMEMBER_TO_TOPIC_CONTEXT_MENU_ID
 	) {
 		try {
-			const hasConfiguredLLM = false;
+			// Check if LLM is configured by getting current model
+			let hasConfiguredLLM = false;
+			try {
+				await ensureOffscreenDocument();
+				const getCurrentModelResponse = await backgroundJob.execute(
+					"get-current-model",
+					{},
+					{ stream: false },
+				);
+
+				if ("promise" in getCurrentModelResponse) {
+					const result = await getCurrentModelResponse.promise;
+					hasConfiguredLLM = !!result?.result?.modelInfo;
+					logInfo("🤖 LLM configuration check:", {
+						hasConfiguredLLM,
+						modelInfo: result?.result?.modelInfo,
+					});
+				}
+			} catch (error) {
+				logError("❌ Failed to check LLM configuration:", error);
+				hasConfiguredLLM = false;
+			}
 
 			// Handle different menu actions
 			if (info.menuItemId === LET_REMEMBER_CONTEXT_MENU_ID) {
@@ -601,16 +623,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			try {
 				// Queue the page for background save (offscreen will process)
 				startLoading(); // Show loading indicator
-				const result = await backgroundJob.createJob(
+				const saveResponse = await backgroundJob.execute(
 					"remember-save",
 					message.data,
 					{ stream: false },
 				);
-				const jobId = result.jobId;
-				logInfo("📨 Queued page for background save:", { jobId });
 
-				// Notify offscreen about job queue update with retry mechanism
-				sendResponse({ success: true, jobId });
+				if (!("promise" in saveResponse)) {
+					throw new Error("Failed to process extracted content");
+				}
+
+				if (!("promise" in saveResponse)) {
+					throw new Error("Failed to process selection");
+				}
+
+				const saveResult = (await saveResponse.promise).result;
+
+				if (!saveResult || !("page" in saveResult)) {
+					throw new Error("No page returned from save operation");
+				}
+				const page = saveResult.page as RememberedContent;
+
+				logInfo(
+					"✅ Content saved, triggering knowledge graph generation:",
+					page.id,
+				);
+
+				// Trigger knowledge graph generation with the saved page
+				await backgroundJob.createJob("knowledge-graph", page, {
+					stream: false,
+				});
+
+				sendResponse({ success: true, page });
 			} catch (error) {
 				logError("❌ Failed to process extracted content:", error);
 				const errorResponse = {
@@ -647,14 +691,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 						extractedAt: new Date().toISOString(),
 					},
 				};
+
 				startLoading(); // Show loading indicator
-				const result = await backgroundJob.createJob(
+
+				const saveResponse = await backgroundJob.execute(
 					"remember-save",
 					selectionData,
 					{ stream: false },
 				);
-				const jobId = result.jobId;
-				sendResponse({ success: true, jobId });
+
+				if (!("promise" in saveResponse)) {
+					throw new Error("Failed to process selection");
+				}
+
+				const saveResult = (await saveResponse.promise).result;
+
+				if (!saveResult || !("page" in saveResult)) {
+					throw new Error("No page returned from save operation");
+				}
+				const page = saveResult.page as RememberedContent;
+
+				logInfo(
+					"✅ Selection saved, triggering knowledge graph generation:",
+					page.id,
+				);
+
+				// Trigger knowledge graph generation with the saved page
+				await backgroundJob.createJob("knowledge-graph", page, {
+					stream: false,
+				});
+
+				sendResponse({ success: true, page });
 			} catch (error) {
 				logError("❌ Failed to process selection:", error);
 

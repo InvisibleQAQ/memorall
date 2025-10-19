@@ -86,27 +86,21 @@ export class RememberService {
 	 * Save a remembered page to the database with knowledge graph processing
 	 */
 	async savePage(data: SavePageData): Promise<RememberThisResponse> {
-		let basicResponse: RememberThisResponse;
-
 		try {
 			if (!this.initialized) {
 				await this.initialize();
 			}
 
-			logInfo("🔄 Processing page, saving to DB first:", data.url);
+			logInfo("🔄 Saving page to database:", data.url);
 
-			// ALWAYS save the basic page data first, regardless of any other failures
-			basicResponse = await this.savePageBasic(data);
-			if (!basicResponse.success) {
-				return basicResponse;
-			}
+			// Only save the page content - knowledge graph processing is separate
+			const response = await this.savePageBasic(data);
 
-			logInfo(
-				"✅ Page saved to DB, now attempting knowledge graph processing:",
-				data.url,
-			);
+			logInfo("✅ Page saved successfully:", data.url);
+
+			return response;
 		} catch (error) {
-			logError("❌ Failed to save basic page data:", error);
+			logError("❌ Failed to save page:", error);
 			return {
 				success: false,
 				error:
@@ -115,27 +109,6 @@ export class RememberService {
 						: "Failed to save page to database",
 			};
 		}
-
-		// Process knowledge graph in background - processKnowledgeGraph handles its own errors
-		// and never throws, so this is safe to call
-		if (!basicResponse.pageId) {
-			logError("❌ No pageId available for knowledge graph processing", {
-				basicResponse,
-			});
-			return basicResponse;
-		}
-
-		logInfo(
-			"🔄 Starting knowledge graph processing with pageId:",
-			basicResponse.pageId,
-		);
-		await this.processKnowledgeGraph(data, basicResponse.pageId);
-		logInfo(
-			"✅ Knowledge graph processing completed (or skipped with errors logged):",
-			data.url,
-		);
-
-		return basicResponse;
 	}
 
 	/**
@@ -171,29 +144,19 @@ export class RememberService {
 				topicId: data.topicId,
 			};
 
-			logInfo("🔍 newContent object topicId:", newContent.topicId);
-
-			// Save to database
+			// Save content to database - ONLY save content, nothing else
 			const result = await serviceManager.databaseService.use(
 				async ({ db, schema }) => {
 					const [savedContent] = await db
 						.insert(schema.rememberedContent)
 						.values(newContent)
 						.returning();
+
+					logInfo("✅ Content saved successfully:", savedContent.id);
+
 					return savedContent;
 				},
 			);
-
-			logInfo("✅ Content saved successfully:", result.id);
-
-			// For non-webpage content, optionally process through knowledge graph
-			if (data.sourceType !== "webpage" && data.textContent.length > 100) {
-				logInfo(
-					"🧠 Processing non-webpage content through knowledge graph:",
-					result.id,
-				);
-				await this.processKnowledgeGraphGeneric(data, result.id);
-			}
 
 			return {
 				success: true,
@@ -580,257 +543,6 @@ export class RememberService {
 		} catch (error) {
 			logError("❌ Failed to add tags:", error);
 			return false;
-		}
-	}
-
-	/**
-	 * Process page content through knowledge graph flow
-	 */
-	private async processKnowledgeGraph(
-		data: SavePageData,
-		pageId: string,
-	): Promise<void> {
-		try {
-			await logger.info(
-				"background",
-				"knowledge-graph",
-				"🧠 Starting knowledge graph processing",
-				{
-					url: data.url,
-					title: data.title,
-					pageId: pageId,
-					contentLength: data.article.textContent.length,
-				},
-			);
-
-			logInfo("🧠 Processing content through knowledge graph flow");
-
-			// Check if LLM service is ready
-			if (!serviceManager.llmService.isReady()) {
-				await logger.warn(
-					"background",
-					"knowledge-graph",
-					"❌ LLM service not ready, skipping knowledge graph processing",
-					{
-						url: data.url,
-						llmReady: serviceManager.llmService.isReady(),
-					},
-				);
-
-				logError(
-					"❌ LLM service not ready, skipping knowledge graph processing",
-				);
-				return;
-			}
-
-			await logger.info(
-				"background",
-				"knowledge-graph",
-				"✅ LLM service ready, proceeding with knowledge graph",
-				{
-					url: data.url,
-					llmReady: serviceManager.llmService.isReady(),
-				},
-			);
-
-			// Create knowledge graph flow
-			const knowledgeGraph = serviceManager.flowsService.createGraph(
-				"knowledge",
-				{
-					llm: serviceManager.llmService,
-					embedding: serviceManager.embeddingService,
-					database: serviceManager.databaseService,
-				},
-			);
-
-			await logger.info(
-				"background",
-				"knowledge-graph",
-				"🔧 Knowledge graph flow created",
-				{
-					url: data.url,
-				},
-			);
-
-			// Prepare input state
-			const initialState: Partial<KnowledgeGraphState> = {
-				content: data.article.textContent,
-				title: data.title,
-				url: data.url,
-				pageId: pageId,
-				referenceTimestamp: new Date().toISOString(),
-				metadata: data.metadata as unknown as Record<string, unknown>,
-				currentMessage: `Title: ${data.title}\n\nContent:\n${data.article.textContent}`,
-				previousMessages: undefined,
-			};
-
-			logInfo("🔧 Knowledge graph initial state prepared", {
-				url: data.url,
-				pageId: pageId,
-				hasPageId: !!pageId,
-			});
-
-			await logger.info(
-				"background",
-				"knowledge-graph",
-				"🚀 Executing knowledge graph flow",
-				{
-					url: data.url,
-					contentPreview: data.article.textContent.substring(0, 200) + "...",
-				},
-			);
-
-			if (!pageId) {
-				throw new Error("Error");
-			}
-
-			// Execute the knowledge graph flow
-			const result = await knowledgeGraph.invoke(initialState);
-
-			const stats = {
-				url: data.url,
-				nodesCreated: Array.isArray(result.createdNodes)
-					? result.createdNodes.length
-					: 0,
-				edgesCreated: Array.isArray(result.createdEdges)
-					? result.createdEdges.length
-					: 0,
-				sourceId: (result.createdSource as Source)?.id || "unknown",
-				errors: Array.isArray(result.errors) ? result.errors.length : 0,
-				entitiesExtracted: Array.isArray(result.extractedEntities)
-					? result.extractedEntities.length
-					: 0,
-				factsExtracted: Array.isArray(result.extractedFacts)
-					? result.extractedFacts.length
-					: 0,
-			};
-
-			await logger.info(
-				"background",
-				"knowledge-graph",
-				"✅ Knowledge graph processing completed successfully",
-				stats,
-			);
-
-			logInfo("✅ Knowledge graph processing completed:", stats);
-
-			if (Array.isArray(result.errors) && result.errors.length > 0) {
-				await logger.warn(
-					"background",
-					"knowledge-graph",
-					"⚠️ Knowledge graph processing had errors",
-					{
-						url: data.url,
-						errors: result.errors,
-					},
-				);
-
-				logError("⚠️ Knowledge graph processing had errors:", result.errors);
-			}
-		} catch (error) {
-			await logger.error(
-				"background",
-				"knowledge-graph",
-				"❌ Failed to process knowledge graph",
-				{
-					url: data.url,
-					error: error instanceof Error ? error.message : "Unknown error",
-					stack: error instanceof Error ? error.stack : undefined,
-				},
-			);
-
-			logError("❌ Failed to process knowledge graph:", error);
-			// Don't throw error - knowledge graph processing is optional
-		}
-	}
-
-	/**
-	 * Process generic content through knowledge graph flow
-	 */
-	private async processKnowledgeGraphGeneric(
-		data: SaveContentData,
-		contentId: string,
-	): Promise<void> {
-		try {
-			logInfo("🧠 Processing generic content through knowledge graph flow");
-
-			if (!serviceManager.llmService.isReady()) {
-				logError(
-					"❌ LLM service not ready, skipping knowledge graph processing",
-				);
-				return;
-			}
-
-			// Create knowledge graph flow
-			const knowledgeGraph = serviceManager.flowsService.createGraph(
-				"knowledge",
-				{
-					llm: serviceManager.llmService,
-					embedding: serviceManager.embeddingService,
-					database: serviceManager.databaseService,
-				},
-			);
-
-			// Prepare input state for generic content
-			const initialState: Partial<KnowledgeGraphState> = {
-				content: data.textContent,
-				title: data.title,
-				url: data.sourceUrl || data.originalUrl || `content://${contentId}`,
-				pageId: contentId,
-				referenceTimestamp: new Date().toISOString(),
-				metadata: data.sourceMetadata as unknown as Record<string, unknown>,
-				currentMessage: `Title: ${data.title}\n\nContent:\n${data.textContent}`,
-				previousMessages: undefined,
-			};
-
-			logInfo("🔧 Knowledge graph initial state prepared for generic content", {
-				contentId,
-				sourceType: data.sourceType,
-				hasContentId: !!contentId,
-			});
-
-			if (!contentId) {
-				throw new Error(
-					"No content ID available for knowledge graph processing",
-				);
-			}
-
-			// Execute the knowledge graph flow
-			const result = await knowledgeGraph.invoke(initialState);
-
-			const stats = {
-				contentId,
-				sourceType: data.sourceType,
-				nodesCreated: Array.isArray(result.createdNodes)
-					? result.createdNodes.length
-					: 0,
-				edgesCreated: Array.isArray(result.createdEdges)
-					? result.createdEdges.length
-					: 0,
-				sourceId: (result.createdSource as Source)?.id || "unknown",
-				errors: Array.isArray(result.errors) ? result.errors.length : 0,
-				entitiesExtracted: Array.isArray(result.extractedEntities)
-					? result.extractedEntities.length
-					: 0,
-				factsExtracted: Array.isArray(result.extractedFacts)
-					? result.extractedFacts.length
-					: 0,
-			};
-
-			logInfo(
-				"✅ Knowledge graph processing completed for generic content:",
-				stats,
-			);
-
-			if (Array.isArray(result.errors) && result.errors.length > 0) {
-				logError("⚠️ Knowledge graph processing had errors:", result.errors);
-			}
-		} catch (error) {
-			logError(
-				"❌ Failed to process generic content through knowledge graph:",
-				error,
-			);
-			// Don't throw error - knowledge graph processing is optional
 		}
 	}
 }

@@ -89,30 +89,34 @@ export class DatabaseSaveFlow {
 				state.pageId.trim().length === 0
 			) {
 				throw new Error(
-					"Invalid or missing pageId - cannot create source without valid target ID",
+					"Invalid or missing pageId - cannot link entities without valid page ID",
 				);
 			}
 
-			if (
-				!state.title ||
-				typeof state.title !== "string" ||
-				state.title.trim().length === 0
-			) {
+			if (!state.sourceId) {
 				throw new Error(
-					"Invalid or missing title - cannot create source without name",
+					"Invalid or missing sourceId - source must be created before saving entities",
 				);
 			}
 
-			// Create source first
-			logInfo("[SAVE_TO_DATABASE] Creating source...");
+			// Get source from database
+			logInfo("[SAVE_TO_DATABASE] Getting source...");
 			const createdSource = await databaseService.use(
 				async ({ db, schema }) => {
-					return await this.createSource(state, { db, schema });
+					const sources = await db
+						.select()
+						.from(schema.sources)
+						.where(eq(schema.sources.id, state.sourceId!))
+						.limit(1);
+
+					if (!sources || sources.length === 0) {
+						throw new Error(`Source not found with id: ${state.sourceId}`);
+					}
+
+					return sources[0];
 				},
 			);
-			logInfo(
-				`[SAVE_TO_DATABASE] Source created successfully: ${createdSource.id}`,
-			);
+			logInfo(`[SAVE_TO_DATABASE] Using source: ${createdSource.id}`);
 
 			// Create new nodes
 			logInfo(
@@ -195,38 +199,6 @@ export class DatabaseSaveFlow {
 				],
 			};
 		}
-	}
-
-	private async createSource(
-		state: KnowledgeGraphState,
-		{ db, schema }: DatabaseContext,
-	): Promise<SourceSelectType> {
-		logInfo("💾 Creating source with polymorphic relation", {
-			targetType: "remembered_pages",
-			targetId: state.pageId,
-			hasPageId: !!state.pageId,
-			title: state.title,
-		});
-
-		const sourceData: NewSource = {
-			targetType: "remembered_pages",
-			targetId: state.pageId!.trim(),
-			name: state.title!.trim(),
-			metadata: {
-				...(state.metadata || {}),
-				topicId: state.topicId, // Include topic information in source metadata
-			},
-			referenceTime: new Date(state.referenceTimestamp),
-			weight: 1.0,
-			graph: this.getGraphValue(state),
-		};
-
-		const [createdSource] = await db
-			.insert(schema.sources)
-			.values(sourceData)
-			.returning();
-
-		return createdSource;
 	}
 
 	private async createNodes(

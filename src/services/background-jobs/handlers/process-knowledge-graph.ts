@@ -11,6 +11,7 @@ import type {
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
 import { serviceManager } from "@/services";
 import { backgroundProcessFactory } from "./process-factory";
+import { and, eq } from "drizzle-orm";
 
 export type KnowledgeGraphPayload = RememberedContent;
 
@@ -141,7 +142,6 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 	): Promise<void> {
 		try {
 			await serviceManager.databaseService.use(async ({ db, schema }) => {
-				const { and, eq } = await import("drizzle-orm");
 				const now = new Date();
 				await db
 					.update(schema.sources)

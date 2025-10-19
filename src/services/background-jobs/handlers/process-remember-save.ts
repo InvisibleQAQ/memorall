@@ -9,14 +9,13 @@ import { serviceManager } from "@/services";
 import { BaseProcessHandler } from "./base-process-handler";
 import type { ProcessDependencies, BaseJob, ItemHandlerResult } from "./types";
 import { backgroundProcessFactory } from "./process-factory";
+import type { RememberedContent } from "@/services/database";
 
 export type RememberSavePayload = SaveContentData | SavePageData;
 
 // Define result types that handlers return
 export interface RememberSaveResult extends Record<string, unknown> {
-	pageId: string;
-	title: string;
-	contentType: "page" | "content";
+	page: RememberedContent;
 }
 
 const JOB_NAMES = {
@@ -96,14 +95,28 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 					dependencies,
 				);
 
+				// Fetch the full saved content to return
+				const savedContent = await this.databaseService.use(
+					async ({ db, schema }) => {
+						const rows = await db
+							.select()
+							.from(schema.rememberedContent)
+							.where(eq(schema.rememberedContent.id, result.pageId!));
+						return rows[0];
+					},
+				);
+
+				if (!savedContent) {
+					throw new Error("Content not found after save");
+				}
+
 				await this.addProgress(jobId, "Finalizing...", 90, dependencies, {
 					pageId: result.pageId || "unknown",
 				});
 
+				// Return the full content object
 				return this.createSuccessResult({
-					pageId: result.pageId,
-					title: title,
-					contentType: "html" in payload ? "page" : "content",
+					page: savedContent,
 				});
 			} else {
 				this.createErrorResult(new Error(result.error || "Save failed"));

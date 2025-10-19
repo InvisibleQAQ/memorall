@@ -50,6 +50,7 @@ export interface KnowledgeGraphState extends BaseStateBase {
 	title: string;
 	url: string;
 	pageId: string;
+	sourceId?: string; // Source ID created before workflow starts
 	sourceType: string;
 	referenceTimestamp: string;
 	metadata?: Record<string, unknown>;

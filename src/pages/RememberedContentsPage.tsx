@@ -127,9 +127,6 @@ export const RememberedContentsPage: React.FC<
 			{ status: string; validFrom: Date | null; effectiveStatus: string }
 		>
 	>(new Map());
-	const [convertingContentId, setConvertingContentId] = useState<string | null>(
-		null,
-	);
 
 	// Subscribe to conversion updates
 	useEffect(() => {
@@ -150,6 +147,28 @@ export const RememberedContentsPage: React.FC<
 
 		return unsubscribe;
 	}, []);
+
+	// Poll status ONLY for selected content if it's in progress and not actively being handled
+	// This handles the case where user opens a page that was already processing
+	useEffect(() => {
+		if (!selectedContent) {
+			return;
+		}
+
+		const sourceData = sourceStatuses.get(selectedContent.id);
+		const isProcessing = sourceData?.effectiveStatus === "processing";
+
+		if (!isProcessing) {
+			return;
+		}
+
+		// Poll every 10 seconds for just this selected content
+		const intervalId = setInterval(() => {
+			loadSourceStatuses([selectedContent.id]);
+		}, 10000);
+
+		return () => clearInterval(intervalId);
+	}, [selectedContent, sourceStatuses]);
 
 	const loadPages = async (searchOptions?: Partial<SearchOptions>) => {
 		try {
@@ -243,15 +262,37 @@ export const RememberedContentsPage: React.FC<
 
 	const handleConvertToGraph = async (page: RememberedContent) => {
 		try {
-			setConvertingContentId(page.id);
-			await backgroundJob.createJob("knowledge-graph", page, {
-				stream: false,
-			});
+			// Create the background job - status will be tracked in DB
+			const { promise } = await backgroundJob.createJob(
+				"knowledge-graph",
+				page,
+				{
+					stream: false,
+				},
+			);
+
+			// Immediately reload status to show it's processing
 			await loadSourceStatuses([page.id]);
+
+			// Wait for the promise to complete, then refresh status
+			// No need for polling since we have the promise
+			try {
+				await promise;
+				// Success - reload status to show completion
+				await loadSourceStatuses([page.id]);
+				// Reload graph data if this is the selected content
+				if (selectedContent?.id === page.id) {
+					await loadGraphDataForPage(page.id);
+				}
+			} catch (error) {
+				logError("Knowledge graph conversion failed:", error);
+				// Reload status to show failure
+				await loadSourceStatuses([page.id]);
+			}
 		} catch (error) {
 			logError("Failed to start knowledge graph conversion:", error);
-		} finally {
-			setConvertingContentId(null);
+			// Reload status to reflect any error state
+			await loadSourceStatuses([page.id]);
 		}
 	};
 
@@ -332,7 +373,8 @@ export const RememberedContentsPage: React.FC<
 					);
 
 				sources.forEach((source) => {
-					const effectiveStatus = getEffectiveSourceStatus(source);
+					// Use 10 minute timeout instead of default 30 minutes
+					const effectiveStatus = getEffectiveSourceStatus(source, 10);
 					statusMap.set(source.targetId, {
 						status: source.status || "pending",
 						validFrom: source.statusValidFrom,
@@ -411,10 +453,6 @@ export const RememberedContentsPage: React.FC<
 			return url;
 		}
 	};
-
-	const isConverting = Array.from(sourceStatuses.values()).some(
-		(sourceData) => sourceData.effectiveStatus === "processing",
-	);
 
 	return (
 		<div className="flex flex-col sm:flex-row h-full overflow-hidden bg-background">
@@ -604,10 +642,12 @@ export const RememberedContentsPage: React.FC<
 															handleConvertToGraph(selectedContent)
 														}
 														disabled={
-															convertingContentId === selectedContent.id
+															sourceStatuses.get(selectedContent.id)
+																?.effectiveStatus === "processing"
 														}
 													>
-														{convertingContentId === selectedContent.id ? (
+														{sourceStatuses.get(selectedContent.id)
+															?.effectiveStatus === "processing" ? (
 															<>
 																<Loader2 className="h-4 w-4 mr-2 animate-spin" />
 																Generating...
@@ -742,10 +782,12 @@ export const RememberedContentsPage: React.FC<
 															handleConvertToGraph(selectedContent)
 														}
 														disabled={
-															convertingContentId === selectedContent.id
+															sourceStatuses.get(selectedContent.id)
+																?.effectiveStatus === "processing"
 														}
 													>
-														{convertingContentId === selectedContent.id ? (
+														{sourceStatuses.get(selectedContent.id)
+															?.effectiveStatus === "processing" ? (
 															<>
 																<Loader2 className="h-4 w-4 mr-2 animate-spin" />
 																Generating...

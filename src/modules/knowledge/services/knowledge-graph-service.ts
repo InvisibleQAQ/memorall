@@ -187,8 +187,13 @@ export class KnowledgeGraphService {
 				throw new Error("LLM service not ready");
 			}
 
-			// Update source status to processing
-			await this.updateSourceStatus(page.id, "processing");
+			// Create or get source with processing status
+			const sourceId = await this.ensureSourceWithProcessingStatus(page.id, {
+				title: page.title,
+				topicId: page.topicId || undefined,
+				sourceType: page.sourceType,
+				sourceUrl: page.sourceUrl || undefined,
+			});
 
 			this.updateConversion(conversionId, {
 				status: "extracting_entities",
@@ -206,12 +211,14 @@ export class KnowledgeGraphService {
 				},
 			);
 
-			// Prepare input state
+			// Prepare input state with sourceId
 			const initialState: Partial<KnowledgeGraphState> = {
 				content: page.content,
 				title: page.title,
 				url: getContentUrl(page),
 				pageId: page.id,
+				topicId: page.topicId || undefined,
+				sourceId: sourceId, // Pass sourceId to workflow
 				referenceTimestamp: new Date().toISOString(),
 				metadata: (page.sourceMetadata || {}) as Record<string, unknown>,
 				currentMessage: `Title: ${page.title}\n\nContent:\n${page.content}`,
@@ -361,6 +368,122 @@ export class KnowledgeGraphService {
 				completedAt: new Date(),
 				error: error instanceof Error ? error.message : "Unknown error",
 			});
+		}
+	}
+
+	/**
+	 * Create source record for a page with pending status
+	 * This is called when content is first saved
+	 */
+	async createSourceForPage(
+		pageId: string,
+		options: {
+			title: string;
+			topicId?: string;
+			sourceType?: string;
+			sourceUrl?: string;
+		},
+	): Promise<string> {
+		try {
+			const sourceId = await serviceManager.databaseService.use(
+				async ({ db, schema }) => {
+					const [source] = await db
+						.insert(schema.sources)
+						.values({
+							targetType: "remembered_pages",
+							targetId: pageId,
+							name: options.title,
+							status: "pending",
+							statusValidFrom: new Date(),
+							metadata: {
+								sourceType: options.sourceType,
+								sourceUrl: options.sourceUrl,
+								topicId: options.topicId,
+							},
+							referenceTime: new Date(),
+							graph: options.topicId ? `topic_${options.topicId}` : "",
+						})
+						.returning();
+					return source.id;
+				},
+			);
+			logInfo(`Source created with pending status for page ${pageId}`);
+			return sourceId;
+		} catch (error) {
+			logError(`Failed to create source for page ${pageId}:`, error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Ensure source exists and set to processing status
+	 * Creates source if it doesn't exist, or updates existing source
+	 */
+	private async ensureSourceWithProcessingStatus(
+		pageId: string,
+		options: {
+			title: string;
+			topicId?: string;
+			sourceType?: string;
+			sourceUrl?: string;
+		},
+	): Promise<string> {
+		try {
+			return await serviceManager.databaseService.use(
+				async ({ db, schema }) => {
+					// Check if source exists
+					const existing = await db
+						.select()
+						.from(schema.sources)
+						.where(
+							and(
+								eq(schema.sources.targetType, "remembered_pages"),
+								eq(schema.sources.targetId, pageId),
+							),
+						)
+						.limit(1);
+
+					const now = new Date();
+
+					if (existing && existing.length > 0) {
+						// Update existing source to processing
+						await db
+							.update(schema.sources)
+							.set({
+								status: "processing",
+								statusValidFrom: now,
+								updatedAt: now,
+							})
+							.where(eq(schema.sources.id, existing[0].id));
+						logInfo(`Source updated to processing for page ${pageId}`);
+						return existing[0].id;
+					} else {
+						// Create new source with processing status
+						const [source] = await db
+							.insert(schema.sources)
+							.values({
+								targetType: "remembered_pages",
+								targetId: pageId,
+								name: options.title,
+								status: "processing",
+								statusValidFrom: now,
+								metadata: {
+									sourceType: options.sourceType,
+									sourceUrl: options.sourceUrl,
+									topicId: options.topicId,
+								},
+								referenceTime: now,
+								graph: options.topicId ? `topic_${options.topicId}` : "",
+							})
+							.returning();
+						logInfo(`Source created with processing status for page ${pageId}`);
+						return source.id;
+					}
+				},
+			);
+		} catch (error) {
+			logError(`Failed to ensure source for page ${pageId}:`, error);
+			throw error;
 		}
 	}
 
