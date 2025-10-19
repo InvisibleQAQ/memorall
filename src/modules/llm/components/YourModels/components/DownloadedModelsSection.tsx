@@ -13,7 +13,10 @@ interface DownloadedModelsSectionProps {
 	modelsLoading: boolean;
 	loading: boolean;
 	fetchDownloadedModels: () => Promise<void>;
-	loadDownloadedModel: (model: ModelInfo, provider: ServiceProvider) => Promise<void>;
+	loadDownloadedModel: (
+		model: ModelInfo,
+		provider: ServiceProvider,
+	) => Promise<void>;
 	unloadDownloadedModel: (
 		model: ModelInfo,
 		provider: ServiceProvider,
@@ -108,7 +111,10 @@ export const DownloadedModelsSection: React.FC<
 									variant="outline"
 									size="sm"
 									onClick={() =>
-										unloadDownloadedModel(model, model.provider as ServiceProvider)
+										unloadDownloadedModel(
+											model,
+											model.provider as ServiceProvider,
+										)
 									}
 									disabled={loading}
 								>
@@ -123,7 +129,10 @@ export const DownloadedModelsSection: React.FC<
 								<Button
 									size="sm"
 									onClick={() =>
-										loadDownloadedModel(model, model.provider as ServiceProvider)
+										loadDownloadedModel(
+											model,
+											model.provider as ServiceProvider,
+										)
 									}
 									disabled={loading}
 								>

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { Message, MessageContent } from "@/components/ui/shadcn-io/ai/message";
 import {
@@ -7,10 +7,13 @@ import {
 	TaskItem,
 	TaskTrigger,
 } from "@/components/ui/shadcn-io/ai/task";
-import { MarkdownMessage } from "@/modules/chat/components/MarkdownMessage";
 import { MermaidRenderer } from "@/components/atoms/MermaidRenderer";
 import type { Message as DBMessage } from "@/services/database";
 import dayjs from "dayjs";
+
+const USE_STREAMDOWN = false;
+const Streamdown = lazy(() => import("./MessageStreamDown"));
+const MarkdownMessage = lazy(() => import("./MarkdownMessage"));
 
 // Direct Mermaid component for task descriptions - only renders when visible
 const TaskMermaidDiagram: React.FC<{ chart: string; isOpen: boolean }> = ({
@@ -157,6 +160,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
 		);
 	}
 
+	const ContentComponent = USE_STREAMDOWN ? Streamdown : MarkdownMessage;
+
 	return (
 		<div key={message.id} className="flex flex-col gap-4">
 			{actions.length > 0 &&
@@ -169,12 +174,15 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
 				))}
 			<Message key={message.id} from={message.role}>
 				<MessageContent>
-					<MarkdownMessage
-						content={message.content}
-						isStreaming={
-							isLastMessage && isLoading && message.role === "assistant"
-						}
-					/>
+					<Suspense fallback={<div>...</div>}>
+						<ContentComponent
+							isAnimating={
+								isLastMessage && isLoading && message.role === "assistant"
+							}
+						>
+							{message.content}
+						</ContentComponent>
+					</Suspense>
 				</MessageContent>
 			</Message>
 		</div>

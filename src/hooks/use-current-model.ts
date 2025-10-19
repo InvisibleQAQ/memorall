@@ -71,7 +71,7 @@ export function useCurrentModel() {
 	 * Handle model loaded callback - refresh current model state
 	 * Used when a new model is loaded/downloaded
 	 */
-	const handleModelLoaded = () => {
+	const handleModelLoaded = (modelId?: string, provider?: ServiceProvider) => {
 		const refreshCurrentModel = async () => {
 			try {
 				const currentModel = await serviceManager.llmService.getCurrentModel();

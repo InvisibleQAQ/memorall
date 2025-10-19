@@ -17,11 +17,6 @@ if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
 	pdfjsLib.GlobalWorkerOptions.workerSrc = `/vendors/pdfjs/pdf.worker.min.mjs`;
 }
 
-console.log(
-	"📄 PDF.js worker configured:",
-	pdfjsLib.GlobalWorkerOptions.workerSrc,
-);
-
 export interface PDFPageContent {
 	pageNumber: number;
 	text: string;
@@ -57,8 +52,6 @@ export async function fetchAndReadPDF(
 	url: string,
 ): Promise<PDFDocumentContent> {
 	try {
-		console.log("📄 Fetching PDF from:", url);
-
 		// Fetch the PDF
 		const response = await fetch(url);
 		if (!response.ok) {
@@ -66,13 +59,10 @@ export async function fetchAndReadPDF(
 		}
 
 		const arrayBuffer = await response.arrayBuffer();
-		console.log("📄 PDF fetched, size:", arrayBuffer.byteLength, "bytes");
 
 		// Parse with PDF.js
 		const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
 		const pdf = await loadingTask.promise;
-
-		console.log("📄 PDF loaded, pages:", pdf.numPages);
 
 		// Extract metadata
 		const metadata = await pdf.getMetadata();
@@ -100,8 +90,6 @@ export async function fetchAndReadPDF(
 				width: viewport.width,
 				height: viewport.height,
 			});
-
-			console.log(`📄 Extracted page ${i}/${pdf.numPages}`);
 		}
 
 		// Combine all page texts
@@ -119,12 +107,6 @@ export async function fetchAndReadPDF(
 			pages,
 			fullText,
 		};
-
-		console.log("✅ PDF extraction complete:", {
-			title: result.title,
-			pages: result.numPages,
-			textLength: result.fullText.length,
-		});
 
 		return result;
 	} catch (error) {

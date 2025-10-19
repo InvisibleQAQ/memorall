@@ -76,6 +76,7 @@ const App: React.FC = () => {
 					if (progress.status === "completed") {
 						setUiProgress(100);
 						// Small delay before showing app
+						await serviceManager.initialize({ proxy: true });
 						setTimeout(() => {
 							setServicesStatus("ready");
 							logInfo("✅ App initialization complete");
@@ -83,7 +84,6 @@ const App: React.FC = () => {
 						break;
 					}
 				}
-				await serviceManager.initialize({ proxy: true });
 			} catch (error) {
 				logError("❌ App initialization failed:", error);
 				setServicesStatus("error");

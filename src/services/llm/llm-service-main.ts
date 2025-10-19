@@ -335,10 +335,6 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 			await this.restoreLocalServices();
 
 			// Serve models if current model is DEFAULT_SERVICES.WLLAMA or DEFAULT_SERVICES.WEBLLM
-			console.log(
-				"[this.currentModel] ====> this.currentModel",
-				this.currentModel,
-			);
 			if (
 				this.currentModel?.modelId &&
 				(this.currentModel.serviceName === DEFAULT_SERVICES.WLLAMA ||
@@ -346,13 +342,14 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 			) {
 				try {
 					const models = await this.modelsFor(this.currentModel.serviceName);
-					console.log("[this.currentModel] ====> models", models);
 					const isLoaded = models.data.some(
-						(m) => m.id === this.currentModel?.modelId,
+						(m) => m.id === this.currentModel?.modelId && m.loaded,
 					);
-					console.log("[this.currentModel] ====> isLoaded", isLoaded);
 					if (!isLoaded) {
-						await this.serve(this.currentModel.modelId);
+						await this.serveFor(
+							this.currentModel.serviceName,
+							this.currentModel.modelId,
+						);
 					}
 				} catch (error) {
 					logWarn(

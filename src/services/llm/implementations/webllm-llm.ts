@@ -39,13 +39,7 @@ interface OutgoingMessage extends BaseMessage {
 }
 
 interface IncomingMessage extends BaseMessage {
-	type:
-		| "ready"
-		| "complete"
-		| "error"
-		| "progress"
-		| "stream_chunk"
-		| "stream_end";
+	type: "ready" | "complete" | "error" | "progress" | "chunk" | "end";
 	payload?: unknown;
 }
 
@@ -327,7 +321,7 @@ export class WebLLMLLM implements BaseLLM {
 			return;
 		}
 
-		if (type === "stream_chunk") {
+		if (type === "chunk") {
 			const chunk = payload as ChatCompletionChunk;
 			for (const [, request] of this.pending.entries()) {
 				if (request.onStreamChunk) {
@@ -337,7 +331,7 @@ export class WebLLMLLM implements BaseLLM {
 			return;
 		}
 
-		if (type === "stream_end") {
+		if (type === "end") {
 			const chunk = payload as ChatCompletionChunk;
 			for (const [, request] of this.pending.entries()) {
 				if (request.onStreamChunk) {

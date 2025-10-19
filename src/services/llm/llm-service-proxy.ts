@@ -324,7 +324,6 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 				logWarn("Failed to create WebLLM service:", error);
 			}
 		}
-
 		await this.restoreLocalServices();
 	}
 

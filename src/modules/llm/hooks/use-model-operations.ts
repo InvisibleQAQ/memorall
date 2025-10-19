@@ -97,7 +97,7 @@ export function useModelOperations({
 					serviceName,
 					serveModelId,
 					(progress) => {
-						setDownloadProgress({ text: "", ...progress });
+						setDownloadProgress({ ...progress, text: progress.text || "" });
 					},
 				);
 				setCurrent({ modelId: currentModelId, provider });
@@ -170,12 +170,18 @@ export function useModelOperations({
 						serviceName,
 						modelId,
 						(progress: { loaded: number; total: number; percent: number }) => {
-							setDownloadProgress({ text: "", ...progress });
+							setDownloadProgress({
+								...progress,
+								text: (progress as any).text || "",
+							});
 						},
 					);
 				} else {
 					await serviceManager.llmService.serve(modelId, (progress) => {
-						setDownloadProgress({ text: "", ...progress });
+						setDownloadProgress({
+							...progress,
+							text: (progress as any).text || "",
+						});
 					});
 				}
 

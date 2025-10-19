@@ -2,9 +2,10 @@ import React from "react";
 import { Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { YourModels } from "@/modules/llm/components/YourModels";
+import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 
 interface NoModelsScreenProps {
-	onModelLoaded: () => void;
+	onModelLoaded: (modelId: string, provider: ServiceProvider) => void;
 	onNavigateToModels: () => void;
 }
 

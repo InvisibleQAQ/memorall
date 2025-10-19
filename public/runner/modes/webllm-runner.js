@@ -28,8 +28,6 @@ async function isDownloaded(modelId) {
 async function ensureWebLLM() {
 	if (WebLLMEngine) return;
 	try {
-		console.log("Loading WebLLM module...");
-
 		// Help WebLLM avoid worker creation in iframe contexts
 		if (typeof window !== "undefined") {
 			window.__WEBLLM_NO_WORKER__ = true;
@@ -37,7 +35,6 @@ async function ensureWebLLM() {
 
 		// Import bundled WebLLM
 		const mod = await import("../libs/web-llm.js");
-		console.log("WebLLM module loaded successfully", mod);
 		WebLLMMod = mod;
 
 		if (!mod.MLCEngine) {
@@ -213,6 +210,7 @@ window.addEventListener("message", async (event) => {
 					temperature = 0.8,
 					top_p = 0.9,
 				} = payload || {};
+
 				if (!messages) throw new Error("Messages are required");
 
 				// Create abort controller for this operation
@@ -230,96 +228,30 @@ window.addEventListener("message", async (event) => {
 
 				try {
 					if (stream) {
-						const completionId = `chatcmpl-${generateId()}`;
-						let isFirst = true;
-						let streamIt;
-						if (typeof webllmEngine.chatCompletion === "function") {
-							streamIt = await webllmEngine.chatCompletion({
-								...requestOptions,
-								stream: true,
-							});
-						} else if (webllmEngine?.chat?.completions?.create) {
-							streamIt = await webllmEngine.chat.completions.create({
-								...requestOptions,
-								stream: true,
-							});
-						} else {
-							throw new Error("No supported streaming API");
-						}
+						const completionStream = await webllmEngine.chat.completions.create({
+							...requestOptions,
+							stream: true,
+						});
+						let lastChunk;
 
-						for await (const chunk of streamIt) {
-							// Check if aborted before processing each chunk
+						for await (const chunk of completionStream) {
+							lastChunk = chunk
 							if (abortController.signal.aborted) {
 								throw new Error("Operation aborted");
 							}
 
-							if (!chunk?.choices?.length) continue;
-							const choice = chunk.choices[0];
-							const delta = choice?.delta || {};
-							const webllmChunk = {
-								id: completionId,
-								object: "chat.completion.chunk",
-								created: Math.floor(Date.now() / 1000),
-								model: model || "webllm-local",
-								choices: [
-									{
-										index: 0,
-										delta: {
-											role: isFirst ? "assistant" : undefined,
-											content: delta.content || "",
-										},
-										finish_reason: choice.finish_reason,
-									},
-								],
-							};
-							reply(src, origin, messageId, "stream_chunk", webllmChunk);
-							isFirst = false;
-							if (choice.finish_reason) break;
+							reply(src, origin, messageId, "chunk", chunk);
 						}
 
-						const finalChunk = {
-							id: completionId,
-							object: "chat.completion.chunk",
-							created: Math.floor(Date.now() / 1000),
-							model: model || "webllm-local",
-							choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
-						};
-						reply(src, origin, messageId, "stream_end", finalChunk);
+						lastChunk.content = await webllmEngine.getMessage()
+
+						reply(src, origin, messageId, "end", lastChunk);
 					} else {
-						let response;
-						if (typeof webllmEngine.chatCompletion === "function") {
-							response = await webllmEngine.chatCompletion({
-								...requestOptions,
-								stream: false,
-							});
-						} else if (webllmEngine?.chat?.completions?.create) {
-							response =
-								await webllmEngine.chat.completions.create(requestOptions);
-						} else {
-							throw new Error("No supported completion API");
-						}
-						const openaiResponse = {
-							id: `chatcmpl-${generateId()}`,
-							object: "chat.completion",
-							created: Math.floor(Date.now() / 1000),
-							model: model || "webllm-local",
-							choices: [
-								{
-									index: 0,
-									message: {
-										role: "assistant",
-										content: response.choices?.[0]?.message?.content || "",
-									},
-									finish_reason: response.choices?.[0]?.finish_reason || "stop",
-								},
-							],
-							usage: response.usage || {
-								prompt_tokens: -1,
-								completion_tokens: -1,
-								total_tokens: -1,
-							},
-						};
-						reply(src, origin, messageId, "complete", openaiResponse);
+						const completion = await webllmEngine.chat.completions.create({
+							...requestOptions,
+							stream: false,
+						});
+						reply(src, origin, messageId, "complete", completion);
 					}
 				} catch (error) {
 					console.error("WebLLM error:", error);
