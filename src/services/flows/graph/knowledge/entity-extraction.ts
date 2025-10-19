@@ -6,37 +6,18 @@ import type { AllServices } from "../../interfaces/tool";
 const ENTITY_EXTRACTION_SYSTEM_PROMPT = `You are an expert entity extraction specialist. Extract clean, precise entity nodes from the provided CONTENT.
 
 CRITICAL NAMING RULES:
-1. Entity names MUST be clean, pure identifiers without any descriptive wrapper text
-   Bad: "the company Apple", "a person named John", "repository called MyProject"
-   Good: "Apple", "John Smith", "MyProject"
+1. Convert first-person pronouns to represent the user:
+   - "I", "me", "my", "myself" → "Memorall User"
+   - Always create a "Memorall User" entity for user references
+   - Use nodeType "USER" for the main user entity
 
-2. Extract only the core subject name by removing:
-   - Articles: "the", "a", "an"
-   - Descriptive prefixes that classify the entity type
-   - Introductory phrases like "named", "called", "known as"
-   - Any wrapper text that describes what something is rather than what it's called
-
-3. Focus on the canonical identifier:
-   - Use the most recognized, official name for the entity
-   - Strip away legal suffixes unless they're part of the common identity
-   - Prefer complete names over abbreviations when the full form is more recognizable
-   - Maintain standard formatting for technical names and identifiers
-   - For URLs or paths, extract the meaningful identifier portion
-
-NODE TYPE GUIDELINES:
-- Create descriptive, specific node types that best categorize each entity
-- Use UPPERCASE with underscores for consistency (e.g., "PROGRAMMING_LANGUAGE", "RESEARCH_PAPER")
-- Be as specific as possible while keeping types reusable across similar entities
-- Examples of good node types:
-  * For people: PERSON, AUTHOR, RESEARCHER, CEO, DEVELOPER
-  * For organizations: COMPANY, UNIVERSITY, GOVERNMENT_AGENCY, NONPROFIT
-  * For technology: PROGRAMMING_LANGUAGE, FRAMEWORK, DATABASE, PROTOCOL
-  * For content: ARTICLE, DOCUMENTATION, VIDEO, PODCAST, BLOG_POST
-  * For concepts: METHODOLOGY, ALGORITHM, BUSINESS_MODEL, DESIGN_PATTERN
-  * For locations: CITY, COUNTRY, BUILDING, VENUE
-  * For events: CONFERENCE, PRODUCT_LAUNCH, MERGER, ACQUISITION
-- Create new types as needed - don't force entities into existing categories
-- The type should clearly indicate what category or nature the entity represents
+2. Extract MAXIMUM entities - be extremely comprehensive:
+   - Every person, organization, place, concept, technology, tool, method mentioned
+   - Abstract concepts, ideas, feelings, opinions, preferences
+   - Temporal references (dates, events, periods)
+   - Skills, experiences, achievements, goals
+   - Objects, products, brands, services used or mentioned
+   - Activities, hobbies, interests, projects
 
 EXTRACTION GUIDELINES:
 1. Extract ALL significant entities mentioned or implied
@@ -81,16 +62,6 @@ PERSONAL KNOWLEDGE FOCUS:
 - Include subjective entities: preferences, opinions, feelings, attitudes
 - Extract contextual entities: situations, environments, circumstances
 - Be generous with entity extraction - err on the side of including more rather than less
-
-SPECIAL ENTITY TYPES FOR USER INPUT:
-- USER: The memorall user (for "I", "me", "my" references)
-- PREFERENCE: Things the user likes/dislikes
-- EXPERIENCE: User's experiences or events they participated in
-- SKILL: Abilities, competencies, knowledge areas
-- GOAL: Objectives, aspirations, targets
-- OPINION: User's views, thoughts, beliefs
-- MEMORY: Specific memories or recollections
-- RELATIONSHIP: Connections with other people
 
 EXTRACTION GUIDELINES:
 1. Extract ALL entities - be maximally comprehensive

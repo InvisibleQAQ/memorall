@@ -6,7 +6,13 @@
 /**
  * Supported document types (extensible for future)
  */
-export type DocumentType = "pdf" | "text" | "markdown" | "image" | "other";
+export type DocumentType =
+	| "pdf"
+	| "text"
+	| "markdown"
+	| "image"
+	| "excel"
+	| "other";
 
 /**
  * Document MIME type mapping
@@ -16,6 +22,11 @@ export const DOCUMENT_MIME_TYPES: Record<DocumentType, string[]> = {
 	text: ["text/plain"],
 	markdown: ["text/markdown", "text/x-markdown"],
 	image: ["image/jpeg", "image/png", "image/gif", "image/webp"],
+	excel: [
+		"application/vnd.ms-excel",
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		"application/vnd.ms-excel.sheet.macroEnabled.12",
+	],
 	other: ["*/*"],
 };
 
@@ -40,6 +51,9 @@ export interface DocumentFile {
 		// Image specific
 		width?: number;
 		height?: number;
+		// Excel specific
+		sheetCount?: number;
+		sheetNames?: string[];
 		// General
 		description?: string;
 		tags?: string[];

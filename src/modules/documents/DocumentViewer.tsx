@@ -22,8 +22,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { documentStorageService } from "@/modules/documents/services/document-storage";
 import { PDFPageSelector } from "./PDFPageSelector";
+import { ExcelViewer } from "./ExcelViewer";
 import { logInfo, logError } from "@/utils/logger";
 import { backgroundJob } from "@/services/background-jobs/background-job";
+import {
+	parseExcelFile,
+	workbookToMarkdown,
+} from "@/embedded/excel-extraction";
 
 interface DocumentViewerProps {
 	file: DocumentFile;
@@ -40,6 +45,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 }) => {
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [textContent, setTextContent] = useState<string | null>(null);
+	const [excelData, setExcelData] = useState<Uint8Array | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [showProperties, setShowProperties] = useState(false);
 	const [showPageSelector, setShowPageSelector] = useState(false);
@@ -52,12 +58,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				setLoading(true);
 				try {
 					const content = await documentStorageService.getFileContent(file.id);
-					// Convert Uint8Array to ArrayBuffer for Blob
-					const arrayBuffer =
-						content.buffer instanceof ArrayBuffer
-							? content.buffer
-							: new ArrayBuffer(content.byteLength);
-					const blob = new Blob([arrayBuffer], { type: file.mimeType });
+					// Create blob directly from Uint8Array
+					const blob = new Blob([content], { type: file.mimeType });
 					const url = URL.createObjectURL(blob);
 					setPreviewUrl(url);
 				} catch (error) {
@@ -74,6 +76,19 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					setTextContent(text);
 				} catch (error) {
 					console.error("Failed to load text content:", error);
+				} finally {
+					setLoading(false);
+				}
+			} else if (file.type === "excel") {
+				setLoading(true);
+				try {
+					logInfo("Loading Excel file content for:", file.name);
+					const content = await documentStorageService.getFileContent(file.id);
+					logInfo("Excel content loaded, size:", content.length, "bytes");
+					setExcelData(content);
+					logInfo("Excel data set in state");
+				} catch (error) {
+					logError("Failed to load Excel file:", error);
 				} finally {
 					setLoading(false);
 				}
@@ -171,6 +186,68 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 		}
 	};
 
+	const handleConvertExcel = async () => {
+		try {
+			setConverting(true);
+
+			// Get file content from storage
+			const fileContent = await documentStorageService.getFileContent(file.id);
+
+			logInfo(`Converting Excel file in main thread: ${file.name}`);
+
+			// Parse Excel file and convert to markdown
+			const workbook = await parseExcelFile(fileContent);
+			const markdownContent = workbookToMarkdown(workbook);
+
+			// Create title from file name
+			const title = file.name.replace(/\.(xls|xlsx|xlsm)$/i, "");
+
+			logInfo(
+				`Excel converted to markdown in main thread, saving to offscreen...`,
+			);
+
+			// Send markdown content to offscreen to save
+			const { jobId, promise } = await backgroundJob.execute(
+				"remember-save",
+				{
+					sourceType: "file_upload" as const,
+					sourceUrl: `document://${file.id}`,
+					title,
+					rawContent: markdownContent,
+					cleanContent: markdownContent,
+					textContent: markdownContent,
+					sourceMetadata: {
+						inputMethod: "direct" as const,
+						timestamp: new Date().toISOString(),
+						context: `Excel file: ${file.name}`,
+					},
+					extractionMetadata: {
+						method: "excel-extraction",
+						fileName: file.name,
+						timestamp: new Date().toISOString(),
+						sheetCount: file.metadata?.sheetCount,
+						sheetNames: file.metadata?.sheetNames,
+					},
+				},
+				{ stream: false },
+			);
+
+			logInfo(`Remember save job created: ${jobId}`);
+
+			// Wait for completion
+			const result = await promise;
+
+			logInfo(`Excel save completed:`, result);
+
+			alert("Successfully converted Excel file to remembered content!");
+		} catch (error) {
+			logError("Failed to convert Excel file:", error);
+			alert("Failed to convert Excel file. Please try again.");
+		} finally {
+			setConverting(false);
+		}
+	};
+
 	return (
 		<div className="flex flex-col h-full bg-card">
 			{/* Header */}
@@ -182,6 +259,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 						{file.metadata?.pageCount && (
 							<span className="text-xs text-muted-foreground">
 								{file.metadata.pageCount} pages
+							</span>
+						)}
+						{file.metadata?.sheetCount && (
+							<span className="text-xs text-muted-foreground">
+								{file.metadata.sheetCount} sheets
 							</span>
 						)}
 					</div>
@@ -202,6 +284,19 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							variant="default"
 							size="sm"
 							onClick={handleConvertText}
+							disabled={converting}
+						>
+							<BookmarkPlus className="h-4 w-4 mr-2" />
+							<span className="hidden sm:inline">
+								{converting ? "Converting..." : "Convert to Remember"}
+							</span>
+						</Button>
+					)}
+					{file.type === "excel" && (
+						<Button
+							variant="default"
+							size="sm"
+							onClick={handleConvertExcel}
 							disabled={converting}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
@@ -277,6 +372,18 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					</ScrollArea>
 				)}
 
+				{file.type === "excel" && excelData && (
+					<div className="flex-1 p-4 overflow-hidden">
+						<div className="border rounded-lg overflow-hidden h-full">
+							<ExcelViewer
+								fileData={excelData}
+								fileName={file.name}
+								className="h-full"
+							/>
+						</div>
+					</div>
+				)}
+
 				{loading && (
 					<div className="flex-1 p-4 overflow-hidden">
 						<div className="flex items-center justify-center h-full border rounded-lg">
@@ -315,6 +422,33 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 										</div>
 									</div>
 								)}
+
+								{file.metadata?.sheetCount && (
+									<div className="flex items-start gap-3">
+										<FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
+										<div className="flex-1 min-w-0">
+											<div className="text-xs text-muted-foreground">
+												Sheets
+											</div>
+											<div className="text-sm">{file.metadata.sheetCount}</div>
+										</div>
+									</div>
+								)}
+
+								{file.metadata?.sheetNames &&
+									file.metadata.sheetNames.length > 0 && (
+										<div className="flex items-start gap-3">
+											<FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
+											<div className="flex-1 min-w-0">
+												<div className="text-xs text-muted-foreground">
+													Sheet Names
+												</div>
+												<div className="text-sm">
+													{file.metadata.sheetNames.join(", ")}
+												</div>
+											</div>
+										</div>
+									)}
 
 								<Separator />
 

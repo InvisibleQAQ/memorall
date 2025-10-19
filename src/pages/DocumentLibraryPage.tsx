@@ -41,6 +41,7 @@ import type {
 } from "@/types/document-library";
 import { logError, logInfo } from "@/utils/logger";
 import { readPDFFile } from "@/embedded/pdf-extraction";
+import { readExcelFile } from "@/embedded/excel-extraction";
 
 export const DocumentLibraryPage: React.FC = () => {
 	// State
@@ -173,8 +174,10 @@ export const DocumentLibraryPage: React.FC = () => {
 				// Update progress
 				updateProgress(id, 10, "uploading");
 
-				// Extract PDF metadata if it's a PDF
+				// Extract metadata based on file type
 				let metadata: DocumentFile["metadata"] | undefined;
+
+				// PDF metadata
 				if (file.type === "application/pdf") {
 					try {
 						updateProgress(id, 30, "processing");
@@ -187,6 +190,26 @@ export const DocumentLibraryPage: React.FC = () => {
 						};
 					} catch (err) {
 						logError("Failed to extract PDF metadata:", err);
+					}
+				}
+
+				// Excel metadata
+				else if (
+					file.type === "application/vnd.ms-excel" ||
+					file.type ===
+						"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+					file.type === "application/vnd.ms-excel.sheet.macroEnabled.12"
+				) {
+					try {
+						updateProgress(id, 30, "processing");
+						const excelContent = await readExcelFile(file);
+						metadata = {
+							title: excelContent.title,
+							sheetCount: excelContent.sheetCount,
+							sheetNames: excelContent.sheetNames,
+						};
+					} catch (err) {
+						logError("Failed to extract Excel metadata:", err);
 					}
 				}
 
@@ -346,7 +369,7 @@ export const DocumentLibraryPage: React.FC = () => {
 		const input = document.createElement("input");
 		input.type = "file";
 		input.multiple = true;
-		input.accept = ".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.webp";
+		input.accept = ".pdf,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,.xls,.xlsx,.xlsm";
 		input.onchange = (e) => {
 			const files = (e.target as HTMLInputElement).files;
 			if (files && files.length > 0) {

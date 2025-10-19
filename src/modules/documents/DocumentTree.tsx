@@ -29,6 +29,7 @@ const FILE_ICONS: Record<DocumentType, React.ComponentType<any>> = {
 	text: FileText,
 	markdown: FileCode,
 	image: Image,
+	excel: FileText,
 	other: File,
 };
 
@@ -37,6 +38,7 @@ const FILE_COLORS: Record<DocumentType, string> = {
 	text: "text-gray-500",
 	markdown: "text-blue-500",
 	image: "text-green-500",
+	excel: "text-green-600",
 	other: "text-gray-400",
 };
 
