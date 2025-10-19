@@ -15,6 +15,7 @@ export type ServiceProvider =
 	| "wllama"
 	| "webllm"
 	| "openai"
+	| "openrouter"
 	| "lmstudio"
 	| "ollama";
 

@@ -690,7 +690,13 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 			// WebLLM requires last message to be from user or tool role
 			const messages: ChatMessage[] = [
-				{ role: "system", content: RESPONSE_GENERATION_PROMPT.replace("{context}", state.knowledgeContext) },
+				{
+					role: "system",
+					content: RESPONSE_GENERATION_PROMPT.replace(
+						"{context}",
+						state.knowledgeContext,
+					),
+				},
 				{ role: "user", content: state.query },
 			];
 

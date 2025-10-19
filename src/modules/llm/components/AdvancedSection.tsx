@@ -13,6 +13,7 @@ import { ProviderTabs } from "./ProviderTabs";
 import { WllamaTab } from "./WllamaTab";
 import { WebLLMTab } from "./WebLLMTab";
 import { OpenAITab } from "./OpenAITab";
+import { OpenRouterTab } from "./OpenRouterTab";
 import { LocalOpenAITab } from "./LocalOpenAITab";
 import { ChatSection } from "./ChatSection";
 import { LogsSection } from "./LogsSection";
@@ -37,9 +38,21 @@ interface AdvancedSectionProps {
 	setFilePath: (filePath: string) => void;
 	availableFiles: FileInfo[];
 	setAvailableFiles: (files: FileInfo[]) => void;
-	advancedProvider: "wllama" | "webllm" | "openai" | "lmstudio" | "ollama";
+	advancedProvider:
+		| "wllama"
+		| "webllm"
+		| "openai"
+		| "openrouter"
+		| "lmstudio"
+		| "ollama";
 	setAdvancedProvider: (
-		provider: "wllama" | "webllm" | "openai" | "lmstudio" | "ollama",
+		provider:
+			| "wllama"
+			| "webllm"
+			| "openai"
+			| "openrouter"
+			| "lmstudio"
+			| "ollama",
 	) => void;
 	webllmModel: string;
 	setWebllmModel: (model: string) => void;
@@ -74,7 +87,13 @@ interface AdvancedSectionProps {
 	onOpenAITabSelect: () => void;
 	onModelLoaded?: (
 		modelId: string,
-		provider: "wllama" | "webllm" | "openai" | "lmstudio" | "ollama",
+		provider:
+			| "wllama"
+			| "webllm"
+			| "openai"
+			| "openrouter"
+			| "lmstudio"
+			| "ollama",
 	) => void;
 }
 
@@ -172,6 +191,10 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 
 				{advancedProvider === "openai" && (
 					<OpenAITab onModelLoaded={onModelLoaded} />
+				)}
+
+				{advancedProvider === "openrouter" && (
+					<OpenRouterTab onModelLoaded={onModelLoaded} />
 				)}
 
 				{advancedProvider === "lmstudio" && (

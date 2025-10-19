@@ -18,7 +18,7 @@ export const useLLMState = () => {
 	const [filePath, setFilePath] = useState("");
 	const [availableFiles, setAvailableFiles] = useState<FileInfo[]>([]);
 	const [advancedProvider, setAdvancedProvider] = useState<
-		"wllama" | "webllm" | "openai" | "lmstudio" | "ollama"
+		"wllama" | "webllm" | "openai" | "openrouter" | "lmstudio" | "ollama"
 	>("wllama");
 	const [webllmModel, setWebllmModel] = useState("");
 	const [webllmAvailableModels, setWebllmAvailableModels] = useState<string[]>(

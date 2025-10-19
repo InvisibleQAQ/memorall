@@ -12,6 +12,7 @@ import type {
 } from "./types";
 import { backgroundProcessFactory } from "./process-factory";
 import type { ChatCompletionRequest } from "@/types/openai";
+import { restoreAuthProvider } from "@/utils/auth-provider-restore";
 
 const JOB_NAMES = {
 	getCurrentModel: "get-current-model",
@@ -23,6 +24,7 @@ const JOB_NAMES = {
 	deleteModel: "delete-model",
 	createLLMService: "create-llm-service",
 	chatCompletion: "chat-completion",
+	restoreAuthProvider: "restore-auth-provider",
 } as const;
 
 export interface GetCurrentModelPayload {
@@ -68,6 +70,11 @@ export interface ChatCompletionPayload {
 	request: Record<string, unknown>; // ChatCompletionRequest from @/types/openai
 }
 
+export interface RestoreAuthProviderPayload {
+	provider: "openai" | "openrouter";
+	passkey: string;
+}
+
 export interface GetCurrentModelResult extends Record<string, unknown> {
 	modelInfo: unknown;
 }
@@ -109,6 +116,11 @@ export interface ChatCompletionResult extends Record<string, unknown> {
 	response: unknown;
 }
 
+export interface RestoreAuthProviderResult extends Record<string, unknown> {
+	restored: boolean;
+	provider: string;
+}
+
 export type LLMModelsJob = BaseJob & {
 	jobType: (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 	payload:
@@ -120,7 +132,8 @@ export type LLMModelsJob = BaseJob & {
 		| UnloadModelPayload
 		| DeleteModelPayload
 		| CreateLLMServicePayload
-		| ChatCompletionPayload;
+		| ChatCompletionPayload
+		| RestoreAuthProviderPayload;
 };
 
 export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
@@ -148,6 +161,8 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 				return await this.handleCreateLLMService(jobId, job, dependencies);
 			case JOB_NAMES.chatCompletion:
 				return await this.handleChatCompletion(jobId, job, dependencies);
+			case JOB_NAMES.restoreAuthProvider:
+				return await this.handleRestoreAuthProvider(jobId, job, dependencies);
 			default:
 				throw new Error(`Unknown LLM job type: ${job.jobType}`);
 		}
@@ -691,6 +706,43 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 
 		return { response };
 	}
+
+	private async handleRestoreAuthProvider(
+		jobId: string,
+		job: BaseJob,
+		dependencies: ProcessDependencies,
+	): Promise<ItemHandlerResult> {
+		const { logger, updateJobProgress } = dependencies;
+		const payload = job.payload as RestoreAuthProviderPayload;
+
+		await logger.info(
+			`Starting restore-auth-provider job for: ${payload.provider}`,
+			{ jobId },
+		);
+
+		await updateJobProgress(jobId, {
+			stage: `Restoring ${payload.provider} authentication`,
+			progress: 30,
+		});
+
+		// Restore provider in background thread (main mode)
+		await restoreAuthProvider(payload.provider, payload.passkey);
+
+		await updateJobProgress(jobId, {
+			stage: `${payload.provider} authentication restored`,
+			progress: 90,
+		});
+
+		await logger.info(`Restore-auth-provider job completed`, {
+			jobId,
+			provider: payload.provider,
+		});
+
+		return {
+			restored: true,
+			provider: payload.provider,
+		};
+	}
 }
 
 // Self-register the handler
@@ -711,6 +763,7 @@ declare global {
 		"delete-model": DeleteModelPayload;
 		"create-llm-service": CreateLLMServicePayload;
 		"chat-completion": ChatCompletionPayload;
+		"restore-auth-provider": RestoreAuthProviderPayload;
 	}
 
 	interface JobResultRegistry {
@@ -723,5 +776,6 @@ declare global {
 		"delete-model": DeleteModelResult;
 		"create-llm-service": CreateLLMServiceResult;
 		"chat-completion": ChatCompletionResult;
+		"restore-auth-provider": RestoreAuthProviderResult;
 	}
 }

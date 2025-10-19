@@ -5,6 +5,7 @@ export const DEFAULT_SERVICES = {
 	WLLAMA: "wllama",
 	WEBLLM: "webllm",
 	OPENAI: "openai",
+	OPENROUTER: "openrouter",
 	LMSTUDIO: "lmstudio",
 	OLLAMA: "ollama",
 } as const;
@@ -14,6 +15,7 @@ export const PROVIDER_TO_SERVICE: Record<ServiceProvider, string> = {
 	wllama: DEFAULT_SERVICES.WLLAMA,
 	webllm: DEFAULT_SERVICES.WEBLLM,
 	openai: DEFAULT_SERVICES.OPENAI,
+	openrouter: DEFAULT_SERVICES.OPENROUTER,
 	lmstudio: DEFAULT_SERVICES.LMSTUDIO,
 	ollama: DEFAULT_SERVICES.OLLAMA,
 };

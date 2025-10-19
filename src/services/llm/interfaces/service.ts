@@ -31,6 +31,12 @@ export interface LMStudioConfig {
 	baseURL?: string;
 }
 
+export interface OpenRouterConfig {
+	type: "openrouter";
+	apiKey?: string;
+	baseURL?: string;
+}
+
 export interface CustomConfig {
 	type: "custom";
 	[key: string]: unknown;
@@ -48,7 +54,8 @@ export type ServiceProvider =
 	| "webllm"
 	| "openai"
 	| "lmstudio"
-	| "ollama";
+	| "ollama"
+	| "openrouter";
 
 export interface CurrentModelInfo {
 	modelId: string;
@@ -76,6 +83,10 @@ export interface LLMRegistry {
 	lmstudio: {
 		config: LMStudioConfig;
 		llm: LocalOpenAICompatibleLLM;
+	};
+	openrouter: {
+		config: OpenRouterConfig;
+		llm: OpenAILLM;
 	};
 	custom: {
 		config: CustomConfig;

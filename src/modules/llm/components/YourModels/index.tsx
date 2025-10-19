@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Loader2, Zap } from "lucide-react";
 import { OpenAITab } from "@/modules/llm/components/OpenAITab";
+import { OpenRouterTab } from "@/modules/llm/components/OpenRouterTab";
 import { LocalOpenAITab } from "@/modules/llm/components/LocalOpenAITab";
 
 // Hooks
@@ -47,6 +48,7 @@ export const YourModels: React.FC<YourModelsProps> = ({
 		getState,
 		setStateReady,
 		setPasskeyExists,
+		setConfigExists,
 		localConfigExists,
 		setLocalConfigExists,
 		quickProvider,
@@ -64,10 +66,16 @@ export const YourModels: React.FC<YourModelsProps> = ({
 
 	// Get provider-specific states
 	const openaiState = getState("openai");
+	const openrouterState = getState("openrouter");
 
 	const { localModels, localModelsLoading } = useLocalModels(
 		quickProvider,
 		localConfigExists,
+		quickProvider === "openai"
+			? openaiState.ready
+			: quickProvider === "openrouter"
+				? openrouterState.ready
+				: undefined,
 	);
 
 	const {
@@ -126,9 +134,9 @@ export const YourModels: React.FC<YourModelsProps> = ({
 						/>
 					</div>
 
-					{/* Config gating for OpenAI and Local providers */}
-					{(quickProvider === "openai" &&
-						(!openaiState.configExists || !openaiState.passkeyExists)) ||
+					{/* Config gating for OpenAI, OpenRouter and Local providers */}
+					{(quickProvider === "openai" && !openaiState.ready) ||
+					(quickProvider === "openrouter" && !openrouterState.ready) ||
 					((quickProvider === "lmstudio" || quickProvider === "ollama") &&
 						!localConfigExists) ? (
 						<div className="border rounded-lg p-4">
@@ -137,7 +145,17 @@ export const YourModels: React.FC<YourModelsProps> = ({
 									onModelLoaded={(modelId) => {
 										setStateReady("openai", true);
 										setPasskeyExists("openai", true);
+										setConfigExists("openai", true);
 										onModelLoaded?.(modelId, "openai");
+									}}
+								/>
+							) : quickProvider === "openrouter" ? (
+								<OpenRouterTab
+									onModelLoaded={(modelId) => {
+										setStateReady("openrouter", true);
+										setPasskeyExists("openrouter", true);
+										setConfigExists("openrouter", true);
+										onModelLoaded?.(modelId, "openrouter");
 									}}
 								/>
 							) : (
@@ -151,7 +169,10 @@ export const YourModels: React.FC<YourModelsProps> = ({
 							)}
 						</div>
 					) : localModelsLoading &&
-						(quickProvider === "lmstudio" || quickProvider === "ollama") ? (
+						(quickProvider === "lmstudio" ||
+							quickProvider === "ollama" ||
+							quickProvider === "openai" ||
+							quickProvider === "openrouter") ? (
 						<div className="flex items-center justify-center p-4 border rounded-lg">
 							<Loader2 className="w-4 h-4 animate-spin mr-2" />
 							<span className="text-sm text-muted-foreground">
@@ -160,7 +181,10 @@ export const YourModels: React.FC<YourModelsProps> = ({
 						</div>
 					) : (
 						<div className="grid gap-2">
-							{quickProvider === "lmstudio" || quickProvider === "ollama" ? (
+							{quickProvider === "lmstudio" ||
+							quickProvider === "ollama" ||
+							quickProvider === "openai" ||
+							quickProvider === "openrouter" ? (
 								<LocalModelsList
 									localModels={localModels}
 									quickProvider={quickProvider}

@@ -1,9 +1,21 @@
 import React from "react";
 
 interface ProviderTabsProps {
-	advancedProvider: "wllama" | "webllm" | "openai" | "lmstudio" | "ollama";
+	advancedProvider:
+		| "wllama"
+		| "webllm"
+		| "openai"
+		| "openrouter"
+		| "lmstudio"
+		| "ollama";
 	setAdvancedProvider: (
-		provider: "wllama" | "webllm" | "openai" | "lmstudio" | "ollama",
+		provider:
+			| "wllama"
+			| "webllm"
+			| "openai"
+			| "openrouter"
+			| "lmstudio"
+			| "ollama",
 	) => void;
 	loading: boolean;
 	onProviderChange: () => void;
@@ -72,6 +84,22 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 				disabled={loading}
 			>
 				OpenAI
+			</button>
+			<button
+				onClick={() => {
+					setAdvancedProvider("openrouter");
+					if (advancedProvider !== "openrouter") {
+						onProviderChange();
+					}
+				}}
+				className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+					advancedProvider === "openrouter"
+						? "border-primary text-primary"
+						: "border-transparent text-muted-foreground hover:text-foreground"
+				}`}
+				disabled={loading}
+			>
+				OpenRouter
 			</button>
 			<button
 				onClick={() => {

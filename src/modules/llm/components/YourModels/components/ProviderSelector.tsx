@@ -23,6 +23,7 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
 				<option value="wllama">Wllama (GGUF)</option>
 				<option value="webllm">WebLLM (MLC)</option>
 				<option value="openai">OpenAI (Cloud)</option>
+				<option value="openrouter">OpenRouter (Cloud)</option>
 				<option value="lmstudio">LM Studio (Local)</option>
 				<option value="ollama">Ollama (Local)</option>
 			</select>

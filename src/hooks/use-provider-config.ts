@@ -35,6 +35,13 @@ const PROVIDER_CONFIGS: Record<ServiceProvider, ProviderConfig> = {
 		encryptionKey: "openai_config",
 		isLocal: false,
 	},
+	openrouter: {
+		requiresAuth: true,
+		readyKey: "openrouter_ready",
+		passkeyKey: "openrouter_passkey",
+		encryptionKey: "openrouter_config",
+		isLocal: false,
+	},
 	lmstudio: {
 		requiresAuth: false,
 		configKey: "lmstudio_config",
@@ -213,7 +220,14 @@ export function useProviderConfig() {
 	const setStateReady = (provider: ServiceProvider, isReady: boolean) => {
 		setProviderStates((prev) => ({
 			...prev,
-			[provider]: { ...getState(provider), ready: isReady },
+			[provider]: {
+				...(prev[provider] || {
+					ready: false,
+					passkeyExists: false,
+					configExists: null,
+				}),
+				ready: isReady,
+			},
 		}));
 	};
 
@@ -223,7 +237,14 @@ export function useProviderConfig() {
 	const setPasskeyExists = (provider: ServiceProvider, exists: boolean) => {
 		setProviderStates((prev) => ({
 			...prev,
-			[provider]: { ...getState(provider), passkeyExists: exists },
+			[provider]: {
+				...(prev[provider] || {
+					ready: false,
+					passkeyExists: false,
+					configExists: null,
+				}),
+				passkeyExists: exists,
+			},
 		}));
 	};
 
@@ -236,7 +257,14 @@ export function useProviderConfig() {
 	) => {
 		setProviderStates((prev) => ({
 			...prev,
-			[provider]: { ...getState(provider), configExists: exists },
+			[provider]: {
+				...(prev[provider] || {
+					ready: false,
+					passkeyExists: false,
+					configExists: null,
+				}),
+				configExists: exists,
+			},
 		}));
 	};
 

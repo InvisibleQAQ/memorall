@@ -15,6 +15,7 @@ import type {
 	LMStudioConfig,
 	OllamaConfig,
 	OpenAIConfig,
+	OpenRouterConfig,
 } from "./interfaces/service";
 import { DEFAULT_SERVICES } from "./constants";
 import { LLMServiceCore } from "./llm-service-core";
@@ -43,6 +44,16 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 				llm = new OpenAILLM(
 					(config as OpenAIConfig).apiKey,
 					(config as OpenAIConfig).baseURL,
+				) as LLMRegistry[K]["llm"];
+				await llm.initialize();
+				this.llms.set(name, llm);
+				return llm;
+
+			case "openrouter":
+				llm = new OpenAILLM(
+					(config as OpenRouterConfig).apiKey,
+					(config as OpenRouterConfig).baseURL ||
+						"https://openrouter.ai/api/v1",
 				) as LLMRegistry[K]["llm"];
 				await llm.initialize();
 				this.llms.set(name, llm);

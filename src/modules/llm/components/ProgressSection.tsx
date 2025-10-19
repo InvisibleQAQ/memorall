@@ -39,19 +39,19 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
 						: webllmModel || "WebLLM model"}
 				</span>
 				<span className="text-muted-foreground">
-					{downloadProgress.percent}%
+					{Number(downloadProgress.percent.toFixed(2))}%
 				</span>
 			</div>
 			<Progress value={downloadProgress.percent} className="h-2" />
 			<div className="flex justify-between text-xs text-muted-foreground">
 				<span>
 					{downloadProgress.loaded > 0 && downloadProgress.total > 0
-						? `${(downloadProgress.loaded / (1024 * 1024)).toFixed(1)} MB / ${(downloadProgress.total / (1024 * 1024)).toFixed(1)} MB`
+						? `${(downloadProgress.loaded / (1024 * 1024)).toFixed(2)} MB / ${(downloadProgress.total / (1024 * 1024)).toFixed(2)} MB`
 						: "Initializing..."}
 				</span>
 				<span>
 					{downloadProgress.loaded > 0 && downloadProgress.total > 0
-						? `ETA: ${Math.round((downloadProgress.total - downloadProgress.loaded) / 1024 / 1024 / 2)}s`
+						? `ETA: ${Math.round((downloadProgress.total - downloadProgress.loaded) / 1024 / 1024 / 2).toFixed(2)}s`
 						: ""}
 				</span>
 			</div>

@@ -29,13 +29,21 @@ import { ThemeProvider } from "./components/molecules/Copilot/ThemeContext";
 import { CopilotProvider, Copilot } from "./components/atoms/copilot";
 import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
 import { DocumentLibraryPage } from "./pages/DocumentLibraryPage";
+import { PasskeyPromptDialog } from "./components/molecules/PasskeyPromptDialog";
+import {
+	checkProviderNeedsRestore,
+	restoreAuthProvider,
+} from "./utils/auth-provider-restore";
 
 const App: React.FC = () => {
 	const [servicesStatus, setServicesStatus] = useState<
-		"loading" | "ready" | "error"
+		"loading" | "ready" | "error" | "awaiting-passkey"
 	>("loading");
 	const [initError, setInitError] = useState<string | null>(null);
 	const [uiProgress, setUiProgress] = useState(0);
+	const [passkeyProvider, setPasskeyProvider] = useState<
+		"openai" | "openrouter" | null
+	>(null);
 
 	// Bridge component to access navigate from message listener once Router is active
 	const NavigatorBridge: React.FC = () => {
@@ -77,6 +85,37 @@ const App: React.FC = () => {
 						setUiProgress(100);
 						// Small delay before showing app
 						await serviceManager.initialize({ proxy: true });
+
+						// Check if current model requires authentication
+						try {
+							const currentModel =
+								await serviceManager.llmService.getCurrentModel();
+							if (
+								currentModel &&
+								(currentModel.provider === "openai" ||
+									currentModel.provider === "openrouter")
+							) {
+								// Check if provider needs passkey to restore
+								const needsRestore = await checkProviderNeedsRestore(
+									currentModel.provider,
+								);
+								if (needsRestore) {
+									logInfo(
+										`🔐 ${currentModel.provider} authentication required - waiting for passkey`,
+									);
+									setPasskeyProvider(currentModel.provider);
+									setServicesStatus("awaiting-passkey");
+									return;
+								}
+							}
+						} catch (error) {
+							logError(
+								"Failed to check auth provider restore - continuing anyway:",
+								error,
+							);
+							// Continue to ready state even if check fails
+						}
+
 						setTimeout(() => {
 							setServicesStatus("ready");
 							logInfo("✅ App initialization complete");
@@ -93,6 +132,36 @@ const App: React.FC = () => {
 
 		initializeApp();
 	}, []);
+
+	// Handle passkey submission
+	const handlePasskeySubmit = async (passkey: string) => {
+		if (!passkeyProvider) return;
+
+		try {
+			// Restore provider in UI thread (proxy mode)
+			await restoreAuthProvider(passkeyProvider, passkey);
+
+			// Also restore in offscreen thread (main mode) via background job
+			await backgroundJob.execute(
+				"restore-auth-provider",
+				{ provider: passkeyProvider, passkey },
+				{ stream: false },
+			);
+
+			logInfo(`✅ ${passkeyProvider} authenticated and restored`);
+			setPasskeyProvider(null);
+			setServicesStatus("ready");
+		} catch (error) {
+			logError("Failed to restore auth provider:", error);
+			throw error; // Re-throw to let dialog show error
+		}
+	};
+
+	const handlePasskeyCancel = () => {
+		setPasskeyProvider(null);
+		setServicesStatus("ready"); // Continue without the auth provider
+		logInfo("User cancelled passkey prompt - continuing without auth provider");
+	};
 
 	// Initial route is set before first render in popup.tsx based on storage flag
 
@@ -130,8 +199,41 @@ const App: React.FC = () => {
 								for await (const progress of progressStream) {
 									setUiProgress(progress.progress);
 									if (progress.status === "completed") {
-										setServicesStatus("ready");
-										logInfo("✅ App re-initialization complete");
+										setUiProgress(100);
+										await serviceManager.initialize({ proxy: true });
+
+										// Check auth provider with error handling
+										try {
+											const currentModel =
+												await serviceManager.llmService.getCurrentModel();
+											if (
+												currentModel &&
+												(currentModel.provider === "openai" ||
+													currentModel.provider === "openrouter")
+											) {
+												const needsRestore = await checkProviderNeedsRestore(
+													currentModel.provider,
+												);
+												if (needsRestore) {
+													logInfo(
+														`🔐 ${currentModel.provider} authentication required - waiting for passkey`,
+													);
+													setPasskeyProvider(currentModel.provider);
+													setServicesStatus("awaiting-passkey");
+													return;
+												}
+											}
+										} catch (error) {
+											logError(
+												"Failed to check auth provider restore - continuing anyway:",
+												error,
+											);
+										}
+
+										setTimeout(() => {
+											setServicesStatus("ready");
+											logInfo("✅ App re-initialization complete");
+										}, 100);
 										break;
 									}
 								}
@@ -177,6 +279,16 @@ const App: React.FC = () => {
 						</Layout>
 						<Copilot />
 					</Router>
+
+					{/* Passkey prompt dialog */}
+					{passkeyProvider && (
+						<PasskeyPromptDialog
+							open={servicesStatus === "awaiting-passkey"}
+							provider={passkeyProvider}
+							onPasskeySubmit={handlePasskeySubmit}
+							onCancel={handlePasskeyCancel}
+						/>
+					)}
 				</NiceModal.Provider>
 			</CopilotProvider>
 		</ThemeProvider>

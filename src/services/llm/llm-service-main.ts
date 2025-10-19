@@ -16,6 +16,7 @@ import type {
 	LMStudioConfig,
 	OllamaConfig,
 	OpenAIConfig,
+	OpenRouterConfig,
 	WebLLMConfig,
 	WllamaConfig,
 } from "./interfaces/service";
@@ -57,6 +58,13 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 				llm = new OpenAILLM(
 					(config as OpenAIConfig).apiKey,
 					(config as OpenAIConfig).baseURL,
+				) as LLMRegistry[K]["llm"];
+				break;
+			case "openrouter":
+				llm = new OpenAILLM(
+					(config as OpenRouterConfig).apiKey,
+					(config as OpenRouterConfig).baseURL ||
+						"https://openrouter.ai/api/v1",
 				) as LLMRegistry[K]["llm"];
 				break;
 			case "ollama":
