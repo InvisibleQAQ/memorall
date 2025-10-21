@@ -9,6 +9,120 @@ import type {
 	ChatCompletionResponse,
 } from "@/types/openai";
 
+// Well-known model configurations with context window and max response tokens
+interface ModelConfig {
+	pattern: string; // Simplified pattern for matching (no special chars)
+	contextWindow: number; // Total context window in tokens
+	maxResponseTokens: number; // Maximum tokens for response
+}
+
+const WELL_KNOWN_MODELS: ModelConfig[] = [
+	// OpenAI GPT-5 (August 2025) - Latest flagship
+	{ pattern: "gpt5", contextWindow: 400000, maxResponseTokens: 128000 },
+
+	// OpenAI GPT-4.1 (2025) - 1M context window
+	{ pattern: "gpt41", contextWindow: 1000000, maxResponseTokens: 128000 },
+
+	// OpenAI GPT-4o (2024-2025)
+	{ pattern: "gpt4o", contextWindow: 128000, maxResponseTokens: 16384 },
+	{ pattern: "gpt4omini", contextWindow: 128000, maxResponseTokens: 16384 },
+
+	// OpenAI GPT-4 Turbo
+	{ pattern: "gpt4turbo", contextWindow: 128000, maxResponseTokens: 4096 },
+
+	// OpenAI o1 models (2024)
+	{ pattern: "o1", contextWindow: 200000, maxResponseTokens: 100000 },
+	{ pattern: "o1preview", contextWindow: 128000, maxResponseTokens: 32768 },
+	{ pattern: "o1mini", contextWindow: 128000, maxResponseTokens: 65536 },
+
+	// Anthropic Claude Sonnet 4 (2025) - 1M beta context
+	{ pattern: "claude4", contextWindow: 1000000, maxResponseTokens: 64000 },
+	{
+		pattern: "claudesonnet4",
+		contextWindow: 1000000,
+		maxResponseTokens: 64000,
+	},
+	{ pattern: "claudeopus41", contextWindow: 200000, maxResponseTokens: 64000 },
+
+	// Anthropic Claude 3.5 (2024-2025)
+	{ pattern: "claude35sonnet", contextWindow: 200000, maxResponseTokens: 8192 },
+	{ pattern: "claude35haiku", contextWindow: 200000, maxResponseTokens: 8192 },
+	{ pattern: "claude37", contextWindow: 200000, maxResponseTokens: 128000 },
+
+	// Anthropic Claude 3 (2024)
+	{ pattern: "claude3opus", contextWindow: 200000, maxResponseTokens: 4096 },
+	{ pattern: "claude3sonnet", contextWindow: 200000, maxResponseTokens: 4096 },
+	{ pattern: "claude3haiku", contextWindow: 200000, maxResponseTokens: 4096 },
+
+	// Google Gemini 2.5 (2025)
+	{ pattern: "gemini25pro", contextWindow: 1048576, maxResponseTokens: 65535 },
+	{
+		pattern: "gemini25flash",
+		contextWindow: 1048576,
+		maxResponseTokens: 65535,
+	},
+
+	// Google Gemini 2.0 (2024-2025)
+	{ pattern: "gemini20flash", contextWindow: 1048576, maxResponseTokens: 8192 },
+	{ pattern: "gemini2flash", contextWindow: 1048576, maxResponseTokens: 8192 },
+
+	// Google Gemini 1.5 (2024) - up to 2M tokens
+	{ pattern: "gemini15pro", contextWindow: 2097152, maxResponseTokens: 8192 },
+	{ pattern: "gemini15flash", contextWindow: 1048576, maxResponseTokens: 8192 },
+
+	// Meta Llama 4 (April 2025) - 10M context for Scout!
+	{ pattern: "llama4scout", contextWindow: 10000000, maxResponseTokens: 8192 },
+	{
+		pattern: "llama4maverick",
+		contextWindow: 1000000,
+		maxResponseTokens: 8192,
+	},
+	{ pattern: "llama4", contextWindow: 1000000, maxResponseTokens: 8192 },
+
+	// Meta Llama 3.1 (2024) - 128K context
+	{ pattern: "llama31", contextWindow: 128000, maxResponseTokens: 8192 },
+	{ pattern: "llama3", contextWindow: 128000, maxResponseTokens: 4096 },
+
+	// Mistral AI (2025) - 128K context for flagship models
+	{ pattern: "mistrallarge", contextWindow: 128000, maxResponseTokens: 4096 },
+	{ pattern: "mistralmedium", contextWindow: 128000, maxResponseTokens: 4096 },
+	{ pattern: "mistralnemo", contextWindow: 128000, maxResponseTokens: 4096 },
+	{ pattern: "mistralsmall", contextWindow: 32000, maxResponseTokens: 4096 },
+
+	// Qwen 2.5 (Alibaba 2024-2025)
+	{ pattern: "qwen25", contextWindow: 131072, maxResponseTokens: 8192 },
+	{ pattern: "qwen2", contextWindow: 32768, maxResponseTokens: 8192 },
+
+	// DeepSeek V4 (2025) - 1M+ context preview
+	{ pattern: "deepseekv4", contextWindow: 1000000, maxResponseTokens: 64000 },
+
+	// DeepSeek V3.1 (August 2025) - 128K context
+	{ pattern: "deepseekv31", contextWindow: 128000, maxResponseTokens: 64000 },
+	{ pattern: "deepseekv3", contextWindow: 128000, maxResponseTokens: 64000 },
+
+	// DeepSeek R1 & V3 (2025) - 64K context
+	{ pattern: "deepseekr1", contextWindow: 64000, maxResponseTokens: 64000 },
+	{ pattern: "deepseek", contextWindow: 64000, maxResponseTokens: 32000 },
+];
+
+/**
+ * Normalize model name by removing special characters and converting to lowercase
+ */
+function normalizeModelName(modelName: string): string {
+	return modelName.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Find matching model configuration by checking if normalized model name includes pattern
+ */
+function findModelConfig(modelName: string): ModelConfig | null {
+	const normalized = normalizeModelName(modelName);
+	return (
+		WELL_KNOWN_MODELS.find((config) => normalized.includes(config.pattern)) ||
+		null
+	);
+}
+
 // A lightweight OpenAI-compatible client using fetch/SSE.
 // Supports both OpenAI and local OpenAI-compatible servers (LM Studio, Ollama).
 export class OpenAILLM implements BaseLLM {
@@ -58,8 +172,28 @@ export class OpenAILLM implements BaseLLM {
 		return this.ready;
 	}
 
-	async getMaxModelTokens(): Promise<number> {
+	async getMaxModelTokens(model?: string): Promise<number> {
+		if (!model) return 10000; // Default fallback
+
+		const config = findModelConfig(model);
+		if (config) {
+			return config.contextWindow;
+		}
+
+		// Default fallback for unknown models
 		return 10000;
+	}
+
+	async getMaxResponseTokens(model?: string): Promise<number> {
+		if (!model) return 8000; // Default fallback
+
+		const config = findModelConfig(model);
+		if (config) {
+			return config.maxResponseTokens;
+		}
+
+		// Default fallback for unknown models (80% of context window)
+		return Math.round(10000 * 0.8);
 	}
 
 	async models(): Promise<ModelsResponse> {
@@ -115,7 +249,7 @@ export class OpenAILLM implements BaseLLM {
 		if (!this.ready) await this.initialize();
 
 		const body = {
-			model: request.model || "gpt-3.5-turbo",
+			model: request.model,
 			messages: request.messages.map((m) => ({
 				role: m.role,
 				content: m.content,

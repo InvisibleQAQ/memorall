@@ -56,9 +56,22 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 		}
 	};
 
+	const handleCancelClick = () => {
+		const confirmed = window.confirm(
+			`Are you sure you want to cancel?\n\nThis will clear the selected ${providerLabel} model. You'll need to select a different model to continue.`,
+		);
+
+		if (confirmed) {
+			onCancel();
+		}
+	};
+
 	return (
-		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
-			<DialogContent className="sm:max-w-md">
+		<Dialog open={open} onOpenChange={() => {}}>
+			<DialogContent
+				className="sm:max-w-md w-[calc(100%-20px)]"
+				onInteractOutside={(e) => e.preventDefault()}
+			>
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<Key className="w-5 h-5 text-primary" />
@@ -136,7 +149,7 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 							)}
 						</Button>
 						<Button
-							onClick={onCancel}
+							onClick={handleCancelClick}
 							disabled={isLoading}
 							variant="outline"
 							className="flex-1"

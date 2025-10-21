@@ -110,6 +110,17 @@ const defaultSteps: CopilotStep[] = [
 		showProgress: true,
 	},
 	{
+		id: "documents-tab-quick",
+		title: "📄 Documents Tab",
+		content:
+			"Your personal document library where you can upload, organize, and manage PDFs, Excel files, images, and other documents. Access them anytime and use AI to analyze their content.",
+		target: '[href="/documents"]',
+		placement: "bottom",
+		action: "navigate",
+		navigationPath: "/documents",
+		showProgress: true,
+	},
+	{
 		id: "models-tab-intro",
 		title: "🤖 Models Tab - Setup Required!",
 		content:

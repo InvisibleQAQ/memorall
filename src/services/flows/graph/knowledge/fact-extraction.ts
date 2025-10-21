@@ -436,6 +436,7 @@ export class FactExtractionFlow {
 
 		try {
 			const maxModelTokens = await this.services.llm.getMaxModelTokens();
+			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
 
 			const additionalFacts = await mapRefine<ExtractedFact>(
 				llm,
@@ -458,7 +459,7 @@ export class FactExtractionFlow {
 				fullText,
 				{
 					maxModelTokens: Math.floor(maxModelTokens * 0.8),
-					maxResponseTokens: 3000,
+					maxResponseTokens,
 					temperature: 0.2, // Slightly higher creativity for finding implicit relationships
 					maxRetries: 2,
 					dedupeBy: (f) =>

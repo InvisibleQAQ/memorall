@@ -59,7 +59,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				try {
 					const content = await documentStorageService.getFileContent(file.id);
 					// Create blob directly from Uint8Array
-					const blob = new Blob([content] as unknown as BlobPart[], { type: file.mimeType });
+					const blob = new Blob([content] as unknown as BlobPart[], {
+						type: file.mimeType,
+					});
 					const url = URL.createObjectURL(blob);
 					setPreviewUrl(url);
 				} catch (error) {

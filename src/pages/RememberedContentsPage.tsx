@@ -127,26 +127,7 @@ export const RememberedContentsPage: React.FC<
 			{ status: string; validFrom: Date | null; effectiveStatus: string }
 		>
 	>(new Map());
-
-	// Subscribe to conversion updates
-	useEffect(() => {
-		const unsubscribe = knowledgeGraphService.subscribe((newConversions) => {
-			setConversions(new Map(newConversions));
-
-			// Reload source statuses when conversions change
-			const changedPageIds = Array.from(newConversions.values())
-				.filter(
-					(conv) => conv.status === "completed" || conv.status === "failed",
-				)
-				.map((conv) => conv.pageId);
-
-			if (changedPageIds.length > 0) {
-				loadSourceStatuses(changedPageIds);
-			}
-		});
-
-		return unsubscribe;
-	}, []);
+	const [generatingGraph, setGeneratingGraph] = useState(false);
 
 	// Poll status ONLY for selected content if it's in progress and not actively being handled
 	// This handles the case where user opens a page that was already processing
@@ -261,7 +242,13 @@ export const RememberedContentsPage: React.FC<
 	};
 
 	const handleConvertToGraph = async (page: RememberedContent) => {
+		let timeout = setTimeout(() => {
+			setGeneratingGraph(false);
+		}, 30000);
 		try {
+			// Set loading state immediately
+			setGeneratingGraph(true);
+
 			// Create the background job - status will be tracked in DB
 			const { promise } = await backgroundJob.createJob(
 				"knowledge-graph",
@@ -293,6 +280,10 @@ export const RememberedContentsPage: React.FC<
 			logError("Failed to start knowledge graph conversion:", error);
 			// Reload status to reflect any error state
 			await loadSourceStatuses([page.id]);
+		} finally {
+			// Clear loading state
+			setGeneratingGraph(false);
+			clearTimeout(timeout);
 		}
 	};
 
@@ -642,11 +633,13 @@ export const RememberedContentsPage: React.FC<
 															handleConvertToGraph(selectedContent)
 														}
 														disabled={
+															generatingGraph ||
 															sourceStatuses.get(selectedContent.id)
 																?.effectiveStatus === "processing"
 														}
 													>
-														{sourceStatuses.get(selectedContent.id)
+														{generatingGraph ||
+														sourceStatuses.get(selectedContent.id)
 															?.effectiveStatus === "processing" ? (
 															<>
 																<Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -782,11 +775,13 @@ export const RememberedContentsPage: React.FC<
 															handleConvertToGraph(selectedContent)
 														}
 														disabled={
+															generatingGraph ||
 															sourceStatuses.get(selectedContent.id)
 																?.effectiveStatus === "processing"
 														}
 													>
-														{sourceStatuses.get(selectedContent.id)
+														{generatingGraph ||
+														sourceStatuses.get(selectedContent.id)
 															?.effectiveStatus === "processing" ? (
 															<>
 																<Loader2 className="h-4 w-4 mr-2 animate-spin" />

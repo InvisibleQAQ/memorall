@@ -76,19 +76,24 @@ export const CopilotOverlay: React.FC<CopilotOverlayProps> = ({
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
 				transition={{ duration: 0.3 }}
-				className={`fixed inset-0 pointer-events-none ${className || ""}`}
+				className={`fixed inset-0 pointer-events-auto ${className || ""}`}
 				style={{
 					zIndex: 2147483647, // Maximum z-index value
 					isolation: "isolate",
 				}}
+				onClick={(e) => {
+					// Prevent clicks from passing through to underlying elements
+					e.preventDefault();
+					e.stopPropagation();
+				}}
 			>
 				{/* Backdrop with hole */}
-				<div className="absolute inset-0 pointer-events-none">
+				<div className="absolute inset-0 pointer-events-auto">
 					<svg
 						width="100%"
 						height="100%"
 						className="absolute inset-0"
-						style={{ pointerEvents: "none" }}
+						style={{ pointerEvents: "auto" }}
 					>
 						<defs>
 							<mask id="copilot-mask">

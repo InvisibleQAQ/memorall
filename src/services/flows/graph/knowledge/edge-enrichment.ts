@@ -237,6 +237,7 @@ ${allNodesText || "No connected nodes"}
 			};
 
 			const maxModelTokens = await this.services.llm.getMaxModelTokens();
+			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
 
 			const enrichedFacts = await mapRefine<ExtractedFact>(
 				llm,
@@ -259,7 +260,7 @@ ${allNodesText || "No connected nodes"}
 				fullText,
 				{
 					maxModelTokens,
-					maxResponseTokens: 4096,
+					maxResponseTokens,
 					temperature: 0.0,
 					maxRetries: 2,
 					dedupeBy: (f) =>

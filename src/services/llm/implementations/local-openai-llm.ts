@@ -33,8 +33,14 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 		return this.ready;
 	}
 
-	async getMaxModelTokens(): Promise<number> {
+	async getMaxModelTokens(model?: string): Promise<number> {
+		// Default fallback for unknown models
 		return 10000;
+	}
+
+	async getMaxResponseTokens(model?: string): Promise<number> {
+		// Default fallback for unknown models (80% of context window)
+		return Math.round(10000 * 0.8);
 	}
 
 	private headers(): HeadersInit {
@@ -92,7 +98,7 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 		if (!this.ready) await this.initialize();
 
 		const body = {
-			model: request.model || "local-model",
+			model: request.model,
 			messages: request.messages.map((m) => ({
 				role: m.role,
 				content: m.content,

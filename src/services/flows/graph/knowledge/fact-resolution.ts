@@ -271,6 +271,7 @@ ${factsText}
 			};
 
 			const maxModelTokens = await this.services.llm.getMaxModelTokens();
+			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
 
 			const aiResolvedFacts = await mapRefine<ResolvedFact>(
 				llm,
@@ -298,7 +299,7 @@ ${factsText}
 				fullText,
 				{
 					maxModelTokens,
-					maxResponseTokens: 6144,
+					maxResponseTokens,
 					temperature: 0.0,
 					maxRetries: 2,
 					dedupeBy: (f) =>

@@ -19,6 +19,7 @@ const JOB_NAMES = {
 	getAllModels: "get-all-models",
 	getModelsForService: "get-models-for-service",
 	getMaxModelTokens: "get-max-model-tokens",
+	getMaxResponseTokens: "get-max-response-tokens",
 	serveModel: "serve-model",
 	unloadModel: "unload-model",
 	deleteModel: "delete-model",
@@ -40,7 +41,13 @@ export interface GetModelsForServicePayload {
 }
 
 export interface GetMaxModelTokensPayload {
-	serviceName: string;
+	serviceName?: string;
+	model?: string;
+}
+
+export interface GetMaxResponseTokensPayload {
+	serviceName?: string;
+	model?: string;
 }
 
 export interface ServeModelPayload {
@@ -92,6 +99,10 @@ export interface GetMaxModelTokensResult extends Record<string, unknown> {
 	maxModelTokens: number;
 }
 
+export interface GetMaxResponseTokensResult extends Record<string, unknown> {
+	maxResponseTokens: number;
+}
+
 export interface ServeModelResult extends Record<string, unknown> {
 	modelInfo: unknown;
 }
@@ -133,7 +144,8 @@ export type LLMModelsJob = BaseJob & {
 		| DeleteModelPayload
 		| CreateLLMServicePayload
 		| ChatCompletionPayload
-		| RestoreAuthProviderPayload;
+		| RestoreAuthProviderPayload
+		| GetMaxResponseTokensPayload;
 };
 
 export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
@@ -163,6 +175,8 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 				return await this.handleChatCompletion(jobId, job, dependencies);
 			case JOB_NAMES.restoreAuthProvider:
 				return await this.handleRestoreAuthProvider(jobId, job, dependencies);
+			case JOB_NAMES.getMaxResponseTokens:
+				return await this.handleGetMaxResponseTokens(jobId, job, dependencies);
 			default:
 				throw new Error(`Unknown LLM job type: ${job.jobType}`);
 		}
@@ -272,15 +286,14 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 		dependencies: ProcessDependencies,
 	): Promise<ItemHandlerResult> {
 		const { logger, updateJobProgress } = dependencies;
-		const payload = job.payload as GetMaxModelTokensPayload;
+		const { serviceName, model } = job.payload as GetMaxModelTokensPayload;
 
-		await logger.info(
-			`Starting get-max-model-tokens job for: ${payload.serviceName}`,
-			{ jobId },
-		);
+		await logger.info(`Starting get-max-model-tokens job for: ${serviceName}`, {
+			jobId,
+		});
 
 		await updateJobProgress(jobId, {
-			stage: `Getting max model tokens for ${payload.serviceName}`,
+			stage: `Getting max model tokens for ${serviceName}`,
 			progress: 50,
 		});
 
@@ -290,22 +303,63 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 			throw new Error("LLM service not available");
 		}
 
-		// Get the LLM service instance
-		const llm = await llmService.get(payload.serviceName);
-		if (!llm) {
-			throw new Error(`LLM service "${payload.serviceName}" not found`);
+		let maxModelTokens: number;
+		if (!serviceName) {
+			maxModelTokens = await llmService.getMaxModelTokens(model);
+		} else {
+			maxModelTokens = await llmService.getMaxModelTokensFor(
+				serviceName,
+				model,
+			);
 		}
-
-		// Get max model tokens from the LLM instance
-		const maxModelTokens = await llm.getMaxModelTokens();
 
 		await logger.info(`Get-max-model-tokens job completed`, {
 			jobId,
-			serviceName: payload.serviceName,
+			serviceName,
 			maxModelTokens,
 		});
 
 		return { maxModelTokens };
+	}
+
+	private async handleGetMaxResponseTokens(
+		jobId: string,
+		job: BaseJob,
+		dependencies: ProcessDependencies,
+	): Promise<ItemHandlerResult> {
+		const { logger, updateJobProgress } = dependencies;
+		const { serviceName, model } = job.payload as GetMaxResponseTokensPayload;
+
+		logger.info(`[getMaxResponseTokens] job started`, { jobId });
+
+		await updateJobProgress(jobId, {
+			stage: "Getting max response tokens from LLM service",
+			progress: 50,
+		});
+
+		const llmService = serviceManager.getLLMService();
+
+		if (!llmService) {
+			throw new Error("LLM service not available");
+		}
+
+		// Get max response tokens from the background LLM service
+		let maxResponseTokens: number;
+		if (!serviceName) {
+			maxResponseTokens = await llmService.getMaxResponseTokens(model);
+		} else {
+			maxResponseTokens = await llmService.getMaxResponseTokensFor(
+				serviceName,
+				model,
+			);
+		}
+
+		logger.info(`[getMaxResponseTokens] job completed`, {
+			jobId,
+			maxResponseTokens,
+		});
+
+		return { maxResponseTokens };
 	}
 
 	private async handleServeModel(
@@ -764,6 +818,7 @@ declare global {
 		"create-llm-service": CreateLLMServicePayload;
 		"chat-completion": ChatCompletionPayload;
 		"restore-auth-provider": RestoreAuthProviderPayload;
+		"get-max-response-tokens": GetMaxResponseTokensPayload;
 	}
 
 	interface JobResultRegistry {
@@ -777,5 +832,6 @@ declare global {
 		"create-llm-service": CreateLLMServiceResult;
 		"chat-completion": ChatCompletionResult;
 		"restore-auth-provider": RestoreAuthProviderResult;
+		"get-max-response-tokens": GetMaxResponseTokensResult;
 	}
 }

@@ -1,6 +1,6 @@
 import type { ChatMessage } from "@/types/openai";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
-import { logError } from "./logger";
+import { logDebug, logError, logInfo } from "./logger";
 
 // Simple token estimator: ~4 chars per token heuristic
 function estimateTokens(text: string): number {
@@ -85,15 +85,25 @@ export async function mapRefine<T>(
 	const {
 		temperature = 0.1,
 		maxModelTokens,
-		maxResponseTokens = 512,
 		overlapTokens = 64,
 		dedupeBy,
 		maxRetries = 2,
 		onError,
 	} = options;
+	let { maxResponseTokens = 512 } = options;
+
+	if (maxResponseTokens >= maxModelTokens) {
+		maxResponseTokens = Math.floor(maxModelTokens * 0.8);
+	}
 
 	// Initial chunking of source text
 	let chunks = chunkByTokens(sourceText, {
+		maxModelTokens,
+		maxResponseTokens,
+		overlapTokens,
+	});
+
+	logInfo(`[MapRefine] ${chunks.length} chunks`, {
 		maxModelTokens,
 		maxResponseTokens,
 		overlapTokens,
@@ -294,7 +304,7 @@ async function processChunkWithRetry<T>(
 
 			const response = await llm.chatCompletions({
 				messages,
-				max_tokens: maxResponseTokens,
+				// max_tokens: maxResponseTokens,
 				temperature,
 				stream: false,
 			});

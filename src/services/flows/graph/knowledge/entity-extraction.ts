@@ -247,6 +247,7 @@ export class EntityExtractionFlow {
 			};
 
 			const maxModelTokens = await this.services.llm.getMaxModelTokens();
+			const maxResponseTokens = await this.services.llm.getMaxModelTokens();
 
 			const extractedEntities = await mapRefine<ExtractedEntity>(
 				llm,
@@ -272,7 +273,7 @@ export class EntityExtractionFlow {
 				formattedContent,
 				{
 					maxModelTokens,
-					maxResponseTokens: 4096,
+					maxResponseTokens,
 					temperature: isUserInput ? 0.2 : 0.1, // Higher creativity for user input
 					maxRetries: 2,
 					dedupeBy: (e) => e.name.toLowerCase(),

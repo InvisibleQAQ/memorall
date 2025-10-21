@@ -44,7 +44,10 @@ export interface BaseLLM {
 	isReady(): boolean;
 
 	// Get maximum tokens supported by the model
-	getMaxModelTokens(): Promise<number>;
+	getMaxModelTokens(model?: string): Promise<number>;
+
+	// Get maximum response tokens supported by the model
+	getMaxResponseTokens(model?: string): Promise<number>;
 
 	// Get available models
 	models(): Promise<ModelsResponse>;

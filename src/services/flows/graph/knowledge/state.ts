@@ -117,6 +117,10 @@ export const KnowledgeGraphAnnotation = Annotation.Root({
 		value: (x, y) => y ?? x,
 		default: () => undefined,
 	}),
+	sourceId: Annotation<string | undefined>({
+		value: (x, y) => y ?? x,
+		default: () => undefined,
+	}),
 	previousMessages: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,
 		default: () => undefined,

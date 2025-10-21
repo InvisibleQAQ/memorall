@@ -365,6 +365,44 @@ export abstract class LLMServiceCore {
 		}
 	}
 
+	async getMaxModelTokens(model?: string): Promise<number> {
+		if (!this.currentModel) {
+			throw new Error("No current model selected");
+		}
+
+		return this.getMaxModelTokensFor(this.currentModel.serviceName, model);
+	}
+
+	async getMaxModelTokensFor(name: string, model?: string): Promise<number> {
+		const llm = await this.get(name);
+		if (!llm) {
+			throw new Error(
+				`Service "${name}" not found. Service must be registered first.`,
+			);
+		}
+
+		return await llm.getMaxModelTokens(model || this.currentModel?.modelId);
+	}
+
+	async getMaxResponseTokens(model?: string): Promise<number> {
+		if (!this.currentModel) {
+			throw new Error("No current model selected");
+		}
+
+		return this.getMaxResponseTokensFor(this.currentModel.serviceName, model);
+	}
+
+	async getMaxResponseTokensFor(name: string, model?: string): Promise<number> {
+		const llm = await this.get(name);
+		if (!llm) {
+			throw new Error(
+				`Service "${name}" not found. Service must be registered first.`,
+			);
+		}
+
+		return await llm.getMaxResponseTokens(model || this.currentModel?.modelId);
+	}
+
 	// Abstract methods that must be implemented by concrete classes
 	abstract get(name: string): Promise<BaseLLM | undefined>;
 	abstract isReady(): boolean;

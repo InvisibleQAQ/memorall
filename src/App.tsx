@@ -25,7 +25,7 @@ import {
 	CursorFollow,
 	CursorProvider,
 } from "./components/ui/shadcn-io/animated-cursor";
-import { ThemeProvider } from "./components/molecules/Copilot/ThemeContext";
+import { ThemeProvider } from "./components/molecules/ThemeContext";
 import { CopilotProvider, Copilot } from "./components/atoms/copilot";
 import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
 import { DocumentLibraryPage } from "./pages/DocumentLibraryPage";
@@ -157,7 +157,17 @@ const App: React.FC = () => {
 		}
 	};
 
-	const handlePasskeyCancel = () => {
+	const handlePasskeyCancel = async () => {
+		// Clear the current model since the user cancelled passkey entry
+		try {
+			await serviceManager.llmService.clearCurrentModel();
+			logInfo(
+				"Cleared current model after passkey cancellation - user will need to select a different model",
+			);
+		} catch (error) {
+			logError("Failed to clear current model:", error);
+		}
+
 		setPasskeyProvider(null);
 		setServicesStatus("ready"); // Continue without the auth provider
 		logInfo("User cancelled passkey prompt - continuing without auth provider");

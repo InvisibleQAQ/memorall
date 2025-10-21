@@ -235,6 +235,7 @@ ${entitiesText}
 			};
 
 			const maxModelTokens = await this.services.llm.getMaxModelTokens();
+			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
 
 			const aiResolvedEntities = await mapRefine<ResolvedEntity>(
 				llm,
@@ -262,7 +263,7 @@ ${entitiesText}
 				fullText,
 				{
 					maxModelTokens,
-					maxResponseTokens: 4096,
+					maxResponseTokens,
 					temperature: 0.0,
 					maxRetries: 2,
 					dedupeBy: (e) => `${e.name.toLowerCase()}|${e.nodeType}`,

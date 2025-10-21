@@ -162,31 +162,15 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 		return await llm.models();
 	}
 
-	async getMaxModelTokens(): Promise<number> {
-		if (!this.currentModel) {
-			throw new Error("No current model selected");
-		}
-
-		return this.getMaxModelTokensFor(this.currentModel.serviceName);
-	}
-
-	async getMaxModelTokensFor(name: string): Promise<number> {
-		const llm = await this.get(name);
-		if (!llm) {
-			throw new Error(
-				`Service "${name}" not found. Service must be registered first.`,
-			);
-		}
-
-		return await llm.getMaxModelTokens();
-	}
-
 	chatCompletionsFor(
 		name: string,
 		request: ChatCompletionRequest,
 	):
 		| Promise<ChatCompletionResponse>
 		| AsyncIterableIterator<ChatCompletionChunk> {
+		if (!request.model) {
+			request.model = this.currentModel?.modelId;
+		}
 		if (request.stream) {
 			const self = this;
 			return (async function* () {

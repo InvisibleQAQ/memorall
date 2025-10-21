@@ -35,12 +35,13 @@ export class LLMProxy implements BaseLLM {
 		return true;
 	}
 
-	async getMaxModelTokens(): Promise<number> {
+	async getMaxModelTokens(model?: string): Promise<number> {
 		try {
 			const { promise } = await backgroundJob.execute(
 				"get-max-model-tokens",
 				{
 					serviceName: this.name,
+					model,
 				},
 				{ stream: false },
 			);
@@ -51,6 +52,31 @@ export class LLMProxy implements BaseLLM {
 				return result.result.maxModelTokens as number;
 			}
 			throw new Error(result.error || "Failed to get max model tokens");
+		} catch (error) {
+			throw new Error(`Background job failed: ${error}`);
+		}
+	}
+
+	async getMaxResponseTokens(model?: string): Promise<number> {
+		try {
+			const jobResponse = await backgroundJob.execute(
+				"get-max-response-tokens",
+				{
+					serviceName: this.name,
+					model,
+				},
+				{ stream: false },
+			);
+
+			if (!("promise" in jobResponse)) {
+				throw new Error("Failed to get max response tokens");
+			}
+			const result = await jobResponse.promise;
+
+			if (result.status === "completed" && result.result) {
+				return result.result.maxResponseTokens;
+			}
+			throw new Error(result.error || "Failed to get max response tokens");
 		} catch (error) {
 			throw new Error(`Background job failed: ${error}`);
 		}

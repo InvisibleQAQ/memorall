@@ -163,6 +163,7 @@ ${state.referenceTimestamp}
 
 			// Use mapRefine for temporal extraction with retry and error handling
 			const maxModelTokens = await this.services.llm.getMaxModelTokens();
+			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
 
 			const enrichedFacts = await mapRefine<EnrichedFact>(
 				this.services.llm,
@@ -191,7 +192,7 @@ ${state.referenceTimestamp}
 					.join("\n"),
 				{
 					maxModelTokens,
-					maxResponseTokens: 4096,
+					maxResponseTokens,
 					temperature: 0.0,
 					maxRetries: 2,
 					dedupeBy: (f) =>

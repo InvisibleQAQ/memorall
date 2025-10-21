@@ -27,7 +27,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useTheme } from "@/components/molecules/Copilot/ThemeContext";
+import { useTheme } from "@/components/molecules/ThemeContext";
 import { CopilotTrigger } from "@/components/atoms/copilot";
 
 interface LayoutProps {

@@ -29,16 +29,8 @@ export type RememberSaveJob = BaseJob & {
 };
 
 export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
-	private rememberService: typeof rememberService;
-	private databaseService: DatabaseService;
-
-	constructor(
-		rememberServiceInstance = rememberService,
-		databaseServiceInstance = serviceManager.getDatabaseService(),
-	) {
+	constructor() {
 		super();
-		this.rememberService = rememberServiceInstance;
-		this.databaseService = databaseServiceInstance;
 	}
 
 	async process(
@@ -64,7 +56,7 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 				10,
 				dependencies,
 			);
-			await this.rememberService.initialize();
+			await rememberService.initialize();
 
 			// Save content
 			await this.addProgress(jobId, "Saving content...", 30, dependencies);
@@ -77,7 +69,7 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 					{},
 					"offscreen",
 				);
-				result = await this.rememberService.savePage(savePageData);
+				result = await rememberService.savePage(savePageData);
 			} else {
 				const saveContentData = payload as SaveContentData;
 				await dependencies.logger.info(
@@ -85,7 +77,7 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 					{},
 					"offscreen",
 				);
-				result = await this.rememberService.saveContentDirect(saveContentData);
+				result = await rememberService.saveContentDirect(saveContentData);
 			}
 
 			if (result.success) {
@@ -96,7 +88,7 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 				);
 
 				// Fetch the full saved content to return
-				const savedContent = await this.databaseService.use(
+				const savedContent = await serviceManager.databaseService.use(
 					async ({ db, schema }) => {
 						const rows = await db
 							.select()
@@ -132,12 +124,14 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 		dependencies: ProcessDependencies,
 	): Promise<void> {
 		try {
-			const rows = await this.databaseService.use(async ({ db, schema }) => {
-				return db
-					.select()
-					.from(schema.rememberedContent)
-					.where(eq(schema.rememberedContent.id, pageId));
-			});
+			const rows = await serviceManager.databaseService.use(
+				async ({ db, schema }) => {
+					return db
+						.select()
+						.from(schema.rememberedContent)
+						.where(eq(schema.rememberedContent.id, pageId));
+				},
+			);
 
 			await dependencies.logger.info(
 				`🗄️ DB verification for job ${jobId}`,
