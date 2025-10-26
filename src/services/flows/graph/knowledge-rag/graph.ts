@@ -11,19 +11,11 @@ import {
 	trigramSearchEdges,
 	combineSearchResultsWithTrigram,
 } from "@/utils/trigram-search";
-import { vectorSearchNodes, vectorSearchEdges } from "@/utils/vector-search";
+import { vectorSearchNodes, vectorSearchEdges, type VectorSearchResult } from "@/utils/vector-search";
 import type { DatabaseService } from "@/services/database/database-service";
 import type { BaseEmbedding } from "@/services/embedding";
 import { flowRegistry } from "../../flow-registry";
-
-// Types for vector search results with similarity scores
-interface NodeWithSimilarity extends Node {
-	similarity: number;
-}
-
-interface EdgeWithSimilarity extends Edge {
-	similarity: number;
-}
+import type { PgColumn } from "drizzle-orm/pg-core";
 
 const QUERY_ANALYSIS_PROMPT = `
 You are an expert at analyzing user queries for knowledge graph retrieval.
@@ -112,6 +104,14 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		// Compile the workflow
 		this.compile();
+	}
+
+	private getScopedGraphWhere(state: Pick<KnowledgeRAGState, "graphId">, column: PgColumn) {
+		if (state.graphId || !state.graphId?.trim()) {
+			return eq(column, state.graphId);
+		}
+
+		return or(eq(column, ""), sql`${column} IS NULL`);
 	}
 
 	analyzeQueryNode = async (
@@ -216,12 +216,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 				// Add topic filter if provided
 				const whereConditions = and(
 					or(...entitySearchConditions),
-					state.graphId
-						? eq(schema.nodes.graph, state.graphId)
-						: or(
-								eq(schema.nodes.graph, state.graphId || ""),
-								sql`${schema.nodes.graph} IS NULL`,
-							),
+					this.getScopedGraphWhere(state, schema.nodes.graph),
 				);
 
 				return await db
@@ -252,12 +247,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 				// Add topic filter if provided
 				const whereConditions = and(
 					or(...factSearchConditions),
-					state.graphId
-						? eq(schema.edges.graph, state.graphId)
-						: or(
-								eq(schema.edges.graph, state.graphId || ""),
-								sql`${schema.edges.graph} IS NULL`,
-							),
+					this.getScopedGraphWhere(state, schema.edges.graph),
 				);
 
 				return await db
@@ -321,8 +311,8 @@ export class KnowledgeRAGFlow extends GraphBase<
 			}
 
 			// 5. Fallback to vector search if both SQL and trigram fail or have insufficient results
-			let vectorNodes: Node[] = [];
-			let vectorEdges: Edge[] = [];
+			let vectorNodes: VectorSearchResult<Node>[] = [];
+			let vectorEdges: VectorSearchResult<Edge>[] = [];
 			const combinedNodeResults = sqlNodes.length + trigramNodeResults.length;
 			const combinedEdgeResults = sqlEdges.length + trigramEdgeResults.length;
 
@@ -332,64 +322,37 @@ export class KnowledgeRAGFlow extends GraphBase<
 				embedding
 			) {
 				try {
-					// Generate embedding for search terms
-					const searchText = state.extractedEntities.join(" ");
-					const searchEmbedding = await embedding.textToVector(searchText);
-
-					// Vector search for nodes
-					if (combinedNodeResults < TOTAL_NODE_LIMIT * 0.5) {
-						const vectorNodeResults = await database.use(async ({ raw }) => {
-							const topicFilter = state.graphId
-								? " AND graph = $3"
-								: " AND (graph = '' OR graph IS NULL)";
-							const query = `
-								SELECT *,
-									1 - (name_embedding <=> $1::vector) as similarity
-								FROM nodes
-								WHERE name_embedding IS NOT NULL ${topicFilter}
-								ORDER BY similarity DESC
-								LIMIT $2
-							`;
+					const defaultEmbedding = await embedding.get("default");
+					if (defaultEmbedding && defaultEmbedding.isReady()) {
+						// Vector search for nodes
+						if (combinedNodeResults < TOTAL_NODE_LIMIT * 0.5) {
 							const nodeLimit = Math.min(
 								TOTAL_NODE_LIMIT - combinedNodeResults,
 								Math.floor(TOTAL_NODE_LIMIT * 0.4),
 							);
-							const params = [JSON.stringify(searchEmbedding), nodeLimit];
-							if (state.graphId) {
-								params.push(state.graphId);
-							}
-							const result = await raw(query, params);
-							return (result as { rows: NodeWithSimilarity[] })?.rows || [];
-						});
-						vectorNodes = vectorNodeResults;
-					}
+							vectorNodes = await vectorSearchNodes(
+								database,
+								defaultEmbedding,
+								state.extractedEntities,
+								nodeLimit,
+								state.graphId,
+							);
+						}
 
-					// Vector search for edges
-					if (combinedEdgeResults < TOTAL_EDGE_LIMIT * 0.5) {
-						const vectorEdgeResults = await database.use(async ({ raw }) => {
-							const topicFilter = state.graphId
-								? " AND graph = $3"
-								: " AND (graph = '' OR graph IS NULL)";
-							const query = `
-								SELECT *,
-									1 - (fact_embedding <=> $1::vector) as similarity
-								FROM edges
-								WHERE fact_embedding IS NOT NULL ${topicFilter}
-								ORDER BY similarity DESC
-								LIMIT $2
-							`;
+						// Vector search for edges
+						if (combinedEdgeResults < TOTAL_EDGE_LIMIT * 0.5) {
 							const edgeLimit = Math.min(
 								TOTAL_EDGE_LIMIT - combinedEdgeResults,
 								Math.floor(TOTAL_EDGE_LIMIT * 0.4),
 							);
-							const params = [JSON.stringify(searchEmbedding), edgeLimit];
-							if (state.graphId) {
-								params.push(state.graphId);
-							}
-							const result = await raw(query, params);
-							return (result as { rows: EdgeWithSimilarity[] })?.rows || [];
-						});
-						vectorEdges = vectorEdgeResults;
+							vectorEdges = await vectorSearchEdges(
+								database,
+								defaultEmbedding,
+								state.extractedEntities,
+								edgeLimit,
+								state.graphId,
+							);
+						}
 					}
 				} catch (embeddingError) {
 					logError(
@@ -403,7 +366,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 			const combinedNodes = combineSearchResultsWithTrigram(
 				sqlNodes,
 				vectorNodes.map((node) => ({
-					item: node,
+					item: node as unknown as typeof sqlNodes[0],
 					similarity:
 						"similarity" in node && typeof node.similarity === "number"
 							? node.similarity
@@ -418,7 +381,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 			const combinedEdges = combineSearchResultsWithTrigram(
 				sqlEdges,
 				vectorEdges.map((edge) => ({
-					item: edge,
+					item: edge as unknown as typeof sqlEdges[0],
 					similarity:
 						"similarity" in edge && typeof edge.similarity === "number"
 							? edge.similarity
@@ -742,7 +705,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 	): Promise<Partial<KnowledgeRAGState>> => {
 		try {
 			logInfo(
-				"[KNOWLEDGE_RAG] Quick mode: Starting semantic search and graph growth",
+				`[KNOWLEDGE_RAG] Quick mode: Starting semantic search and graph growth for graphId: ${state.graphId}`,
 			);
 
 			const databaseService = this.services.database;
@@ -781,6 +744,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					nodesPerLevel: 20,
 					edgesPerLevel: 30,
 				},
+				state.graphId,
 			);
 
 			logInfo("[KNOWLEDGE_RAG] Quick mode results:", {
@@ -879,6 +843,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 		initialNodes: KnowledgeRAGState["relevantNodes"],
 		initialEdges: KnowledgeRAGState["relevantEdges"],
 		config: GraphGrowthConfig,
+		graphId?: string,
 	): Promise<{
 		nodes: KnowledgeRAGState["relevantNodes"];
 		edges: KnowledgeRAGState["relevantEdges"];
@@ -906,6 +871,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					Array.from(currentLevelNodeIds),
 					config.nodesPerLevel,
 					config.edgesPerLevel,
+					graphId,
 				);
 
 			// Add new nodes and edges
@@ -945,6 +911,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 		nodeIds: string[],
 		maxNodes: number,
 		maxEdges: number,
+		graphId?: string,
 	): Promise<{
 		newNodes: KnowledgeRAGState["relevantNodes"];
 		newEdges: KnowledgeRAGState["relevantEdges"];
@@ -960,9 +927,12 @@ export class KnowledgeRAGFlow extends GraphBase<
 				.select()
 				.from(schema.edges)
 				.where(
-					or(
-						inArray(schema.edges.sourceId, nodeIds),
-						inArray(schema.edges.destinationId, nodeIds),
+					and(
+						or(
+							inArray(schema.edges.sourceId, nodeIds),
+							inArray(schema.edges.destinationId, nodeIds),
+						),
+						this.getScopedGraphWhere({ graphId }, schema.edges.graph),
 					),
 				)
 				.limit(maxEdges);

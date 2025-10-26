@@ -34,7 +34,7 @@ export async function vectorSearchNodes(
 	searchTerms: string[],
 	limit: number,
 	graphFilter?: string,
-): Promise<VectorSearchResult<Partial<Node>>[]> {
+): Promise<VectorSearchResult<Node>[]> {
 	if (searchTerms.length === 0) return [];
 
 	try {
@@ -94,7 +94,7 @@ export async function vectorSearchNodes(
 					graph: row.graph,
 					createdAt: new Date(row.created_at),
 					updatedAt: new Date(row.updated_at),
-				},
+				} as Node,
 				similarity: row.similarity,
 			})) || []
 		);
@@ -113,7 +113,7 @@ export async function vectorSearchEdges(
 	searchTerms: string[],
 	limit: number,
 	graphFilter?: string,
-): Promise<VectorSearchResult<Partial<Edge>>[]> {
+): Promise<VectorSearchResult<Edge>[]> {
 	if (searchTerms.length === 0) return [];
 
 	try {
@@ -140,7 +140,7 @@ export async function vectorSearchEdges(
 						1 - (type_embedding <=> $1::vector)
 					) as similarity
 				FROM edges
-				WHERE fact_embedding IS NOT NULL OR type_embedding IS NOT NULL`;
+				WHERE (fact_embedding IS NOT NULL OR type_embedding IS NOT NULL)`;
 
 			const params: (string | number)[] = [JSON.stringify(searchEmbedding)];
 
@@ -190,7 +190,7 @@ export async function vectorSearchEdges(
 					graph: row.graph,
 					createdAt: new Date(row.created_at),
 					updatedAt: new Date(row.updated_at),
-				},
+				} as Edge,
 				similarity: row.similarity,
 			})) || []
 		);
