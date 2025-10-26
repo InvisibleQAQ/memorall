@@ -101,6 +101,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 								<PromptInputTools>
 									{/* Compact Mode Toggle */}
 									<Button
+										type="button"
 										variant="ghost"
 										size="sm"
 										disabled={isLoading}
@@ -139,6 +140,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
 												<Button
+													type="button"
 													variant="ghost"
 													size="sm"
 													disabled={isLoadingTopics}
@@ -183,6 +185,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 							<div className="flex items-center gap-2 flex-shrink-0">
 								{/* Clear Button - frequently used */}
 								<Button
+									type="button"
 									variant="ghost"
 									size="sm"
 									disabled={isLoading}
@@ -198,6 +201,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button
+											type="button"
 											variant="ghost"
 											size="sm"
 											disabled={isLoading}

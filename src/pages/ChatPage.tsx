@@ -41,31 +41,28 @@ export const ChatPage: React.FC = () => {
 		deleteMessages,
 	} = useChat(model);
 
-	// Memoized grouped messages - groups messages by separators
-	const messageGroups = useMemo(() => {
-		return groupMessagesBySeparators(messages);
+	// Memoized message groups - split into completed and latest
+	const { groups, inprogressGroup, completedGroupsIds } = useMemo(() => {
+		const groupResponse = groupMessagesBySeparators(messages);
+		return {
+			groups: groupResponse.groups,
+			inprogressGroup: groupResponse.inprogressGroup,
+			completedGroupsIds: groupResponse.completedGroupsIds.join(","),
+		};
 	}, [messages]);
 
-	// In-progress message - only this re-renders during streaming
-	const inProgressMessageElement = useMemo(() => {
-		if (!inProgressMessage || !isLoading) return null;
-
-		const message = messages.find((m) => m.id === inProgressMessage.id);
-		if (!message) return null;
-
-		const updatedMessage = {
-			...message,
-			content: inProgressMessage.content,
-			metadata: {
-				...("metadata" in message && typeof message.metadata === "object"
-					? message.metadata
-					: {}),
-				actions: inProgressMessage.actions,
-			},
-		};
-
-		return updatedMessage;
-	}, [inProgressMessage, messages, isLoading]);
+	// Memoized completed components - only re-render when completed groups actually change
+	const completedMessageGroups = useMemo(() => {
+		return groups.map((group) => (
+			<MessageGroup
+				key={group.id}
+				group={group}
+				isLoading={false}
+				inProgressMessage={null}
+				defaultCollapsed={true}
+			/>
+		));
+	}, [completedGroupsIds]); // Only re-render when completed groups change
 
 	// Fetch topics when knowledge mode is selected
 	useEffect(() => {
@@ -115,15 +112,18 @@ export const ChatPage: React.FC = () => {
 		<div className="flex flex-col h-full bg-background">
 			<Conversation className="flex-1 min-h-0">
 				<ConversationContent className="max-w-3xl mx-auto space-y-6">
-					{messageGroups.map((group, index) => (
+					{/* Completed groups - memoized components, never re-render during streaming */}
+					{completedMessageGroups}
+
+					{inprogressGroup ? (
 						<MessageGroup
-							key={group.id}
-							group={group}
-							isLoading={isLoading}
-							inProgressMessage={inProgressMessageElement}
-							defaultCollapsed={true}
+							key={inprogressGroup.id}
+							group={inprogressGroup}
+							isLoading={true}
+							inProgressMessage={inProgressMessage}
+							defaultCollapsed={false}
 						/>
-					))}
+					) : undefined}
 				</ConversationContent>
 				<ConversationScrollButton />
 			</Conversation>

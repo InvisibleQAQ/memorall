@@ -1,20 +1,19 @@
-import React, { useState } from "react";
+import dayjs from "dayjs";
+import React, { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { MessageRenderer } from "./MessageRenderer";
 import type { MessageGroup as MessageGroupType } from "../utils/message-grouping";
-import dayjs from "dayjs";
+import type { InProgressMessage } from "../hooks/use-chat";
 
 interface MessageGroupProps {
 	group: MessageGroupType;
 	isLoading?: boolean;
-	inProgressMessage?: any;
+	inProgressMessage?: InProgressMessage | null;
 	defaultCollapsed?: boolean;
 }
 
 export const MessageGroup: React.FC<MessageGroupProps> = ({
 	group,
-	isLoading = false,
 	inProgressMessage,
 	defaultCollapsed = false,
 }) => {
@@ -28,6 +27,45 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
 	const toggleCollapsed = () => {
 		setIsCollapsed(!isCollapsed);
 	};
+
+	const messageComponents = useMemo(() => {
+		return group.messages.map((message, index) =>
+			message.content ? (
+				<MessageRenderer
+					key={message.id}
+					message={message}
+					index={index}
+					isLastMessage={false}
+					isLoading={false}
+				/>
+			) : undefined,
+		);
+	}, [group.messages]);
+
+	const inProgressMessageComponent = useMemo(() => {
+		return inProgressMessage ? (
+			<MessageRenderer
+				key={inProgressMessage.id}
+				message={{
+					metadata: {},
+					createdAt: new Date(),
+					updatedAt: new Date(),
+					...inProgressMessage,
+					content: inProgressMessage.content || "",
+					id: inProgressMessage.id,
+					conversationId: "",
+					type: "",
+					role: "",
+					complexContent: null,
+					topicId: null,
+					embedding: null,
+				}}
+				index={0}
+				isLastMessage={true}
+				isLoading={true}
+			/>
+		) : undefined;
+	}, [inProgressMessage]);
 
 	return (
 		<div className="message-group">
@@ -66,40 +104,15 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
 			<div
 				className={`
 					overflow-hidden transition-all duration-300 ease-in-out
-					${
-						!isCollapsed || group.isLatest
-							? "max-h-[10000px] opacity-100"
-							: "max-h-0 opacity-0"
-					}
+					${!isCollapsed ? "max-h-[10000px] opacity-100" : "max-h-0 opacity-0"}
 				`}
 			>
 				<div className="space-y-4">
-					{group.messages.map((message, index) => {
-						// Skip the last placeholder message if we're loading
-						if (isLoading && index === group.messages.length - 1) {
-							return null;
-						}
-						return (
-							<MessageRenderer
-								key={message.id}
-								message={message}
-								index={index}
-								isLastMessage={false}
-								isLoading={false}
-							/>
-						);
-					})}
+					{/* Completed messages */}
+					{messageComponents}
 
-					{/* In-progress message for the latest group */}
-					{group.isLatest && inProgressMessage && (
-						<MessageRenderer
-							key={inProgressMessage.id}
-							message={inProgressMessage}
-							index={0}
-							isLastMessage={true}
-							isLoading={true}
-						/>
-					)}
+					{/* In-progress message - only when provided */}
+					{inProgressMessageComponent}
 				</div>
 			</div>
 
