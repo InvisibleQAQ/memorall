@@ -27,10 +27,12 @@ interface TopicPickerDialogProps {
 export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 	({ fileName }) => {
 		const modal = useModal();
-		
+
 		const [loading, setLoading] = useState(false);
 		const [topics, setTopics] = useState<Topic[]>([]);
-		const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>(undefined);
+		const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>(
+			undefined,
+		);
 
 		// Load topics when dialog opens
 		useEffect(() => {
@@ -73,9 +75,7 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 							<Tags className="h-5 w-5 text-primary" />
 							Select Topic
 						</DialogTitle>
-						<DialogDescription>
-							Choose topic for "{fileName}"
-						</DialogDescription>
+						<DialogDescription>Choose topic for "{fileName}"</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4">
@@ -110,7 +110,9 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 										</div>
 										<div>
 											<div className="font-medium">Default</div>
-											<div className="text-sm text-muted-foreground">No topic association</div>
+											<div className="text-sm text-muted-foreground">
+												No topic association
+											</div>
 										</div>
 									</button>
 
@@ -163,12 +165,10 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 						<Button variant="outline" onClick={handleCancel}>
 							Cancel
 						</Button>
-						<Button onClick={handleSelect}>
-							Select
-						</Button>
+						<Button onClick={handleSelect}>Select</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		);
-	}
+	},
 );

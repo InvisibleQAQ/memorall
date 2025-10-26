@@ -9,6 +9,7 @@ import type {
 	RpcResponse,
 	WorkerQueryPayload,
 	WorkerExecPayload,
+	WorkerQueryResult,
 } from "./types";
 
 export class DatabaseRpcHandler {
@@ -96,15 +97,22 @@ export class DatabaseRpcHandler {
 	}
 
 	// Handle query operations
-	private async handleQuery(payload: WorkerQueryPayload) {
+	private async handleQuery(
+		payload: WorkerQueryPayload,
+	): Promise<WorkerQueryResult> {
 		const pglite = getPGLite();
 		const { sql, params, rowMode } = payload;
 
 		// Execute query on the real PGlite instance
 		const result = await pglite.query(sql, params, { rowMode });
+
+		// Return complete result including fields metadata
+		// Drizzle needs the fields array to map column positions to names in array mode
+		// Must match PGlite's Results type (affectedRows, not rowCount)
 		return {
 			rows: result.rows,
-			rowCount: "rowCount" in result ? result.rowCount : undefined,
+			fields: "fields" in result ? result.fields : undefined,
+			affectedRows: "affectedRows" in result ? result.affectedRows : undefined,
 		};
 	}
 

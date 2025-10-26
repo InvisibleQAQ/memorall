@@ -24,7 +24,7 @@ import { TopicPickerDialog } from "@/modules/topics/modals";
 export async function convertToKnowledge(
 	file: DocumentFile,
 	currentFileTopics: Topic[] = [],
-	onTopicsUpdated?: () => void
+	onTopicsUpdated?: () => void,
 ): Promise<void> {
 	try {
 		// Show topic picker modal
@@ -35,10 +35,10 @@ export async function convertToKnowledge(
 		if (selectedTopicId === null || typeof selectedTopicId !== "string") {
 			return; // User cancelled
 		}
-		
+
 		// Add to topic if new association and not default
 		if (selectedTopicId) {
-			const currentTopicIds = currentFileTopics.map(topic => topic.id);
+			const currentTopicIds = currentFileTopics.map((topic) => topic.id);
 			const isNewAssociation = !currentTopicIds.includes(selectedTopicId);
 			if (isNewAssociation) {
 				await topicService.addFileToTopic(selectedTopicId, file.path);
@@ -70,7 +70,7 @@ export async function convertToKnowledge(
 				content: content,
 				topicId: selectedTopicId,
 			},
-			{ stream: false }
+			{ stream: false },
 		);
 
 		if ("promise" in result) {

@@ -28,12 +28,8 @@ import { PDFPageSelector } from "./PDFPageSelector";
 import { ExcelViewer } from "./ExcelViewer";
 import { ExcelSheetSelector } from "./ExcelSheetSelector";
 import { useModalSelector } from "../hooks/useModalSelector";
+import { useSourceStatus } from "../hooks/useSourceStatus";
 import { logInfo, logError } from "@/utils/logger";
-import { backgroundJob } from "@/services/background-jobs/background-job";
-import {
-	parseExcelFile,
-	workbookToMarkdown,
-} from "@/modules/documents/handlers/excel-extraction";
 import { serviceManager } from "@/services";
 import { eq, inArray } from "drizzle-orm";
 import { TopicBadgeList } from "@/modules/topics/components";
@@ -68,8 +64,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	const [showProperties, setShowProperties] = useState(false);
 	const pdfPageSelector = useModalSelector();
 	const excelSheetSelector = useModalSelector();
-	const [converting, setConverting] = useState(false);
 	const [loadedFileTopics, setLoadedFileTopics] = useState<Topic[]>([]);
+
+	// Track knowledge generation status using source
+	const sourceStatus = useSourceStatus(file.path);
 
 	// Use prop topics if provided, otherwise use loaded topics
 	const fileTopics = propFileTopics || loadedFileTopics;
@@ -268,11 +266,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							variant="default"
 							size="sm"
 							onClick={() => onConvertToKnowledge(file)}
-							disabled={converting}
+							disabled={sourceStatus.isGenerating}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
 							<span className="hidden sm:inline">
-								{converting ? "Converting..." : "Convert to Knowledge"}
+								{sourceStatus.isGenerating
+									? "Converting..."
+									: "Convert to Knowledge"}
 							</span>
 						</Button>
 					)}

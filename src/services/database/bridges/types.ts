@@ -3,9 +3,17 @@ export type RowMode = "array" | "object";
 export interface QueryOptions {
 	rowMode?: RowMode;
 }
+
+/** Field metadata for query results (column info) */
+export interface FieldDef {
+	name: string;
+	dataTypeID: number;
+}
+
 export interface QueryResult<R = unknown> {
 	rows: R[];
-	rowCount?: number;
+	fields?: FieldDef[]; // Column metadata needed by Drizzle for array mode
+	affectedRows?: number; // Must match PGlite's Results type
 }
 
 /** RPC ops supported by the server-side handler */
@@ -35,9 +43,11 @@ export interface WorkerQueryPayload {
 	params?: unknown[];
 	rowMode?: RowMode;
 }
+
 export interface WorkerQueryResult<R = unknown> {
 	rows: R[];
-	rowCount?: number;
+	fields?: FieldDef[]; // Column metadata needed by Drizzle for array mode
+	affectedRows?: number; // Must match PGlite's Results type
 }
 export interface WorkerExecPayload {
 	sql: string;

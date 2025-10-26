@@ -109,9 +109,11 @@ export class PGliteSharedProxy implements PGliteLike {
 		};
 		const res = await this.call<WorkerQueryResult<R>>("query", payload);
 		// Use specialized deserializer for query results to ensure proper Date handling
+		// Pass through fields metadata for Drizzle to map columns correctly
 		return deserializeQueryResult<R>({
 			rows: res?.rows ?? [],
-			rowCount: res?.rowCount,
+			fields: res?.fields,
+			affectedRows: res?.affectedRows,
 		});
 	}
 
@@ -173,9 +175,9 @@ export class PGliteSharedProxy implements PGliteLike {
 		this.clearTimer(waiter);
 
 		if (resp.ok) {
-			// Deserialize response data (handles Date objects from main thread)
-			const deserializedData = deserializeFromRpc(resp.data);
-			waiter.resolve(deserializedData);
+			// Don't deserialize here - let specific methods handle their own deserialization
+			// This keeps serialized dates as {__type: "Date", __value: "..."} for query results
+			waiter.resolve(resp.data);
 		} else {
 			// resp is RpcResponseErr when ok is false
 			const errorResp = resp as { ok: false; error: string };

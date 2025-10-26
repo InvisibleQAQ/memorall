@@ -147,24 +147,36 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 					const container = containerRef.current;
 					if (container) {
 						// Disable context menus and editing keyboard shortcuts
-						container.addEventListener('contextmenu', (e) => e.preventDefault());
-						container.addEventListener('keydown', (e) => {
+						container.addEventListener("contextmenu", (e) =>
+							e.preventDefault(),
+						);
+						container.addEventListener("keydown", (e) => {
 							// Allow navigation keys but prevent editing keys
-							const allowedKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Tab'];
+							const allowedKeys = [
+								"ArrowUp",
+								"ArrowDown",
+								"ArrowLeft",
+								"ArrowRight",
+								"PageUp",
+								"PageDown",
+								"Home",
+								"End",
+								"Tab",
+							];
 							if (!allowedKeys.includes(e.key) && !e.ctrlKey) {
 								e.preventDefault();
 								e.stopPropagation();
 							}
 						});
-						
+
 						// Prevent double-click editing
-						container.addEventListener('dblclick', (e) => {
+						container.addEventListener("dblclick", (e) => {
 							e.preventDefault();
 							e.stopPropagation();
 						});
-						
+
 						// Prevent input events
-						container.addEventListener('input', (e) => {
+						container.addEventListener("input", (e) => {
 							e.preventDefault();
 							e.stopPropagation();
 						});

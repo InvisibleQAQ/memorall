@@ -56,8 +56,8 @@ import {
 } from "@/modules/topics/components";
 import { topicService } from "@/modules/topics/services/topic-service";
 import type { Topic } from "@/services/database/entities/topics";
-import { backgroundJob } from "@/services/background-jobs/background-job";
 import { useKnowledgeConversion } from "@/modules/documents/hooks/useKnowledgeConversion";
+import { useMultipleSourceStatus } from "@/modules/documents/hooks/useSourceStatus";
 
 export const DocumentLibraryPage: React.FC = () => {
 	// Hooks
@@ -624,6 +624,14 @@ export const DocumentLibraryPage: React.FC = () => {
 	// Get folder contents for main area display
 	const folderContents = getFolderContents();
 
+	// Get all file paths for source status tracking
+	const filePaths = folderContents
+		.filter((item) => item.type === "file")
+		.map((item) => item.item.path);
+
+	// Track source status for all files
+	const sourceStatusMap = useMultipleSourceStatus(filePaths);
+
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center h-full">
@@ -836,6 +844,7 @@ export const DocumentLibraryPage: React.FC = () => {
 						<DocumentList
 							items={folderContents}
 							selectedItem={null}
+							sourceStatusMap={sourceStatusMap}
 							onSelectItem={(item) => {
 								// When clicking an item in the list, find it in tree and select it
 								const findNodeById = (

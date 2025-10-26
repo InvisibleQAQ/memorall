@@ -35,6 +35,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { TopicBadgeList } from "@/modules/topics/components";
 import type { Topic } from "@/services/database/entities/topics";
+import type { SourceStatus } from "../hooks/useSourceStatus";
 
 interface DocumentListProps {
 	items: DocumentLibraryItem[];
@@ -49,6 +50,7 @@ interface DocumentListProps {
 	fileTopicMap?: Map<string, Topic[]>;
 	selectedTopicIds?: string[];
 	onTopicClick?: (topicId: string) => void;
+	sourceStatusMap?: Map<string, SourceStatus>;
 	viewMode?: "grid" | "list";
 }
 
@@ -83,6 +85,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 	fileTopicMap,
 	selectedTopicIds = [],
 	onTopicClick,
+	sourceStatusMap,
 	viewMode = "list",
 }) => {
 	const [editingItem, setEditingItem] = useState<string | null>(null);
@@ -336,9 +339,12 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 													e.stopPropagation();
 													onConvertToKnowledge(file);
 												}}
+												disabled={sourceStatusMap?.get(file.path)?.isGenerating}
 											>
 												<Brain className="h-4 w-4 mr-2" />
-												Convert to knowledge
+												{sourceStatusMap?.get(file.path)?.isGenerating
+													? "Converting..."
+													: "Convert to knowledge"}
 											</DropdownMenuItem>
 											<DropdownMenuSeparator />
 										</>
@@ -502,9 +508,14 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 														e.stopPropagation();
 														onConvertToKnowledge(file);
 													}}
+													disabled={
+														sourceStatusMap?.get(file.path)?.isGenerating
+													}
 												>
 													<Brain className="h-4 w-4 mr-2" />
-													Convert to knowledge
+													{sourceStatusMap?.get(file.path)?.isGenerating
+														? "Converting..."
+														: "Convert to knowledge"}
 												</DropdownMenuItem>
 												<DropdownMenuSeparator />
 											</>

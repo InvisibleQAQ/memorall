@@ -37,7 +37,9 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 		const modal = useModal();
 
 		// Ensure initialTopicIds is always an array
-		const safeInitialTopicIds = Array.isArray(initialTopicIds) ? initialTopicIds : [];
+		const safeInitialTopicIds = Array.isArray(initialTopicIds)
+			? initialTopicIds
+			: [];
 
 		// State
 		const [viewMode, setViewMode] = useState<ViewMode>("select");

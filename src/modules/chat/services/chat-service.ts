@@ -101,7 +101,7 @@ export class ChatService {
 			let streamFailed = false;
 			let streamError = "";
 
-			if (!('stream' in result)) {
+			if (!("stream" in result)) {
 				return {
 					content: "",
 					actions,

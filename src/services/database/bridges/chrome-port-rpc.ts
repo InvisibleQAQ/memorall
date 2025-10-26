@@ -64,9 +64,10 @@ export async function createChromePortTransport(
 	let backoff = backoffInit;
 
 	const handleMessage = (msg: unknown): void => {
-		const deserializedMsg = deserializeFromRpc(msg);
-		if (!isRpcResponse(deserializedMsg)) return;
-		subscribers.forEach((fn) => fn(deserializedMsg));
+		// Don't deserialize here - let each operation handle its own deserialization
+		// This preserves serialized dates as {__type: "Date", __value: "..."} for query results
+		if (!isRpcResponse(msg)) return;
+		subscribers.forEach((fn) => fn(msg));
 	};
 
 	const handleDisconnect = (): void => {

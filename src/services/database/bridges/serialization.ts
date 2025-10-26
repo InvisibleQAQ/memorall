@@ -98,14 +98,51 @@ export function deserializeFromRpc(data: unknown): unknown {
 
 /**
  * Type-safe wrapper for query results
- * Ensures timestamps are properly deserialized
+ * Converts serialized dates to STRINGS for Drizzle ORM
+ * (Drizzle's mapFromDriverValue expects strings, not Date objects)
  */
 export function deserializeQueryResult<T = unknown>(result: {
 	rows: unknown[];
-	rowCount?: number;
-}): { rows: T[]; rowCount?: number } {
+	fields?: { name: string; dataTypeID: number }[];
+	affectedRows?: number;
+}): {
+	rows: T[];
+	fields?: { name: string; dataTypeID: number }[];
+	affectedRows?: number;
+} {
 	return {
-		rows: result.rows.map((row) => deserializeFromRpc(row)) as T[],
-		rowCount: result.rowCount,
+		rows: result.rows.map(deserializeQueryResultRow) as T[],
+		fields: result.fields, // Preserve fields metadata for Drizzle
+		affectedRows: result.affectedRows,
 	};
+}
+
+/**
+ * Deserialize a single query result row
+ * Converts serialized dates to ISO strings (what Drizzle expects from drivers)
+ */
+function deserializeQueryResultRow(data: unknown): unknown {
+	if (data === null || data === undefined) {
+		return data;
+	}
+
+	// Convert serialized dates to ISO strings (NOT Date objects)
+	if (isSerializedDate(data)) {
+		return new Date(data.__value);
+	}
+
+	if (Array.isArray(data)) {
+		return data.map(deserializeQueryResultRow);
+	}
+
+	if (typeof data === "object") {
+		const result: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(data)) {
+			result[key] = deserializeQueryResultRow(value);
+		}
+		return result;
+	}
+
+	// Primitive values pass through unchanged
+	return data;
 }
