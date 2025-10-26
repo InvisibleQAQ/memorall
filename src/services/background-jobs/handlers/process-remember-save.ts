@@ -128,9 +128,9 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 				"offscreen",
 			);
 
-			// If topicId is provided, save the relationship in topic_files table
+			// If topicId is provided and not "default", save the relationship in topic_files table
 			const topicId = payload.topicId;
-			if (topicId) {
+			if (topicId && topicId !== "default") {
 				await dependencies.logger.info(
 					`🏷️ Linking file to topic: ${topicId}`,
 					{},
@@ -146,6 +146,12 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 
 				await dependencies.logger.info(
 					`✅ File linked to topic successfully`,
+					{},
+					"offscreen",
+				);
+			} else if (topicId === "default") {
+				await dependencies.logger.info(
+					`📄 File saved to default location (no topic association)`,
 					{},
 					"offscreen",
 				);

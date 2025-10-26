@@ -6,272 +6,40 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import { nanoid } from "nanoid";
-import type { ChatModalProps, ChatMessage } from "../types";
-import { chatService } from "@/modules/chat/services/chat-service";
-import type { ChatAction } from "@/modules/chat/services/chat-service";
+import type { ChatModalProps, ChatMessage, ChatAction } from "../types";
+import { embeddedChatService } from "../chat-service";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { customStyles } from "./styles/customStyles";
 import { EmbeddedMessageRenderer } from "./EmbeddedMessageRenderer";
-import { Loader, CloseIcon } from "./Icons";
+import { Loader } from "./Icons";
+import {
+	ChatHeader,
+	Conversation,
+	ConversationContent,
+	Message,
+	MessageContent,
+	PromptInput,
+	PromptInputSubmit,
+	PromptInputTextarea,
+	PromptInputToolbar,
+	PromptInputTools,
+	Reasoning,
+	ReasoningContent,
+	ReasoningTrigger,
+	Source,
+	Sources,
+	SourcesContent,
+	SourcesTrigger,
+} from "./MessageControl";
+import { ShadcnEmbeddedContextSections } from "./ContextSections";
 
-// Mock implementations of shadcn/ui AI components for content script context
-// These replicate the exact structure and styling from your example
-
-const Conversation: React.FC<{
-	className?: string;
-	children: React.ReactNode;
-}> = ({ className, children }) => (
-	<div className={`relative ${className || ""}`}>{children}</div>
-);
-
-const ConversationContent: React.FC<{
-	className?: string;
-	children: React.ReactNode;
-}> = ({ className, children }) => (
-	<div className={`overflow-y-auto px-4 py-4 ${className || ""}`}>
-		{children}
-	</div>
-);
-
-const Message: React.FC<{
-	role: "user" | "assistant";
-	children: React.ReactNode;
-}> = ({ role, children }) => (
-	<div
-		className={`flex flex-col gap-2 ${role === "user" ? "items-end" : "items-start"}`}
-	>
-		{children}
-	</div>
-);
-
-const MessageContent: React.FC<{
-	role: "user" | "assistant";
-	children: React.ReactNode;
-}> = ({ role, children }) => (
-	<div
-		className={`text-sm max-w-[85%] overflow-x-hidden ${
-			role === "user"
-				? "ml-auto bg-primary text-primary-foreground p-3 rounded-lg"
-				: "text-foreground"
-		}`}
-	>
-		{children}
-	</div>
-);
-
-const Reasoning: React.FC<{
-	isStreaming?: boolean;
-	defaultOpen?: boolean;
-	children: React.ReactNode;
-}> = ({ isStreaming, defaultOpen = false, children }) => (
-	<details className="group" open={defaultOpen}>
-		{children}
-	</details>
-);
-
-const ReasoningTrigger: React.FC = () => (
-	<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
-		<svg
-			className="w-3 h-3 group-open:rotate-90 transition-transform"
-			fill="currentColor"
-			viewBox="0 0 20 20"
-		>
-			<path
-				style={{
-					scale: 2,
-				}}
-				fillRule="evenodd"
-				d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-				clipRule="evenodd"
-			/>
-		</svg>
-		<span>💭 Reasoning</span>
-	</summary>
-);
-
-const ReasoningContent: React.FC<{ children: React.ReactNode }> = ({
-	children,
-}) => (
-	<div className="mt-2 p-3 text-xs text-muted-foreground bg-muted/30 rounded border">
-		{children}
-	</div>
-);
-
-const Sources: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-	<details className="group">{children}</details>
-);
-
-const SourcesTrigger: React.FC<{ count: number }> = ({ count }) => (
-	<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
-		<svg
-			className="w-3 h-3 group-open:rotate-90 transition-transform"
-			fill="currentColor"
-			viewBox="0 0 20 20"
-		>
-			<path
-				style={{
-					scale: 2,
-				}}
-				fillRule="evenodd"
-				d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-				clipRule="evenodd"
-			/>
-		</svg>
-		<span>🔗 Sources ({count})</span>
-	</summary>
-);
-
-const SourcesContent: React.FC<{ children: React.ReactNode }> = ({
-	children,
-}) => <div className="mt-2 space-y-2">{children}</div>;
-
-const Source: React.FC<{ href: string; title: string }> = ({ href, title }) => (
-	<div className="p-2 bg-muted/30 rounded border text-xs">
-		<div className="font-medium">{title}</div>
-		{href !== "#" && (
-			<div className="text-muted-foreground text-xs mt-1">{href}</div>
-		)}
-	</div>
-);
-
-const PromptInput: React.FC<{
-	onSubmit: FormEventHandler<HTMLFormElement>;
-	children: React.ReactNode;
-}> = ({ onSubmit, children }) => (
-	<form
-		onSubmit={onSubmit}
-		className="relative border rounded-lg bg-background"
-	>
-		{children}
-	</form>
-);
-
-const PromptInputTextarea: React.FC<{
-	value: string;
-	onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-	placeholder: string;
-	disabled: boolean;
-}> = ({ value, onChange, placeholder, disabled }) => (
-	<textarea
-		value={value}
-		onChange={onChange}
-		placeholder={placeholder}
-		disabled={disabled}
-		className="w-full resize-none border-0 bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 min-h-[50px] max-h-32"
-		onKeyDown={(e) => {
-			if (e.key === "Enter" && !e.shiftKey) {
-				e.preventDefault();
-				const form = e.currentTarget.closest("form");
-				if (form) {
-					form.requestSubmit();
-				}
-			}
-		}}
-	/>
-);
-
-const PromptInputToolbar: React.FC<{ children: React.ReactNode }> = ({
-	children,
-}) => (
-	<div className="flex items-center justify-between border-t px-3 py-2">
-		{children}
-	</div>
-);
-
-const PromptInputTools: React.FC<{ children: React.ReactNode }> = ({
-	children,
-}) => <div className="flex items-center gap-1">{children}</div>;
-
-const PromptInputSubmit: React.FC<{
-	disabled: boolean;
-	status: "ready" | "streaming";
-	onStop?: () => void;
-}> = ({ disabled, status, onStop }) => (
-	<button
-		type={status === "streaming" ? "button" : "submit"}
-		disabled={disabled}
-		onClick={status === "streaming" ? onStop : undefined}
-		className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-3"
-	>
-		{status === "streaming" ? (
-			<>
-				<Loader size={14} />
-				<span className="ml-1">Stop</span>
-			</>
-		) : (
-			"Send"
-		)}
-	</button>
-);
-
-const Button: React.FC<{
-	variant?: "ghost";
-	size?: "sm";
-	onClick?: () => void;
-	className?: string;
-	children: React.ReactNode;
-	style?: React.CSSProperties;
-}> = ({ variant, size, onClick, className, children, style }) => (
-	<button
-		onClick={onClick}
-		style={style}
-		className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${
-			variant === "ghost"
-				? "hover:bg-accent hover:text-accent-foreground"
-				: "bg-primary text-primary-foreground hover:bg-primary/90"
-		} ${size === "sm" ? "h-8" : "h-10"} ${className || ""}`}
-	>
-		{children}
-	</button>
-);
-
-// Compact header version of model status
 // Topic Selector Component
 const TopicSelector: React.FC<{
 	selectedTopic: string;
 	onTopicChange: (topicId: string) => void;
-}> = ({ selectedTopic, onTopicChange }) => {
-	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
-	const [isLoading, setIsLoading] = useState(true);
-
-	useEffect(() => {
-		const fetchTopics = async () => {
-			try {
-				setIsLoading(true);
-				// Fetch topics using background job
-				const result = await backgroundJob.execute(
-					"get-topics",
-					{},
-					{ stream: false },
-				);
-
-				if ("promise" in result) {
-					const jobResult = await result.promise;
-					if (jobResult.status === "completed" && jobResult.result) {
-						// Topics should be available in the result.topics array
-						if (
-							jobResult.result.topics &&
-							Array.isArray(jobResult.result.topics)
-						) {
-							setTopics(
-								jobResult.result.topics.map((topic: any) => ({
-									id: topic.id,
-									name: topic.name,
-								})),
-							);
-						}
-					}
-				}
-			} catch (error) {
-				console.error("Failed to fetch topics:", error);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		fetchTopics();
-	}, []);
-
+	topics: Array<{ id: string; name: string }>;
+	isLoading: boolean;
+}> = ({ selectedTopic, onTopicChange, topics, isLoading }) => {
 	if (isLoading) {
 		return (
 			<div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -287,7 +55,6 @@ const TopicSelector: React.FC<{
 			onChange={(e) => onTopicChange(e.target.value)}
 			className="text-xs p-1 rounded border bg-background text-foreground border-border min-w-24 flex-1"
 		>
-			<option value="__all__">All topics</option>
 			{topics.map((topic) => (
 				<option key={topic.id} value={topic.id}>
 					{topic.name}
@@ -297,35 +64,12 @@ const TopicSelector: React.FC<{
 	);
 };
 
-const HeaderModelStatus: React.FC<{
-	modelId?: string;
-	provider?: string;
-	isActive: boolean;
-}> = ({ modelId, provider, isActive }) => {
-	if (isActive && modelId && provider) {
-		return (
-			<div className="flex items-center gap-1 text-xs min-w-0">
-				<div className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-				<span className="text-foreground font-medium truncate min-w-0 flex-1">
-					{modelId}
-				</span>
-			</div>
-		);
-	}
-
-	return (
-		<div className="flex items-center gap-1 text-xs">
-			<div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-			<span className="text-muted-foreground">No model</span>
-		</div>
-	);
-};
-
 const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 	context,
 	mode = "general",
 	pageUrl,
 	pageTitle,
+	contextOptions,
 	onClose,
 }) => {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -333,11 +77,34 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 	const [selectedModel, setSelectedModel] = useState<string>("");
 	const [selectedProvider, setSelectedProvider] = useState<string>("");
 	const [modelAvailable, setModelAvailable] = useState(false);
+	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
+	const [selectedTopic, setSelectedTopic] = useState<string>("default");
+	const [topicsLoading, setTopicsLoading] = useState(true);
 	const [isTyping, setIsTyping] = useState(false);
-	const [selectedTopic, setSelectedTopic] = useState<string>("__all__");
 	const [, setStreamingMessageId] = useState<string | null>(null);
 	const [abortController, setAbortController] =
 		useState<AbortController | null>(null);
+	const [selectedContexts, setSelectedContexts] = useState<
+		Array<{ type: string; label: string; content: string }>
+	>([]);
+	const [availableContexts, setAvailableContexts] = useState<
+		Array<{ type: string; label: string; content: string }>
+	>(contextOptions || []);
+
+	// Handle delete chat - clear messages and restore context options
+	const handleDeleteChat = useCallback(() => {
+		setMessages([]);
+		setInputValue("");
+		setSelectedContexts([]);
+		setAvailableContexts(contextOptions || []);
+	}, [contextOptions]);
+
+	// Auto-scroll state
+	const conversationRef = React.useRef<HTMLDivElement>(null);
+	const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+	// Topic status
+	const hasTopics = topics.length > 0;
 
 	// Initialize model and check status
 	useEffect(() => {
@@ -378,6 +145,87 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 		initializeModel();
 	}, []);
 
+	// Load topics on mount
+	useEffect(() => {
+		const loadTopics = async () => {
+			try {
+				setTopicsLoading(true);
+				const result = await backgroundJob.execute(
+					"get-topics",
+					{},
+					{ stream: false },
+				);
+
+				if (!("promise" in result)) {
+					return;
+				}
+				const jobResult = await result.promise;
+
+				if (
+					jobResult.status === "completed" &&
+					jobResult.result &&
+					"topics" in jobResult.result
+				) {
+					const topicList = jobResult.result.topics;
+					if (Array.isArray(topicList)) {
+						// Add default option at the top
+						const defaultTopic = {
+							id: "default",
+							name: "Default",
+						};
+						const topicsWithDefault = [defaultTopic, ...topicList];
+
+						setTopics(
+							topicsWithDefault.map((topic) => ({
+								id: topic.id,
+								name: topic.name,
+							})),
+						);
+					}
+				}
+			} catch (error) {
+				console.error("Failed to load topics:", error);
+			} finally {
+				setTopicsLoading(false);
+			}
+		};
+		loadTopics();
+	}, []);
+
+	// Auto-scroll to bottom helper
+	const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+		if (conversationRef.current) {
+			conversationRef.current.scrollTo({
+				top: conversationRef.current.scrollHeight,
+				behavior,
+			});
+		}
+	}, []);
+
+	// Check if user is near bottom of conversation
+	const checkIfNearBottom = useCallback(() => {
+		if (!conversationRef.current) return false;
+		const { scrollTop, scrollHeight, clientHeight } = conversationRef.current;
+		const threshold = 100; // pixels from bottom
+		return scrollHeight - scrollTop - clientHeight < threshold;
+	}, []);
+
+	// Handle scroll to detect if user scrolled up
+	const handleScroll = useCallback(() => {
+		if (checkIfNearBottom()) {
+			setShouldAutoScroll(true);
+		} else {
+			setShouldAutoScroll(false);
+		}
+	}, [checkIfNearBottom]);
+
+	// Auto-scroll when messages change or streaming
+	useEffect(() => {
+		if (shouldAutoScroll) {
+			scrollToBottom();
+		}
+	}, [messages, shouldAutoScroll, scrollToBottom]);
+
 	// Add initial context if provided
 	useEffect(() => {
 		if (context) {
@@ -411,21 +259,93 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 		async (event) => {
 			event.preventDefault();
 
-			if (!inputValue.trim() || isTyping || !modelAvailable || !selectedModel)
-				return;
+			if (!inputValue.trim() || isTyping || !modelAvailable) return;
 
 			const userMessageContent = inputValue.trim();
 			setInputValue("");
 			setIsTyping(true);
+			setShouldAutoScroll(true); // Enable auto-scroll when sending message
 
 			// Create abort controller for this request
 			const controller = new AbortController();
 			setAbortController(controller);
 
-			// Add user message
+			// Build hidden context with page information - only visible viewport content
+			const getPageContext = () => {
+				try {
+					const selection = window.getSelection()?.toString() || "";
+
+					// Get only visible text in viewport
+					const visibleText: string[] = [];
+					const walker = document.createTreeWalker(
+						document.body,
+						NodeFilter.SHOW_TEXT,
+						{
+							acceptNode: (node) => {
+								const parent = node.parentElement;
+								if (!parent) return NodeFilter.FILTER_REJECT;
+
+								// Skip script, style, noscript
+								const tag = parent.tagName.toLowerCase();
+								if (tag === "script" || tag === "style" || tag === "noscript") {
+									return NodeFilter.FILTER_REJECT;
+								}
+
+								// Check if element is in viewport
+								const rect = parent.getBoundingClientRect();
+								const isInViewport =
+									rect.top < window.innerHeight &&
+									rect.bottom > 0 &&
+									rect.left < window.innerWidth &&
+									rect.right > 0;
+
+								if (!isInViewport) return NodeFilter.FILTER_REJECT;
+
+								// Check visibility
+								const style = window.getComputedStyle(parent);
+								const isVisible =
+									style.display !== "none" &&
+									style.visibility !== "hidden" &&
+									style.opacity !== "0";
+
+								return isVisible
+									? NodeFilter.FILTER_ACCEPT
+									: NodeFilter.FILTER_REJECT;
+							},
+						},
+					);
+
+					let node: Node | null;
+					let totalLength = 0;
+					const maxLength = 2000;
+
+					while ((node = walker.nextNode()) && totalLength < maxLength) {
+						const text = node.textContent?.trim() || "";
+						if (text && text.length > 0) {
+							visibleText.push(text);
+							totalLength += text.length;
+						}
+					}
+
+					const viewportContent = visibleText.join(" ").slice(0, maxLength);
+
+					return {
+						viewportContent,
+						selection,
+					};
+				} catch (error) {
+					console.error("Error getting page context:", error);
+					const bodyText = document.body?.innerText?.slice(0, 2000) || "";
+					return {
+						viewportContent: bodyText,
+						selection: window.getSelection()?.toString() || "",
+					};
+				}
+			};
+
 			const userMessage: ChatMessage = {
 				id: nanoid(),
-				content: userMessageContent,
+				content: userMessageContent, // Display only user's message
 				role: "user",
 				timestamp: new Date(),
 			};
@@ -444,94 +364,79 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 			setStreamingMessageId(assistantMessageId);
 
 			try {
-				const allMessages = [...messages, userMessage];
-
-				// Convert to core message format
-				const coreMessages = allMessages.map((msg) => ({
-					role: msg.role,
-					content: msg.content,
-				}));
-
-				const result = await chatService.chatStream(
+				// Build messages array with hidden context in the last message
+				const messagesForAPI = [
+					...messages,
 					{
-						messages: coreMessages,
-						model: selectedModel,
-						mode: mode === "topic" ? "knowledge" : "knowledge",
-						topicId:
-							selectedTopic && selectedTopic !== "__all__"
-								? selectedTopic
-								: undefined,
+						id: userMessage.id,
+						content: userMessageContent,
+						role: userMessage.role,
+						timestamp: userMessage.timestamp,
 					},
-					{
-						onContent: (content: string) => {
-							setMessages((prev) =>
-								prev.map((msg) => {
-									if (msg.id === assistantMessageId) {
-										return {
-											...msg,
-											content,
-											isStreaming: true,
-										};
-									}
-									return msg;
-								}),
-							);
-						},
-						onAction: (actions: ChatAction[]) => {
-							setMessages((prev) =>
-								prev.map((msg) => {
-									if (msg.id === assistantMessageId) {
-										return {
-											...msg,
-											metadata: {
-												...msg.metadata,
-												actions,
-											},
-										};
-									}
-									return msg;
-								}),
-							);
-						},
-						onError: (error: string) => {
-							console.error("Chat error:", error);
-						},
-					},
-					controller.signal,
-				);
+				];
 
-				// Handle result after streaming completes
-				if (result.failed) {
-					setMessages((prev) =>
-						prev.map((msg) => {
-							if (msg.id === assistantMessageId) {
-								return {
-									...msg,
-									content: `${result.content}\n\n---\n\n❌ **Error:** ${result.error}`,
-									isStreaming: false,
-								};
-							}
-							return msg;
-						}),
-					);
-				} else {
-					setMessages((prev) =>
-						prev.map((msg) => {
-							if (msg.id === assistantMessageId) {
-								return {
-									...msg,
-									content: result.content,
-									isStreaming: false,
-									metadata: {
-										...msg.metadata,
-										actions: result.actions,
-									},
-								};
-							}
-							return msg;
-						}),
-					);
-				}
+				await embeddedChatService.chatStream({
+					messages: messagesForAPI,
+					model: selectedModel,
+					mode: "knowledge",
+					topicId:
+						hasTopics && selectedTopic && selectedTopic !== "default"
+							? selectedTopic
+							: undefined,
+					signal: controller.signal,
+					onProgress: (content: string, isComplete: boolean) => {
+						setMessages((prev) =>
+							prev.map((msg) => {
+								if (msg.id === assistantMessageId) {
+									return {
+										...msg,
+										content,
+										isStreaming: !isComplete,
+									};
+								}
+								return msg;
+							}),
+						);
+					},
+					onAction: (actions: ChatAction[]) => {
+						setMessages((prev) =>
+							prev.map((msg) => {
+								if (msg.id === assistantMessageId) {
+									return {
+										...msg,
+										metadata: {
+											...msg.metadata,
+											actions,
+										},
+									};
+								}
+								return msg;
+							}),
+						);
+					},
+					onError: (error: string) => {
+						console.error("Chat error:", error);
+
+						// Update message with error
+						setMessages((prev) =>
+							prev.map((msg) => {
+								if (msg.id === assistantMessageId) {
+									return {
+										...msg,
+										content:
+											"Sorry, I encountered an error while processing your request. Please try again.",
+										isStreaming: false,
+									};
+								}
+								return msg;
+							}),
+						);
+
+						setIsTyping(false);
+						setStreamingMessageId(null);
+						setAbortController(null);
+					},
+				});
 			} catch (error) {
 				console.error("Chat submission error:", error);
 
@@ -553,9 +458,12 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 				setIsTyping(false);
 				setStreamingMessageId(null);
 				setAbortController(null);
+
+				// Scroll to bottom after streaming finishes
+				setTimeout(() => scrollToBottom(), 100);
 			}
 		},
-		[inputValue, isTyping, selectedModel, messages, mode],
+		[inputValue, isTyping, modelAvailable, messages, mode, scrollToBottom],
 	);
 
 	return (
@@ -567,44 +475,25 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 				className="fixed right-0 top-0 h-full w-full max-w-[30%] min-w-[400px] flex flex-col overflow-hidden bg-background shadow-2xl border-l animate-in slide-in-from-right duration-300"
 				onClick={(e) => e.stopPropagation()}
 			>
-				{/* Header - compact design for right panel */}
-				<div className="border-b bg-muted/50 px-4 py-3 flex-shrink-0">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-3 min-w-0 flex-1">
-							<span className="font-medium text-sm flex-shrink-0">
-								{mode === "topic" ? "📚 Recall Topic" : "🧠 Recall"}
-							</span>
-							<div className="min-w-0 flex-1">
-								<HeaderModelStatus
-									modelId={selectedModel}
-									provider={selectedProvider}
-									isActive={modelAvailable && !!selectedModel}
-								/>
-							</div>
-						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onClose}
-							className="h-8 w-8 p-2"
-						>
-							<CloseIcon />
-						</Button>
-					</div>
-					{/* Topic Selector for Topic Mode - in header */}
-					{mode === "topic" && (
-						<div className="mt-2 flex items-center gap-2">
-							<span className="text-xs text-muted-foreground">Topic:</span>
-							<TopicSelector
-								selectedTopic={selectedTopic}
-								onTopicChange={setSelectedTopic}
-							/>
-						</div>
-					)}
-				</div>
+				<ChatHeader
+					mode={mode}
+					onOpenFullVersion={() => {
+						chrome.runtime.sendMessage({
+							type: "OPEN_FULL_PAGE",
+						});
+					}}
+					onClose={onClose}
+					modelId={selectedModel}
+					provider={selectedProvider}
+					modelAvailable={modelAvailable && !!selectedModel}
+				/>
 
 				{/* Conversation Area - exact same structure as your example */}
-				<Conversation className="flex-1 overflow-y-auto">
+				<Conversation
+					ref={conversationRef}
+					className="flex-1 overflow-y-auto"
+					onScroll={handleScroll}
+				>
 					<ConversationContent className="space-y-4">
 						{messages.length === 0 ? (
 							<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
@@ -622,19 +511,19 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 								</p>
 							</div>
 						) : (
-							messages.map((message, index) => (
+							messages.map((message) => (
 								<div key={message.id} className="space-y-3">
 									<Message role={message.role}>
 										<MessageContent role={message.role}>
 											<EmbeddedMessageRenderer
 												message={message}
-												isLoading={isTyping && index === messages.length - 1}
+												isLoading={message.isStreaming || false}
 											/>
 										</MessageContent>
 									</Message>
 									{/* Reasoning - only for AI messages */}
 									{message.reasoning && message.role === "assistant" && (
-										<div className="max-w-[85%] overflow-x-hidden">
+										<div className="max-w-[100%]">
 											<Reasoning
 												isStreaming={message.isStreaming}
 												defaultOpen={false}
@@ -648,7 +537,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 									{message.sources &&
 										message.sources.length > 0 &&
 										message.role === "assistant" && (
-											<div className="max-w-[85%] overflow-x-hidden">
+											<div className="max-w-[100%]">
 												<Sources>
 													<SourcesTrigger count={message.sources.length} />
 													<SourcesContent>
@@ -669,6 +558,15 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 					</ConversationContent>
 				</Conversation>
 
+				<ShadcnEmbeddedContextSections
+					pageUrl={pageUrl}
+					pageTitle={pageTitle}
+					contextOptions={contextOptions}
+					setMessages={setMessages}
+					selectedContexts={selectedContexts}
+					setSelectedContexts={setSelectedContexts}
+				/>
+
 				{/* Input Area - compact design for right panel */}
 				<div className="border-t p-3 flex-shrink-0">
 					<PromptInput onSubmit={handleSubmit}>
@@ -676,25 +574,52 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 							value={inputValue}
 							onChange={(e) => setInputValue(e.target.value)}
 							placeholder={
-								mode === "topic"
-									? "Ask about topics..."
-									: "Ask about your knowledge..."
+								!modelAvailable
+									? "No model available..."
+									: "Type your message..."
 							}
-							disabled={isTyping || !modelAvailable || !selectedModel}
+							disabled={isTyping || !modelAvailable}
 						/>
 						<PromptInputToolbar>
 							<PromptInputTools>
-								<span className="text-xs text-muted-foreground">
-									{mode === "topic" ? "Topics" : "Knowledge"}
-								</span>
+								{messages.length > 0 && (
+									<button
+										onClick={handleDeleteChat}
+										disabled={isTyping}
+										className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none transition-colors"
+										title="Clear chat"
+									>
+										<svg
+											className="w-4 h-4"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+											/>
+										</svg>
+									</button>
+								)}
+								{hasTopics && (
+									<TopicSelector
+										selectedTopic={selectedTopic}
+										onTopicChange={setSelectedTopic}
+										topics={topics}
+										isLoading={topicsLoading}
+									/>
+								)}
+								{!hasTopics && (
+									<span className="text-xs text-muted-foreground px-3 py-1.5">
+										No topics
+									</span>
+								)}
 							</PromptInputTools>
 							<PromptInputSubmit
-								disabled={
-									!inputValue.trim() ||
-									isTyping ||
-									!modelAvailable ||
-									!selectedModel
-								}
+								disabled={!inputValue.trim() || isTyping || !modelAvailable}
 								status={isTyping ? "streaming" : "ready"}
 								onStop={handleStop}
 							/>

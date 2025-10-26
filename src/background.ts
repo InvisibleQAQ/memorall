@@ -7,15 +7,15 @@ import { backgroundJobMessageForwarder } from "./background/message-forwarder";
 import { sharedStorageService } from "./services/shared-storage";
 import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
 
-const SAVE_THIS_PAGE_CONTEXT_MENU_ID = "save-this-page";
-const SAVE_CONTENT_CONTEXT_MENU_ID = "save-content";
-const SAVE_TO_TOPIC_CONTEXT_MENU_ID = "save-to-topic";
-const RECALL_CONTEXT_MENU_ID = "recall";
-const RECALL_TOPIC_CONTEXT_MENU_ID = "recall-topic";
-const OPEN_FULL_PAGE_CONTEXT_MENU_ID = "open-full-page";
+// Save section
+const SAVE_PAGE_CONTEXT_MENU_ID = "save-page";
 
-// PDF context menu IDs
-const DOCUMENTS_CONTEXT_MENU_ID = "documents";
+// Recall section
+const RECALL_CONTEXT_MENU_ID = "recall";
+
+// Open section
+const OPEN_PLATFORM_CONTEXT_MENU_ID = "open-platform";
+const OPEN_DOCUMENTS_CONTEXT_MENU_ID = "open-documents";
 
 // Helper to create notifications with proper icon
 function createNotification(title: string, message: string): void {
@@ -147,67 +147,40 @@ logInfo("🔄 Service Worker loaded, initializing core services...");
 // Create context menus on install
 chrome.runtime.onInstalled.addListener(async () => {
 	try {
-		// Create main "Save page" menu for full page
+		// === SAVE SECTION ===
 		chrome.contextMenus.create({
-			id: SAVE_THIS_PAGE_CONTEXT_MENU_ID,
-			title: "Save page to file",
-			contexts: ["page", "link"],
-		});
-
-		// Create "Save selection" menu for selected content
-		chrome.contextMenus.create({
-			id: SAVE_CONTENT_CONTEXT_MENU_ID,
-			title: "Save selection to file",
-			contexts: ["selection"],
-		});
-
-		// Create "Save to topic" menu for topic-specific content
-		chrome.contextMenus.create({
-			id: SAVE_TO_TOPIC_CONTEXT_MENU_ID,
-			title: "Save to topic",
-			contexts: ["page", "link"],
+			id: SAVE_PAGE_CONTEXT_MENU_ID,
+			title: "💾 Save page",
+			contexts: ["page", "selection"],
 		});
 
 		chrome.contextMenus.create({
-			id: "divider1",
+			id: "save-divider",
 			type: "separator",
 		});
 
-		// Create "Recall" menu that opens chat modal
+		// === RECALL SECTION ===
 		chrome.contextMenus.create({
 			id: RECALL_CONTEXT_MENU_ID,
-			title: "Recall",
-			contexts: ["page", "selection"],
-		});
-
-		// Create "Recall topic" menu that opens chat modal with topic context
-		chrome.contextMenus.create({
-			id: RECALL_TOPIC_CONTEXT_MENU_ID,
-			title: "Recall topic",
+			title: "🧠 Recall",
 			contexts: ["page", "selection"],
 		});
 
 		chrome.contextMenus.create({
-			id: "divider2",
+			id: "recall-divider",
 			type: "separator",
 		});
 
-		// Create "Open full page" menu that opens full page
+		// === OPEN SECTION ===
 		chrome.contextMenus.create({
-			id: OPEN_FULL_PAGE_CONTEXT_MENU_ID,
-			title: "Open platform",
+			id: OPEN_PLATFORM_CONTEXT_MENU_ID,
+			title: "🚀 Open platform",
 			contexts: ["page", "link"],
 		});
 
 		chrome.contextMenus.create({
-			id: "divider3",
-			type: "separator",
-		});
-
-		// Create PDF context menu item
-		chrome.contextMenus.create({
-			id: DOCUMENTS_CONTEXT_MENU_ID,
-			title: "📄 Documents",
+			id: OPEN_DOCUMENTS_CONTEXT_MENU_ID,
+			title: "📄 Open documents",
 			contexts: ["page"],
 		});
 
@@ -234,25 +207,22 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 		linkUrl: info.linkUrl,
 	});
 
-	// Handle PDF Tools context menu item
-	if (info.menuItemId === DOCUMENTS_CONTEXT_MENU_ID) {
-		logInfo("📄 PDF Tools menu item clicked");
+	// Handle Open Documents context menu item
+	if (info.menuItemId === OPEN_DOCUMENTS_CONTEXT_MENU_ID) {
+		logInfo("📄 Open documents menu item clicked");
 
-		// Open the PDF Tools page in the extension
+		// Open the documents page in the extension
 		try {
 			chrome.storage?.session?.set?.({ navigateTo: "documents" });
 			openExtensionPopup();
 		} catch (error) {
-			logError("❌ Failed to open PDF Tools page:", error);
+			logError("❌ Failed to open documents page:", error);
 		}
 		return;
 	}
 
-	// Handle recall context menu items
-	if (
-		info.menuItemId === RECALL_CONTEXT_MENU_ID ||
-		info.menuItemId === RECALL_TOPIC_CONTEXT_MENU_ID
-	) {
+	// Handle recall context menu item
+	if (info.menuItemId === RECALL_CONTEXT_MENU_ID) {
 		if (!tab?.id) return;
 
 		try {
@@ -271,11 +241,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 				type: CONTENT_BACKGROUND_EVENTS.SHOW_CHAT_MODAL,
 				tabId: tab.id,
 				url: tab.url,
-				context: info.selectionText || "",
-				mode:
-					info.menuItemId === RECALL_TOPIC_CONTEXT_MENU_ID
-						? "topic"
-						: "general",
+				selectedText: info.selectionText || "",
+				mode: "general",
 			});
 			logInfo("📨 Content script response to SHOW_CHAT_MODAL:", chatResponse);
 		} catch (error) {
@@ -284,116 +251,37 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 		return;
 	}
 
-	// Open the action popup immediately only for save-related items
-	if (
-		info.menuItemId === SAVE_THIS_PAGE_CONTEXT_MENU_ID ||
-		info.menuItemId === SAVE_CONTENT_CONTEXT_MENU_ID ||
-		info.menuItemId === SAVE_TO_TOPIC_CONTEXT_MENU_ID
-	) {
+	// Handle save page context menu item
+	if (info.menuItemId === SAVE_PAGE_CONTEXT_MENU_ID) {
+		if (!tab?.id) return;
+
 		try {
-			// Check if LLM is configured by getting current model
-			let hasConfiguredLLM = false;
-			try {
-				await ensureOffscreenDocument();
-				const getCurrentModelResponse = await backgroundJob.execute(
-					"get-current-model",
-					{},
-					{ stream: false },
-				);
-
-				if ("promise" in getCurrentModelResponse) {
-					const result = await getCurrentModelResponse.promise;
-					hasConfiguredLLM = !!result?.result?.modelInfo;
-					logInfo("🤖 LLM configuration check:", {
-						hasConfiguredLLM,
-						modelInfo: result?.result?.modelInfo,
-					});
-				}
-			} catch (error) {
-				logError("❌ Failed to check LLM configuration:", error);
-				hasConfiguredLLM = false;
+			// Check if we can access the tab
+			if (
+				!tab.url ||
+				tab.url.startsWith("chrome://") ||
+				tab.url.startsWith("chrome-extension://")
+			) {
+				logError("❌ Cannot access this page type");
+				return;
 			}
 
-			// Handle different menu actions
-			if (info.menuItemId === SAVE_TO_TOPIC_CONTEXT_MENU_ID) {
-				try {
-					logInfo("🏷️ Save to topic clicked - checking topics existence");
-
-					// Check if topics exist before deciding UI approach
-					await ensureOffscreenDocument();
-					logInfo("🏷️ About to execute check-topics-exist job");
-					const jobTopicsExistResponse = await backgroundJob.execute(
-						"check-topics-exist",
-						{},
-						{ stream: false },
-					);
-					logInfo("🏷️ Job execution initiated");
-
-					if ("promise" in jobTopicsExistResponse && tab?.id) {
-						const jobTopicsExistResult = await jobTopicsExistResponse.promise;
-						logInfo("🏷️ Topic existence check result:", jobTopicsExistResult);
-
-						if (jobTopicsExistResult?.result?.hasTopics) {
-							// Topics exist - show content script topic selector UI
-							logInfo(
-								"🏷️ Topics exist - sending message to show content script topic selector",
-							);
-
-							// Send message to content script to show topic selector
-							const topicSelectorResponse = await chrome.tabs.sendMessage(
-								tab.id,
-								{
-									type: CONTENT_BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR,
-									tabId: tab.id,
-									url: tab.url,
-									context: info.selectionText || "",
-								},
-							);
-							logInfo(
-								"📨 Content script response to SHOW_TOPIC_SELECTOR:",
-								topicSelectorResponse,
-							);
-						} else {
-							// No topics exist - open popup to create topics
-							logInfo("🏷️ No topics exist - opening popup to create topics");
-							logInfo("🏷️ Topic check result details:", {
-								hasTopics: jobTopicsExistResult?.result?.hasTopics,
-								fullResult: jobTopicsExistResult,
-							});
-							chrome.storage?.session?.set?.({
-								navigateTo: "topics",
-							});
-							openExtensionPopup();
-						}
-					} else {
-						logError(
-							"🏷️ Failed job response structure:",
-							jobTopicsExistResponse,
-						);
-						throw new Error("Failed to check topics existence");
-					}
-				} catch (error) {
-					logError("❌ Failed to check topics existence:", error);
-					// Fallback to topics page in popup
-					chrome.storage?.session?.set?.({
-						navigateTo: "topics",
-					});
-					openExtensionPopup();
-				}
-			} else {
-				// For other save actions, open popup and navigate based on LLM config
-				if (hasConfiguredLLM) {
-				} else {
-					// No LLM configured, guide user to LLM setup
-					try {
-						chrome.storage?.session?.set?.({ navigateTo: "llm" });
-					} catch (_) {}
-					openExtensionPopup();
-				}
-			}
-		} catch (e) {
-			logError("❌ openExtensionPopup threw:", e);
+			// Always show topic selector UI with default option (topic undefined)
+			logInfo("💾 Save page clicked - showing topic selector");
+			const topicSelectorResponse = await chrome.tabs.sendMessage(tab.id, {
+				type: CONTENT_BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR,
+				tabId: tab.id,
+				url: tab.url,
+				context: info.selectionText || "",
+			});
+			logInfo(
+				"📨 Content script response to SHOW_TOPIC_SELECTOR:",
+				topicSelectorResponse,
+			);
+		} catch (error) {
+			logError("❌ Failed to show topic selector:", error);
 		}
+		return;
 	}
 
 	if (!tab?.id) {
@@ -411,11 +299,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 			return;
 		}
 
-		if (info.menuItemId === OPEN_FULL_PAGE_CONTEXT_MENU_ID) {
-			logInfo("🧭 Open full page clicked");
+		if (info.menuItemId === OPEN_PLATFORM_CONTEXT_MENU_ID) {
+			logInfo("🚀 Open platform clicked");
 			try {
 				await chrome.runtime.openOptionsPage?.();
-				logInfo("🪟 Options page opened via openOptionsPage()");
+				logInfo("🪟 Platform opened via openOptionsPage()");
 			} catch (err) {
 				logError("⚠️ openOptionsPage failed, falling back to tab create:", err);
 				try {
@@ -430,47 +318,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 						await chrome.tabs.create({ url: optionsUrl, active: true });
 					}
 				} catch (e2) {
-					logError("❌ Failed to open options/standalone page:", e2);
+					logError("❌ Failed to open platform page:", e2);
 				}
 			}
-		} else if (info.menuItemId === SAVE_THIS_PAGE_CONTEXT_MENU_ID) {
-			logInfo(`🔄 Save page clicked for tab: ${tab.id}, URL: ${tab.url}`);
-
-			// Send message to content script to extract full page content
-			const contentResponse = await chrome.tabs.sendMessage(tab.id, {
-				type: CONTENT_BACKGROUND_EVENTS.REMEMBER_THIS,
-				tabId: tab.id,
-				url: tab.url,
-			});
-			logInfo("📨 Content script response to save page:", contentResponse);
-		} else if (info.menuItemId === SAVE_CONTENT_CONTEXT_MENU_ID) {
-			logInfo(
-				`🔄 Save selection clicked for tab: ${tab.id}, selection: "${info.selectionText}"`,
-			);
-
-			// Send message to content script to extract selected content
-			const selectionResponse = await chrome.tabs.sendMessage(tab.id, {
-				type: CONTENT_BACKGROUND_EVENTS.REMEMBER_CONTENT,
-				tabId: tab.id,
-				url: tab.url,
-				selectedText: info.selectionText || "",
-			});
-			logInfo(
-				"📨 Content script response to save selection:",
-				selectionResponse,
-			);
-		} else if (info.menuItemId === SAVE_TO_TOPIC_CONTEXT_MENU_ID) {
-			logInfo(`🔄 Save to topic clicked for tab: ${tab.id}`);
-
-			// Send message to content script to store context data with topic selector flag
-			const topicResponse = await chrome.tabs.sendMessage(tab.id, {
-				type: CONTENT_BACKGROUND_EVENTS.LET_REMEMBER,
-				tabId: tab.id,
-				url: tab.url,
-				context: info.selectionText || "",
-				showTopicSelector: true,
-			});
-			logInfo("📨 Content script response to save to topic:", topicResponse);
 		}
 	} catch (error) {
 		logError("❌ Failed to process save request:", error);
@@ -502,11 +352,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 				if ("promise" in getTopicJobResponse) {
 					const result = await getTopicJobResponse.promise;
-					if (result?.result?.topics) {
-						sendResponse({ success: true, topics: result.result.topics });
-					} else {
-						sendResponse({ success: false, error: "No topics found" });
-					}
+					const existingTopics = result?.result?.topics || [];
+
+					// Always add default option at the top
+					const defaultTopic = {
+						id: "default",
+						name: "Default",
+						description: "Save to default location",
+					};
+
+					const topicsWithDefault = [defaultTopic, ...existingTopics];
+					sendResponse({ success: true, topics: topicsWithDefault });
 				}
 			} catch (error) {
 				logError("❌ Failed to get topics for selector:", error);
@@ -515,6 +371,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					error:
 						error instanceof Error ? error.message : "Failed to load topics",
 				});
+			}
+		})();
+		return true;
+	} else if (message.type === "OPEN_FULL_PAGE") {
+		// Handle opening full page from embedded chat
+		(async () => {
+			try {
+				await chrome.runtime.openOptionsPage?.();
+				sendResponse({ success: true });
+			} catch (error) {
+				logError("❌ Failed to open full page:", error);
+				sendResponse({ success: false, error: "Failed to open full page" });
 			}
 		})();
 		return true;
@@ -527,24 +395,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		} catch (error) {
 			logError("❌ Failed to open documents page:", error);
 			sendResponse({ success: false, error: "Failed to open documents page" });
-		}
-		return true;
-	} else if (message.type === "TOPIC_SELECTED_FOR_SAVE") {
-		// Handle topic selection from content script
-		try {
-			chrome.storage?.session?.set?.({
-				saveContext: message.contextData,
-				showTopicSelector: true,
-				navigateTo: "documents",
-			});
-			openExtensionPopup();
-			sendResponse({ success: true });
-		} catch (error) {
-			logError("❌ Failed to handle topic selection:", error);
-			sendResponse({
-				success: false,
-				error: "Failed to handle topic selection",
-			});
 		}
 		return true;
 	} else if (message.type === "SAVE_CONTENT_WITH_TOPIC") {
@@ -626,64 +476,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		})();
 
 		// Return true to indicate async response
-		return true;
-	} else if (message.type === CONTENT_BACKGROUND_EVENTS.SELECTION_EXTRACTED) {
-		// Handle async processing for selected content
-		(async () => {
-			try {
-				// Enqueue selected content for background save
-				const selectionData = {
-					sourceType: "selection" as const,
-					sourceUrl: undefined,
-					originalUrl: message.data.sourceMetadata.pageUrl,
-					title: `Selection from: ${message.data.sourceMetadata.pageTitle}`,
-					rawContent: message.data.selectedText,
-					cleanContent: message.data.selectedText,
-					textContent: message.data.selectedText,
-					sourceMetadata: message.data.sourceMetadata,
-					extractionMetadata: {
-						selectionLength: message.data.selectedText.length,
-						hasContext: !!message.data.selectionContext,
-						extractedAt: new Date().toISOString(),
-					},
-				};
-
-				startLoading(); // Show loading indicator
-
-				const saveResponse = await backgroundJob.execute(
-					"remember-save",
-					selectionData,
-					{ stream: false },
-				);
-
-				if (!("promise" in saveResponse)) {
-					throw new Error("Failed to process selection");
-				}
-
-				const saveResult = (await saveResponse.promise).result;
-
-				if (!saveResult || !("filePath" in saveResult)) {
-					throw new Error("No file path returned from save operation");
-				}
-
-				logInfo("✅ Selection saved as file:", saveResult.filePath);
-
-				sendResponse({ success: true, filePath: saveResult.filePath });
-			} catch (error) {
-				logError("❌ Failed to process selection:", error);
-
-				const errorResponse = {
-					success: false,
-					error:
-						error instanceof Error ? error.message : "Failed to save selection",
-				};
-
-				sendResponse(errorResponse);
-			} finally {
-				stopLoading(); // Hide loading indicator
-			}
-		})();
-
 		return true;
 	}
 });

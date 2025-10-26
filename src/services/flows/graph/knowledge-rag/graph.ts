@@ -683,26 +683,20 @@ export class KnowledgeRAGFlow extends GraphBase<
 		try {
 			logInfo("[KNOWLEDGE_RAG] Generating final response");
 
-			const prompt = RESPONSE_GENERATION_PROMPT.replace(
-				"{query}",
-				state.query,
-			).replace("{context}", state.knowledgeContext);
+			// Build system message with knowledge context
+			const systemMessage: ChatMessage = {
+				role: "system",
+				content: RESPONSE_GENERATION_PROMPT.replace(
+					"{query}",
+					state.query,
+				).replace("{context}", state.knowledgeContext),
+			};
 
-			// WebLLM requires last message to be from user or tool role
-			const messages: ChatMessage[] = [
-				{
-					role: "system",
-					content: RESPONSE_GENERATION_PROMPT.replace(
-						"{context}",
-						state.knowledgeContext,
-					),
-				},
-				{ role: "user", content: state.query },
-			];
+			// Use full multimodal messages from input, prepending system message
+			const messages: ChatMessage[] = [systemMessage, ...state.messages];
 
 			const llmResponse = await llm.chatCompletions({
 				messages,
-				max_tokens: 4096,
 				temperature: 0.3,
 				stream: true,
 			});

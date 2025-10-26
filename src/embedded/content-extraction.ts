@@ -1,11 +1,72 @@
 import { Readability } from "@mozilla/readability";
-import { isPDFUrl, readPDFFromUrl } from "./pdf-extraction";
+import {
+	isPDFUrl,
+	readPDFFromUrl,
+} from "../modules/documents/handlers/pdf-extraction";
 import type {
 	SelectionData,
 	PageMetadata,
 	ReadableContent,
 	ExtractedPageData,
 } from "./types";
+
+// Extract content visible in current viewport (what user sees)
+export function extractViewportContent(): string {
+	const elements: string[] = [];
+	const seenTexts = new Set<string>(); // Avoid duplicate text
+
+	// Query for meaningful text-containing elements
+	const textElements = document.querySelectorAll(
+		"p, h1, h2, h3, h4, h5, h6, li, td, th, article, section, div[role='main'], main, aside, blockquote, pre, code",
+	);
+
+	textElements.forEach((el) => {
+		try {
+			// Check if element is in viewport
+			const rect = el.getBoundingClientRect();
+			const isInViewport =
+				rect.top < window.innerHeight &&
+				rect.bottom > 0 &&
+				rect.left < window.innerWidth &&
+				rect.right > 0;
+
+			if (!isInViewport) return;
+
+			// Check if element is visible
+			const style = window.getComputedStyle(el);
+			const isVisible =
+				style.display !== "none" &&
+				style.visibility !== "hidden" &&
+				parseFloat(style.opacity) > 0;
+
+			if (!isVisible) return;
+
+			// Get direct text content (not including child elements to avoid duplication)
+			const text = Array.from(el.childNodes)
+				.filter((node) => node.nodeType === Node.TEXT_NODE)
+				.map((node) => node.textContent?.trim())
+				.filter(Boolean)
+				.join(" ")
+				.trim();
+
+			// Add meaningful text (longer than 10 chars, not duplicate)
+			if (text && text.length > 10 && !seenTexts.has(text)) {
+				seenTexts.add(text);
+				elements.push(text);
+			}
+		} catch (e) {
+			// Skip elements that cause errors
+		}
+	});
+
+	// Join with line breaks, limit to reasonable size
+	const content = elements.join("\n\n");
+	const maxLength = 10000; // 10k chars max for viewport
+
+	return content.length > maxLength
+		? content.substring(0, maxLength) + "\n\n[Content truncated...]"
+		: content;
+}
 
 // Extract current selection with context
 export function extractSelection(selectedText: string): SelectionData {

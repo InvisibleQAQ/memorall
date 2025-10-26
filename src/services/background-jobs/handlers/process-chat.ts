@@ -19,7 +19,6 @@ export interface ChatPayload {
 	messages: ChatMessage[];
 	model: string;
 	mode: "normal" | "agent" | "knowledge";
-	query?: string; // For knowledge mode
 	topicId?: string; // For topic filtering in knowledge mode
 	streamConfig?: ChatStreamConfig;
 }
@@ -59,6 +58,20 @@ export type ChatJob = BaseJob & {
 	jobType: typeof JOB_NAMES.chat;
 	payload: ChatPayload;
 };
+
+/**
+ * Helper function to extract text content from OpenAI message content format
+ */
+function extractTextContent(content: ChatMessage["content"]): string {
+	if (typeof content === "string") {
+		return content;
+	}
+	// For array content, concatenate all text parts
+	return content
+		.filter((part) => part.type === "text")
+		.map((part) => part.text)
+		.join("\n");
+}
 
 /**
  * Helper class to buffer streaming content and emit when threshold is reached
@@ -119,7 +132,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		job: ChatJob,
 		dependencies: ProcessDependencies,
 	): Promise<ItemHandlerResult> {
-		const { messages, model, mode, query, topicId, streamConfig } = job.payload;
+		const { messages, model, mode, topicId, streamConfig } = job.payload;
 
 		// Apply default stream config
 		const config: Required<ChatStreamConfig> = {
@@ -196,10 +209,18 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					progress: 20,
 				});
 
+				// Extract query from last user message for knowledge search
+				const lastUserMessage = messages
+					.filter((msg) => msg.role === "user")
+					.pop();
+				const queryText = lastUserMessage
+					? extractTextContent(lastUserMessage.content)
+					: "";
+
 				const stream = await graph.stream(
 					{
-						messages: messages,
-						query: query || messages[messages.length - 1]?.content || "",
+						messages: messages, // Keep full multimodal messages for LLM
+						query: queryText, // Use text-only query for search
 						topicId: topicId,
 						steps: [],
 					},
@@ -258,7 +279,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 							Array.isArray(partialValue.actions) &&
 							partialValue.actions?.length
 						) {
-							partialValue.actions.forEach((action: any) => {
+							partialValue.actions.forEach((action) => {
 								if (!actions.find((a) => a.id === action.id)) {
 									actions.push(action);
 								}

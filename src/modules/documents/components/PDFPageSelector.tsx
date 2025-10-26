@@ -20,7 +20,10 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, BookOpen, Check } from "lucide-react";
 import type { DocumentFile } from "@/types/document-library";
 import { documentStorageService } from "@/modules/documents/services/document-storage";
-import { readPDFFile, type PDFPageContent } from "@/embedded/pdf-extraction";
+import {
+	readPDFFile,
+	type PDFPageContent,
+} from "@/modules/documents/handlers/pdf-extraction";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { logError, logInfo } from "@/utils/logger";
 

@@ -1,8 +1,19 @@
 import type { ChatAction } from "@/modules/chat/services/chat-service";
 
+export type { ChatAction };
+
 export interface ChatMessage {
 	id: string;
-	content: string;
+	// content should follow openAI message content format
+	content:
+		| string
+		| Array<
+				| { type: "text"; text: string }
+				| {
+						type: "image_url";
+						image_url: { url: string; detail?: "low" | "high" | "auto" };
+				  }
+		  >;
 	role: "user" | "assistant";
 	timestamp: Date;
 	reasoning?: string;
@@ -77,6 +88,7 @@ export interface ChatModalProps {
 	mode?: "general" | "topic";
 	pageUrl: string;
 	pageTitle: string;
+	contextOptions?: Array<{ type: string; label: string; content: string }>;
 	onClose: () => void;
 }
 

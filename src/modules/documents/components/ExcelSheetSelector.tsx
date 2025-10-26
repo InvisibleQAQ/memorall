@@ -18,7 +18,10 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Sheet, Check } from "lucide-react";
 import type { DocumentFile } from "@/types/document-library";
 import { documentStorageService } from "@/modules/documents/services/document-storage";
-import { parseExcelFile, sheetToMarkdown } from "@/embedded/excel-extraction";
+import {
+	parseExcelFile,
+	sheetToMarkdown,
+} from "@/modules/documents/handlers/excel-extraction";
 import * as XLSX from "xlsx";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { logError, logInfo } from "@/utils/logger";

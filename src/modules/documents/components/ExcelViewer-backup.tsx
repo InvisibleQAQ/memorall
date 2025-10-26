@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { parseExcelFile } from "@/embedded/excel-extraction";
+import { parseExcelFile } from "@/modules/documents/handlers/excel-extraction";
 import { logError, logInfo } from "@/utils/logger";
 import * as XLSX from "xlsx";
 

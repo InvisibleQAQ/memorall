@@ -39,8 +39,8 @@ import type {
 	DocumentFile,
 } from "@/types/document-library";
 import { logError, logInfo } from "@/utils/logger";
-import { readPDFFile } from "@/embedded/pdf-extraction";
-import { readExcelFile } from "@/embedded/excel-extraction";
+import { readPDFFile } from "@/modules/documents/handlers/pdf-extraction";
+import { readExcelFile } from "@/modules/documents/handlers/excel-extraction";
 import {
 	UploadProgressDialog,
 	CreateFolderDialog,

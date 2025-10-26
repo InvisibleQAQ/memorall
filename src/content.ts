@@ -8,9 +8,10 @@ import {
 	storeRememberContext,
 	sendMessageToBackground,
 	createEmbeddedTopicSelector,
+	extractReadableContent,
+	extractViewportContent,
 } from "./embedded";
 import { createShadcnEmbeddedChatModal } from "./embedded/components/ShadcnEmbeddedChat";
-import { handlePDFMessage } from "./embedded/pdf-content-handler";
 import type {
 	BackgroundMessage,
 	MessageResponse,
@@ -50,15 +51,6 @@ chrome.runtime.onMessage.addListener(
 
 				case CONTENT_BACKGROUND_EVENTS.SHOW_CHAT_MODAL:
 					handleShowChatModal(message, sendResponse);
-					return true;
-
-				// PDF-specific handlers
-				case CONTENT_BACKGROUND_EVENTS.PDF_EXTRACT_PDF:
-				case CONTENT_BACKGROUND_EVENTS.PDF_EXTRACT_PDF_PAGES:
-				case CONTENT_BACKGROUND_EVENTS.PDF_SEARCH_PDF:
-				case CONTENT_BACKGROUND_EVENTS.PDF_EXPORT_PDF_TEXT:
-				case CONTENT_BACKGROUND_EVENTS.PDF_EXPORT_PDF_MARKDOWN:
-					handlePDFOperation(message, sendResponse);
 					return true;
 
 				default:
@@ -220,10 +212,10 @@ function handleShowTopicSelector(
 }
 
 // Handle SHOW_CHAT_MODAL message - display chat modal UI
-function handleShowChatModal(
+async function handleShowChatModal(
 	message: BackgroundMessage,
 	sendResponse: (response: MessageResponse) => void,
-): void {
+): Promise<void> {
 	try {
 		// Remove any existing chat modal
 		const existingModal = document.getElementById(
@@ -233,12 +225,85 @@ function handleShowChatModal(
 			existingModal.remove();
 		}
 
+		// Extract context options if requested
+		let contextOptions: Array<{
+			type: string;
+			label: string;
+			content: string;
+		}> = [];
+
+		if (message.selectedText && message.selectedText.trim()) {
+			contextOptions.push({
+				type: "selection",
+				label: "Selected text",
+				content: message.selectedText,
+			});
+		}
+
+		// 2. Viewport content (visible content)
+		try {
+			const viewportContent = extractViewportContent();
+			if (viewportContent.trim()) {
+				contextOptions.push({
+					type: "viewport",
+					label: "Visible content",
+					content: viewportContent,
+				});
+			}
+		} catch (e) {
+			console.error("Failed to extract viewport content:", e);
+		}
+
+		// 3. Full page content
+		try {
+			const fullPageData = await extractReadableContent();
+			const fullContent =
+				fullPageData.textContent ||
+				fullPageData.content ||
+				document.body.innerText ||
+				"";
+			if (fullContent.trim()) {
+				contextOptions.push({
+					type: "full_page",
+					label: "Page text",
+					content: fullContent,
+				});
+			} else {
+				console.warn("Full page content is empty");
+			}
+		} catch (e) {
+			console.error("Failed to extract full page content:", e);
+			// Fallback: use basic text extraction
+			const fallbackText = document.body.innerText || "";
+			if (fallbackText.trim()) {
+				contextOptions.push({
+					type: "full_page",
+					label: "Page text",
+					content: fallbackText,
+				});
+			}
+		}
+
+		// 4. Viewport screenshot - placeholder, will be captured on demand
+		contextOptions.push({
+			type: "viewport_screenshot",
+			label: "Visible image",
+			content: "", // Empty until user clicks to capture
+		});
+
+		// 5. Full page screenshot - placeholder, will be captured on demand
+		contextOptions.push({
+			type: "screenshot",
+			label: "Full page image",
+			content: "", // Empty until user clicks to capture
+		});
+
 		// Create new chat modal
 		createShadcnEmbeddedChatModal({
-			context: message.context,
 			mode: message.mode || "general",
 			pageUrl: window.location.href,
 			pageTitle: document.title,
+			contextOptions,
 			onClose: () => {
 				// Cleanup handled by the component itself
 			},
@@ -252,27 +317,6 @@ function handleShowChatModal(
 				error instanceof Error ? error.message : "Failed to show chat modal",
 		});
 	}
-}
-
-// Handle PDF operations
-function handlePDFOperation(
-	message: BackgroundMessage,
-	sendResponse: (response: MessageResponse) => void,
-): void {
-	(async () => {
-		try {
-			const result = await handlePDFMessage({
-				type: message.type,
-				url: message.url || window.location.href,
-			});
-			sendResponse(result);
-		} catch (error) {
-			sendResponse({
-				success: false,
-				error: error instanceof Error ? error.message : "Failed PDF operation",
-			});
-		}
-	})();
 }
 
 // Initialize content script

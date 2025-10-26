@@ -93,6 +93,7 @@
     "embla-carousel-react": "^8.6.0",
     "gsap": "^3.13.0",
     "harden-react-markdown": "^1.0.5",
+    "html2canvas": "^1.4.1",
     "katex": "^0.16.22",
     "langchain": "^0.3.33",
     "lucide-react": "^0.542.0",

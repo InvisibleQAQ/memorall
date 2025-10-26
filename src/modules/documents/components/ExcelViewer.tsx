@@ -48,7 +48,7 @@ import "@univerjs/sheets-formula/facade";
 import "@univerjs/sheets-numfmt/facade";
 
 import * as XLSX from "xlsx";
-import { parseExcelFile } from "@/embedded/excel-extraction";
+import { parseExcelFile } from "@/modules/documents/handlers/excel-extraction";
 import { logError, logInfo } from "@/utils/logger";
 
 interface ExcelViewerProps {

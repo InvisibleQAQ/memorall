@@ -31,7 +31,7 @@ import { backgroundJob } from "@/services/background-jobs/background-job";
 import {
 	parseExcelFile,
 	workbookToMarkdown,
-} from "@/embedded/excel-extraction";
+} from "@/modules/documents/handlers/excel-extraction";
 import { serviceManager } from "@/services";
 import { eq, inArray } from "drizzle-orm";
 import { TopicBadgeList } from "@/modules/topics/components";

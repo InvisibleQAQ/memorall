@@ -67,7 +67,7 @@ export async function sendContentWithTopic(
 	topicId: string,
 ): Promise<MessageResponse> {
 	return sendMessageToBackground({
-		type: "REMEMBER_CONTENT_WITH_TOPIC",
+		type: "SAVE_CONTENT_WITH_TOPIC",
 		context,
 		url: pageUrl,
 		topicId,
