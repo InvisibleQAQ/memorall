@@ -40,7 +40,7 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 
 	async getMaxResponseTokens(model?: string): Promise<number> {
 		// Default fallback for unknown models (80% of context window)
-		return Math.round(10000 * 0.8);
+		return Math.round(10000 * 0.5);
 	}
 
 	private headers(): HeadersInit {

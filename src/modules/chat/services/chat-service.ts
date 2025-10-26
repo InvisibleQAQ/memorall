@@ -101,6 +101,15 @@ export class ChatService {
 			let streamFailed = false;
 			let streamError = "";
 
+			if (!('stream' in result)) {
+				return {
+					content: "",
+					actions,
+					failed: true,
+					error: "Chat request failed",
+				};
+			}
+
 			// Process streaming results
 			for await (const progress of result.stream) {
 				if (abortController.signal.aborted) {

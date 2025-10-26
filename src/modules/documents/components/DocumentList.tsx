@@ -15,6 +15,7 @@ import {
 	Edit,
 	Download,
 	Trash2,
+	Brain,
 } from "lucide-react";
 import type {
 	DocumentLibraryItem,
@@ -44,6 +45,7 @@ interface DocumentListProps {
 	onDownloadFile?: (fileId: string) => void;
 	onManageTopics?: (file: DocumentFile) => void;
 	onRenameItem?: (item: DocumentLibraryItem, newName: string) => void;
+	onConvertToKnowledge?: (file: DocumentFile) => void;
 	fileTopicMap?: Map<string, Topic[]>;
 	selectedTopicIds?: string[];
 	onTopicClick?: (topicId: string) => void;
@@ -77,6 +79,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 	onDownloadFile,
 	onManageTopics,
 	onRenameItem,
+	onConvertToKnowledge,
 	fileTopicMap,
 	selectedTopicIds = [],
 	onTopicClick,
@@ -326,6 +329,20 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 											<DropdownMenuSeparator />
 										</>
 									)}
+									{onConvertToKnowledge && (
+										<>
+											<DropdownMenuItem
+												onClick={(e) => {
+													e.stopPropagation();
+													onConvertToKnowledge(file);
+												}}
+											>
+												<Brain className="h-4 w-4 mr-2" />
+												Convert to knowledge
+											</DropdownMenuItem>
+											<DropdownMenuSeparator />
+										</>
+									)}
 									{onRenameItem && (
 										<>
 											<DropdownMenuItem
@@ -474,6 +491,20 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 												>
 													<Tags className="h-4 w-4 mr-2" />
 													Manage Topics
+												</DropdownMenuItem>
+												<DropdownMenuSeparator />
+											</>
+										)}
+										{onConvertToKnowledge && (
+											<>
+												<DropdownMenuItem
+													onClick={(e) => {
+														e.stopPropagation();
+														onConvertToKnowledge(file);
+													}}
+												>
+													<Brain className="h-4 w-4 mr-2" />
+													Convert to knowledge
 												</DropdownMenuItem>
 												<DropdownMenuSeparator />
 											</>

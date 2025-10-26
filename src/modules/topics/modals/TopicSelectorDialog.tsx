@@ -27,7 +27,7 @@ import { logError, logInfo } from "@/utils/logger";
 interface TopicSelectorDialogProps {
 	filePath: string;
 	fileName: string;
-	initialTopicIds: string[];
+	initialTopicIds?: string[];
 }
 
 type ViewMode = "select" | "create";
@@ -36,13 +36,16 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 	({ filePath, fileName, initialTopicIds }) => {
 		const modal = useModal();
 
+		// Ensure initialTopicIds is always an array
+		const safeInitialTopicIds = Array.isArray(initialTopicIds) ? initialTopicIds : [];
+
 		// State
 		const [viewMode, setViewMode] = useState<ViewMode>("select");
 		const [loading, setLoading] = useState(false);
 		const [saving, setSaving] = useState(false);
 		const [topics, setTopics] = useState<Topic[]>([]);
 		const [selectedTopicIds, setSelectedTopicIds] =
-			useState<string[]>(initialTopicIds);
+			useState<string[]>(safeInitialTopicIds);
 		const [searchQuery, setSearchQuery] = useState("");
 
 		// Create new topic state
@@ -54,20 +57,21 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 		useEffect(() => {
 			if (modal.visible) {
 				loadTopics();
-				setSelectedTopicIds(initialTopicIds);
+				setSelectedTopicIds(safeInitialTopicIds);
 				setViewMode("select");
 				setSearchQuery("");
 			}
-		}, [modal.visible, initialTopicIds]);
+		}, [modal.visible, safeInitialTopicIds]);
 
 		// Load all topics
 		const loadTopics = async () => {
 			try {
 				setLoading(true);
 				const allTopics = await topicService.getTopics();
-				setTopics(allTopics);
+				setTopics(Array.isArray(allTopics) ? allTopics : []);
 			} catch (error) {
 				logError("[TOPIC_SELECTOR] Failed to load topics:", error);
+				setTopics([]); // Ensure topics is always an array even on error
 			} finally {
 				setLoading(false);
 			}
@@ -75,6 +79,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 
 		// Filter topics based on search
 		const filteredTopics = useMemo(() => {
+			if (!topics || !Array.isArray(topics)) return [];
 			if (!searchQuery.trim()) return topics;
 
 			const query = searchQuery.toLowerCase();
@@ -143,9 +148,9 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 
 		// Check if selection has changed
 		const hasChanges = useMemo(() => {
-			if (selectedTopicIds.length !== initialTopicIds.length) return true;
-			return !selectedTopicIds.every((id) => initialTopicIds.includes(id));
-		}, [selectedTopicIds, initialTopicIds]);
+			if (selectedTopicIds.length !== safeInitialTopicIds.length) return true;
+			return !selectedTopicIds.every((id) => safeInitialTopicIds.includes(id));
+		}, [selectedTopicIds, safeInitialTopicIds]);
 
 		const selectedCount = selectedTopicIds.length;
 

@@ -12,10 +12,11 @@ import { serviceManager } from "@/services";
 import { backgroundProcessFactory } from "./process-factory";
 import { and, eq } from "drizzle-orm";
 
-// Knowledge graph payload - only file path and content
+// Knowledge graph payload - file path, content, and optional topicId
 export interface KnowledgeGraphPayload {
 	filePath: string;
 	content: string;
+	topicId?: string; // undefined means default (no topic)
 }
 
 // Define result types that handlers return
@@ -119,6 +120,7 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 				await knowledgeGraphService.convertPageToKnowledgeGraph(
 					pageData.filePath,
 					pageData.content,
+					pageData.topicId, // Pass the topicId (undefined for default)
 				);
 
 				await dependencies.logger.info(

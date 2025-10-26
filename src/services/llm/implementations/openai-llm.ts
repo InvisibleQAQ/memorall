@@ -193,7 +193,7 @@ export class OpenAILLM implements BaseLLM {
 		}
 
 		// Default fallback for unknown models (80% of context window)
-		return Math.round(10000 * 0.8);
+		return Math.round(10000 * 0.5);
 	}
 
 	async models(): Promise<ModelsResponse> {

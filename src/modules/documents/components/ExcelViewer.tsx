@@ -119,19 +119,21 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 
 				// Register plugins
 				univer.registerPlugin(UniverRenderEnginePlugin);
-				univer.registerPlugin(UniverFormulaEnginePlugin);
+				// Skip formula engine for read-only mode
+				// univer.registerPlugin(UniverFormulaEnginePlugin);
 				univer.registerPlugin(UniverUIPlugin, {
 					container: containerRef.current,
-					header: true,
-					toolbar: true,
-					footer: true,
+					header: true, // Keep header for sheet tabs and navigation
+					toolbar: false, // Disable editing toolbar
+					footer: true, // Keep footer for sheet navigation
 				});
 				univer.registerPlugin(UniverDocsPlugin);
 				univer.registerPlugin(UniverDocsUIPlugin);
 				univer.registerPlugin(UniverSheetsPlugin);
 				univer.registerPlugin(UniverSheetsUIPlugin);
-				univer.registerPlugin(UniverSheetsFormulaPlugin);
-				univer.registerPlugin(UniverSheetsFormulaUIPlugin);
+				// Skip formula plugins for read-only mode
+				// univer.registerPlugin(UniverSheetsFormulaPlugin);
+				// univer.registerPlugin(UniverSheetsFormulaUIPlugin);
 				univer.registerPlugin(UniverSheetsNumfmtPlugin);
 				univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
 				logInfo("Plugins registered, creating workbook...");
@@ -139,6 +141,35 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 				// Create workbook
 				univer.createUnit(UniverInstanceType.UNIVER_SHEET, univerWorkbookData);
 				logInfo("Workbook created successfully");
+
+				// Make workbook read-only by preventing editing interactions
+				setTimeout(() => {
+					const container = containerRef.current;
+					if (container) {
+						// Disable context menus and editing keyboard shortcuts
+						container.addEventListener('contextmenu', (e) => e.preventDefault());
+						container.addEventListener('keydown', (e) => {
+							// Allow navigation keys but prevent editing keys
+							const allowedKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Tab'];
+							if (!allowedKeys.includes(e.key) && !e.ctrlKey) {
+								e.preventDefault();
+								e.stopPropagation();
+							}
+						});
+						
+						// Prevent double-click editing
+						container.addEventListener('dblclick', (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+						});
+						
+						// Prevent input events
+						container.addEventListener('input', (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+						});
+					}
+				}, 100);
 
 				univerRef.current = univer;
 				logInfo(`Excel file loaded successfully: ${fileName}`);
@@ -182,6 +213,10 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 						cellData[R][C] = {
 							v: cell.v,
 							t: cell.t === "n" ? 2 : 1, // 2 for number, 1 for string
+							s: {
+								// Lock all cells for read-only mode
+								locked: true,
+							},
 						};
 					}
 				}
@@ -214,6 +249,26 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 				},
 				selections: ["A1"],
 				rightToLeft: 0,
+				// Add protection to make sheet read-only
+				protection: {
+					sheet: true,
+					password: "",
+					allowSelectLockedCells: true,
+					allowSelectUnlockedCells: true,
+					allowFormatCells: false,
+					allowFormatColumns: false,
+					allowFormatRows: false,
+					allowInsertColumns: false,
+					allowInsertRows: false,
+					allowInsertHyperlinks: false,
+					allowDeleteColumns: false,
+					allowDeleteRows: false,
+					allowSort: false,
+					allowAutoFilter: false,
+					allowPivotTables: false,
+					allowEditObjects: false,
+					allowEditScenarios: false,
+				},
 			};
 		});
 

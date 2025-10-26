@@ -93,7 +93,7 @@ export async function mapRefine<T>(
 	let { maxResponseTokens = 512 } = options;
 
 	if (maxResponseTokens >= maxModelTokens) {
-		maxResponseTokens = Math.floor(maxModelTokens * 0.8);
+		maxResponseTokens = Math.floor(maxModelTokens * 0.5);
 	}
 
 	// Initial chunking of source text

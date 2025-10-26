@@ -126,7 +126,7 @@ export class WllamaLLM implements BaseLLM {
 	}
 
 	async getMaxResponseTokens(model?: string): Promise<number> {
-		return Math.round(4096 * 0.8);
+		return Math.round(4096 * 0.5);
 	}
 
 	async models(): Promise<ModelsResponse> {

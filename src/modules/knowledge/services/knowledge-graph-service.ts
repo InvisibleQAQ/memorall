@@ -149,6 +149,7 @@ export class KnowledgeGraphService {
 	async convertPageToKnowledgeGraph(
 		filePath: string,
 		content: string,
+		topicId?: string,
 	): Promise<void> {
 		const conversionId = filePath;
 		// Initialize conversion progress
@@ -174,7 +175,7 @@ export class KnowledgeGraphService {
 			// Create source record for this file (for knowledge graph tracking)
 			const sourceId = await this.ensureSourceWithProcessingStatus(filePath, {
 				title: filePath,
-				topicId: undefined,
+				topicId: topicId, // Use the provided topicId (undefined for default)
 				sourceType: "file",
 				sourceUrl: filePath,
 			});
@@ -201,7 +202,7 @@ export class KnowledgeGraphService {
 				title: filePath,
 				url: filePath,
 				pageId: filePath, // Keep as pageId for KnowledgeGraphState interface compatibility
-				topicId: undefined,
+				topicId: topicId, // Use the provided topicId (undefined for default)
 				sourceId: sourceId,
 				referenceTimestamp: new Date().toISOString(),
 				metadata: {} as Record<string, unknown>,

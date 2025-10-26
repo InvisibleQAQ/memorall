@@ -26,6 +26,8 @@ import { Separator } from "@/components/ui/separator";
 import { documentStorageService } from "@/modules/documents/services/document-storage";
 import { PDFPageSelector } from "./PDFPageSelector";
 import { ExcelViewer } from "./ExcelViewer";
+import { ExcelSheetSelector } from "./ExcelSheetSelector";
+import { useModalSelector } from "../hooks/useModalSelector";
 import { logInfo, logError } from "@/utils/logger";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import {
@@ -42,6 +44,7 @@ interface DocumentViewerProps {
 	onDelete?: () => void;
 	onDownload?: () => void;
 	onManageTopics?: (file: DocumentFile) => void;
+	onConvertToKnowledge?: (file: DocumentFile) => void;
 	fileTopics?: Topic[];
 	selectedTopicIds?: string[];
 	onTopicClick?: (topicId: string) => void;
@@ -53,6 +56,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	onDelete,
 	onDownload,
 	onManageTopics,
+	onConvertToKnowledge,
 	fileTopics: propFileTopics,
 	selectedTopicIds = [],
 	onTopicClick,
@@ -62,7 +66,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	const [excelData, setExcelData] = useState<Uint8Array | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [showProperties, setShowProperties] = useState(false);
-	const [showPageSelector, setShowPageSelector] = useState(false);
+	const pdfPageSelector = useModalSelector();
+	const excelSheetSelector = useModalSelector();
 	const [converting, setConverting] = useState(false);
 	const [loadedFileTopics, setLoadedFileTopics] = useState<Topic[]>([]);
 
@@ -187,96 +192,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 		alert("Successfully converted PDF pages to remembered content!");
 	};
 
-	const handleConvertText = async () => {
-		try {
-			setConverting(true);
-
-			// Get file content from storage and convert to text in main thread
-			const fileContent = await documentStorageService.getFileContent(file.id);
-
-			logInfo(`Converting text file in main thread: ${file.name}`);
-
-			// Decode text content in main thread
-			const textDecoder = new TextDecoder("utf-8");
-			const textContent = textDecoder.decode(fileContent);
-
-			// Create title from file name
-			const title = file.name.replace(/\\.txt$/i, "");
-
-			logInfo(`Text converted in main thread, sending to knowledge graph...`);
-
-			// Send text content directly to knowledge graph handler
-			const { jobId, promise } = await backgroundJob.execute(
-				"knowledge-graph",
-				{
-					filePath: file.path,
-					content: textContent,
-				},
-				{ stream: false },
-			);
-
-			logInfo(`Knowledge graph job created: ${jobId}`);
-
-			// Wait for completion
-			const result = await promise;
-
-			logInfo(`Knowledge graph generation completed:`, result);
-
-			alert("Successfully generated knowledge graph from text file!");
-		} catch (error) {
-			logError("Failed to convert text file:", error);
-			alert("Failed to convert text file. Please try again.");
-		} finally {
-			setConverting(false);
-		}
-	};
-
-	const handleConvertExcel = async () => {
-		try {
-			setConverting(true);
-
-			// Get file content from storage
-			const fileContent = await documentStorageService.getFileContent(file.id);
-
-			logInfo(`Converting Excel file in main thread: ${file.name}`);
-
-			// Parse Excel file and convert to markdown
-			const workbook = await parseExcelFile(fileContent);
-			const markdownContent = workbookToMarkdown(workbook);
-
-			// Create title from file name
-			const title = file.name.replace(/\.(xls|xlsx|xlsm)$/i, "");
-
-			logInfo(
-				`Excel converted to markdown in main thread, sending to knowledge graph...`,
-			);
-
-			// Send markdown content directly to knowledge graph handler
-			const { jobId, promise } = await backgroundJob.execute(
-				"knowledge-graph",
-				{
-					filePath: file.path,
-					content: markdownContent,
-				},
-				{ stream: false },
-			);
-
-			logInfo(`Knowledge graph job created: ${jobId}`);
-
-			// Wait for completion
-			const result = await promise;
-
-			logInfo(`Knowledge graph generation completed:`, result);
-
-			alert("Successfully generated knowledge graph from Excel file!");
-		} catch (error) {
-			logError("Failed to convert Excel file:", error);
-			alert("Failed to convert Excel file. Please try again.");
-		} finally {
-			setConverting(false);
-		}
-	};
-
 	return (
 		<div className="flex flex-col h-full bg-card">
 			{/* Header */}
@@ -342,17 +257,17 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 						<Button
 							variant="default"
 							size="sm"
-							onClick={() => setShowPageSelector(true)}
+							onClick={pdfPageSelector.openSelector}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
 							<span className="hidden sm:inline">Convert to Knowledge</span>
 						</Button>
 					)}
-					{file.type === "text" && (
+					{file.type === "text" && onConvertToKnowledge && (
 						<Button
 							variant="default"
 							size="sm"
-							onClick={handleConvertText}
+							onClick={() => onConvertToKnowledge(file)}
 							disabled={converting}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
@@ -365,13 +280,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 						<Button
 							variant="default"
 							size="sm"
-							onClick={handleConvertExcel}
-							disabled={converting}
+							onClick={excelSheetSelector.openSelector}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
-							<span className="hidden sm:inline">
-								{converting ? "Converting..." : "Convert to Knowledge"}
-							</span>
+							<span className="hidden sm:inline">Convert to Knowledge</span>
 						</Button>
 					)}
 					<Button
@@ -605,8 +517,18 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 			{file.type === "pdf" && (
 				<PDFPageSelector
 					file={file}
-					open={showPageSelector}
-					onOpenChange={setShowPageSelector}
+					open={pdfPageSelector.showSelector}
+					onOpenChange={pdfPageSelector.setShowSelector}
+					onConvert={handleConvertPages}
+				/>
+			)}
+
+			{/* Excel Sheet Selector Dialog */}
+			{file.type === "excel" && (
+				<ExcelSheetSelector
+					file={file}
+					open={excelSheetSelector.showSelector}
+					onOpenChange={excelSheetSelector.setShowSelector}
 					onConvert={handleConvertPages}
 				/>
 			)}

@@ -3,7 +3,7 @@
  * Main page for document management with file system interface
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import NiceModal from "@ebay/nice-modal-react";
 import {
 	Upload,
@@ -48,7 +48,6 @@ import {
 import {
 	TopicSelectorDialog,
 	CreateTopicDialog,
-	EditTopicDialog,
 	ManageTopicsDialog,
 } from "@/modules/topics/modals";
 import {
@@ -57,8 +56,13 @@ import {
 } from "@/modules/topics/components";
 import { topicService } from "@/modules/topics/services/topic-service";
 import type { Topic } from "@/services/database/entities/topics";
+import { backgroundJob } from "@/services/background-jobs/background-job";
+import { useKnowledgeConversion } from "@/modules/documents/hooks/useKnowledgeConversion";
 
 export const DocumentLibraryPage: React.FC = () => {
+	// Hooks
+	const { convertToKnowledge } = useKnowledgeConversion();
+
 	// State
 	const [tree, setTree] = useState<DocumentTreeNode[]>([]);
 	const [selectedNode, setSelectedNode] = useState<DocumentTreeNode | null>(
@@ -574,6 +578,15 @@ export const DocumentLibraryPage: React.FC = () => {
 		}
 	};
 
+	const handleConvertToKnowledge = async (file: DocumentFile) => {
+		try {
+			const currentFileTopics = fileTopicMap.get(file.path) || [];
+			await convertToKnowledge(file, currentFileTopics, loadTopics);
+		} catch (error) {
+			logError("[DOCUMENT_LIBRARY] Failed to convert to knowledge:", error);
+		}
+	};
+
 	/**
 	 * Handle moving a file or folder to a new location
 	 */
@@ -865,6 +878,7 @@ export const DocumentLibraryPage: React.FC = () => {
 							onRenameItem={handleRenameItem}
 							onDownloadFile={handleDownloadFile}
 							onManageTopics={handleManageFileTopic}
+							onConvertToKnowledge={handleConvertToKnowledge}
 							fileTopicMap={fileTopicMap}
 							selectedTopicIds={selectedTopicIds}
 							onTopicClick={(topicId) => {
@@ -905,6 +919,7 @@ export const DocumentLibraryPage: React.FC = () => {
 							onDelete={handleDeleteSelectedFile}
 							onDownload={handleDownloadSelectedFile}
 							onManageTopics={handleManageFileTopic}
+							onConvertToKnowledge={handleConvertToKnowledge}
 							fileTopics={fileTopicMap.get(selectedNode.file.path) || []}
 							selectedTopicIds={selectedTopicIds}
 							onTopicClick={(topicId) => {
