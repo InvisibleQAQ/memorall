@@ -574,9 +574,9 @@ export class KnowledgeRAGFlow extends GraphBase<
 			);
 
 			// 4. Build natural language context
-			const knowledgeContext = `<definitions>${definitions}</definitions>
-
-<facts>${facts}</facts>`;
+			const knowledgeContext = `
+${definitions.trim() ? `<definitions>${definitions}</definitions>` : ""}
+${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 
 			logInfo("[KNOWLEDGE_RAG] Built natural language context:", {
 				definitionsLength: definitions.length,
@@ -593,7 +593,9 @@ export class KnowledgeRAGFlow extends GraphBase<
 					{
 						id: crypto.randomUUID(),
 						name: "Context Graph",
-						description: `\`\`\`mermaid\n${mermaidDiagram}\n\`\`\``,
+						description: mermaidDiagram.trim()
+							? `\`\`\`mermaid\n${mermaidDiagram}\n\`\`\``
+							: "No graph found.",
 						metadata: {
 							definitionsCount: state.relevantNodes.length,
 							factsCount: state.relevantEdges.length,
