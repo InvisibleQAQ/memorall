@@ -14,6 +14,8 @@ import {
 	useCurrentModel,
 	useChat,
 } from "@/modules/chat/components";
+import { MessageGroup } from "@/modules/chat/components/MessageGroup";
+import { groupMessagesBySeparators } from "@/modules/chat/utils/message-grouping";
 import { topicService } from "@/modules/topics/services/topic-service";
 
 export const ChatPage: React.FC = () => {
@@ -39,24 +41,10 @@ export const ChatPage: React.FC = () => {
 		deleteMessages,
 	} = useChat(model);
 
-	// Memoized completed messages - only re-renders when messages array changes
-	const completedMessages = useMemo(() => {
-		return messages.map((message, index) => {
-			// Skip the last placeholder message if we're loading
-			if (isLoading && index === messages.length - 1) {
-				return null;
-			}
-			return (
-				<MessageRenderer
-					key={message.id}
-					message={message}
-					index={index}
-					isLastMessage={false}
-					isLoading={false}
-				/>
-			);
-		});
-	}, [messages, isLoading]);
+	// Memoized grouped messages - groups messages by separators
+	const messageGroups = useMemo(() => {
+		return groupMessagesBySeparators(messages);
+	}, [messages]);
 
 	// In-progress message - only this re-renders during streaming
 	const inProgressMessageElement = useMemo(() => {
@@ -76,15 +64,7 @@ export const ChatPage: React.FC = () => {
 			},
 		};
 
-		return (
-			<MessageRenderer
-				key={message.id}
-				message={updatedMessage}
-				index={0}
-				isLastMessage={true}
-				isLoading={true}
-			/>
-		);
+		return updatedMessage;
 	}, [inProgressMessage, messages, isLoading]);
 
 	// Fetch topics when knowledge mode is selected
@@ -134,9 +114,16 @@ export const ChatPage: React.FC = () => {
 	return (
 		<div className="flex flex-col h-full bg-background">
 			<Conversation className="flex-1 min-h-0">
-				<ConversationContent className="max-w-3xl mx-auto space-y-4">
-					{completedMessages}
-					{inProgressMessageElement}
+				<ConversationContent className="max-w-3xl mx-auto space-y-6">
+					{messageGroups.map((group, index) => (
+						<MessageGroup
+							key={group.id}
+							group={group}
+							isLoading={isLoading}
+							inProgressMessage={inProgressMessageElement}
+							defaultCollapsed={true}
+						/>
+					))}
 				</ConversationContent>
 				<ConversationScrollButton />
 			</Conversation>

@@ -54,7 +54,6 @@ export interface KnowledgeGraphState extends BaseStateBase {
 	referenceTimestamp: string;
 	metadata?: Record<string, unknown>;
 	graphId?: string;
-	topicId?: string; // Topic ID for filtering knowledge by topic
 
 	// Processing state
 	previousMessages?: string;
@@ -110,10 +109,6 @@ export const KnowledgeGraphAnnotation = Annotation.Root({
 		default: () => ({}),
 	}),
 	graphId: Annotation<string | undefined>({
-		value: (x, y) => y ?? x,
-		default: () => undefined,
-	}),
-	topicId: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,
 		default: () => undefined,
 	}),

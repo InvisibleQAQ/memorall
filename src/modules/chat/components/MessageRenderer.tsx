@@ -116,7 +116,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
 	// Check if this is a separator message
 	if (message.type === "separator") {
 		return (
-			<div key={message.id} className="my-8 flex items-center">
+			<div key={message.id} className="my-4 flex items-center">
 				<div className="flex-1 border-t border-gray-300"></div>
 				<div className="mx-4 text-xs text-gray-500 font-medium">
 					{dayjs(message.createdAt).format("MMM D, YYYY h:mm A")}

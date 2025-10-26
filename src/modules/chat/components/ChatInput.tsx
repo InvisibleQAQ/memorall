@@ -8,6 +8,7 @@ import {
 	ChevronDown,
 	Tags,
 	Trash2,
+	MoreHorizontal,
 } from "lucide-react";
 import {
 	PromptInput,
@@ -98,52 +99,42 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 							{/* Scrollable tools container */}
 							<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
 								<PromptInputTools>
-									<PromptInputButton
-										onClick={onDeleteChat}
+									{/* Compact Mode Toggle */}
+									<Button
+										variant="ghost"
+										size="sm"
 										disabled={isLoading}
-										title="Delete"
+										onClick={() =>
+											setChatMode(
+												chatMode === "knowledge" ? "normal" : "knowledge",
+											)
+										}
+										className={`
+											relative flex items-center gap-1 text-xs whitespace-nowrap px-2
+											transition-all duration-200 ease-in-out
+											hover:scale-105 active:scale-95
+											${
+												chatMode === "knowledge"
+													? "bg-blue-500/10 border border-blue-500/20 text-blue-600 hover:bg-blue-500/15"
+													: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+											}
+										`}
+										title={`Switch to ${chatMode === "knowledge" ? "Normal Chat" : "Knowledge Mode"}`}
 									>
-										<Trash2 size={16} />
-									</PromptInputButton>
-									<PromptInputButton
-										onClick={onInsertSeparator}
-										disabled={isLoading}
-										title="Add separator"
-									>
-										<Minus size={16} />
-										<span>Clear</span>
-									</PromptInputButton>
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button
-												variant="ghost"
-												size="sm"
-												disabled={isLoading}
-												className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap"
-											>
-												{getModeIcon(chatMode)}
-												<span>{getModeLabel(chatMode)}</span>
-												<ChevronDown size={12} className="opacity-50" />
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="start">
-											<DropdownMenuItem
-												onClick={() => setChatMode("normal")}
-												className="flex items-center gap-2"
-											>
-												<MessageCircle size={14} />
-												<span>Normal Chat</span>
-											</DropdownMenuItem>
-											<DropdownMenuItem
-												onClick={() => setChatMode("knowledge")}
-												className="flex items-center gap-2"
-											>
-												<Brain size={14} />
-												<span>Knowledge Mode</span>
-											</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
-									{/* Topic Selector - inline with mode selector */}
+										<div
+											className={`
+											transition-transform duration-200 ease-in-out
+											${chatMode === "knowledge" ? "scale-110" : "scale-100"}
+										`}
+										>
+											{getModeIcon(chatMode)}
+										</div>
+										{chatMode === "knowledge" && (
+											<div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+										)}
+									</Button>
+
+									{/* Topic Selector - Only show when in knowledge mode */}
 									{chatMode === "knowledge" && (
 										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
@@ -151,18 +142,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 													variant="ghost"
 													size="sm"
 													disabled={isLoadingTopics}
-													className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap"
+													className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
 												>
-													<Tags size={14} />
-													<span>
+													<Tags size={12} />
+													<span className="max-w-20 truncate">
 														{isLoadingTopics
-															? "Loading..."
+															? "..."
 															: selectedTopic === "__all__"
-																? "All Topics"
+																? "All"
 																: topics.find((t) => t.id === selectedTopic)
-																		?.name || "Select Topic"}
+																		?.name || "Topic"}
 													</span>
-													<ChevronDown size={12} className="opacity-50" />
+													<ChevronDown size={10} className="opacity-50" />
 												</Button>
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="start">
@@ -188,8 +179,46 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 									)}
 								</PromptInputTools>
 							</div>
-							{/* Sticky send button */}
+							{/* Actions and send button */}
 							<div className="flex items-center gap-2 flex-shrink-0">
+								{/* Clear Button - frequently used */}
+								<Button
+									variant="ghost"
+									size="sm"
+									disabled={isLoading}
+									onClick={onInsertSeparator}
+									className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
+									title="Clear chat"
+								>
+									<Minus size={12} />
+									<span>Clear</span>
+								</Button>
+
+								{/* Actions Menu - less frequent actions */}
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button
+											variant="ghost"
+											size="sm"
+											disabled={isLoading}
+											className="text-muted-foreground hover:text-foreground"
+											title="More actions"
+										>
+											<MoreHorizontal size={14} />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end">
+										<DropdownMenuItem
+											onClick={onDeleteChat}
+											className="flex items-center gap-2 text-red-600 hover:text-red-700"
+										>
+											<Trash2 size={14} />
+											<span>Delete Chat</span>
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+
+								{/* Send/Stop Button */}
 								{isLoading && abortController ? (
 									<Button
 										type="button"

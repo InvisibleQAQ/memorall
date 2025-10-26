@@ -11,7 +11,11 @@ import {
 	trigramSearchEdges,
 	combineSearchResultsWithTrigram,
 } from "@/utils/trigram-search";
-import { vectorSearchNodes, vectorSearchEdges, type VectorSearchResult } from "@/utils/vector-search";
+import {
+	vectorSearchNodes,
+	vectorSearchEdges,
+	type VectorSearchResult,
+} from "@/utils/vector-search";
 import type { DatabaseService } from "@/services/database/database-service";
 import type { BaseEmbedding } from "@/services/embedding";
 import { flowRegistry } from "../../flow-registry";
@@ -106,7 +110,10 @@ export class KnowledgeRAGFlow extends GraphBase<
 		this.compile();
 	}
 
-	private getScopedGraphWhere(state: Pick<KnowledgeRAGState, "graphId">, column: PgColumn) {
+	private getScopedGraphWhere(
+		state: Pick<KnowledgeRAGState, "graphId">,
+		column: PgColumn,
+	) {
 		if (state.graphId || !state.graphId?.trim()) {
 			return eq(column, state.graphId);
 		}
@@ -366,7 +373,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 			const combinedNodes = combineSearchResultsWithTrigram(
 				sqlNodes,
 				vectorNodes.map((node) => ({
-					item: node as unknown as typeof sqlNodes[0],
+					item: node as unknown as (typeof sqlNodes)[0],
 					similarity:
 						"similarity" in node && typeof node.similarity === "number"
 							? node.similarity
@@ -381,7 +388,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 			const combinedEdges = combineSearchResultsWithTrigram(
 				sqlEdges,
 				vectorEdges.map((edge) => ({
-					item: edge as unknown as typeof sqlEdges[0],
+					item: edge as unknown as (typeof sqlEdges)[0],
 					similarity:
 						"similarity" in edge && typeof edge.similarity === "number"
 							? edge.similarity
