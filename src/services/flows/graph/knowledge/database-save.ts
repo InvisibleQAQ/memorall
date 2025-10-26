@@ -55,21 +55,11 @@ async function safeTextToVector(
 export class DatabaseSaveFlow {
 	constructor(private services: AllServices) {}
 
-	// Helper function to determine the graph field value based on topicId
-	private getGraphValue(state: KnowledgeGraphState): string {
-		if (state.topicId && state.topicId.trim().length > 0) {
-			return `topic_${state.topicId.trim()}`;
-		}
-		return "";
-	}
-
 	async saveToDatabaseNode(
 		state: KnowledgeGraphState,
 	): Promise<Partial<KnowledgeGraphState>> {
 		try {
 			logInfo("[SAVE_TO_DATABASE] Saving knowledge graph to database:", {
-				hasPageId: !!state.pageId,
-				pageId: state.pageId,
 				url: state.url,
 				title: state.title,
 				processingStage: state.processingStage,
@@ -81,17 +71,6 @@ export class DatabaseSaveFlow {
 			}
 
 			const embeddingService = this.services.embedding;
-
-			// Validate required fields
-			if (
-				!state.pageId ||
-				typeof state.pageId !== "string" ||
-				state.pageId.trim().length === 0
-			) {
-				throw new Error(
-					"Invalid or missing pageId - cannot link entities without valid page ID",
-				);
-			}
 
 			if (!state.sourceId) {
 				throw new Error(
@@ -218,7 +197,7 @@ export class DatabaseSaveFlow {
 					name: entity.finalName,
 					summary: entity.summary,
 					attributes: entity.attributes || {},
-					graph: this.getGraphValue(state),
+					graph: state.graphId,
 				};
 
 				// Generate embedding for node name
@@ -246,7 +225,7 @@ export class DatabaseSaveFlow {
 					sourceId: createdSource.id,
 					nodeId: createdNode.id,
 					relation: "MENTIONED_IN",
-					graph: this.getGraphValue(state),
+					graph: state.graphId,
 				});
 			} catch (error) {
 				skippedNodes.push(entity);
@@ -489,7 +468,7 @@ export class DatabaseSaveFlow {
 						: undefined,
 					recordedAt: new Date(),
 					attributes: fact.attributes || {},
-					graph: this.getGraphValue(state),
+					graph: state.graphId,
 				};
 
 				// Generate embeddings for fact
@@ -555,7 +534,7 @@ export class DatabaseSaveFlow {
 						edgeId: createdEdge.id,
 						relation: "EXTRACTED_FROM",
 						linkWeight: 1.0,
-						graph: this.getGraphValue(state),
+						graph: state.graphId,
 					});
 				} catch (sourceEdgeError) {
 					logError(

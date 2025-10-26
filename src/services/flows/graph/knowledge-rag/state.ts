@@ -9,7 +9,7 @@ export interface KnowledgeRAGState extends BaseStateBase {
 	// Input
 	messages: ChatMessage[];
 	query: string;
-	topicId?: string;
+	graphId?: string;
 
 	// Query Analysis
 	extractedEntities: string[];
@@ -69,7 +69,7 @@ export const KnowledgeRAGAnnotation = {
 		value: (x, y) => y ?? x ?? "",
 		default: () => "",
 	}),
-	topicId: Annotation<string | undefined>({
+	graphId: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,
 		default: () => undefined,
 	}),

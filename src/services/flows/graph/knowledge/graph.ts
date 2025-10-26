@@ -1,6 +1,6 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import { logInfo, logError } from "@/utils/logger";
-import { or, and, ilike, inArray, eq } from "drizzle-orm";
+import { or, and, ilike, inArray, eq, sql } from "drizzle-orm";
 import { vectorSearchNodes, vectorSearchEdges } from "@/utils/vector-search";
 import {
 	trigramSearchNodes,
@@ -20,6 +20,7 @@ import { GraphBase } from "../../interfaces/graph.base";
 import type { AllServices } from "../../interfaces/tool";
 import type { Node, Edge } from "@/services/database";
 import { flowRegistry } from "../../flow-registry";
+import type { PgColumn } from "drizzle-orm/pg-core";
 
 export interface KnowledgeGraphConfig {
 	enableTemporalExtraction?: boolean;
@@ -47,17 +48,12 @@ export class KnowledgeGraphFlow extends GraphBase<
 	private databaseSave: DatabaseSaveFlow;
 	private config: KnowledgeGraphConfig;
 
-	// Helper function to determine the graph field value based on topicId
-	private getGraphValue(state: KnowledgeGraphState): string {
-		if (state.topicId && state.topicId.trim().length > 0) {
-			return `topic_${state.topicId.trim()}`;
+	private getScopedGraphWhere(state: KnowledgeGraphState, column: PgColumn) {
+		if (state.graphId || !state.graphId?.trim()) {
+			return eq(column, state.graphId);
 		}
-		return "";
-	}
 
-	// Helper function to determine if we should filter by graph field
-	private shouldFilterByGraph(state: KnowledgeGraphState): boolean {
-		return !!state.topicId && state.topicId.trim().length > 0;
+		return or(eq(column, ""), sql`${column} IS NULL`);
 	}
 
 	constructor(services: AllServices, config: KnowledgeGraphConfig = {}) {
@@ -156,13 +152,10 @@ export class KnowledgeGraphFlow extends GraphBase<
 				if (conditions.length === 0)
 					return [] as (typeof schema.nodes.$inferSelect)[];
 
-				let where = or(...conditions);
-
-				// Only filter by graph if topicId is specified
-				if (this.shouldFilterByGraph(state)) {
-					const graphValue = this.getGraphValue(state);
-					where = and(where, eq(schema.nodes.graph, graphValue));
-				}
+				const where = and(
+					or(...conditions),
+					this.getScopedGraphWhere(state, schema.nodes.graph),
+				);
 
 				const nodes = await db
 					.select()
@@ -178,22 +171,13 @@ export class KnowledgeGraphFlow extends GraphBase<
 				const resultLimit = Math.floor(
 					(TOTAL_LIMIT * WEIGHTS.trigramPercentage) / 100,
 				);
-				const allTrigramResults = await trigramSearchNodes(
+				trigramResults = await trigramSearchNodes(
 					databaseService,
 					names,
-					this.shouldFilterByGraph(state) ? resultLimit * 2 : resultLimit, // Get more results only if we need to filter
+					resultLimit * 2, // Get more results only if we need to filter
 					{ threshold: 0.1 },
+					state.graphId,
 				);
-
-				// Filter by graph field only if topicId is specified
-				if (this.shouldFilterByGraph(state)) {
-					const graphValue = this.getGraphValue(state);
-					trigramResults = allTrigramResults.filter(
-						(result) => result.item.graph === graphValue,
-					);
-				} else {
-					trigramResults = allTrigramResults;
-				}
 			} catch (error) {
 				logError("[LOAD_ENTITIES] Trigram search failed:", error);
 			}
@@ -219,9 +203,7 @@ export class KnowledgeGraphFlow extends GraphBase<
 							defaultEmbedding,
 							names,
 							vectorLimit,
-							this.shouldFilterByGraph(state)
-								? this.getGraphValue(state)
-								: undefined,
+							state.graphId,
 						);
 					}
 				} catch (error) {
@@ -319,13 +301,10 @@ export class KnowledgeGraphFlow extends GraphBase<
 					});
 					if (conditions.length === 0) return [] as { id: string }[];
 
-					let where = or(...conditions);
-
-					// Only filter by graph if topicId is specified
-					if (this.shouldFilterByGraph(state)) {
-						const graphValue = this.getGraphValue(state);
-						where = and(where, eq(schema.nodes.graph, graphValue));
-					}
+					const where = and(
+						or(...conditions),
+						this.getScopedGraphWhere(state, schema.nodes.graph),
+					);
 
 					const rows = await db
 						.select({ id: schema.nodes.id })
@@ -343,16 +322,13 @@ export class KnowledgeGraphFlow extends GraphBase<
 			let sqlResults: typeof state.existingEdges = [];
 			if (idList.length > 0) {
 				sqlResults = await databaseService.use(async ({ db, schema }) => {
-					let where = or(
-						inArray(schema.edges.sourceId, idList),
-						inArray(schema.edges.destinationId, idList),
+					const where = and(
+						or(
+							inArray(schema.edges.sourceId, idList),
+							inArray(schema.edges.destinationId, idList),
+						),
+						this.getScopedGraphWhere(state, schema.edges.graph),
 					);
-
-					// Only filter by graph if topicId is specified
-					if (this.shouldFilterByGraph(state)) {
-						const graphValue = this.getGraphValue(state);
-						where = and(where, eq(schema.edges.graph, graphValue));
-					}
 
 					return db
 						.select()
@@ -375,22 +351,13 @@ export class KnowledgeGraphFlow extends GraphBase<
 						const resultLimit = Math.floor(
 							(TOTAL_LIMIT * WEIGHTS.trigramPercentage) / 100,
 						);
-						const allTrigramResults = await trigramSearchEdges(
+						trigramResults = await trigramSearchEdges(
 							databaseService,
 							factSearchTerms,
-							this.shouldFilterByGraph(state) ? resultLimit * 2 : resultLimit, // Get more results only if we need to filter
+							resultLimit, // Get more results only if we need to filter
 							{ threshold: 0.1 },
+							state.graphId,
 						);
-
-						// Filter by graph field only if topicId is specified
-						if (this.shouldFilterByGraph(state)) {
-							const graphValue = this.getGraphValue(state);
-							trigramResults = allTrigramResults.filter(
-								(result) => result.item.graph === graphValue,
-							);
-						} else {
-							trigramResults = allTrigramResults;
-						}
 					}
 				} catch (error) {
 					logError("[LOAD_FACTS] Trigram search failed:", error);
@@ -427,9 +394,7 @@ export class KnowledgeGraphFlow extends GraphBase<
 								defaultEmbedding,
 								factSearchTerms,
 								vectorLimit,
-								this.shouldFilterByGraph(state)
-									? this.getGraphValue(state)
-									: undefined,
+								state.graphId,
 							);
 						}
 					}
@@ -448,16 +413,11 @@ export class KnowledgeGraphFlow extends GraphBase<
 				// Find edges that connect any of our resolved entities to other entities
 				relationResults = await databaseService.use(async ({ db, schema }) => {
 					// Find edges where both source and destination are in our candidate list
-					let where = and(
+					const where = and(
 						inArray(schema.edges.sourceId, idList),
 						inArray(schema.edges.destinationId, idList),
+						this.getScopedGraphWhere(state, schema.edges.graph),
 					);
-
-					// Only filter by graph if topicId is specified
-					if (this.shouldFilterByGraph(state)) {
-						const graphValue = this.getGraphValue(state);
-						where = and(where, eq(schema.edges.graph, graphValue));
-					}
 
 					return db
 						.select()
@@ -489,16 +449,10 @@ export class KnowledgeGraphFlow extends GraphBase<
 			let newNodes: KnowledgeGraphState["existingNodes"] = [];
 			if (missingNodeIds.length > 0) {
 				newNodes = await databaseService.use(async ({ db, schema }) => {
-					let where = inArray(schema.nodes.id, missingNodeIds);
-
-					// Only filter by graph if topicId is specified
-					if (this.shouldFilterByGraph(state)) {
-						const graphValue = this.getGraphValue(state);
-						where = and(
-							where,
-							eq(schema.nodes.graph, graphValue),
-						) as typeof where;
-					}
+					const where = and(
+						inArray(schema.nodes.id, missingNodeIds),
+						this.getScopedGraphWhere(state, schema.nodes.graph),
+					);
 
 					return db.select().from(schema.nodes).where(where);
 				});
@@ -543,7 +497,6 @@ export class KnowledgeGraphFlow extends GraphBase<
 	): Promise<Partial<KnowledgeGraphState>> => {
 		logInfo("[EXTRACT_ENTITIES] Starting entity extraction node", {
 			url: state.url,
-			pageId: state.pageId,
 			processingStage: state.processingStage,
 		});
 		const result = await this.entityExtraction.extractEntities(state);

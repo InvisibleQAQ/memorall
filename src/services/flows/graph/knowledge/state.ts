@@ -49,12 +49,12 @@ export interface KnowledgeGraphState extends BaseStateBase {
 	content: string;
 	title: string;
 	url: string;
-	pageId: string;
 	sourceId?: string; // Source ID created before workflow starts
 	sourceType: string;
 	referenceTimestamp: string;
 	metadata?: Record<string, unknown>;
-	topicId?: string; // Optional topic for scoped content
+	graphId?: string;
+	topicId?: string; // Topic ID for filtering knowledge by topic
 
 	// Processing state
 	previousMessages?: string;
@@ -101,10 +101,6 @@ export const KnowledgeGraphAnnotation = Annotation.Root({
 		value: (x, y) => y ?? x,
 		default: () => "",
 	}),
-	pageId: Annotation<string>({
-		value: (x, y) => y ?? x,
-		default: () => "",
-	}),
 	referenceTimestamp: Annotation<string>({
 		value: (x, y) => y ?? x,
 		default: () => new Date().toISOString(),
@@ -112,6 +108,10 @@ export const KnowledgeGraphAnnotation = Annotation.Root({
 	metadata: Annotation<Record<string, unknown> | undefined>({
 		value: (x, y) => y ?? x,
 		default: () => ({}),
+	}),
+	graphId: Annotation<string | undefined>({
+		value: (x, y) => y ?? x,
+		default: () => undefined,
 	}),
 	topicId: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,

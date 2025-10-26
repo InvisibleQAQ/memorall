@@ -4,7 +4,7 @@ import { GraphBase } from "@/services/flows/interfaces/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionResponse, ChatMessage } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
-import { eq, or, like, desc, inArray } from "drizzle-orm";
+import { eq, or, like, desc, inArray, and, sql } from "drizzle-orm";
 import type { Node, Edge } from "@/services/database/db";
 import {
 	trigramSearchNodes,
@@ -214,12 +214,15 @@ export class KnowledgeRAGFlow extends GraphBase<
 				);
 
 				// Add topic filter if provided
-				const whereConditions = state.topicId
-					? [
-							or(...entitySearchConditions),
-							eq(schema.nodes.graph, state.topicId),
-						]
-					: [or(...entitySearchConditions)];
+				const whereConditions = and(
+					or(...entitySearchConditions),
+					state.graphId
+						? eq(schema.nodes.graph, state.graphId)
+						: or(
+								eq(schema.nodes.graph, state.graphId || ""),
+								sql`${schema.nodes.graph} IS NULL`,
+							),
+				);
 
 				return await db
 					.select({
@@ -233,11 +236,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 						updatedAt: schema.nodes.updatedAt,
 					})
 					.from(schema.nodes)
-					.where(
-						state.topicId
-							? or(...whereConditions)
-							: or(...entitySearchConditions),
-					)
+					.where(whereConditions)
 					.orderBy(desc(schema.nodes.createdAt))
 					.limit(Math.floor((TOTAL_NODE_LIMIT * WEIGHTS.sqlPercentage) / 100));
 			});
@@ -251,9 +250,15 @@ export class KnowledgeRAGFlow extends GraphBase<
 				);
 
 				// Add topic filter if provided
-				const whereConditions = state.topicId
-					? [or(...factSearchConditions), eq(schema.edges.graph, state.topicId)]
-					: [or(...factSearchConditions)];
+				const whereConditions = and(
+					or(...factSearchConditions),
+					state.graphId
+						? eq(schema.edges.graph, state.graphId)
+						: or(
+								eq(schema.edges.graph, state.graphId || ""),
+								sql`${schema.edges.graph} IS NULL`,
+							),
+				);
 
 				return await db
 					.select({
@@ -276,11 +281,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 						updatedAt: schema.edges.updatedAt,
 					})
 					.from(schema.edges)
-					.where(
-						state.topicId
-							? or(...whereConditions)
-							: or(...factSearchConditions),
-					)
+					.where(whereConditions)
 					.orderBy(desc(schema.edges.createdAt))
 					.limit(Math.floor((TOTAL_EDGE_LIMIT * WEIGHTS.sqlPercentage) / 100));
 			});
@@ -295,6 +296,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 						state.extractedEntities,
 						Math.floor((TOTAL_NODE_LIMIT * WEIGHTS.trigramPercentage) / 100),
 						{ threshold: 0.1 },
+						state.graphId,
 					);
 				} catch (error) {
 					logError("[KNOWLEDGE_RAG] Trigram search for nodes failed:", error);
@@ -311,6 +313,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 						state.extractedEntities,
 						Math.floor((TOTAL_EDGE_LIMIT * WEIGHTS.trigramPercentage) / 100),
 						{ threshold: 0.1 },
+						state.graphId,
 					);
 				} catch (error) {
 					logError("[KNOWLEDGE_RAG] Trigram search for edges failed:", error);
@@ -336,12 +339,14 @@ export class KnowledgeRAGFlow extends GraphBase<
 					// Vector search for nodes
 					if (combinedNodeResults < TOTAL_NODE_LIMIT * 0.5) {
 						const vectorNodeResults = await database.use(async ({ raw }) => {
-							const topicFilter = state.topicId ? " AND graph = $3" : "";
+							const topicFilter = state.graphId
+								? " AND graph = $3"
+								: " AND (graph = '' OR graph IS NULL)";
 							const query = `
 								SELECT *,
 									1 - (name_embedding <=> $1::vector) as similarity
 								FROM nodes
-								WHERE name_embedding IS NOT NULL${topicFilter}
+								WHERE name_embedding IS NOT NULL ${topicFilter}
 								ORDER BY similarity DESC
 								LIMIT $2
 							`;
@@ -349,9 +354,10 @@ export class KnowledgeRAGFlow extends GraphBase<
 								TOTAL_NODE_LIMIT - combinedNodeResults,
 								Math.floor(TOTAL_NODE_LIMIT * 0.4),
 							);
-							const params = state.topicId
-								? [JSON.stringify(searchEmbedding), nodeLimit, state.topicId]
-								: [JSON.stringify(searchEmbedding), nodeLimit];
+							const params = [JSON.stringify(searchEmbedding), nodeLimit];
+							if (state.graphId) {
+								params.push(state.graphId);
+							}
 							const result = await raw(query, params);
 							return (result as { rows: NodeWithSimilarity[] })?.rows || [];
 						});
@@ -361,12 +367,14 @@ export class KnowledgeRAGFlow extends GraphBase<
 					// Vector search for edges
 					if (combinedEdgeResults < TOTAL_EDGE_LIMIT * 0.5) {
 						const vectorEdgeResults = await database.use(async ({ raw }) => {
-							const topicFilter = state.topicId ? " AND graph = $3" : "";
+							const topicFilter = state.graphId
+								? " AND graph = $3"
+								: " AND (graph = '' OR graph IS NULL)";
 							const query = `
 								SELECT *,
 									1 - (fact_embedding <=> $1::vector) as similarity
 								FROM edges
-								WHERE fact_embedding IS NOT NULL${topicFilter}
+								WHERE fact_embedding IS NOT NULL ${topicFilter}
 								ORDER BY similarity DESC
 								LIMIT $2
 							`;
@@ -374,9 +382,10 @@ export class KnowledgeRAGFlow extends GraphBase<
 								TOTAL_EDGE_LIMIT - combinedEdgeResults,
 								Math.floor(TOTAL_EDGE_LIMIT * 0.4),
 							);
-							const params = state.topicId
-								? [JSON.stringify(searchEmbedding), edgeLimit, state.topicId]
-								: [JSON.stringify(searchEmbedding), edgeLimit];
+							const params = [JSON.stringify(searchEmbedding), edgeLimit];
+							if (state.graphId) {
+								params.push(state.graphId);
+							}
 							const result = await raw(query, params);
 							return (result as { rows: EdgeWithSimilarity[] })?.rows || [];
 						});
@@ -759,7 +768,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 				defaultEmbedding,
 				state.query,
 				this.config.searchLimit || 50,
-				state.topicId,
+				state.graphId,
 			);
 
 			// Step 2: Grow the graph from initial results
@@ -815,7 +824,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 		embeddingService: BaseEmbedding,
 		query: string,
 		limit: number,
-		topicId?: string,
+		graphId?: string,
 	): Promise<{
 		nodes: KnowledgeRAGState["relevantNodes"];
 		edges: KnowledgeRAGState["relevantEdges"];
@@ -826,7 +835,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 			embeddingService,
 			[query],
 			Math.floor(limit * 0.6), // 60% for nodes
-			topicId, // Use topicId as graphFilter parameter
+			graphId, // Use topicId as graphFilter parameter
 		);
 
 		// Search for semantically relevant edges
@@ -835,7 +844,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 			embeddingService,
 			[query],
 			Math.floor(limit * 0.4), // 40% for edges
-			topicId, // Use topicId as graphFilter parameter
+			graphId, // Use topicId as graphFilter parameter
 		);
 
 		// Convert to state format

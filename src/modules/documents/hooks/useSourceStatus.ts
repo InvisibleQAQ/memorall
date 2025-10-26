@@ -5,8 +5,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { serviceManager } from "@/services";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, desc, or } from "drizzle-orm";
 import { logError } from "@/utils/logger";
+import { getEffectiveSourceStatus } from "@/services/database/entities/sources";
 
 export interface SourceStatus {
 	isGenerating: boolean;
@@ -22,32 +23,49 @@ export function useSourceStatus(filePath: string): SourceStatus {
 
 	const checkSourceStatus = useCallback(async () => {
 		try {
-			const result = await serviceManager.databaseService.use(
+			const results = await serviceManager.databaseService.use(
 				async ({ db, schema }) => {
-					// Get the most recent source for this file
+					// Get ALL sources for this file (can have multiple with different graphs/topics)
 					const sources = await db
 						.select()
 						.from(schema.sources)
 						.where(eq(schema.sources.targetId, filePath))
-						.orderBy(schema.sources.createdAt)
-						.limit(1);
+						.orderBy(desc(schema.sources.createdAt));
 
-					return sources[0] || null;
+					return sources;
 				},
 			);
 
-			if (result) {
-				const isGenerating =
-					result.status === "pending" || result.status === "processing";
-				setSourceStatus({
-					isGenerating,
-					status: result.status as
-						| "pending"
-						| "processing"
-						| "completed"
-						| "failed",
-					sourceId: result.id,
+			if (results && results.length > 0) {
+				// Check if ANY source is actively processing (accounting for 1-hour timeout)
+				const activeSource = results.find((source) => {
+					const effectiveStatus = getEffectiveSourceStatus(source, 60); // 60 minutes timeout
+					return (
+						effectiveStatus === "pending" || effectiveStatus === "processing"
+					);
 				});
+
+				if (activeSource) {
+					const effectiveStatus = getEffectiveSourceStatus(activeSource, 60);
+					setSourceStatus({
+						isGenerating: true,
+						status: effectiveStatus as "pending" | "processing",
+						sourceId: activeSource.id,
+					});
+				} else {
+					// No active processing - show the most recent source status
+					const mostRecent = results[0];
+					const effectiveStatus = getEffectiveSourceStatus(mostRecent, 60);
+					setSourceStatus({
+						isGenerating: false,
+						status: effectiveStatus as
+							| "pending"
+							| "processing"
+							| "completed"
+							| "failed",
+						sourceId: mostRecent.id,
+					});
+				}
 			} else {
 				setSourceStatus({
 					isGenerating: false,
@@ -97,20 +115,19 @@ export function useMultipleSourceStatus(
 		try {
 			const results = await serviceManager.databaseService.use(
 				async ({ db, schema }) => {
-					// Get the most recent source for each file
+					// Get ALL sources for all files (can have multiple with different graphs/topics)
 					const sources = await db
 						.select()
 						.from(schema.sources)
 						.where(inArray(schema.sources.targetId, filePaths))
-						.orderBy(schema.sources.createdAt);
+						.orderBy(desc(schema.sources.createdAt));
 
-					// Group by targetId and get the most recent for each
-					const sourceMap = new Map();
+					// Group by targetId (keep ALL sources per file)
+					const sourceMap = new Map<string, typeof sources>();
 					sources.forEach((source) => {
-						const existing = sourceMap.get(source.targetId);
-						if (!existing || source.createdAt > existing.createdAt) {
-							sourceMap.set(source.targetId, source);
-						}
+						const existing = sourceMap.get(source.targetId) || [];
+						existing.push(source);
+						sourceMap.set(source.targetId, existing);
 					});
 
 					return sourceMap;
@@ -120,19 +137,37 @@ export function useMultipleSourceStatus(
 			const newStatusMap = new Map<string, SourceStatus>();
 
 			filePaths.forEach((filePath) => {
-				const source = results.get(filePath);
-				if (source) {
-					const isGenerating =
-						source.status === "pending" || source.status === "processing";
-					newStatusMap.set(filePath, {
-						isGenerating,
-						status: source.status as
-							| "pending"
-							| "processing"
-							| "completed"
-							| "failed",
-						sourceId: source.id,
+				const sources = results.get(filePath);
+				if (sources && sources.length > 0) {
+					// Check if ANY source is actively processing (accounting for 1-hour timeout)
+					const activeSource = sources.find((source) => {
+						const effectiveStatus = getEffectiveSourceStatus(source, 60); // 60 minutes timeout
+						return (
+							effectiveStatus === "pending" || effectiveStatus === "processing"
+						);
 					});
+
+					if (activeSource) {
+						const effectiveStatus = getEffectiveSourceStatus(activeSource, 60);
+						newStatusMap.set(filePath, {
+							isGenerating: true,
+							status: effectiveStatus as "pending" | "processing",
+							sourceId: activeSource.id,
+						});
+					} else {
+						// No active processing - show the most recent source status
+						const mostRecent = sources[0];
+						const effectiveStatus = getEffectiveSourceStatus(mostRecent, 60);
+						newStatusMap.set(filePath, {
+							isGenerating: false,
+							status: effectiveStatus as
+								| "pending"
+								| "processing"
+								| "completed"
+								| "failed",
+							sourceId: mostRecent.id,
+						});
+					}
 				} else {
 					newStatusMap.set(filePath, {
 						isGenerating: false,

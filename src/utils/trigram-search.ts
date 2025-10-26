@@ -25,6 +25,7 @@ export async function trigramSearchNodes(
 	searchTerms: string[],
 	limit: number,
 	params: TrigramSearchParams = {},
+	graphId?: string,
 ): Promise<TrigramSearchResult<Omit<Node, "nameEmbedding">>[]> {
 	if (searchTerms.length === 0) return [];
 
@@ -35,8 +36,8 @@ export async function trigramSearchNodes(
 		if (!searchText) return [];
 
 		const results = await databaseService.use(async ({ raw }) => {
-			const queryResult = await raw(
-				`SELECT
+			const sqlParams = [searchText, threshold, limit];
+			let sql = `SELECT
 					id,
 					node_type,
 					name,
@@ -46,9 +47,14 @@ export async function trigramSearchNodes(
 					created_at,
 					updated_at,
 					similarity_score
-				FROM search_nodes_trigram($1, $2, $3)`,
-				[searchText, threshold, limit],
-			);
+				FROM search_nodes_trigram($1, $2, $3)`;
+			if (graphId) {
+				sqlParams.push(graphId);
+				sql += ` WHERE graph = $4`;
+			} else {
+				sql += ` WHERE graph = '' OR graph IS NULL`;
+			}
+			const queryResult = await raw(sql, sqlParams);
 			const rows = (queryResult as { rows: [] })?.rows || [];
 			return rows as Array<
 				Node & {
@@ -92,6 +98,7 @@ export async function trigramSearchEdges(
 	searchTerms: string[],
 	limit: number,
 	params: TrigramSearchParams = {},
+	graphId?: string,
 ): Promise<
 	TrigramSearchResult<
 		Omit<
@@ -114,23 +121,29 @@ export async function trigramSearchEdges(
 		if (!searchText) return [];
 
 		const results = await databaseService.use(async ({ raw }) => {
-			const queryResult = await raw(
-				`SELECT
-					id,
-					source_id,
-					destination_id,
-					edge_type,
-					fact_text,
-					valid_at,
-					invalid_at,
-					attributes,
-					graph,
-					created_at,
-					updated_at,
-					similarity_score
-				FROM search_edges_trigram($1, $2, $3)`,
-				[searchText, threshold, limit],
-			);
+			const sqlParams = [searchText, threshold, limit];
+			let sql = `SELECT
+				id,
+				source_id,
+				destination_id,
+				edge_type,
+				fact_text,
+				valid_at,
+				invalid_at,
+				attributes,
+				graph,
+				created_at,
+				updated_at,
+				similarity_score
+			FROM search_edges_trigram($1, $2, $3)`;
+			if (graphId) {
+				sqlParams.push(graphId);
+				sql += ` WHERE graph = $4`;
+			} else {
+				sql += ` WHERE graph = '' OR graph IS NULL`;
+			}
+			const queryResult = await raw(sql, sqlParams);
+
 			const rows = (queryResult as { rows: [] })?.rows || [];
 			return rows as Array<
 				Edge & {

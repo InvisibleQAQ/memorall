@@ -221,7 +221,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					{
 						messages: messages, // Keep full multimodal messages for LLM
 						query: queryText, // Use text-only query for search
-						topicId: topicId,
+						graphId: topicId,
 						steps: [],
 					},
 					{

@@ -61,6 +61,8 @@ export async function vectorSearchNodes(
 			if (graphFilter) {
 				query += ` AND graph = $${params.length + 1}`;
 				params.push(graphFilter);
+			} else {
+				query += ` AND (graph = '' OR graph IS NULL)`;
 			}
 
 			query += `
@@ -145,6 +147,8 @@ export async function vectorSearchEdges(
 			if (graphFilter) {
 				query += ` AND graph = $${params.length + 1}`;
 				params.push(graphFilter);
+			} else {
+				query += ` AND (graph = '' OR graph IS NULL)`;
 			}
 
 			query += `

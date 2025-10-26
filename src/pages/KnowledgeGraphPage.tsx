@@ -2,11 +2,24 @@ import React, { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Search, Network } from "lucide-react";
 import { D3KnowledgeGraph } from "@/modules/knowledge/components/D3KnowledgeGraph";
 import type { Node, Edge } from "@/services/database/db";
 import { serviceManager } from "@/services";
 import { logError } from "@/utils/logger";
+import { eq, sql, or } from "drizzle-orm";
+
+interface Topic {
+	id: string; // graph value
+	label: string; // display name
+}
 
 interface KnowledgeGraphPageProps {}
 
@@ -16,20 +29,86 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 	const [loading, setLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+	const [topics, setTopics] = useState<Topic[]>([]);
+	const [selectedTopicId, setSelectedTopicId] = useState<string>("default");
+
+	useEffect(() => {
+		loadTopics();
+	}, []);
 
 	useEffect(() => {
 		loadGraphData();
-	}, []);
+	}, [selectedTopicId]);
+
+	const loadTopics = async () => {
+		try {
+			await serviceManager.databaseService.use(async ({ db, schema }) => {
+				// Query topics table directly
+				const allTopics = await db.select().from(schema.topics);
+
+				const topicList: Topic[] = [
+					{ id: "default", label: "Default (No Topic)" },
+				];
+
+				// Add each topic with its name
+				allTopics.forEach((topic) => {
+					topicList.push({
+						id: `topic_${topic.id}`, // graph field value
+						label: topic.name,
+					});
+				});
+
+				setTopics(topicList);
+			});
+		} catch (error) {
+			logError("Failed to load topics:", error);
+		}
+	};
 
 	const loadGraphData = async () => {
 		try {
 			setLoading(true);
 			await serviceManager.databaseService.use(async ({ db, schema }) => {
-				const allNodes = await db.select().from(schema.nodes);
-				const allEdges = await db.select().from(schema.edges);
+				// Determine graph filter value
+				const graphFilter =
+					selectedTopicId === "default" ? "" : selectedTopicId;
 
-				setNodes(allNodes);
-				setEdges(allEdges);
+				// Filter nodes by graph
+				const filteredNodes =
+					selectedTopicId === "default"
+						? await db
+								.select()
+								.from(schema.nodes)
+								.where(
+									or(
+										eq(schema.nodes.graph, ""),
+										sql`${schema.nodes.graph} IS NULL`,
+									),
+								)
+						: await db
+								.select()
+								.from(schema.nodes)
+								.where(eq(schema.nodes.graph, graphFilter));
+
+				// Filter edges by graph
+				const filteredEdges =
+					selectedTopicId === "default"
+						? await db
+								.select()
+								.from(schema.edges)
+								.where(
+									or(
+										eq(schema.edges.graph, ""),
+										sql`${schema.edges.graph} IS NULL`,
+									),
+								)
+						: await db
+								.select()
+								.from(schema.edges)
+								.where(eq(schema.edges.graph, graphFilter));
+
+				setNodes(filteredNodes);
+				setEdges(filteredEdges);
 			});
 		} catch (error) {
 			logError("Failed to load knowledge graph data:", error);
@@ -53,18 +132,40 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 		<div className="flex flex-col sm:flex-row h-full overflow-hidden bg-background">
 			{/* Sidebar with node list - hidden on small screens */}
 			<div className="hidden sm:block sm:w-72 border-r border-border bg-card">
-				<div className="p-3 border-b border-border">
-					<div className="relative">
-						<Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-						<Input
-							placeholder="Search nodes..."
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-10"
-						/>
+				<div className="p-3 space-y-3 border-b border-border">
+					{/* Topic Selector */}
+					<div>
+						<label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+							Topic
+						</label>
+						<Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
+							<SelectTrigger className="w-full">
+								<SelectValue placeholder="Select topic" />
+							</SelectTrigger>
+							<SelectContent>
+								{topics.map((topic) => (
+									<SelectItem key={topic.id} value={topic.id}>
+										{topic.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
-					<div className="text-xs text-muted-foreground mt-2">
-						{filteredNodes.length} / {nodes.length} nodes
+
+					{/* Search */}
+					<div>
+						<div className="relative">
+							<Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+							<Input
+								placeholder="Search nodes..."
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								className="pl-10"
+							/>
+						</div>
+						<div className="text-xs text-muted-foreground mt-2">
+							{filteredNodes.length} / {nodes.length} nodes
+						</div>
 					</div>
 				</div>
 

@@ -9,6 +9,7 @@ import type {
 	KnowledgeGraphRelation,
 } from "@/types/knowledge-graph";
 import type { KnowledgeGraphState } from "@/services/flows/graph/knowledge/state";
+import { isUuid } from "@/utils/uuid";
 
 export class KnowledgeGraphService {
 	private static instance: KnowledgeGraphService;
@@ -18,6 +19,18 @@ export class KnowledgeGraphService {
 	>();
 
 	private constructor() {}
+
+	/**
+	 * Helper to safely convert topicId to graph value
+	 * Handles undefined, null, and empty strings consistently
+	 */
+	private getGraphValue(topicId?: string): string {
+		// check topicId is uuid too
+		if (topicId && topicId.trim().length > 0 && isUuid(topicId.trim())) {
+			return `${topicId.trim()}`;
+		}
+		return "";
+	}
 
 	static getInstance(): KnowledgeGraphService {
 		if (!KnowledgeGraphService.instance) {
@@ -166,6 +179,8 @@ export class KnowledgeGraphService {
 		this.conversions.set(conversionId, conversion);
 		this.notifyListeners();
 
+		let sourceId: string | undefined;
+
 		try {
 			// Check if LLM service is ready
 			if (!serviceManager.getLLMService().isReady()) {
@@ -173,7 +188,7 @@ export class KnowledgeGraphService {
 			}
 
 			// Create source record for this file (for knowledge graph tracking)
-			const sourceId = await this.ensureSourceWithProcessingStatus(filePath, {
+			sourceId = await this.ensureSourceWithProcessingStatus(filePath, {
 				title: filePath,
 				topicId: topicId, // Use the provided topicId (undefined for default)
 				sourceType: "file",
@@ -201,8 +216,7 @@ export class KnowledgeGraphService {
 				content: content,
 				title: filePath,
 				url: filePath,
-				pageId: filePath, // Keep as pageId for KnowledgeGraphState interface compatibility
-				topicId: topicId, // Use the provided topicId (undefined for default)
+				graphId: topicId,
 				sourceId: sourceId,
 				referenceTimestamp: new Date().toISOString(),
 				metadata: {} as Record<string, unknown>,
@@ -326,7 +340,7 @@ export class KnowledgeGraphService {
 			}
 
 			// Update source status to completed
-			await this.updateSourceStatus(filePath, "completed");
+			await this.updateSourceStatus(sourceId, "completed");
 
 			this.updateConversion(conversionId, {
 				status: "completed",
@@ -343,8 +357,10 @@ export class KnowledgeGraphService {
 		} catch (error) {
 			logError("Knowledge graph conversion failed:", error);
 
-			// Update source status to failed
-			await this.updateSourceStatus(filePath, "failed");
+			// Update source status to failed (if sourceId was created)
+			if (sourceId) {
+				await this.updateSourceStatus(sourceId, "failed");
+			}
 
 			this.updateConversion(conversionId, {
 				status: "failed",
@@ -370,6 +386,7 @@ export class KnowledgeGraphService {
 		},
 	): Promise<string> {
 		try {
+			const graphValue = this.getGraphValue(options.topicId);
 			const sourceId = await serviceManager.databaseService.use(
 				async ({ db, schema }) => {
 					const [source] = await db
@@ -386,13 +403,15 @@ export class KnowledgeGraphService {
 								topicId: options.topicId,
 							},
 							referenceTime: new Date(),
-							graph: options.topicId ? `topic_${options.topicId}` : "",
+							graph: graphValue,
 						})
 						.returning();
 					return source.id;
 				},
 			);
-			logInfo(`Source created with pending status for file ${filePath}`);
+			logInfo(
+				`Source created with pending status for file ${filePath} with graph ${graphValue}`,
+			);
 			return sourceId;
 		} catch (error) {
 			logError(`Failed to create source for file ${filePath}:`, error);
@@ -403,6 +422,7 @@ export class KnowledgeGraphService {
 	/**
 	 * Ensure source exists and set to processing status
 	 * Creates source if it doesn't exist, or updates existing source
+	 * NOTE: A file can have multiple sources (one per topicId/graph)
 	 */
 	private async ensureSourceWithProcessingStatus(
 		filePath: string,
@@ -414,9 +434,11 @@ export class KnowledgeGraphService {
 		},
 	): Promise<string> {
 		try {
+			const graphValue = this.getGraphValue(options.topicId);
+
 			return await serviceManager.databaseService.use(
 				async ({ db, schema }) => {
-					// Check if source exists
+					// Check if source exists for this file AND graph combination
 					const existing = await db
 						.select()
 						.from(schema.sources)
@@ -424,6 +446,7 @@ export class KnowledgeGraphService {
 							and(
 								eq(schema.sources.targetType, "file"),
 								eq(schema.sources.targetId, filePath),
+								eq(schema.sources.graph, graphValue),
 							),
 						)
 						.limit(1);
@@ -440,7 +463,9 @@ export class KnowledgeGraphService {
 								updatedAt: now,
 							})
 							.where(eq(schema.sources.id, existing[0].id));
-						logInfo(`Source updated to processing for file ${filePath}`);
+						logInfo(
+							`Source updated to processing for file ${filePath} with graph ${graphValue}`,
+						);
 						return existing[0].id;
 					} else {
 						// Create new source with processing status
@@ -458,11 +483,11 @@ export class KnowledgeGraphService {
 									topicId: options.topicId,
 								},
 								referenceTime: now,
-								graph: options.topicId ? `topic_${options.topicId}` : "",
+								graph: graphValue,
 							})
 							.returning();
 						logInfo(
-							`Source created with processing status for file ${filePath}`,
+							`Source created with processing status for file ${filePath} with graph ${graphValue}`,
 						);
 						return source.id;
 					}
@@ -475,7 +500,7 @@ export class KnowledgeGraphService {
 	}
 
 	private async updateSourceStatus(
-		filePath: string,
+		sourceId: string,
 		status: "pending" | "processing" | "completed" | "failed",
 	): Promise<void> {
 		try {
@@ -488,16 +513,11 @@ export class KnowledgeGraphService {
 						statusValidFrom: now,
 						updatedAt: now,
 					})
-					.where(
-						and(
-							eq(schema.sources.targetType, "file"),
-							eq(schema.sources.targetId, filePath),
-						),
-					);
+					.where(eq(schema.sources.id, sourceId));
 			});
-			logInfo(`Source status updated to ${status} for file ${filePath}`);
+			logInfo(`Source status updated to ${status} for source ${sourceId}`);
 		} catch (error) {
-			logError(`Failed to update source status for file ${filePath}:`, error);
+			logError(`Failed to update source status for source ${sourceId}:`, error);
 		}
 	}
 
