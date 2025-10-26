@@ -5,14 +5,12 @@ import {
 	Bot,
 	VectorSquareIcon,
 	Database,
-	BookOpen,
 	Bug,
 	Network,
 	ChevronDown,
 	Sun,
 	Moon,
 	Monitor,
-	Tags,
 	FileText,
 } from "lucide-react";
 import {
@@ -37,10 +35,8 @@ interface LayoutProps {
 const navigation = [
 	{ name: "Chat", path: "/", icon: MessageCircle },
 	{ name: "Models", path: "/llm", icon: Bot },
-	{ name: "Topics", path: "/topics", icon: Tags },
 	{ name: "Knowledge Graph", path: "/knowledge-graph", icon: Network },
 	{ name: "Documents", path: "/documents", icon: FileText },
-	{ name: "Remembered", path: "/remembered", icon: BookOpen },
 ];
 
 const debugItems = [

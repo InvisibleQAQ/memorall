@@ -52,8 +52,22 @@ class DocumentStorageService {
 	private async ensureDirectory(path: string): Promise<void> {
 		try {
 			await fs.promises.stat(path);
+			// Directory exists, no need to create
 		} catch {
-			await fs.promises.mkdir(path, { recursive: true });
+			// Directory doesn't exist, create it
+			try {
+				await fs.promises.mkdir(path, { recursive: true });
+			} catch (error) {
+				// Ignore EEXIST error (directory was created by another operation)
+				if (
+					error &&
+					typeof error === "object" &&
+					"code" in error &&
+					error.code !== "EEXIST"
+				) {
+					throw error;
+				}
+			}
 		}
 	}
 
@@ -381,6 +395,127 @@ class DocumentStorageService {
 	}
 
 	/**
+	 * Rename a file
+	 */
+	async renameFile(fileId: string, newName: string): Promise<DocumentFile> {
+		await this.initialize();
+
+		const files = await this.scanFiles("/");
+		const file = files.find((f) => f.id === fileId);
+
+		if (!file) {
+			throw new Error(`File not found: ${fileId}`);
+		}
+
+		const oldFullPath = `${DOCUMENTS_ROOT}${file.path}`;
+		const parentPath = file.path.substring(0, file.path.lastIndexOf("/"));
+		const newPath = `${parentPath}/${newName}`;
+		const newFullPath = `${DOCUMENTS_ROOT}${newPath}`;
+
+		try {
+			// Check if a file with the new name already exists
+			try {
+				await fs.promises.stat(newFullPath);
+				throw new Error(`A file with the name "${newName}" already exists`);
+			} catch (error) {
+				// If it's not a "file exists" error, continue with rename
+				if (
+					error instanceof Error &&
+					error.message.includes("already exists")
+				) {
+					throw error;
+				}
+			}
+
+			// Rename the file
+			await fs.promises.rename(oldFullPath, newFullPath);
+
+			// Get new file stats
+			const stats = await fs.promises.stat(newFullPath);
+			const mimeType = this.getMimeTypeFromExtension(newName);
+
+			const renamedFile: DocumentFile = {
+				id: newPath,
+				name: newName,
+				path: newPath,
+				type: this.getDocumentType(mimeType, newName),
+				mimeType,
+				size: stats.size,
+				createdAt: new Date(stats.birthtime || stats.mtime),
+				modifiedAt: new Date(stats.mtime),
+				metadata: file.metadata || {},
+			};
+
+			logInfo(`📝 Renamed file: ${file.path} -> ${newPath}`);
+			return renamedFile;
+		} catch (error) {
+			logError(`Failed to rename file ${fileId}:`, error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Rename a folder
+	 */
+	async renameFolder(
+		folderId: string,
+		newName: string,
+	): Promise<DocumentFolder> {
+		await this.initialize();
+
+		const oldFullPath = `${DOCUMENTS_ROOT}${folderId}`;
+		const parentPath = folderId.substring(0, folderId.lastIndexOf("/")) || "/";
+		const newPath =
+			parentPath === "/" ? `/${newName}` : `${parentPath}/${newName}`;
+		const newFullPath = `${DOCUMENTS_ROOT}${newPath}`;
+
+		try {
+			// Check if folder exists
+			const stats = await fs.promises.stat(oldFullPath);
+			if (!stats.isDirectory()) {
+				throw new Error("Path is not a folder");
+			}
+
+			// Check if a folder with the new name already exists
+			try {
+				await fs.promises.stat(newFullPath);
+				throw new Error(`A folder with the name "${newName}" already exists`);
+			} catch (error) {
+				// If it's not a "folder exists" error, continue with rename
+				if (
+					error instanceof Error &&
+					error.message.includes("already exists")
+				) {
+					throw error;
+				}
+			}
+
+			// Rename the folder
+			await fs.promises.rename(oldFullPath, newFullPath);
+
+			// Get new folder stats and count children
+			const newStats = await fs.promises.stat(newFullPath);
+			const entries = await fs.promises.readdir(newFullPath);
+
+			const renamedFolder: DocumentFolder = {
+				id: newPath,
+				name: newName,
+				path: newPath,
+				parentPath: parentPath === "/" ? null : parentPath,
+				createdAt: new Date(newStats.birthtime || newStats.mtime),
+				modifiedAt: new Date(newStats.mtime),
+				childCount: entries.length,
+			};
+
+			logInfo(`📁 Renamed folder: ${folderId} -> ${newPath}`);
+			return renamedFolder;
+		} catch (error) {
+			logError(`Failed to rename folder ${folderId}:`, error);
+			throw error;
+		}
+	}
+
+	/**
 	 * Parse filename into name and extension
 	 */
 	private parseFileName(fileName: string): { name: string; ext: string } {
@@ -424,6 +559,221 @@ class DocumentStorageService {
 	 */
 	private normalizePath(path: string): string {
 		return path.replace(/\/+$/, "") || "/";
+	}
+
+	/**
+	 * Move a file to a new location
+	 */
+	async moveFile(
+		fileId: string,
+		targetFolderPath: string,
+	): Promise<DocumentFile> {
+		await this.initialize();
+
+		const normalizedTargetPath = this.normalizePath(targetFolderPath);
+		const filePath = `${DOCUMENTS_ROOT}${fileId}`;
+
+		try {
+			// Get file stats to ensure it exists and is a file
+			const stats = await fs.promises.stat(filePath);
+			if (!stats.isFile()) {
+				throw new Error("Path is not a file");
+			}
+
+			// Get file name from path
+			const fileName = filePath.split("/").pop() || "";
+			let newFilePath = `${DOCUMENTS_ROOT}${normalizedTargetPath}/${fileName}`;
+
+			// Check if file already exists at destination
+			try {
+				await fs.promises.stat(newFilePath);
+				// File exists, generate unique name
+				const { name: baseName, ext } = this.parseFileName(fileName);
+				let counter = 1;
+				let newFileName = fileName;
+
+				while (true) {
+					try {
+						await fs.promises.stat(newFilePath);
+						// Still exists, try next number
+						newFileName = `${baseName} (${counter})${ext}`;
+						newFilePath = `${DOCUMENTS_ROOT}${normalizedTargetPath}/${newFileName}`;
+						counter++;
+					} catch {
+						// File doesn't exist, we can use this name
+						break;
+					}
+				}
+			} catch {
+				// File doesn't exist at destination, we can use original name
+			}
+
+			// Ensure target directory exists
+			await this.ensureDirectory(`${DOCUMENTS_ROOT}${normalizedTargetPath}`);
+
+			// Read file content
+			const content = await fs.promises.readFile(filePath);
+
+			// Write to new location
+			await fs.promises.writeFile(newFilePath, content);
+
+			// Delete old file
+			await fs.promises.unlink(filePath);
+
+			// Get new file stats
+			const newStats = await fs.promises.stat(newFilePath);
+			const newFileName = newFilePath.split("/").pop() || "";
+			const newId = newFilePath.replace(DOCUMENTS_ROOT, "");
+
+			// Detect MIME type from file extension
+			const mimeType = this.getMimeTypeFromExtension(newFileName);
+
+			logInfo(`✅ Moved file from ${fileId} to ${newId}`);
+
+			return {
+				id: newId,
+				name: newFileName,
+				type: this.getDocumentType(mimeType, newFileName),
+				path: newId,
+				size: newStats.size,
+				mimeType,
+				createdAt: newStats.birthtime,
+				modifiedAt: newStats.mtime,
+			};
+		} catch (error) {
+			logError(`Failed to move file ${fileId}:`, error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Move a folder to a new location
+	 */
+	async moveFolder(
+		folderId: string,
+		targetFolderPath: string,
+	): Promise<DocumentFolder> {
+		await this.initialize();
+
+		const normalizedTargetPath = this.normalizePath(targetFolderPath);
+		const folderPath = `${DOCUMENTS_ROOT}${folderId}`;
+		const targetFullPath = `${DOCUMENTS_ROOT}${normalizedTargetPath}`;
+
+		try {
+			// Validate source folder exists and is a directory
+			const stats = await fs.promises.stat(folderPath);
+			if (!stats.isDirectory()) {
+				throw new Error("Path is not a folder");
+			}
+
+			// Prevent moving a folder into itself or its subdirectories
+			if (targetFullPath.startsWith(folderPath)) {
+				throw new Error(
+					"Cannot move a folder into itself or its subdirectories",
+				);
+			}
+
+			// Get folder name from path
+			const folderName = folderPath.split("/").filter(Boolean).pop() || "";
+			let newFolderPath = `${targetFullPath}/${folderName}`;
+
+			// Check if folder already exists at destination
+			try {
+				await fs.promises.stat(newFolderPath);
+				// Folder exists, generate unique name
+				let counter = 1;
+				let newFolderName = folderName;
+
+				while (true) {
+					try {
+						await fs.promises.stat(newFolderPath);
+						// Still exists, try next number
+						newFolderName = `${folderName} (${counter})`;
+						newFolderPath = `${targetFullPath}/${newFolderName}`;
+						counter++;
+					} catch {
+						// Folder doesn't exist, we can use this name
+						break;
+					}
+				}
+			} catch {
+				// Folder doesn't exist at destination
+			}
+
+			// Ensure target directory exists
+			await this.ensureDirectory(targetFullPath);
+
+			// Recursively copy folder
+			await this.copyDirectory(folderPath, newFolderPath);
+
+			// Delete old folder
+			await this.deleteDirectoryRecursive(folderPath);
+
+			// Get new folder stats
+			const newStats = await fs.promises.stat(newFolderPath);
+			const newFolderName =
+				newFolderPath.split("/").filter(Boolean).pop() || "";
+			const newId = newFolderPath.replace(DOCUMENTS_ROOT, "");
+
+			// Count children
+			const entries = await fs.promises.readdir(newFolderPath);
+
+			logInfo(`✅ Moved folder from ${folderId} to ${newId}`);
+
+			return {
+				id: newId,
+				name: newFolderName,
+				path: newId,
+				parentPath: normalizedTargetPath === "/" ? null : normalizedTargetPath,
+				childCount: entries.length,
+				createdAt: newStats.birthtime,
+				modifiedAt: newStats.mtime,
+			};
+		} catch (error) {
+			logError(`Failed to move folder ${folderId}:`, error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Recursively copy a directory
+	 */
+	private async copyDirectory(
+		source: string,
+		destination: string,
+	): Promise<void> {
+		await fs.promises.mkdir(destination, { recursive: true });
+		const entries = await fs.promises.readdir(source, { withFileTypes: true });
+
+		for (const entry of entries) {
+			const sourcePath = `${source}/${entry.name}`;
+			const destPath = `${destination}/${entry.name}`;
+
+			if (entry.isDirectory()) {
+				await this.copyDirectory(sourcePath, destPath);
+			} else {
+				const content = await fs.promises.readFile(sourcePath);
+				await fs.promises.writeFile(destPath, content);
+			}
+		}
+	}
+
+	/**
+	 * Recursively delete a directory
+	 */
+	private async deleteDirectoryRecursive(path: string): Promise<void> {
+		const entries = await fs.promises.readdir(path, { withFileTypes: true });
+
+		for (const entry of entries) {
+			const fullPath = `${path}/${entry.name}`;
+			if (entry.isDirectory()) {
+				await this.deleteDirectoryRecursive(fullPath);
+			} else {
+				await fs.promises.unlink(fullPath);
+			}
+		}
+
+		await fs.promises.rmdir(path);
 	}
 }
 

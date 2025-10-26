@@ -35,8 +35,10 @@ import type {
 	NewEncryption,
 	Configuration,
 	NewConfiguration,
-	RememberedContent,
-	NewRememberedContent,
+	Topic,
+	NewTopic,
+	TopicFile,
+	NewTopicFile,
 } from "./db";
 
 // Table registry with proper type mapping
@@ -86,10 +88,15 @@ interface TableRegistry {
 		select: Configuration;
 		insert: NewConfiguration;
 	};
-	rememberedContent: {
-		table: typeof schema.rememberedContent;
-		select: RememberedContent;
-		insert: NewRememberedContent;
+	topics: {
+		table: typeof schema.topics;
+		select: Topic;
+		insert: NewTopic;
+	};
+	topicFiles: {
+		table: typeof schema.topicFiles;
+		select: TopicFile;
+		insert: NewTopicFile;
 	};
 }
 

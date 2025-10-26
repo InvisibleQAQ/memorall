@@ -1,21 +1,42 @@
-import { eq } from "drizzle-orm";
-import {
-	rememberService,
-	type SaveContentData,
-	type SavePageData,
-} from "@/modules/remember/services/remember-service";
-import type { DatabaseService } from "@/services/database/database-service";
-import { serviceManager } from "@/services";
+// Payload types for remember-save handler
+export interface SavePageData {
+	html: string;
+	url: string;
+	title: string;
+	metadata?: any;
+	article?: {
+		textContent?: string;
+	};
+	topicId?: string;
+}
+
+export interface SaveContentData {
+	sourceType:
+		| "webpage"
+		| "selection"
+		| "user_input"
+		| "raw_text"
+		| "file_upload";
+	sourceUrl?: string;
+	originalUrl?: string;
+	title: string;
+	rawContent?: string;
+	cleanContent?: string;
+	textContent?: string;
+	topicId?: string;
+}
+import { documentStorageService } from "@/modules/documents/services/document-storage";
 import { BaseProcessHandler } from "./base-process-handler";
 import type { ProcessDependencies, BaseJob, ItemHandlerResult } from "./types";
 import { backgroundProcessFactory } from "./process-factory";
-import type { RememberedContent } from "@/services/database";
+import { serviceManager } from "@/services";
 
 export type RememberSavePayload = SaveContentData | SavePageData;
 
 // Define result types that handlers return
 export interface RememberSaveResult extends Record<string, unknown> {
-	page: RememberedContent;
+	filePath: string;
+	fileName: string;
 }
 
 const JOB_NAMES = {
@@ -49,106 +70,107 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 				"offscreen",
 			);
 
-			// Initialize remember service on demand
-			await this.addProgress(
-				jobId,
-				"Initializing services...",
-				10,
-				dependencies,
-			);
-			await rememberService.initialize();
+			await this.addProgress(jobId, "Preparing content...", 10, dependencies);
 
-			// Save content
-			await this.addProgress(jobId, "Saving content...", 30, dependencies);
+			// Determine content type and extract text
+			let contentText = "";
+			let fileName = "";
+			let sourceInfo = "";
 
-			let result;
 			if ("html" in payload && "article" in payload) {
+				// Full page save
 				const savePageData = payload as SavePageData;
-				await dependencies.logger.info(
-					`🔍 Process-remember-save: calling savePage with topicId: ${savePageData.topicId}`,
-					{},
-					"offscreen",
-				);
-				result = await rememberService.savePage(savePageData);
+				fileName =
+					this.sanitizeFileName(savePageData.title || "webpage") + ".txt";
+				sourceInfo = `Web Title: ${savePageData.title}\nWeb URL: ${savePageData.url}\n\n`;
+				contentText =
+					savePageData.article?.textContent || savePageData.html || "";
 			} else {
+				// Direct content save (selection, user input, etc.)
 				const saveContentData = payload as SaveContentData;
-				await dependencies.logger.info(
-					`🔍 Process-remember-save: calling saveContentDirect with topicId: ${saveContentData.topicId}`,
-					{},
-					"offscreen",
-				);
-				result = await rememberService.saveContentDirect(saveContentData);
-			}
+				fileName =
+					this.sanitizeFileName(saveContentData.title || "content") + ".txt";
 
-			if (result.success) {
-				await this.verifyDatabasePersistence(
-					jobId,
-					result.pageId!,
-					dependencies,
-				);
-
-				// Fetch the full saved content to return
-				const savedContent = await serviceManager.databaseService.use(
-					async ({ db, schema }) => {
-						const rows = await db
-							.select()
-							.from(schema.rememberedContent)
-							.where(eq(schema.rememberedContent.id, result.pageId!));
-						return rows[0];
-					},
-				);
-
-				if (!savedContent) {
-					throw new Error("Content not found after save");
+				if (saveContentData.sourceType === "webpage") {
+					sourceInfo = `Web Title: ${saveContentData.title}\nWeb URL: ${saveContentData.sourceUrl || ""}\n\n`;
+				} else if (saveContentData.sourceType === "selection") {
+					sourceInfo = `Selection from: ${saveContentData.title}\nOriginal URL: ${saveContentData.originalUrl || ""}\n\n`;
+				} else if (saveContentData.sourceType === "user_input") {
+					sourceInfo = `Note: ${saveContentData.title}\n\n`;
 				}
 
-				await this.addProgress(jobId, "Finalizing...", 90, dependencies, {
-					pageId: result.pageId || "unknown",
-				});
-
-				// Return the full content object
-				return this.createSuccessResult({
-					page: savedContent,
-				});
-			} else {
-				this.createErrorResult(new Error(result.error || "Save failed"));
+				contentText =
+					saveContentData.textContent ||
+					saveContentData.cleanContent ||
+					saveContentData.rawContent ||
+					"";
 			}
-		} catch (error) {
-			this.createErrorResult(error);
-		}
-	}
 
-	private async verifyDatabasePersistence(
-		jobId: string,
-		pageId: string,
-		dependencies: ProcessDependencies,
-	): Promise<void> {
-		try {
-			const rows = await serviceManager.databaseService.use(
-				async ({ db, schema }) => {
-					return db
-						.select()
-						.from(schema.rememberedContent)
-						.where(eq(schema.rememberedContent.id, pageId));
-				},
+			// Combine source info with content
+			const fullContent = sourceInfo + contentText;
+
+			await this.addProgress(jobId, "Saving to file...", 50, dependencies);
+
+			// Create a File object from the content
+			const textBlob = new Blob([fullContent], { type: "text/plain" });
+			const file = new File([textBlob], fileName, { type: "text/plain" });
+
+			// Save to document library
+			await documentStorageService.initialize();
+			const savedFile = await documentStorageService.uploadFile(
+				file,
+				"/saved-content",
 			);
 
 			await dependencies.logger.info(
-				`🗄️ DB verification for job ${jobId}`,
-				{
-					pageId,
-					foundCount: Array.isArray(rows) ? rows.length : 0,
-					foundTitle: Array.isArray(rows) && rows[0]?.title,
-				},
+				`✅ Content saved as file: ${savedFile.path}`,
+				{},
 				"offscreen",
 			);
-		} catch (verifyErr) {
-			await dependencies.logger.warn(
-				`⚠️ DB verification failed for job ${jobId}`,
-				verifyErr instanceof Error ? verifyErr.message : String(verifyErr),
-				"offscreen",
-			);
+
+			// If topicId is provided, save the relationship in topic_files table
+			const topicId = payload.topicId;
+			if (topicId) {
+				await dependencies.logger.info(
+					`🏷️ Linking file to topic: ${topicId}`,
+					{},
+					"offscreen",
+				);
+
+				await serviceManager.databaseService.use(async ({ db, schema }) => {
+					await db.insert(schema.topicFiles).values({
+						topicId: topicId,
+						filePath: savedFile.path,
+					});
+				});
+
+				await dependencies.logger.info(
+					`✅ File linked to topic successfully`,
+					{},
+					"offscreen",
+				);
+			}
+
+			await this.addProgress(jobId, "Finalizing...", 90, dependencies, {
+				filePath: savedFile.path,
+			});
+
+			// Return the file info
+			return this.createSuccessResult({
+				filePath: savedFile.path,
+				fileName: savedFile.name,
+			});
+		} catch (error) {
+			return this.createErrorResult(error);
 		}
+	}
+
+	private sanitizeFileName(name: string): string {
+		// Remove invalid filename characters
+		return name
+			.replace(/[<>:"/\\|?*]/g, "_")
+			.replace(/\s+/g, "_")
+			.substring(0, 100); // Limit length
 	}
 }
 

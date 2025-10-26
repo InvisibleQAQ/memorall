@@ -1,7 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { serviceManager } from "@/services";
 import { logError, logInfo } from "@/utils/logger";
-import type { RememberedContent } from "@/services/database/db";
 import type {
 	KnowledgeGraphData,
 	ConversionProgress,
@@ -10,13 +9,6 @@ import type {
 	KnowledgeGraphRelation,
 } from "@/types/knowledge-graph";
 import type { KnowledgeGraphState } from "@/services/flows/graph/knowledge/state";
-
-// Helper function to get URL from the new data structure
-function getContentUrl(content: RememberedContent): string {
-	if (content.sourceUrl) return content.sourceUrl;
-	if (content.originalUrl) return content.originalUrl;
-	return `content://${content.id}`;
-}
 
 export class KnowledgeGraphService {
 	private static instance: KnowledgeGraphService;
@@ -46,30 +38,19 @@ export class KnowledgeGraphService {
 	}
 
 	async getKnowledgeGraphForPage(
-		pageId: string,
+		filePath: string,
 	): Promise<KnowledgeGraphData | null> {
 		try {
 			const result = await serviceManager.databaseService.use(
 				async ({ db, schema }) => {
-					// Find source by remembered page URL
-					const rememberedContent = await db
-						.select()
-						.from(schema.rememberedContent)
-						.where(eq(schema.rememberedContent.id, pageId))
-						.limit(1);
-
-					if (rememberedContent.length === 0) {
-						return null;
-					}
-
 					// Find sources created from this page
 					const sources = await db
 						.select()
 						.from(schema.sources)
 						.where(
 							and(
-								eq(schema.sources.targetType, "remembered_pages"),
-								eq(schema.sources.targetId, pageId),
+								eq(schema.sources.targetType, "file"),
+								eq(schema.sources.targetId, filePath),
 							),
 						);
 
@@ -165,13 +146,16 @@ export class KnowledgeGraphService {
 		}
 	}
 
-	async convertPageToKnowledgeGraph(page: RememberedContent): Promise<void> {
-		const conversionId = page.id;
+	async convertPageToKnowledgeGraph(
+		filePath: string,
+		content: string,
+	): Promise<void> {
+		const conversionId = filePath;
 		// Initialize conversion progress
 		const conversion: ConversionProgress = {
-			pageId: page.id,
-			pageTitle: page.title,
-			pageUrl: getContentUrl(page),
+			pageId: filePath, // Keep as pageId for ConversionProgress interface compatibility
+			pageTitle: filePath,
+			pageUrl: filePath,
 			status: "pending",
 			stage: "Initializing...",
 			progress: 0,
@@ -187,12 +171,12 @@ export class KnowledgeGraphService {
 				throw new Error("LLM service not ready");
 			}
 
-			// Create or get source with processing status
-			const sourceId = await this.ensureSourceWithProcessingStatus(page.id, {
-				title: page.title,
-				topicId: page.topicId || undefined,
-				sourceType: page.sourceType,
-				sourceUrl: page.sourceUrl || undefined,
+			// Create source record for this file (for knowledge graph tracking)
+			const sourceId = await this.ensureSourceWithProcessingStatus(filePath, {
+				title: filePath,
+				topicId: undefined,
+				sourceType: "file",
+				sourceUrl: filePath,
 			});
 
 			this.updateConversion(conversionId, {
@@ -211,18 +195,18 @@ export class KnowledgeGraphService {
 				},
 			);
 
-			// Prepare input state with sourceId
+			// Prepare input state - file path and content with sourceId for KG tracking
 			const initialState: Partial<KnowledgeGraphState> = {
-				content: page.content,
-				title: page.title,
-				url: getContentUrl(page),
-				pageId: page.id,
-				topicId: page.topicId || undefined,
-				sourceId: sourceId, // Pass sourceId to workflow
+				content: content,
+				title: filePath,
+				url: filePath,
+				pageId: filePath, // Keep as pageId for KnowledgeGraphState interface compatibility
+				topicId: undefined,
+				sourceId: sourceId,
 				referenceTimestamp: new Date().toISOString(),
-				metadata: (page.sourceMetadata || {}) as Record<string, unknown>,
-				currentMessage: `Title: ${page.title}\n\nContent:\n${page.content}`,
-				sourceType: page.sourceType,
+				metadata: {} as Record<string, unknown>,
+				currentMessage: `File: ${filePath}\n\nContent:\n${content}`,
+				sourceType: "file",
 				previousMessages: undefined,
 			};
 
@@ -341,7 +325,7 @@ export class KnowledgeGraphService {
 			}
 
 			// Update source status to completed
-			await this.updateSourceStatus(page.id, "completed");
+			await this.updateSourceStatus(filePath, "completed");
 
 			this.updateConversion(conversionId, {
 				status: "completed",
@@ -352,14 +336,14 @@ export class KnowledgeGraphService {
 			});
 
 			logInfo("Knowledge graph conversion completed:", {
-				pageId: page.id,
+				filePath: filePath,
 				stats,
 			});
 		} catch (error) {
 			logError("Knowledge graph conversion failed:", error);
 
 			// Update source status to failed
-			await this.updateSourceStatus(page.id, "failed");
+			await this.updateSourceStatus(filePath, "failed");
 
 			this.updateConversion(conversionId, {
 				status: "failed",
@@ -376,7 +360,7 @@ export class KnowledgeGraphService {
 	 * This is called when content is first saved
 	 */
 	async createSourceForPage(
-		pageId: string,
+		filePath: string,
 		options: {
 			title: string;
 			topicId?: string;
@@ -390,8 +374,8 @@ export class KnowledgeGraphService {
 					const [source] = await db
 						.insert(schema.sources)
 						.values({
-							targetType: "remembered_pages",
-							targetId: pageId,
+							targetType: "file",
+							targetId: filePath,
 							name: options.title,
 							status: "pending",
 							statusValidFrom: new Date(),
@@ -407,10 +391,10 @@ export class KnowledgeGraphService {
 					return source.id;
 				},
 			);
-			logInfo(`Source created with pending status for page ${pageId}`);
+			logInfo(`Source created with pending status for file ${filePath}`);
 			return sourceId;
 		} catch (error) {
-			logError(`Failed to create source for page ${pageId}:`, error);
+			logError(`Failed to create source for file ${filePath}:`, error);
 			throw error;
 		}
 	}
@@ -420,7 +404,7 @@ export class KnowledgeGraphService {
 	 * Creates source if it doesn't exist, or updates existing source
 	 */
 	private async ensureSourceWithProcessingStatus(
-		pageId: string,
+		filePath: string,
 		options: {
 			title: string;
 			topicId?: string;
@@ -437,8 +421,8 @@ export class KnowledgeGraphService {
 						.from(schema.sources)
 						.where(
 							and(
-								eq(schema.sources.targetType, "remembered_pages"),
-								eq(schema.sources.targetId, pageId),
+								eq(schema.sources.targetType, "file"),
+								eq(schema.sources.targetId, filePath),
 							),
 						)
 						.limit(1);
@@ -455,15 +439,15 @@ export class KnowledgeGraphService {
 								updatedAt: now,
 							})
 							.where(eq(schema.sources.id, existing[0].id));
-						logInfo(`Source updated to processing for page ${pageId}`);
+						logInfo(`Source updated to processing for file ${filePath}`);
 						return existing[0].id;
 					} else {
 						// Create new source with processing status
 						const [source] = await db
 							.insert(schema.sources)
 							.values({
-								targetType: "remembered_pages",
-								targetId: pageId,
+								targetType: "file",
+								targetId: filePath,
 								name: options.title,
 								status: "processing",
 								statusValidFrom: now,
@@ -476,19 +460,21 @@ export class KnowledgeGraphService {
 								graph: options.topicId ? `topic_${options.topicId}` : "",
 							})
 							.returning();
-						logInfo(`Source created with processing status for page ${pageId}`);
+						logInfo(
+							`Source created with processing status for file ${filePath}`,
+						);
 						return source.id;
 					}
 				},
 			);
 		} catch (error) {
-			logError(`Failed to ensure source for page ${pageId}:`, error);
+			logError(`Failed to ensure source for file ${filePath}:`, error);
 			throw error;
 		}
 	}
 
 	private async updateSourceStatus(
-		pageId: string,
+		filePath: string,
 		status: "pending" | "processing" | "completed" | "failed",
 	): Promise<void> {
 		try {
@@ -503,14 +489,14 @@ export class KnowledgeGraphService {
 					})
 					.where(
 						and(
-							eq(schema.sources.targetType, "remembered_pages"),
-							eq(schema.sources.targetId, pageId),
+							eq(schema.sources.targetType, "file"),
+							eq(schema.sources.targetId, filePath),
 						),
 					);
 			});
-			logInfo(`Source status updated to ${status} for page ${pageId}`);
+			logInfo(`Source status updated to ${status} for file ${filePath}`);
 		} catch (error) {
-			logError(`Failed to update source status for page ${pageId}:`, error);
+			logError(`Failed to update source status for file ${filePath}:`, error);
 		}
 	}
 
@@ -528,19 +514,21 @@ export class KnowledgeGraphService {
 		}
 	}
 
-	async convertMultiplePages(pages: RememberedContent[]): Promise<void> {
-		logInfo(`Starting batch conversion of ${pages.length} pages`);
+	async convertMultiplePages(
+		files: Array<{ filePath: string; content: string }>,
+	): Promise<void> {
+		logInfo(`Starting batch conversion of ${files.length} files`);
 
-		// Process pages sequentially to avoid overwhelming the LLM service
-		for (const page of pages) {
-			await this.convertPageToKnowledgeGraph(page);
+		// Process files sequentially to avoid overwhelming the LLM service
+		for (const file of files) {
+			await this.convertPageToKnowledgeGraph(file.filePath, file.content);
 			// Small delay between conversions
 			await new Promise((resolve) => setTimeout(resolve, 1000));
 		}
 	}
 
-	getConversion(pageId: string): ConversionProgress | undefined {
-		return this.conversions.get(pageId);
+	getConversion(filePath: string): ConversionProgress | undefined {
+		return this.conversions.get(filePath);
 	}
 
 	getAllConversions(): ConversionProgress[] {

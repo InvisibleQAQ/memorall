@@ -1,6 +1,10 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { logDebug, logError } from "@/utils/logger";
 import { up as initialMigration } from "./000_initial";
+import {
+	up as addTopicFilesUp,
+	down as addTopicFilesDown,
+} from "./002_add_topic_files";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -19,6 +23,13 @@ export const migrations: Migration[] = [
 		description:
 			"Initial schema with knowledge graph, conversations, and trigram search",
 		up: initialMigration,
+	},
+	{
+		id: "add_topic_files",
+		version: 2,
+		description: "Add topic_files table for linking files to topics",
+		up: addTopicFilesUp,
+		down: addTopicFilesDown,
 	},
 	// Example of how to add future migrations:
 	// {

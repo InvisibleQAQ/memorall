@@ -7,33 +7,31 @@ import {
 } from "react-router-dom";
 import NiceModal from "@ebay/nice-modal-react";
 
-import { Layout } from "./pages/Layout";
-import { ChatPage } from "./pages/ChatPage";
-import { EmbeddingPage } from "./pages/EmbeddingPage";
-import { LLMPage } from "./pages/LLMPage";
-import { backgroundJob } from "./services/background-jobs/background-job";
-import { serviceManager } from "./services";
-import { logError, logInfo } from "./utils/logger";
-import { DatabasePage } from "./pages/DatabasePage";
-import { RememberedContentsPage } from "./pages/RememberedContentsPage";
-import { LogsPage } from "./pages/LogsPage";
-import { RememberPage } from "./pages/RememberPage";
-import { TopicsPage } from "./pages/TopicsPage";
-import { AppLoadingScreen } from "./components/atoms/AppLoadingScreen";
 import {
 	Cursor,
 	CursorFollow,
 	CursorProvider,
-} from "./components/ui/shadcn-io/animated-cursor";
-import { ThemeProvider } from "./components/molecules/ThemeContext";
-import { CopilotProvider, Copilot } from "./components/atoms/copilot";
-import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
-import { DocumentLibraryPage } from "./pages/DocumentLibraryPage";
-import { PasskeyPromptDialog } from "./components/molecules/PasskeyPromptDialog";
+} from "@/components/ui/shadcn-io/animated-cursor";
+import { logError, logInfo } from "@/utils/logger";
+import { ThemeProvider } from "@/components/molecules/ThemeContext";
+import { PasskeyPromptDialog } from "@/components/molecules/PasskeyPromptDialog";
 import {
 	checkProviderNeedsRestore,
 	restoreAuthProvider,
-} from "./utils/auth-provider-restore";
+} from "@/utils/auth-provider-restore";
+import { serviceManager } from "@/services";
+import { backgroundJob } from "@/services/background-jobs/background-job";
+import { CopilotProvider, Copilot } from "@/components/atoms/copilot";
+import { Layout } from "@/components/Layout";
+// pages
+import { ChatPage } from "@/pages/ChatPage";
+import { EmbeddingPage } from "@/pages/EmbeddingPage";
+import { LLMPage } from "@/pages/LLMPage";
+import { DatabasePage } from "@/pages/DatabasePage";
+import { LogsPage } from "@/pages/LogsPage";
+import { AppLoadingScreen } from "@/components/atoms/AppLoadingScreen";
+import { KnowledgeGraphPage } from "@/pages/KnowledgeGraphPage";
+import { DocumentLibraryPage } from "@/pages/DocumentLibraryPage";
 
 const App: React.FC = () => {
 	const [servicesStatus, setServicesStatus] = useState<
@@ -274,15 +272,9 @@ const App: React.FC = () => {
 								<Route path="/embeddings" element={<EmbeddingPage />} />
 								<Route path="/database" element={<DatabasePage />} />
 								<Route
-									path="/remembered"
-									element={<RememberedContentsPage />}
-								/>
-								<Route
 									path="/knowledge-graph"
 									element={<KnowledgeGraphPage />}
 								/>
-								<Route path="/remember" element={<RememberPage />} />
-								<Route path="/topics" element={<TopicsPage />} />
 								<Route path="/documents" element={<DocumentLibraryPage />} />
 								<Route path="/logs" element={<LogsPage />} />
 							</Routes>

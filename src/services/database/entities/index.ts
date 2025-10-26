@@ -10,6 +10,6 @@ export * from "./source-nodes";
 export * from "./source-edges";
 
 export * from "./topics";
+export * from "./topic-files";
 export * from "./encryptions";
 export * from "./configurations";
-export * from "./remembered-content";

@@ -1,5 +1,4 @@
 import { knowledgeGraphService } from "@/modules/knowledge/services/knowledge-graph-service";
-import type { RememberedContent } from "@/services/database/db";
 import type { ConversionProgress } from "@/types/knowledge-graph";
 import { BaseProcessHandler } from "./base-process-handler";
 import type {
@@ -13,11 +12,15 @@ import { serviceManager } from "@/services";
 import { backgroundProcessFactory } from "./process-factory";
 import { and, eq } from "drizzle-orm";
 
-export type KnowledgeGraphPayload = RememberedContent;
+// Knowledge graph payload - only file path and content
+export interface KnowledgeGraphPayload {
+	filePath: string;
+	content: string;
+}
 
 // Define result types that handlers return
 export interface KnowledgeGraphResult extends Record<string, unknown> {
-	pageTitle: string;
+	pageTitle: string; // Contains filePath for compatibility
 }
 
 // Extend global registry for smart type inference
@@ -56,8 +59,7 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 		await dependencies.logger.info(
 			`🔄 Starting knowledge graph job: ${jobId}`,
 			{
-				pageTitle: pageData.title,
-				pageId: pageData.id,
+				filePath: pageData.filePath,
 			},
 			"offscreen",
 		);
@@ -77,7 +79,7 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 
 		try {
 			// Update source status to processing at the start
-			await this.updateSourceStatus(pageData.id, "processing");
+			await this.updateSourceStatus(pageData.filePath, "processing");
 
 			// Send initial progress update
 			await dependencies.updateJobProgress(jobId, {
@@ -87,7 +89,7 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 
 			// Subscribe to knowledge graph service progress for detailed logging
 			const unsubscribe = knowledgeGraphService.subscribe((conversions) => {
-				const conversion = conversions.get(pageData.id);
+				const conversion = conversions.get(pageData.filePath);
 				if (!conversion) return;
 
 				const progressUpdate = this.mapConversionToJobProgress(conversion);
@@ -105,39 +107,42 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 
 			try {
 				await dependencies.logger.info(
-					`🧠 Processing knowledge graph for: ${pageData.title}`,
+					`🧠 Processing knowledge graph for: ${pageData.filePath}`,
 					{
 						jobId,
-						pageId: pageData.id,
+						filePath: pageData.filePath,
 						contentLength: pageData.content.length,
 					},
 					"offscreen",
 				);
 
-				await knowledgeGraphService.convertPageToKnowledgeGraph(pageData);
+				await knowledgeGraphService.convertPageToKnowledgeGraph(
+					pageData.filePath,
+					pageData.content,
+				);
 
 				await dependencies.logger.info(
 					`✅ Knowledge graph job completed successfully: ${jobId}`,
 					{
-						pageTitle: pageData.title,
+						filePath: pageData.filePath,
 					},
 					"offscreen",
 				);
 
 				// Source status is already updated by knowledgeGraphService.convertPageToKnowledgeGraph
-				return { pageTitle: pageData.title };
+				return { pageTitle: pageData.filePath };
 			} finally {
 				unsubscribe();
 			}
 		} catch (error) {
 			// Update source status to failed on error
-			await this.updateSourceStatus(pageData.id, "failed");
+			await this.updateSourceStatus(pageData.filePath, "failed");
 			throw error;
 		}
 	}
 
 	private async updateSourceStatus(
-		pageId: string,
+		filePath: string,
 		status: "pending" | "processing" | "completed" | "failed",
 	): Promise<void> {
 		try {
@@ -152,15 +157,15 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 					})
 					.where(
 						and(
-							eq(schema.sources.targetType, "remembered_pages"),
-							eq(schema.sources.targetId, pageId),
+							eq(schema.sources.targetType, "file"),
+							eq(schema.sources.targetId, filePath),
 						),
 					);
 			});
 		} catch (error) {
 			// Log but don't fail the job
 			console.error(
-				`Failed to update source status for page ${pageId}:`,
+				`Failed to update source status for file ${filePath}:`,
 				error,
 			);
 		}
@@ -184,13 +189,13 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 			error: conversion.error,
 			metadata: {
 				conversionStatus: conversion.status,
-				pageId: conversion.pageId,
+				filePath: conversion.pageId, // pageId contains filePath
 			},
 		};
 
 		if (status === "completed" && conversion.knowledgeGraph) {
 			update.result = {
-				pageId: conversion.pageId,
+				filePath: conversion.pageId, // pageId contains filePath
 				knowledgeGraph: conversion.knowledgeGraph,
 				stats: conversion.stats,
 			};

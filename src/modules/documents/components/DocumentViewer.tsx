@@ -14,8 +14,11 @@ import {
 	X,
 	Info,
 	BookmarkPlus,
+	Tag,
+	Tags,
 } from "lucide-react";
 import type { DocumentFile } from "@/types/document-library";
+import type { Topic } from "@/services/database/entities/topics";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,12 +32,19 @@ import {
 	parseExcelFile,
 	workbookToMarkdown,
 } from "@/embedded/excel-extraction";
+import { serviceManager } from "@/services";
+import { eq, inArray } from "drizzle-orm";
+import { TopicBadgeList } from "@/modules/topics/components";
 
 interface DocumentViewerProps {
 	file: DocumentFile;
 	onClose?: () => void;
 	onDelete?: () => void;
 	onDownload?: () => void;
+	onManageTopics?: (file: DocumentFile) => void;
+	fileTopics?: Topic[];
+	selectedTopicIds?: string[];
+	onTopicClick?: (topicId: string) => void;
 }
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
@@ -42,6 +52,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	onClose,
 	onDelete,
 	onDownload,
+	onManageTopics,
+	fileTopics: propFileTopics,
+	selectedTopicIds = [],
+	onTopicClick,
 }) => {
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [textContent, setTextContent] = useState<string | null>(null);
@@ -50,6 +64,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	const [showProperties, setShowProperties] = useState(false);
 	const [showPageSelector, setShowPageSelector] = useState(false);
 	const [converting, setConverting] = useState(false);
+	const [loadedFileTopics, setLoadedFileTopics] = useState<Topic[]>([]);
+
+	// Use prop topics if provided, otherwise use loaded topics
+	const fileTopics = propFileTopics || loadedFileTopics;
 
 	useEffect(() => {
 		// Load preview for supported file types
@@ -106,6 +124,45 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 		};
 	}, [file.id]);
 
+	// Load topics for this file (only if not provided via props)
+	useEffect(() => {
+		if (propFileTopics) return; // Skip if topics provided via props
+
+		const loadTopics = async () => {
+			try {
+				// Get all topics and their files, then filter for this file
+				const allTopics = await serviceManager.databaseService.use(
+					async ({ db, schema }) => {
+						// Get all topic_files entries for this file
+						const topicFileEntries = await db
+							.select()
+							.from(schema.topicFiles)
+							.where(eq(schema.topicFiles.filePath, file.path));
+
+						if (topicFileEntries.length === 0) {
+							return [];
+						}
+
+						// Get the topics for these entries
+						const topicIds = topicFileEntries.map((tf) => tf.topicId);
+						const topics = await db
+							.select()
+							.from(schema.topics)
+							.where(inArray(schema.topics.id, topicIds));
+
+						return topics;
+					},
+				);
+
+				setLoadedFileTopics(allTopics);
+			} catch (error) {
+				logError("Failed to load file topics:", error);
+			}
+		};
+
+		loadTopics();
+	}, [file.path, propFileTopics]);
+
 	const formatFileSize = (bytes: number): string => {
 		if (bytes === 0) return "0 B";
 		const k = 1024;
@@ -146,40 +203,26 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 			// Create title from file name
 			const title = file.name.replace(/\\.txt$/i, "");
 
-			logInfo(`Text converted in main thread, saving to offscreen...`);
+			logInfo(`Text converted in main thread, sending to knowledge graph...`);
 
-			// Send text content to offscreen to save
+			// Send text content directly to knowledge graph handler
 			const { jobId, promise } = await backgroundJob.execute(
-				"remember-save",
+				"knowledge-graph",
 				{
-					sourceType: "file_upload" as const,
-					sourceUrl: `document://${file.id}`,
-					title,
-					rawContent: textContent,
-					cleanContent: textContent,
-					textContent: textContent,
-					sourceMetadata: {
-						inputMethod: "direct" as const,
-						timestamp: new Date().toISOString(),
-						context: `Text file: ${file.name}`,
-					},
-					extractionMetadata: {
-						method: "text-extraction",
-						fileName: file.name,
-						timestamp: new Date().toISOString(),
-					},
+					filePath: file.path,
+					content: textContent,
 				},
 				{ stream: false },
 			);
 
-			logInfo(`Remember save job created: ${jobId}`);
+			logInfo(`Knowledge graph job created: ${jobId}`);
 
 			// Wait for completion
 			const result = await promise;
 
-			logInfo(`Text save completed:`, result);
+			logInfo(`Knowledge graph generation completed:`, result);
 
-			alert("Successfully converted text file to remembered content!");
+			alert("Successfully generated knowledge graph from text file!");
 		} catch (error) {
 			logError("Failed to convert text file:", error);
 			alert("Failed to convert text file. Please try again.");
@@ -205,43 +248,27 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 			const title = file.name.replace(/\.(xls|xlsx|xlsm)$/i, "");
 
 			logInfo(
-				`Excel converted to markdown in main thread, saving to offscreen...`,
+				`Excel converted to markdown in main thread, sending to knowledge graph...`,
 			);
 
-			// Send markdown content to offscreen to save
+			// Send markdown content directly to knowledge graph handler
 			const { jobId, promise } = await backgroundJob.execute(
-				"remember-save",
+				"knowledge-graph",
 				{
-					sourceType: "file_upload" as const,
-					sourceUrl: `document://${file.id}`,
-					title,
-					rawContent: markdownContent,
-					cleanContent: markdownContent,
-					textContent: markdownContent,
-					sourceMetadata: {
-						inputMethod: "direct" as const,
-						timestamp: new Date().toISOString(),
-						context: `Excel file: ${file.name}`,
-					},
-					extractionMetadata: {
-						method: "excel-extraction",
-						fileName: file.name,
-						timestamp: new Date().toISOString(),
-						sheetCount: file.metadata?.sheetCount,
-						sheetNames: file.metadata?.sheetNames,
-					},
+					filePath: file.path,
+					content: markdownContent,
 				},
 				{ stream: false },
 			);
 
-			logInfo(`Remember save job created: ${jobId}`);
+			logInfo(`Knowledge graph job created: ${jobId}`);
 
 			// Wait for completion
 			const result = await promise;
 
-			logInfo(`Excel save completed:`, result);
+			logInfo(`Knowledge graph generation completed:`, result);
 
-			alert("Successfully converted Excel file to remembered content!");
+			alert("Successfully generated knowledge graph from Excel file!");
 		} catch (error) {
 			logError("Failed to convert Excel file:", error);
 			alert("Failed to convert Excel file. Please try again.");
@@ -255,20 +282,60 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 			{/* Header */}
 			<div className="flex items-start justify-between p-4 border-b">
 				<div className="flex-1 min-w-0 mr-4">
-					<h2 className="text-lg font-semibold truncate mb-1">{file.name}</h2>
-					<div className="flex items-center gap-2 flex-wrap">
-						<Badge variant="secondary">{file.type.toUpperCase()}</Badge>
+					{/* File name + metadata on same line */}
+					<div className="flex items-center gap-2 flex-wrap mb-2">
+						<h2 className="text-lg font-semibold truncate">{file.name}</h2>
 						{file.metadata?.pageCount && (
-							<span className="text-xs text-muted-foreground">
-								{file.metadata.pageCount} pages
-							</span>
+							<>
+								<span className="text-muted-foreground">•</span>
+								<span className="text-sm text-muted-foreground">
+									{file.metadata.pageCount} pages
+								</span>
+							</>
 						)}
 						{file.metadata?.sheetCount && (
-							<span className="text-xs text-muted-foreground">
-								{file.metadata.sheetCount} sheets
-							</span>
+							<>
+								<span className="text-muted-foreground">•</span>
+								<span className="text-sm text-muted-foreground">
+									{file.metadata.sheetCount} sheets
+								</span>
+							</>
 						)}
 					</div>
+
+					{/* Topic Badges - Second line */}
+					{fileTopics.length > 0 ? (
+						<div className="flex items-center gap-2 flex-wrap">
+							<TopicBadgeList
+								topics={fileTopics}
+								maxVisible={3}
+								size="sm"
+								onTopicClick={(topic) => onTopicClick?.(topic.id)}
+								activeTopicIds={selectedTopicIds}
+							/>
+							{onManageTopics && (
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => onManageTopics(file)}
+									className="h-6 px-2 text-xs"
+								>
+									<Tags className="h-3 w-3 mr-1" />
+									Manage
+								</Button>
+							)}
+						</div>
+					) : onManageTopics ? (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => onManageTopics(file)}
+							className="h-7 px-2 text-xs gap-1"
+						>
+							<Tags className="h-3 w-3" />
+							Add Topics
+						</Button>
+					) : null}
 				</div>
 				<div className="flex items-center gap-1">
 					{file.type === "pdf" && (
@@ -278,7 +345,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							onClick={() => setShowPageSelector(true)}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
-							<span className="hidden sm:inline">Convert to Remember</span>
+							<span className="hidden sm:inline">Convert to Knowledge</span>
 						</Button>
 					)}
 					{file.type === "text" && (
@@ -290,7 +357,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
 							<span className="hidden sm:inline">
-								{converting ? "Converting..." : "Convert to Remember"}
+								{converting ? "Converting..." : "Convert to Knowledge"}
 							</span>
 						</Button>
 					)}
@@ -303,7 +370,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
 							<span className="hidden sm:inline">
-								{converting ? "Converting..." : "Convert to Remember"}
+								{converting ? "Converting..." : "Convert to Knowledge"}
 							</span>
 						</Button>
 					)}
@@ -497,6 +564,23 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 										{file.metadata.tags.map((tag, index) => (
 											<Badge key={index} variant="outline">
 												{tag}
+											</Badge>
+										))}
+									</div>
+								</div>
+							)}
+
+							{/* Topics Section */}
+							{fileTopics.length > 0 && (
+								<div className="space-y-2">
+									<div className="flex items-center gap-2">
+										<Tag className="h-4 w-4 text-muted-foreground" />
+										<h3 className="text-sm font-semibold">Topics</h3>
+									</div>
+									<div className="flex flex-wrap gap-2">
+										{fileTopics.map((topic) => (
+											<Badge key={topic.id} variant="secondary">
+												{topic.name}
 											</Badge>
 										))}
 									</div>

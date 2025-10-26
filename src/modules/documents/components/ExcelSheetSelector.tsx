@@ -1,6 +1,6 @@
 /**
  * Excel Sheet Selector Dialog
- * Allows users to select specific sheets from an Excel file to convert to remembered content
+ * Allows users to select specific sheets from an Excel file to Convert to Knowledgeed content
  */
 
 import React, { useState, useEffect } from "react";
@@ -115,41 +115,25 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 			const title = `${file.name.replace(/\.(xls|xlsx|xlsm)$/i, "")} - ${sheetText}`;
 
 			logInfo(
-				`Excel converted to markdown in main thread, saving to offscreen...`,
+				`Excel converted to markdown in main thread, sending to knowledge graph...`,
 			);
 
-			// Send markdown content to offscreen to save
+			// Send markdown content directly to knowledge graph handler
 			const { jobId, promise } = await backgroundJob.execute(
-				"remember-save",
+				"knowledge-graph",
 				{
-					sourceType: "file_upload" as const,
-					sourceUrl: `document://${file.id}`,
-					title,
-					rawContent: combinedMarkdown,
-					cleanContent: combinedMarkdown,
-					textContent: combinedMarkdown,
-					sourceMetadata: {
-						inputMethod: "direct" as const,
-						timestamp: new Date().toISOString(),
-						context: `Excel document: ${file.name} (${selectedSheetNames.length} sheets)`,
-					},
-					extractionMetadata: {
-						method: "excel-extraction",
-						fileName: file.name,
-						sheetCount: selectedSheetNames.length,
-						selectedSheets: selectedSheetNames,
-						timestamp: new Date().toISOString(),
-					},
+					filePath: file.path,
+					content: combinedMarkdown,
 				},
 				{ stream: false },
 			);
 
-			logInfo(`Remember save job created: ${jobId}`);
+			logInfo(`Knowledge graph job created: ${jobId}`);
 
 			// Wait for completion
 			const result = await promise;
 
-			logInfo(`Excel save completed:`, result);
+			logInfo(`Knowledge graph generation completed:`, result);
 
 			// Call callback
 			if (onConvert) {

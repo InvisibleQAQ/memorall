@@ -33,8 +33,8 @@ import * as sourceNodesSchema from "./entities/source-nodes";
 import * as sourceEdgesSchema from "./entities/source-edges";
 import * as encryptionSchema from "./entities/encryptions";
 import * as configurationSchema from "./entities/configurations";
-import * as rememberedContentSchema from "./entities/remembered-content";
 import * as topicSchema from "./entities/topics";
+import * as topicFilesSchema from "./entities/topic-files";
 
 import { runMigrations } from "./migrations";
 
@@ -53,10 +53,9 @@ export const schema = {
 	encryption: encryptionSchema.encryption,
 	// Generic configurations (JSONB)
 	configurations: configurationSchema.configuration,
-	// Remembered content from "Remember this" feature
-	rememberedContent: rememberedContentSchema.rememberedContent,
 	// Topic entities
 	topics: topicSchema.topic,
+	topicFiles: topicFilesSchema.topicFiles,
 };
 
 // Export types
@@ -105,14 +104,14 @@ export type {
 } from "./entities/configurations";
 
 export type {
-	RememberedContent,
-	NewRememberedContent,
-} from "./entities/remembered-content";
-
-export type {
 	Topic,
 	NewTopic,
 } from "./entities/topics";
+
+export type {
+	TopicFile,
+	NewTopicFile,
+} from "./entities/topic-files";
 
 // Database instances - support both main and proxy modes
 let pgliteInstance: PGliteLike | PGlite | null = null;

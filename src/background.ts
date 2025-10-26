@@ -6,12 +6,10 @@ import { backgroundJob } from "./services/background-jobs/background-job";
 import { backgroundJobMessageForwarder } from "./background/message-forwarder";
 import { sharedStorageService } from "./services/shared-storage";
 import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
-import type { RememberedContent } from "@/services/database";
 
-const REMEMBER_THIS_PAGE_CONTEXT_MENU_ID = "remember-this-page";
-const REMEMBER_CONTENT_CONTEXT_MENU_ID = "remember-content";
-const LET_REMEMBER_CONTEXT_MENU_ID = "let-remember";
-const REMEMBER_TO_TOPIC_CONTEXT_MENU_ID = "remember-to-topic";
+const SAVE_THIS_PAGE_CONTEXT_MENU_ID = "save-this-page";
+const SAVE_CONTENT_CONTEXT_MENU_ID = "save-content";
+const SAVE_TO_TOPIC_CONTEXT_MENU_ID = "save-to-topic";
 const RECALL_CONTEXT_MENU_ID = "recall";
 const RECALL_TOPIC_CONTEXT_MENU_ID = "recall-topic";
 const OPEN_FULL_PAGE_CONTEXT_MENU_ID = "open-full-page";
@@ -149,32 +147,25 @@ logInfo("🔄 Service Worker loaded, initializing core services...");
 // Create context menus on install
 chrome.runtime.onInstalled.addListener(async () => {
 	try {
-		// Create main "Remember this" menu for full page
+		// Create main "Save page" menu for full page
 		chrome.contextMenus.create({
-			id: REMEMBER_THIS_PAGE_CONTEXT_MENU_ID,
-			title: "Remember this page",
+			id: SAVE_THIS_PAGE_CONTEXT_MENU_ID,
+			title: "Save page to file",
 			contexts: ["page", "link"],
 		});
 
-		// Create "Remember now" menu for selected content
+		// Create "Save selection" menu for selected content
 		chrome.contextMenus.create({
-			id: REMEMBER_CONTENT_CONTEXT_MENU_ID,
-			title: "Remember this selection",
+			id: SAVE_CONTENT_CONTEXT_MENU_ID,
+			title: "Save selection to file",
 			contexts: ["selection"],
 		});
 
-		// Create "Remember to topic" menu for topic-specific content
+		// Create "Save to topic" menu for topic-specific content
 		chrome.contextMenus.create({
-			id: REMEMBER_TO_TOPIC_CONTEXT_MENU_ID,
-			title: "Remember to topic",
+			id: SAVE_TO_TOPIC_CONTEXT_MENU_ID,
+			title: "Save to topic",
 			contexts: ["page", "link"],
-		});
-
-		// Create "Let remember" menu that opens chat input
-		chrome.contextMenus.create({
-			id: LET_REMEMBER_CONTEXT_MENU_ID,
-			title: "Let remember",
-			contexts: ["page", "selection"],
 		});
 
 		chrome.contextMenus.create({
@@ -293,12 +284,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 		return;
 	}
 
-	// Open the action popup immediately only for remember-related items
+	// Open the action popup immediately only for save-related items
 	if (
-		info.menuItemId === REMEMBER_THIS_PAGE_CONTEXT_MENU_ID ||
-		info.menuItemId === REMEMBER_CONTENT_CONTEXT_MENU_ID ||
-		info.menuItemId === LET_REMEMBER_CONTEXT_MENU_ID ||
-		info.menuItemId === REMEMBER_TO_TOPIC_CONTEXT_MENU_ID
+		info.menuItemId === SAVE_THIS_PAGE_CONTEXT_MENU_ID ||
+		info.menuItemId === SAVE_CONTENT_CONTEXT_MENU_ID ||
+		info.menuItemId === SAVE_TO_TOPIC_CONTEXT_MENU_ID
 	) {
 		try {
 			// Check if LLM is configured by getting current model
@@ -325,14 +315,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 			}
 
 			// Handle different menu actions
-			if (info.menuItemId === LET_REMEMBER_CONTEXT_MENU_ID) {
+			if (info.menuItemId === SAVE_TO_TOPIC_CONTEXT_MENU_ID) {
 				try {
-					chrome.storage?.session?.set?.({ navigateTo: "remember" });
-				} catch (_) {}
-				// No need for message-based navigation since popup.tsx handles session storage
-			} else if (info.menuItemId === REMEMBER_TO_TOPIC_CONTEXT_MENU_ID) {
-				try {
-					logInfo("🏷️ Remember to topic clicked - checking topics existence");
+					logInfo("🏷️ Save to topic clicked - checking topics existence");
 
 					// Check if topics exist before deciding UI approach
 					await ensureOffscreenDocument();
@@ -342,7 +327,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 						{},
 						{ stream: false },
 					);
-					logInfo("🏷️ Job execution response:", jobTopicsExistResponse);
+					logInfo("🏷️ Job execution initiated");
 
 					if ("promise" in jobTopicsExistResponse && tab?.id) {
 						const jobTopicsExistResult = await jobTopicsExistResponse.promise;
@@ -396,7 +381,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 					openExtensionPopup();
 				}
 			} else {
-				// For other remember actions, open popup and navigate based on LLM config
+				// For other save actions, open popup and navigate based on LLM config
 				if (hasConfiguredLLM) {
 				} else {
 					// No LLM configured, guide user to LLM setup
@@ -448,10 +433,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 					logError("❌ Failed to open options/standalone page:", e2);
 				}
 			}
-		} else if (info.menuItemId === REMEMBER_THIS_PAGE_CONTEXT_MENU_ID) {
-			logInfo(
-				`🔄 Remember this page clicked for tab: ${tab.id}, URL: ${tab.url}`,
-			);
+		} else if (info.menuItemId === SAVE_THIS_PAGE_CONTEXT_MENU_ID) {
+			logInfo(`🔄 Save page clicked for tab: ${tab.id}, URL: ${tab.url}`);
 
 			// Send message to content script to extract full page content
 			const contentResponse = await chrome.tabs.sendMessage(tab.id, {
@@ -459,10 +442,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 				tabId: tab.id,
 				url: tab.url,
 			});
-			logInfo("📨 Content script response to REMEMBER_THIS:", contentResponse);
-		} else if (info.menuItemId === REMEMBER_CONTENT_CONTEXT_MENU_ID) {
+			logInfo("📨 Content script response to save page:", contentResponse);
+		} else if (info.menuItemId === SAVE_CONTENT_CONTEXT_MENU_ID) {
 			logInfo(
-				`🔄 Remember now clicked for tab: ${tab.id}, selection: "${info.selectionText}"`,
+				`🔄 Save selection clicked for tab: ${tab.id}, selection: "${info.selectionText}"`,
 			);
 
 			// Send message to content script to extract selected content
@@ -473,22 +456,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 				selectedText: info.selectionText || "",
 			});
 			logInfo(
-				"📨 Content script response to REMEMBER_CONTENT:",
+				"📨 Content script response to save selection:",
 				selectionResponse,
 			);
-		} else if (info.menuItemId === LET_REMEMBER_CONTEXT_MENU_ID) {
-			logInfo(`🔄 Let remember clicked for tab: ${tab.id}`);
-
-			// Send message to content script to store context data
-			const chatResponse = await chrome.tabs.sendMessage(tab.id, {
-				type: CONTENT_BACKGROUND_EVENTS.LET_REMEMBER,
-				tabId: tab.id,
-				url: tab.url,
-				context: info.selectionText || "",
-			});
-			logInfo("📨 Content script response to LET_REMEMBER:", chatResponse);
-		} else if (info.menuItemId === REMEMBER_TO_TOPIC_CONTEXT_MENU_ID) {
-			logInfo(`🔄 Remember to topic clicked for tab: ${tab.id}`);
+		} else if (info.menuItemId === SAVE_TO_TOPIC_CONTEXT_MENU_ID) {
+			logInfo(`🔄 Save to topic clicked for tab: ${tab.id}`);
 
 			// Send message to content script to store context data with topic selector flag
 			const topicResponse = await chrome.tabs.sendMessage(tab.id, {
@@ -498,19 +470,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 				context: info.selectionText || "",
 				showTopicSelector: true,
 			});
-			logInfo(
-				"📨 Content script response to REMEMBER_TO_TOPIC:",
-				topicResponse,
-			);
+			logInfo("📨 Content script response to save to topic:", topicResponse);
 		}
 	} catch (error) {
-		logError("❌ Failed to process remember request:", error);
+		logError("❌ Failed to process save request:", error);
 
 		// Try to show error notification if possible
 		try {
 			createNotification(
 				"Memorall",
-				"Failed to process remember request. Please try again.",
+				"Failed to save content. Please try again.",
 			);
 		} catch (notificationError) {
 			logError("❌ Failed to show error notification:", notificationError);
@@ -549,24 +518,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			}
 		})();
 		return true;
-	} else if (message.type === "OPEN_REMEMBER_PAGE") {
-		// Handle opening remember page from content script
+	} else if (message.type === "OPEN_SAVE_PAGE") {
+		// Handle opening documents page from content script
 		try {
-			chrome.storage?.session?.set?.({ navigateTo: "remember" });
+			chrome.storage?.session?.set?.({ navigateTo: "documents" });
 			openExtensionPopup();
 			sendResponse({ success: true });
 		} catch (error) {
-			logError("❌ Failed to open remember page:", error);
-			sendResponse({ success: false, error: "Failed to open remember page" });
+			logError("❌ Failed to open documents page:", error);
+			sendResponse({ success: false, error: "Failed to open documents page" });
 		}
 		return true;
-	} else if (message.type === "TOPIC_SELECTED_FOR_REMEMBER") {
+	} else if (message.type === "TOPIC_SELECTED_FOR_SAVE") {
 		// Handle topic selection from content script
 		try {
 			chrome.storage?.session?.set?.({
-				rememberContext: message.contextData,
+				saveContext: message.contextData,
 				showTopicSelector: true,
-				navigateTo: "remember",
+				navigateTo: "documents",
 			});
 			openExtensionPopup();
 			sendResponse({ success: true });
@@ -578,8 +547,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			});
 		}
 		return true;
-	} else if (message.type === "REMEMBER_CONTENT_WITH_TOPIC") {
-		// Handle direct content saving with topic (bypasses remember page)
+	} else if (message.type === "SAVE_CONTENT_WITH_TOPIC") {
+		// Handle direct content saving with topic
 		(async () => {
 			try {
 				logInfo("🔍 Background received topicId:", message.topicId);
@@ -633,34 +602,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					throw new Error("Failed to process extracted content");
 				}
 
-				if (!("promise" in saveResponse)) {
-					throw new Error("Failed to process selection");
-				}
-
 				const saveResult = (await saveResponse.promise).result;
 
-				if (!saveResult || !("page" in saveResult)) {
-					throw new Error("No page returned from save operation");
+				if (!saveResult || !("filePath" in saveResult)) {
+					throw new Error("No file path returned from save operation");
 				}
-				const page = saveResult.page as RememberedContent;
 
-				logInfo(
-					"✅ Content saved, triggering knowledge graph generation:",
-					page.id,
-				);
+				logInfo("✅ Content saved as file:", saveResult.filePath);
 
-				// Trigger knowledge graph generation with the saved page
-				await backgroundJob.createJob("knowledge-graph", page, {
-					stream: false,
-				});
-
-				sendResponse({ success: true, page });
+				sendResponse({ success: true, filePath: saveResult.filePath });
 			} catch (error) {
 				logError("❌ Failed to process extracted content:", error);
 				const errorResponse = {
 					success: false,
 					error:
-						error instanceof Error ? error.message : "Failed to queue page",
+						error instanceof Error ? error.message : "Failed to save content",
 				};
 				logInfo("📨 Sending error response to content script:", errorResponse);
 				sendResponse(errorResponse);
@@ -706,31 +662,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 				const saveResult = (await saveResponse.promise).result;
 
-				if (!saveResult || !("page" in saveResult)) {
-					throw new Error("No page returned from save operation");
+				if (!saveResult || !("filePath" in saveResult)) {
+					throw new Error("No file path returned from save operation");
 				}
-				const page = saveResult.page as RememberedContent;
 
-				logInfo(
-					"✅ Selection saved, triggering knowledge graph generation:",
-					page.id,
-				);
+				logInfo("✅ Selection saved as file:", saveResult.filePath);
 
-				// Trigger knowledge graph generation with the saved page
-				await backgroundJob.createJob("knowledge-graph", page, {
-					stream: false,
-				});
-
-				sendResponse({ success: true, page });
+				sendResponse({ success: true, filePath: saveResult.filePath });
 			} catch (error) {
 				logError("❌ Failed to process selection:", error);
 
 				const errorResponse = {
 					success: false,
 					error:
-						error instanceof Error
-							? error.message
-							: "Failed to remember selection",
+						error instanceof Error ? error.message : "Failed to save selection",
 				};
 
 				sendResponse(errorResponse);

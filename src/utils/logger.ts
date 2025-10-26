@@ -71,6 +71,58 @@ class Logger {
 		return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 	}
 
+	/**
+	 * Sanitize data to remove non-serializable objects (Promises, Functions, etc.)
+	 */
+	private sanitizeData(data: any): any {
+		if (data === null || data === undefined) {
+			return data;
+		}
+
+		// Handle primitives
+		if (typeof data !== "object") {
+			return data;
+		}
+
+		// Handle Promise
+		if (data instanceof Promise) {
+			return "[Promise]";
+		}
+
+		// Handle Function
+		if (typeof data === "function") {
+			return "[Function]";
+		}
+
+		// Handle Arrays
+		if (Array.isArray(data)) {
+			return data.map((item) => this.sanitizeData(item));
+		}
+
+		// Handle Objects
+		try {
+			const sanitized: any = {};
+			for (const key in data) {
+				if (data.hasOwnProperty(key)) {
+					const value = data[key];
+					// Skip promises and functions
+					if (value instanceof Promise) {
+						sanitized[key] = "[Promise]";
+					} else if (typeof value === "function") {
+						sanitized[key] = "[Function]";
+					} else if (typeof value === "object" && value !== null) {
+						sanitized[key] = this.sanitizeData(value);
+					} else {
+						sanitized[key] = value;
+					}
+				}
+			}
+			return sanitized;
+		} catch {
+			return "[Circular or Complex Object]";
+		}
+	}
+
 	private async persistLog(
 		level: LogLevel,
 		message: string,
@@ -88,7 +140,7 @@ class Logger {
 				timestamp: Date.now(),
 				level,
 				message,
-				data,
+				data: this.sanitizeData(data),
 				context,
 				source,
 			};

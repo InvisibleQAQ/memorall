@@ -1,7 +1,4 @@
 {
-  "files": {
-    "maxSize": 1048576
-  },
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,
@@ -10,6 +7,12 @@
     "indentWidth": 2,
     "lineWidth": 80,
     "lineEnding": "lf"
+  },
+  "css": {
+    "parser": {
+      "cssModules": false,
+      "allowWrongLineComments": true
+    }
   },
   "javascript": {
     "formatter": {
@@ -26,5 +29,16 @@
     "formatter": {
       "trailingCommas": "none"
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["*.css", "**/*.css"],
+      "formatter": {
+        "enabled": false
+      },
+      "linter": {
+        "enabled": false
+      }
+    }
+  ]
 }

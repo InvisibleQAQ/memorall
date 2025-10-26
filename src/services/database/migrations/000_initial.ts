@@ -11,7 +11,6 @@ import {
 	topic,
 	encryption,
 	configuration,
-	rememberedContent,
 	nodeManualIndexes,
 	edgeManualIndexes,
 	configurationTriggers,
@@ -20,7 +19,6 @@ import {
 	encryptionTriggers,
 	messageTriggers,
 	nodeTriggers,
-	rememberedContentTriggers,
 	sourceEdgeTriggers,
 	sourceNodeTriggers,
 	topicTriggers,
@@ -38,7 +36,6 @@ export const up = async (pg: PGlite) => {
 	const sourceEdgesTable = toFullTableSQL(sourceEdge);
 	const encryptionTable = toFullTableSQL(encryption);
 	const configurationsTable = toFullTableSQL(configuration);
-	const rememberedContentTable = toFullTableSQL(rememberedContent);
 
 	const sql = `
     -- Enable extensions
@@ -91,9 +88,6 @@ export const up = async (pg: PGlite) => {
     ${encryptionTable.table}
     ${encryptionTable.indexes.join("\n")}
 
-    ${rememberedContentTable.table}
-    ${rememberedContentTable.indexes.join("\n")}
-
     ${configurationsTable.table}
     ${configurationsTable.indexes.join("\n")}
 
@@ -106,7 +100,6 @@ export const up = async (pg: PGlite) => {
     ${encryptionTriggers.join("\n")}
     ${messageTriggers.join("\n")}
     ${nodeTriggers.join("\n")}
-    ${rememberedContentTriggers.join("\n")}
     ${sourceEdgeTriggers.join("\n")}
     ${sourceNodeTriggers.join("\n")}
     ${sourceTriggers.join("\n")}

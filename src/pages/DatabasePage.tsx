@@ -564,20 +564,6 @@ export const DatabasePage: React.FC = () => {
 						</div>
 					</>
 				);
-			case "rememberedContent":
-				return (
-					<>
-						<h3 className="font-medium text-sm text-foreground">
-							{item.title || id.toString().slice(0, 8)}
-						</h3>
-						<p className="text-xs text-muted-foreground line-clamp-2">
-							{item.textContent?.toString().substring(0, 100) || ""}
-						</p>
-						<div className="text-xs text-muted-foreground">
-							{formatDate(createdAt)}
-						</div>
-					</>
-				);
 			default:
 				return (
 					<>

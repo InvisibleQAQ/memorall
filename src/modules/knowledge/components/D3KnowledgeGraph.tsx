@@ -265,7 +265,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 						.from(schema.sources)
 						.where(
 							and(
-								eq(schema.sources.targetType, "remembered_pages"),
+								eq(schema.sources.targetType, "file"),
 								eq(schema.sources.targetId, selectedPageId),
 							),
 						);
