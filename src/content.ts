@@ -10,6 +10,8 @@ import {
 	createEmbeddedTopicSelector,
 	extractReadableContent,
 	extractViewportContent,
+	extractViewportHTMLStructure,
+	extractFullPageHTMLStructure,
 } from "./embedded";
 import { createShadcnEmbeddedChatModal } from "./embedded/components/ShadcnEmbeddedChat";
 import type {
@@ -254,7 +256,21 @@ async function handleShowChatModal(
 			console.error("Failed to extract viewport content:", e);
 		}
 
-		// 3. Full page content
+		// 3. Viewport HTML structure
+		try {
+			const viewportHTML = extractViewportHTMLStructure();
+			if (viewportHTML.trim()) {
+				contextOptions.push({
+					type: "viewport_html",
+					label: "Visible HTML",
+					content: viewportHTML,
+				});
+			}
+		} catch (e) {
+			console.error("Failed to extract viewport HTML structure:", e);
+		}
+
+		// 4. Full page content
 		try {
 			const fullPageData = await extractReadableContent();
 			const fullContent =
@@ -284,14 +300,28 @@ async function handleShowChatModal(
 			}
 		}
 
-		// 4. Viewport screenshot - placeholder, will be captured on demand
+		// 5. Full page HTML structure
+		try {
+			const fullPageHTML = extractFullPageHTMLStructure();
+			if (fullPageHTML.trim()) {
+				contextOptions.push({
+					type: "full_page_html",
+					label: "Page HTML",
+					content: fullPageHTML,
+				});
+			}
+		} catch (e) {
+			console.error("Failed to extract full page HTML structure:", e);
+		}
+
+		// 6. Viewport screenshot - placeholder, will be captured on demand
 		contextOptions.push({
 			type: "viewport_screenshot",
 			label: "Visible image",
 			content: "", // Empty until user clicks to capture
 		});
 
-		// 5. Full page screenshot - placeholder, will be captured on demand
+		// 7. Full page screenshot - placeholder, will be captured on demand
 		contextOptions.push({
 			type: "screenshot",
 			label: "Full page image",

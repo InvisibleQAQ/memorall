@@ -176,6 +176,9 @@ export const PromptInputTextarea: React.FC<{
 		disabled={disabled}
 		className="w-full resize-none border-0 bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 min-h-[50px] max-h-32"
 		onKeyDown={(e) => {
+			// Stop all keyboard events from propagating to the host page
+			e.stopPropagation();
+
 			if (e.key === "Enter" && !e.shiftKey) {
 				e.preventDefault();
 				const form = e.currentTarget.closest("form");
@@ -183,6 +186,14 @@ export const PromptInputTextarea: React.FC<{
 					form.requestSubmit();
 				}
 			}
+		}}
+		onKeyUp={(e) => {
+			// Stop keyup events from propagating
+			e.stopPropagation();
+		}}
+		onKeyPress={(e) => {
+			// Stop keypress events from propagating
+			e.stopPropagation();
 		}}
 	/>
 );
@@ -233,6 +244,9 @@ export const WorkflowDropdown: React.FC<{
 				disabled={disabled}
 				className="text-xs bg-transparent border-0 px-2 py-1 text-muted-foreground hover:text-foreground focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed truncate flex-1 min-w-0"
 				style={{ maxWidth: "100%" }}
+				onKeyDown={(e) => e.stopPropagation()}
+				onKeyUp={(e) => e.stopPropagation()}
+				onKeyPress={(e) => e.stopPropagation()}
 			>
 				<option value="" disabled>
 					Select Workflow
@@ -317,6 +331,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 						className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
 						aria-label="Open full version"
 						title="Open full version"
+						onKeyDown={(e) => e.stopPropagation()}
+						onKeyUp={(e) => e.stopPropagation()}
+						onKeyPress={(e) => e.stopPropagation()}
 					>
 						<svg
 							className="w-4 h-4"
@@ -336,6 +353,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 						onClick={onClose}
 						className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
 						aria-label="Close"
+						onKeyDown={(e) => e.stopPropagation()}
+						onKeyUp={(e) => e.stopPropagation()}
+						onKeyPress={(e) => e.stopPropagation()}
 					>
 						<CloseIcon className="w-4 h-4" />
 					</button>

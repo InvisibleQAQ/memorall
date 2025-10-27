@@ -54,9 +54,20 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 				type: "text",
 			},
 			{
+				regex: /<viewport_html_structure>([\s\S]*?)<\/viewport_html_structure>/,
+				label: "🏗️ Viewport HTML",
+				type: "html",
+			},
+			{
 				regex: /<full_page_content>([\s\S]*?)<\/full_page_content>/,
 				label: "📄 Full Page Content",
 				type: "text",
+			},
+			{
+				regex:
+					/<full_page_html_structure>([\s\S]*?)<\/full_page_html_structure>/,
+				label: "🏗️ Page HTML",
+				type: "html",
 			},
 			{
 				regex: /<viewport_screenshot>([\s\S]*?)<\/viewport_screenshot>/,
@@ -100,6 +111,8 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 	const textContent = getTextContent(message.content);
 	const parsed = parseContextSections(textContent);
 
+	const [copiedSection, setCopiedSection] = useState<string | null>(null);
+
 	const toggleSection = (label: string) => {
 		setExpandedSections((prev) => {
 			const next = new Set(prev);
@@ -110,6 +123,21 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 			}
 			return next;
 		});
+	};
+
+	const copySection = async (
+		label: string,
+		content: string,
+		e: React.MouseEvent,
+	) => {
+		e.stopPropagation(); // Prevent toggle when clicking copy
+		try {
+			await navigator.clipboard.writeText(content);
+			setCopiedSection(label);
+			setTimeout(() => setCopiedSection(null), 2000);
+		} catch (error) {
+			console.error("Failed to copy content:", error);
+		}
 	};
 
 	if (!parsed.hasContext) {
@@ -187,31 +215,78 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 				{parsed.sections.map((section, idx) => {
 					const isExpanded = expandedSections.has(section.label);
 					const isScreenshot = section.type === "screenshot";
+					const isHtml = section.type === "html";
+					const isCopied = copiedSection === section.label;
 
 					return (
 						<div
 							key={idx}
 							className="border border-border rounded-lg overflow-hidden bg-card"
 						>
-							<button
-								onClick={() => toggleSection(section.label)}
-								className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-accent transition-colors text-left"
-							>
-								<span className="text-foreground">{section.label}</span>
-								<svg
-									className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`}
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
+							<div className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium bg-card hover:bg-accent transition-colors">
+								<button
+									onClick={() => toggleSection(section.label)}
+									className="flex-1 flex items-center justify-between text-left"
+									onKeyDown={(e) => e.stopPropagation()}
+									onKeyUp={(e) => e.stopPropagation()}
+									onKeyPress={(e) => e.stopPropagation()}
 								>
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M19 9l-7 7-7-7"
-									/>
-								</svg>
-							</button>
+									<span className="text-foreground">{section.label}</span>
+									<svg
+										className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`}
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M19 9l-7 7-7-7"
+										/>
+									</svg>
+								</button>
+								<button
+									onClick={(e) =>
+										copySection(section.label, section.content, e)
+									}
+									className="ml-2 p-1 rounded hover:bg-accent-foreground/10 transition-colors"
+									title={isCopied ? "Copied!" : "Copy content"}
+									onKeyDown={(e) => e.stopPropagation()}
+									onKeyUp={(e) => e.stopPropagation()}
+									onKeyPress={(e) => e.stopPropagation()}
+								>
+									{isCopied ? (
+										<svg
+											className="w-4 h-4 text-green-500"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M5 13l4 4L19 7"
+											/>
+										</svg>
+									) : (
+										<svg
+											className="w-4 h-4 text-muted-foreground hover:text-foreground"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+											/>
+										</svg>
+									)}
+								</button>
+							</div>
 
 							{isExpanded && (
 								<div className="px-3 py-2 border-t border-border bg-muted/30">
@@ -219,11 +294,13 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 										<div className="text-xs text-muted-foreground italic">
 											{section.content}
 										</div>
+									) : isHtml ? (
+										<pre className="whitespace-pre-wrap font-mono text-xs text-foreground/80 max-h-96 overflow-y-auto overflow-x-auto">
+											{section.content}
+										</pre>
 									) : (
-										<pre className="whitespace-pre-wrap font-sans text-xs text-foreground/80 max-h-60 overflow-y-auto">
-											{section.content.length > 500
-												? section.content.slice(0, 500) + "..."
-												: section.content}
+										<pre className="whitespace-pre-wrap font-sans text-xs text-foreground/80 max-h-96 overflow-y-auto">
+											{section.content}
 										</pre>
 									)}
 								</div>
@@ -317,7 +394,7 @@ const MessageActions: React.FC<{
 				extractionMetadata: {
 					extractedAt: new Date().toISOString(),
 					length: textContent.length,
-					excerpt: textContent.substring(0, 200),
+					excerpt: textContent, // Full content, no truncation
 				},
 			};
 

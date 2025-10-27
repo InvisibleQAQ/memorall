@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { flushSync } from "react-dom";
 import { nanoid } from "nanoid";
 import type { ChatMessage } from "../types";
 import { Loader } from "./Icons";
@@ -38,6 +39,8 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 			Array<{ type: string; label: string; content: string }>
 		>
 	>;
+	showContextSection: boolean;
+	onToggleContextSection: () => void;
 }> = ({
 	pageUrl,
 	pageTitle,
@@ -45,6 +48,8 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 	setMessages,
 	selectedContexts,
 	setSelectedContexts,
+	showContextSection,
+	onToggleContextSection,
 }) => {
 	const [availableContexts, setAvailableContexts] = useState<
 		Array<{ type: string; label: string; content: string }>
@@ -52,6 +57,13 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 
 	// Track screenshot capture status
 	const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+
+	// Reset availableContexts when selectedContexts is cleared (e.g., delete chat or after sending)
+	React.useEffect(() => {
+		if (selectedContexts.length === 0 && contextOptions) {
+			setAvailableContexts(contextOptions);
+		}
+	}, [selectedContexts, contextOptions]);
 
 	// Handle context selection click - toggle selection
 	const handleContextSelection = useCallback(
@@ -72,7 +84,10 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 						contextItem.type === "viewport_screenshot") &&
 					!contextItem.content
 				) {
-					setIsCapturingScreenshot(true);
+					// Force synchronous update to show loading immediately
+					flushSync(() => {
+						setIsCapturingScreenshot(true);
+					});
 					try {
 						if (contextItem.type === "viewport_screenshot") {
 							console.log("Capturing viewport screenshot...");
@@ -207,10 +222,20 @@ ${ctx.content}
 ${ctx.content}
 </viewport_content>`);
 						break;
+					case "viewport_html":
+						contextParts.push(`<viewport_html_structure>
+${ctx.content}
+</viewport_html_structure>`);
+						break;
 					case "full_page":
 						contextParts.push(`<full_page_content>
 ${ctx.content}
 </full_page_content>`);
+						break;
+					case "full_page_html":
+						contextParts.push(`<full_page_html_structure>
+${ctx.content}
+</full_page_html_structure>`);
 						break;
 					case "viewport_screenshot":
 						contentArray.push({
@@ -283,8 +308,36 @@ ${contextParts.join("\n")}
 				<div className="border-t px-4 py-3 flex-shrink-0 bg-muted/30 space-y-2.5">
 					{/* Header */}
 					<div className="flex items-center justify-between">
-						<div className="text-xs font-medium text-muted-foreground">
-							Select context:
+						<div className="flex items-center gap-2">
+							<button
+								onClick={onToggleContextSection}
+								className="flex items-center justify-center p-1 text-muted-foreground hover:text-foreground transition-colors"
+								title={
+									showContextSection
+										? "Hide context section"
+										: "Show context section"
+								}
+								onKeyDown={(e) => e.stopPropagation()}
+								onKeyUp={(e) => e.stopPropagation()}
+								onKeyPress={(e) => e.stopPropagation()}
+							>
+								<svg
+									className="w-3.5 h-3.5"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d={showContextSection ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"}
+									/>
+								</svg>
+							</button>
+							<div className="text-xs font-medium text-muted-foreground">
+								Select context:
+							</div>
 						</div>
 						{selectedContexts.length > 0 && (
 							<button
@@ -293,6 +346,9 @@ ${contextParts.join("\n")}
 									setAvailableContexts(contextOptions || []);
 								}}
 								className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+								onKeyDown={(e) => e.stopPropagation()}
+								onKeyUp={(e) => e.stopPropagation()}
+								onKeyPress={(e) => e.stopPropagation()}
 							>
 								Clear
 							</button>
@@ -320,6 +376,9 @@ ${contextParts.join("\n")}
 												? "bg-primary text-primary-foreground"
 												: "bg-muted hover:bg-accent text-foreground border border-border"
 										} ${isCapturingThis ? "opacity-50 cursor-wait" : ""}`}
+										onKeyDown={(e) => e.stopPropagation()}
+										onKeyUp={(e) => e.stopPropagation()}
+										onKeyPress={(e) => e.stopPropagation()}
 									>
 										<span className="font-medium">{ctx.label}</span>
 										{isCapturingThis ? (
@@ -354,6 +413,9 @@ ${contextParts.join("\n")}
 						<button
 							onClick={handleAddContextsAsMessage}
 							className="w-full px-4 py-2.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+							onKeyDown={(e) => e.stopPropagation()}
+							onKeyUp={(e) => e.stopPropagation()}
+							onKeyPress={(e) => e.stopPropagation()}
 						>
 							<svg
 								className="w-4 h-4"

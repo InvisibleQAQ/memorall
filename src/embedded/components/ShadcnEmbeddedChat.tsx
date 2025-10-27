@@ -54,6 +54,9 @@ const TopicSelector: React.FC<{
 			value={selectedTopic}
 			onChange={(e) => onTopicChange(e.target.value)}
 			className="text-xs p-1 rounded border bg-background text-foreground border-border min-w-24 flex-1"
+			onKeyDown={(e) => e.stopPropagation()}
+			onKeyUp={(e) => e.stopPropagation()}
+			onKeyPress={(e) => e.stopPropagation()}
 		>
 			{topics.map((topic) => (
 				<option key={topic.id} value={topic.id}>
@@ -90,6 +93,42 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 	const [availableContexts, setAvailableContexts] = useState<
 		Array<{ type: string; label: string; content: string }>
 	>(contextOptions || []);
+	const [showConfirmClose, setShowConfirmClose] = useState(false);
+	const [showContextSection, setShowContextSection] = useState(true);
+
+	// Check if there's unsaved content
+	const hasUnsavedContent = useCallback(() => {
+		return messages.length > 0 || inputValue.trim().length > 0;
+	}, [messages, inputValue]);
+
+	// Handle overlay click - show confirmation if there's unsaved content
+	const handleOverlayClick = useCallback(() => {
+		if (hasUnsavedContent()) {
+			setShowConfirmClose(true);
+		} else {
+			onClose();
+		}
+	}, [hasUnsavedContent, onClose]);
+
+	// Handle confirmed close
+	const handleConfirmedClose = useCallback(() => {
+		setShowConfirmClose(false);
+		onClose();
+	}, [onClose]);
+
+	// Handle cancel close
+	const handleCancelClose = useCallback(() => {
+		setShowConfirmClose(false);
+	}, []);
+
+	// Handle close button click (header X button)
+	const handleCloseButtonClick = useCallback(() => {
+		if (hasUnsavedContent()) {
+			setShowConfirmClose(true);
+		} else {
+			onClose();
+		}
+	}, [hasUnsavedContent, onClose]);
 
 	// Handle delete chat - clear messages and restore context options
 	const handleDeleteChat = useCallback(() => {
@@ -98,6 +137,11 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 		setSelectedContexts([]);
 		setAvailableContexts(contextOptions || []);
 	}, [contextOptions]);
+
+	// Handle toggle context section
+	const handleToggleContextSection = useCallback(() => {
+		setShowContextSection((prev) => !prev);
+	}, []);
 
 	// Auto-scroll state
 	const conversationRef = React.useRef<HTMLDivElement>(null);
@@ -219,12 +263,45 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 		}
 	}, [checkIfNearBottom]);
 
+	// Prevent scroll propagation when scrolling inside conversation
+	const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+		const element = conversationRef.current;
+		if (!element) return;
+
+		const { scrollTop, scrollHeight, clientHeight } = element;
+		const isScrollingDown = e.deltaY > 0;
+		const isScrollingUp = e.deltaY < 0;
+
+		// At top and scrolling up, or at bottom and scrolling down - prevent propagation
+		const atTop = scrollTop === 0;
+		const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+		if ((atTop && isScrollingUp) || (atBottom && isScrollingDown)) {
+			e.preventDefault();
+			e.stopPropagation();
+		}
+	}, []);
+
 	// Auto-scroll when messages change or streaming
 	useEffect(() => {
 		if (shouldAutoScroll) {
 			scrollToBottom();
 		}
 	}, [messages, shouldAutoScroll, scrollToBottom]);
+
+	// Prevent scroll on body when modal is open
+	useEffect(() => {
+		// Save current body overflow style
+		const originalOverflow = document.body.style.overflow;
+
+		// Prevent body scroll
+		document.body.style.overflow = "hidden";
+
+		// Restore on cleanup
+		return () => {
+			document.body.style.overflow = originalOverflow;
+		};
+	}, []);
 
 	// Add initial context if provided
 	useEffect(() => {
@@ -469,11 +546,17 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 	return (
 		<div
 			className="fixed inset-0 z-[999999] bg-black/30 animate-in fade-in duration-200"
-			onClick={onClose}
+			onClick={handleOverlayClick}
+			onKeyDown={(e) => e.stopPropagation()}
+			onKeyUp={(e) => e.stopPropagation()}
+			onKeyPress={(e) => e.stopPropagation()}
 		>
 			<div
 				className="fixed right-0 top-0 h-full w-full max-w-[30%] min-w-[400px] flex flex-col overflow-hidden bg-background shadow-2xl border-l animate-in slide-in-from-right duration-300"
 				onClick={(e) => e.stopPropagation()}
+				onKeyDown={(e) => e.stopPropagation()}
+				onKeyUp={(e) => e.stopPropagation()}
+				onKeyPress={(e) => e.stopPropagation()}
 			>
 				<ChatHeader
 					mode={mode}
@@ -482,7 +565,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 							type: "OPEN_FULL_PAGE",
 						});
 					}}
-					onClose={onClose}
+					onClose={handleCloseButtonClick}
 					modelId={selectedModel}
 					provider={selectedProvider}
 					modelAvailable={modelAvailable && !!selectedModel}
@@ -512,7 +595,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 							</div>
 						) : (
 							messages.map((message) => (
-								<div key={message.id} className="space-y-3">
+								<div key={message.id} className="space-y-3 overflow-x-hidden">
 									<Message role={message.role}>
 										<MessageContent role={message.role}>
 											<EmbeddedMessageRenderer
@@ -558,14 +641,53 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 					</ConversationContent>
 				</Conversation>
 
-				<ShadcnEmbeddedContextSections
-					pageUrl={pageUrl}
-					pageTitle={pageTitle}
-					contextOptions={contextOptions}
-					setMessages={setMessages}
-					selectedContexts={selectedContexts}
-					setSelectedContexts={setSelectedContexts}
-				/>
+				{/* Show Context Button - visible when section is hidden */}
+				{!showContextSection && (
+					<div className="border-t px-4 py-2 flex-shrink-0">
+						<button
+							onClick={handleToggleContextSection}
+							className="flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+							onKeyDown={(e) => e.stopPropagation()}
+							onKeyUp={(e) => e.stopPropagation()}
+							onKeyPress={(e) => e.stopPropagation()}
+						>
+							<svg
+								className="w-3.5 h-3.5"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M4 6h16M4 12h16M4 18h16"
+								/>
+							</svg>
+							<span>Context</span>
+						</button>
+					</div>
+				)}
+
+				{/* Context Section with animation */}
+				<div
+					className="overflow-hidden transition-all duration-300 ease-in-out"
+					style={{
+						maxHeight: showContextSection ? "500px" : "0px",
+						opacity: showContextSection ? 1 : 0,
+					}}
+				>
+					<ShadcnEmbeddedContextSections
+						pageUrl={pageUrl}
+						pageTitle={pageTitle}
+						contextOptions={contextOptions}
+						setMessages={setMessages}
+						selectedContexts={selectedContexts}
+						setSelectedContexts={setSelectedContexts}
+						showContextSection={showContextSection}
+						onToggleContextSection={handleToggleContextSection}
+					/>
+				</div>
 
 				{/* Input Area - compact design for right panel */}
 				<div className="border-t p-3 flex-shrink-0">
@@ -588,6 +710,9 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 										disabled={isTyping}
 										className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none transition-colors"
 										title="Clear chat"
+										onKeyDown={(e) => e.stopPropagation()}
+										onKeyUp={(e) => e.stopPropagation()}
+										onKeyPress={(e) => e.stopPropagation()}
 									>
 										<svg
 											className="w-4 h-4"
@@ -626,6 +751,59 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 						</PromptInputToolbar>
 					</PromptInput>
 				</div>
+
+				{/* Confirmation Modal */}
+				{showConfirmClose && (
+					<div
+						className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in duration-200"
+						onClick={handleCancelClose}
+					>
+						<div
+							className="bg-background border rounded-lg shadow-xl p-6 max-w-sm mx-4 animate-in zoom-in-95 duration-200"
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => {
+								e.stopPropagation();
+								if (e.key === "Escape") {
+									handleCancelClose();
+								}
+							}}
+							onKeyUp={(e) => e.stopPropagation()}
+							onKeyPress={(e) => e.stopPropagation()}
+						>
+							<div className="space-y-4">
+								<div className="space-y-2">
+									<h3 className="text-lg font-semibold text-foreground">
+										Close chat?
+									</h3>
+									<p className="text-sm text-muted-foreground">
+										You have unsaved messages or input. Are you sure you want to
+										close?
+									</p>
+								</div>
+								<div className="flex gap-3 justify-end">
+									<button
+										onClick={handleCancelClose}
+										className="px-4 py-2 text-sm font-medium rounded-md border border-border bg-background hover:bg-accent text-foreground transition-colors"
+										onKeyDown={(e) => e.stopPropagation()}
+										onKeyUp={(e) => e.stopPropagation()}
+										onKeyPress={(e) => e.stopPropagation()}
+									>
+										Cancel
+									</button>
+									<button
+										onClick={handleConfirmedClose}
+										className="px-4 py-2 text-sm font-medium rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+										onKeyDown={(e) => e.stopPropagation()}
+										onKeyUp={(e) => e.stopPropagation()}
+										onKeyPress={(e) => e.stopPropagation()}
+									>
+										Close anyway
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
 			</div>
 		</div>
 	);

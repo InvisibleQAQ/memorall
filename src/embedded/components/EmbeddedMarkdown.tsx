@@ -153,12 +153,60 @@ export const EmbeddedMarkdown: React.FC<EmbeddedMarkdownProps> = ({
 	content,
 	isStreaming = false,
 }) => {
+	// Helper function to process inline markdown in table cells
+	const processInlineMarkdown = (text: string): string => {
+		if (!text) return text;
+
+		// Bold (**text** or __text__)
+		text = text.replace(
+			/\*\*(.*?)\*\*/g,
+			'<strong style="font-weight: 600;">$1</strong>',
+		);
+		text = text.replace(
+			/__(.*?)__/g,
+			'<strong style="font-weight: 600;">$1</strong>',
+		);
+
+		// Italic (*text* or _text_)
+		text = text.replace(
+			/(?<!\w)\*([^*\n]+?)\*(?!\w)/g,
+			'<em style="font-style: italic;">$1</em>',
+		);
+		text = text.replace(
+			/(?<!\w)_([^_\n]+?)_(?!\w)/g,
+			'<em style="font-style: italic;">$1</em>',
+		);
+
+		// Inline code (`code`)
+		text = text.replace(
+			/`([^`]+)`/g,
+			'<code style="background-color: hsl(var(--muted)); padding: 0.125rem 0.25rem; border-radius: 0.25rem; font-family: monospace; font-size: 0.875em;">$1</code>',
+		);
+
+		// Links [text](url)
+		text = text.replace(
+			/\[([^\]]+)\]\(([^)]+)\)/g,
+			'<a href="$2" style="color: hsl(var(--primary)); text-decoration: underline;" target="_blank" rel="noopener noreferrer">$1</a>',
+		);
+
+		// Strikethrough (~~text~~)
+		text = text.replace(
+			/~~(.*?)~~/g,
+			'<del style="text-decoration: line-through; opacity: 0.7;">$1</del>',
+		);
+
+		// Line breaks (<br>)
+		text = text.replace(/<br>/g, "<br>");
+
+		return text;
+	};
+
 	// Helper function to process tables
 	const processProcessTables = (text: string) => {
 		// Match table patterns with more robust regex
 		// This pattern looks for: header row, separator row, then body rows
-		const tableRegex =
-			/(\|.*?\|)\s*\n(\|[\s\-:]+?\|)\s*\n((?:\|.*?\|\s*\n?)+)/gm;
+		// Separator allows pipes, spaces, dashes, and colons for multi-column tables
+		const tableRegex = /(\|.+\|)\s*\n(\|[\s\-:|]+\|)\s*\n((?:\|.+\|\s*\n?)+)/gm;
 
 		return text.replace(
 			tableRegex,
@@ -208,13 +256,13 @@ export const EmbeddedMarkdown: React.FC<EmbeddedMarkdownProps> = ({
 				padding: 0.5rem 0.75rem;
 				text-align: left;
 				font-weight: 600;
-				border-bottom: 1px solid hsl(var(--border));
+				border: 1px solid hsl(var(--border));
 				color: hsl(var(--foreground));
 			`;
 
 				const cellStyle = `
 				padding: 0.5rem 0.75rem;
-				border-bottom: 1px solid hsl(var(--border));
+				border: 1px solid hsl(var(--border));
 				color: hsl(var(--foreground));
 			`;
 
@@ -229,27 +277,20 @@ export const EmbeddedMarkdown: React.FC<EmbeddedMarkdownProps> = ({
 				tableHtml += "<thead><tr>";
 				headers.forEach((header: string, i: number) => {
 					const align = alignments[i] || "left";
-					tableHtml += `<th style="${headerStyle} text-align: ${align};">${header}</th>`;
+					tableHtml += `<th style="${headerStyle} text-align: ${align};">${processInlineMarkdown(header)}</th>`;
 				});
 				tableHtml += "</tr></thead>";
 
 				// Add body
 				tableHtml += "<tbody>";
-				rows.forEach((row: string[], rowIndex: number) => {
+				rows.forEach((row: string[]) => {
 					tableHtml += "<tr>";
 					// Ensure each row has the same number of cells as headers
 					const maxCells = Math.max(headers.length, row.length);
 					for (let i = 0; i < maxCells; i++) {
 						const cell = row[i] || ""; // Use empty string if cell is missing
 						const align = alignments[i] || "left";
-						const isLastRow = rowIndex === rows.length - 1;
-						const cellStyleWithBorder = isLastRow
-							? cellStyle.replace(
-									"border-bottom: 1px solid hsl(var(--border));",
-									"",
-								)
-							: cellStyle;
-						tableHtml += `<td style="${cellStyleWithBorder} text-align: ${align};">${cell}</td>`;
+						tableHtml += `<td style="${cellStyle} text-align: ${align};">${processInlineMarkdown(cell)}</td>`;
 					}
 					tableHtml += "</tr>";
 				});

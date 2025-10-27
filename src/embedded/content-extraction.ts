@@ -10,6 +10,269 @@ import type {
 	ExtractedPageData,
 } from "./types";
 
+// Clean HTML element to keep only tag structure
+function cleanHTMLElement(
+	element: Element,
+	maxDepth = 50,
+	currentDepth = 0,
+): string {
+	if (currentDepth >= maxDepth) {
+		return `<!-- Max depth reached -->`;
+	}
+
+	// Skip script, style, noscript, and other non-visual elements
+	const skipTags = ["script", "style", "noscript", "meta", "link", "br", "hr"];
+	if (skipTags.includes(element.tagName.toLowerCase())) {
+		return "";
+	}
+
+	const tagName = element.tagName.toLowerCase();
+
+	// Special handling for span tags - unwrap them and keep content
+	if (tagName === "span") {
+		const parts: string[] = [];
+
+		// Process all child nodes (text and elements)
+		for (const child of Array.from(element.childNodes)) {
+			if (child.nodeType === Node.TEXT_NODE) {
+				// Text node - add text content directly
+				const text = child.textContent?.trim();
+				if (text) {
+					parts.push(text);
+				}
+			} else if (child.nodeType === Node.ELEMENT_NODE) {
+				// Element node - recursively clean it
+				const childHTML = cleanHTMLElement(
+					child as Element,
+					maxDepth,
+					currentDepth + 1,
+				);
+				if (childHTML) {
+					parts.push(childHTML);
+				}
+			}
+		}
+
+		// Return the unwrapped content
+		return parts.join("");
+	}
+
+	// Special handling for code tags - replace with backticks to save tokens
+	if (tagName === "code") {
+		const textContent = element.textContent?.trim() || "";
+		if (textContent) {
+			return `\`${textContent}\``;
+		}
+		return "";
+	}
+
+	// Special handling for svg tags - keep wrapper only to save tokens
+	if (tagName === "svg") {
+		const indent = "  ".repeat(currentDepth);
+		return `${indent}<svg>...</svg>`;
+	}
+
+	// Only keep URLs - href and src attributes with FULL URLs
+	let attrString = "";
+	const href = element.getAttribute("href");
+	const src = element.getAttribute("src");
+
+	if (href) {
+		attrString += ` href="${href}"`;
+	}
+	if (src) {
+		attrString += ` src="${src}"`;
+	}
+
+	// Self-closing tags
+	const selfClosing = ["img", "input", "br", "hr", "meta", "link"];
+	if (selfClosing.includes(tagName)) {
+		return `<${tagName}${attrString} />`;
+	}
+
+	// Process children
+	const children: string[] = [];
+	for (const child of Array.from(element.children)) {
+		const childHTML = cleanHTMLElement(child, maxDepth, currentDepth + 1);
+		if (childHTML) {
+			children.push(childHTML);
+		}
+	}
+
+	// Format output with indentation
+	const indent = "  ".repeat(currentDepth);
+	const childIndent = "  ".repeat(currentDepth + 1);
+
+	if (children.length === 0) {
+		// Get actual text content - keep full content, no truncation
+		const textContent = element.textContent?.trim() || "";
+		if (textContent) {
+			return `${indent}<${tagName}${attrString}>${textContent}</${tagName}>`;
+		}
+		return `${indent}<${tagName}${attrString}></${tagName}>`;
+	}
+
+	const childrenString = children.map((c) => childIndent + c).join("\n");
+	return `${indent}<${tagName}${attrString}>\n${childrenString}\n${indent}</${tagName}>`;
+}
+
+// Extract HTML structure from viewport (visible area only)
+export function extractViewportHTMLStructure(): string {
+	const structureElements: string[] = [];
+
+	// Get all elements in the viewport
+	const allElements = document.body.querySelectorAll("*");
+	const viewportElements = new Set<Element>();
+
+	allElements.forEach((el) => {
+		try {
+			const rect = el.getBoundingClientRect();
+			const isInViewport =
+				rect.top < window.innerHeight &&
+				rect.bottom > 0 &&
+				rect.left < window.innerWidth &&
+				rect.right > 0;
+
+			if (!isInViewport) return;
+
+			// Check visibility
+			const style = window.getComputedStyle(el);
+			const isVisible =
+				style.display !== "none" &&
+				style.visibility !== "hidden" &&
+				parseFloat(style.opacity) > 0;
+
+			if (isVisible) {
+				viewportElements.add(el);
+			}
+		} catch (e) {
+			// Skip elements that cause errors
+		}
+	});
+
+	// Find the common ancestor(s) of viewport elements
+	// For simplicity, we'll start from body and filter to viewport elements
+	function buildViewportStructure(element: Element, depth = 0): string | null {
+		// Skip if not in viewport or not visible
+		if (!viewportElements.has(element) && depth > 0) {
+			// Check if any children are in viewport
+			const hasViewportChildren = Array.from(element.children).some(
+				(child) =>
+					viewportElements.has(child) ||
+					Array.from(child.querySelectorAll("*")).some((desc) =>
+						viewportElements.has(desc),
+					),
+			);
+			if (!hasViewportChildren) {
+				return null;
+			}
+		}
+
+		const tagName = element.tagName.toLowerCase();
+		const skipTags = ["script", "style", "noscript", "meta", "link"];
+
+		if (skipTags.includes(tagName)) {
+			return null;
+		}
+
+		// Special handling for span tags - unwrap them
+		if (tagName === "span") {
+			const parts: string[] = [];
+
+			// Process all child nodes (text and elements)
+			for (const child of Array.from(element.childNodes)) {
+				if (child.nodeType === Node.TEXT_NODE) {
+					// Text node - add text content directly
+					const text = child.textContent?.trim();
+					if (text) {
+						parts.push(text);
+					}
+				} else if (child.nodeType === Node.ELEMENT_NODE) {
+					// Element node - recursively process it
+					const childStructure = buildViewportStructure(
+						child as Element,
+						depth,
+					);
+					if (childStructure) {
+						parts.push(childStructure);
+					}
+				}
+			}
+
+			// Return the unwrapped content
+			return parts.length > 0 ? parts.join("") : null;
+		}
+
+		// Special handling for code tags - replace with backticks to save tokens
+		if (tagName === "code") {
+			const textContent = element.textContent?.trim() || "";
+			if (textContent) {
+				return `\`${textContent}\``;
+			}
+			return null;
+		}
+
+		// Special handling for svg tags - keep wrapper only to save tokens
+		if (tagName === "svg") {
+			const indent = "  ".repeat(depth);
+			return `${indent}<svg>...</svg>`;
+		}
+
+		// Build simplified structure
+		const indent = "  ".repeat(depth);
+		let result = `${indent}<${tagName}>`;
+
+		let hasVisibleChildren = false;
+		for (const child of Array.from(element.children)) {
+			const childStructure = buildViewportStructure(child, depth + 1);
+			if (childStructure) {
+				if (!hasVisibleChildren) {
+					result += "\n";
+					hasVisibleChildren = true;
+				}
+				result += childStructure + "\n";
+			}
+		}
+
+		if (hasVisibleChildren) {
+			result += `${indent}</${tagName}>`;
+		} else {
+			// Keep actual text content, no truncation
+			const textContent = element.textContent?.trim() || "";
+			result = `${indent}<${tagName}>${textContent}</${tagName}>`;
+		}
+
+		return result;
+	}
+
+	const structure = buildViewportStructure(document.body);
+
+	return (
+		structure || `<body>${document.body?.textContent?.trim() || ""}</body>`
+	);
+}
+
+// Extract full page HTML structure
+export function extractFullPageHTMLStructure(): string {
+	try {
+		// Start from body to avoid head clutter, use max depth of 50
+		const bodyStructure = cleanHTMLElement(document.body, 50, 0);
+
+		// Add basic page structure
+		return `<html>
+  <head>
+    <title>${document.title || "Document"}</title>
+  </head>
+  <body>
+${bodyStructure}
+  </body>
+</html>`;
+	} catch (error) {
+		console.error("Failed to extract HTML structure:", error);
+		return "<html><body><!-- Failed to extract structure --></body></html>";
+	}
+}
+
 // Extract content visible in current viewport (what user sees)
 export function extractViewportContent(): string {
 	const elements: string[] = [];
@@ -59,13 +322,8 @@ export function extractViewportContent(): string {
 		}
 	});
 
-	// Join with line breaks, limit to reasonable size
-	const content = elements.join("\n\n");
-	const maxLength = 10000; // 10k chars max for viewport
-
-	return content.length > maxLength
-		? content.substring(0, maxLength) + "\n\n[Content truncated...]"
-		: content;
+	// Join with line breaks - NO LIMIT
+	return elements.join("\n\n");
 }
 
 // Extract current selection with context
@@ -77,15 +335,9 @@ export function extractSelection(selectedText: string): SelectionData {
 		const range = selection.getRangeAt(0);
 		const container = range.commonAncestorContainer;
 
-		// Get surrounding text for context (up to 200 chars before and after)
+		// Get full surrounding text for context - NO LIMIT
 		if (container.textContent) {
-			const fullText = container.textContent;
-			const startIndex = Math.max(0, fullText.indexOf(selectedText) - 200);
-			const endIndex = Math.min(
-				fullText.length,
-				fullText.indexOf(selectedText) + selectedText.length + 200,
-			);
-			selectionContext = fullText.substring(startIndex, endIndex);
+			selectionContext = container.textContent;
 		}
 	}
 
@@ -173,9 +425,7 @@ export async function extractPDFContent(url: string): Promise<ReadableContent> {
 			content: formattedContent,
 			textContent: pdfContent.fullText,
 			length: pdfContent.fullText.length,
-			excerpt:
-				pdfContent.fullText.substring(0, 300) +
-				(pdfContent.fullText.length > 300 ? "..." : ""),
+			excerpt: pdfContent.fullText, // Full text, no truncation
 			byline: pdfContent.author || "",
 			dir: "ltr",
 			lang: "en",
@@ -227,7 +477,7 @@ export async function extractReadableContent(): Promise<ReadableContent> {
 			siteName: article.siteName || window.location.hostname,
 		};
 	} catch (error) {
-		// Fallback: extract basic text content
+		// Fallback: extract basic text content - NO TRUNCATION
 		const title = document.title || "";
 		const textContent = document.body?.innerText || "";
 
@@ -236,8 +486,7 @@ export async function extractReadableContent(): Promise<ReadableContent> {
 			content: textContent,
 			textContent,
 			length: textContent.length,
-			excerpt:
-				textContent.substring(0, 300) + (textContent.length > 300 ? "..." : ""),
+			excerpt: textContent, // Full text, no truncation
 			byline: "",
 			dir: document.dir || "ltr",
 			lang: document.documentElement.lang || "en",
