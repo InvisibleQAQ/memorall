@@ -13,11 +13,11 @@ import { Search, Network } from "lucide-react";
 import { D3KnowledgeGraph } from "@/modules/knowledge/components/D3KnowledgeGraph";
 import type { Node, Edge } from "@/services/database/db";
 import { serviceManager } from "@/services";
-import { logError } from "@/utils/logger";
+import { logError, logInfo } from "@/utils/logger";
 import { eq, sql, or } from "drizzle-orm";
 
 interface Topic {
-	id: string; // graph value
+	id: string; // UI dropdown ID (prefixed with "topic_" or "default")
 	label: string; // display name
 }
 
@@ -53,7 +53,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 				// Add each topic with its name
 				allTopics.forEach((topic) => {
 					topicList.push({
-						id: `topic_${topic.id}`, // graph field value
+						id: `topic_${topic.id}`, // UI dropdown ID (prefixed)
 						label: topic.name,
 					});
 				});
@@ -70,8 +70,17 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 			setLoading(true);
 			await serviceManager.databaseService.use(async ({ db, schema }) => {
 				// Determine graph filter value
+				// Strip "topic_" prefix to get actual UUID
 				const graphFilter =
-					selectedTopicId === "default" ? "" : selectedTopicId;
+					selectedTopicId === "default"
+						? ""
+						: selectedTopicId.replace(/^topic_/, "");
+
+				logInfo("[KNOWLEDGE_GRAPH] Loading graph data:", {
+					selectedTopicId,
+					graphFilter,
+					isDefault: selectedTopicId === "default",
+				});
 
 				// Filter nodes by graph
 				const filteredNodes =
@@ -106,6 +115,11 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 								.select()
 								.from(schema.edges)
 								.where(eq(schema.edges.graph, graphFilter));
+
+				logInfo("[KNOWLEDGE_GRAPH] Query results:", {
+					nodesCount: filteredNodes.length,
+					edgesCount: filteredEdges.length,
+				});
 
 				setNodes(filteredNodes);
 				setEdges(filteredEdges);

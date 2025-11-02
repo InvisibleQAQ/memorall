@@ -16,6 +16,8 @@ import {
 } from "../handlers/excel-extraction";
 import NiceModal from "@ebay/nice-modal-react";
 import { TopicPickerDialog } from "@/modules/topics/modals";
+import { useProcessMonitor } from "@/stores/process-monitor";
+import type { ProcessingSource } from "@/stores/process-monitor";
 
 /**
  * Shared function for converting documents to knowledge graphs with topic selection
@@ -26,18 +28,23 @@ export async function convertToKnowledge(
 	currentFileTopics: Topic[] = [],
 	onTopicsUpdated?: () => void,
 ): Promise<void> {
+	const { addProcess, updateProcess, removeProcess } =
+		useProcessMonitor.getState();
+
 	try {
 		// Show topic picker modal
 		const selectedTopicId = await NiceModal.show(TopicPickerDialog, {
 			fileName: file.name,
 		});
 
-		if (selectedTopicId === null || typeof selectedTopicId !== "string") {
+		// Only return if user explicitly cancelled (null)
+		// undefined means "Default" (no topic), which should still process
+		if (selectedTopicId === null) {
 			return; // User cancelled
 		}
 
-		// Add to topic if new association and not default
-		if (selectedTopicId) {
+		// Add to topic if new association and not default (selectedTopicId is a string)
+		if (selectedTopicId && typeof selectedTopicId === "string") {
 			const currentTopicIds = currentFileTopics.map((topic) => topic.id);
 			const isNewAssociation = !currentTopicIds.includes(selectedTopicId);
 			if (isNewAssociation) {
@@ -62,22 +69,78 @@ export async function convertToKnowledge(
 				content = new TextDecoder("utf-8").decode(fileContent);
 		}
 
-		// Convert to knowledge
-		const result = await backgroundJob.execute(
-			"knowledge-graph",
-			{
-				filePath: file.path,
-				content: content,
-				topicId: selectedTopicId,
-			},
-			{ stream: false },
-		);
+		// Add to process monitor as processing
+		const processSource: ProcessingSource = {
+			id: crypto.randomUUID(),
+			type: "page",
+			raw: "",
+			targetType: "file",
+			targetId: file.path,
+			name: file.name,
+			metadata: {},
+			referenceTime: null,
+			weight: 1.0,
+			status: "processing",
+			statusValidFrom: new Date(),
+			graph: "",
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			progress: 0,
+			stage: "Starting conversion...",
+		};
+		addProcess(file.path, processSource);
 
-		if ("promise" in result) {
-			await result.promise;
+		try {
+			// Convert to knowledge
+			const result = await backgroundJob.execute(
+				"knowledge-graph",
+				{
+					filePath: file.path,
+					content: content,
+					topicId: selectedTopicId,
+				},
+				{ stream: false },
+			);
+
+			if ("promise" in result) {
+				// Update progress while processing
+				updateProcess(file.path, {
+					progress: 50,
+					stage: "Processing knowledge graph...",
+				});
+
+				await result.promise;
+
+				// Update to completed
+				updateProcess(file.path, {
+					status: "completed",
+					progress: 100,
+					stage: "Completed",
+					updatedAt: new Date(),
+				});
+			}
+
+			logInfo("Knowledge conversion completed successfully");
+
+			// Remove from active processes after a brief delay
+			setTimeout(() => {
+				removeProcess(file.path);
+			}, 3000);
+		} catch (conversionError) {
+			// Update to failed state
+			updateProcess(file.path, {
+				status: "failed",
+				stage: "Conversion failed",
+				updatedAt: new Date(),
+			});
+
+			// Remove from active processes after showing error
+			setTimeout(() => {
+				removeProcess(file.path);
+			}, 5000);
+
+			throw conversionError;
 		}
-
-		logInfo("Knowledge conversion completed successfully");
 	} catch (error) {
 		logError("Failed to convert to knowledge:", error);
 		throw error;

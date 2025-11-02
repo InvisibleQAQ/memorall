@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/molecules/ThemeContext";
 import { CopilotTrigger } from "@/components/atoms/copilot";
+import { ProcessMonitor } from "@/components/molecules/ProcessMonitor";
 
 interface LayoutProps {
 	children: React.ReactNode;
@@ -153,9 +154,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 							</TooltipProvider>
 						</div>
 
-						{/* Theme Toggle and Copilot */}
+						{/* Process Monitor, Theme Toggle and Copilot */}
 						<div className="flex items-center gap-2">
 							<CopilotTrigger />
+							<ProcessMonitor />
 							<TooltipProvider>
 								<DropdownMenu>
 									<Tooltip>

@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { TopicBadgeList } from "@/modules/topics/components";
 import type { Topic } from "@/services/database/entities/topics";
 import type { SourceStatus } from "../hooks/useSourceStatus";
+import { useProcessMonitor } from "@/stores/process-monitor";
 
 interface DocumentListProps {
 	items: DocumentLibraryItem[];
@@ -260,6 +261,9 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 					const colorClass = FILE_COLORS[file.type];
 					const fileTopics = fileTopicMap?.get(file.path) || [];
 					const isEditing = editingItem === file.id;
+					const isProcessing = useProcessMonitor((state) =>
+						state.isProcessing(file.path),
+					);
 
 					return (
 						<div
@@ -339,10 +343,14 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 													e.stopPropagation();
 													onConvertToKnowledge(file);
 												}}
-												disabled={sourceStatusMap?.get(file.path)?.isGenerating}
+												disabled={
+													sourceStatusMap?.get(file.path)?.isGenerating ||
+													isProcessing
+												}
 											>
 												<Brain className="h-4 w-4 mr-2" />
-												{sourceStatusMap?.get(file.path)?.isGenerating
+												{sourceStatusMap?.get(file.path)?.isGenerating ||
+												isProcessing
 													? "Converting..."
 													: "Convert to knowledge"}
 											</DropdownMenuItem>
@@ -466,6 +474,9 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 					const colorClass = FILE_COLORS[file.type];
 					const fileTopics = fileTopicMap?.get(file.path) || [];
 					const isEditing = editingItem === file.id;
+					const isProcessing = useProcessMonitor((state) =>
+						state.isProcessing(file.path),
+					);
 
 					return (
 						<div
@@ -509,11 +520,13 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 														onConvertToKnowledge(file);
 													}}
 													disabled={
-														sourceStatusMap?.get(file.path)?.isGenerating
+														sourceStatusMap?.get(file.path)?.isGenerating ||
+														isProcessing
 													}
 												>
 													<Brain className="h-4 w-4 mr-2" />
-													{sourceStatusMap?.get(file.path)?.isGenerating
+													{sourceStatusMap?.get(file.path)?.isGenerating ||
+													isProcessing
 														? "Converting..."
 														: "Convert to knowledge"}
 												</DropdownMenuItem>

@@ -1,36 +1,34 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+	useEffect,
+	useRef,
+	useState,
+	useMemo,
+	useCallback,
+	memo,
+} from "react";
 import * as d3 from "d3";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowRight, X, Trash2 } from "lucide-react";
+import {
+	Loader2,
+	ArrowRight,
+	X,
+	Trash2,
+	ZoomIn,
+	ZoomOut,
+	Maximize2,
+	Package,
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { serviceManager } from "@/services";
 import type { Node, Edge } from "@/services/database/db";
 import { logError, logInfo } from "@/utils/logger";
 import { inArray, eq, and } from "drizzle-orm";
+import { useTheme } from "@/components/molecules/ThemeContext";
+import { cn } from "@/lib/utils";
 
-// Hook to detect theme
-const useTheme = () => {
-	const [isDark, setIsDark] = React.useState(false);
-
-	useEffect(() => {
-		const checkTheme = () => {
-			setIsDark(document.documentElement.classList.contains("dark"));
-		};
-
-		checkTheme();
-		const observer = new MutationObserver(checkTheme);
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ["class"],
-		});
-
-		return () => observer.disconnect();
-	}, []);
-
-	return isDark;
-};
-
+// D3 Node and Edge types
 interface D3Node extends d3.SimulationNodeDatum {
 	id: string;
 	name: string;
@@ -38,6 +36,9 @@ interface D3Node extends d3.SimulationNodeDatum {
 	summary?: string;
 	group: number;
 	radius: number;
+	// Store original position for spring force
+	originalX?: number;
+	originalY?: number;
 }
 
 interface D3Edge {
@@ -63,46 +64,550 @@ interface ConnectedEdge {
 interface D3KnowledgeGraphProps {
 	selectedPageId?: string;
 	selectedNodeId?: string;
-	graphData?: {
-		nodes: Node[];
-		edges: Edge[];
-	};
+	graphData?: { nodes: Node[]; edges: Edge[] };
 	width?: number;
 	height?: number;
 	onNodeDeleted?: () => void;
 }
 
-// Theme-aware color functions
-const getNodeColors = (isDark: boolean): Record<string, string> => ({
-	person: isDark ? "#60a5fa" : "#3b82f6", // blue
-	organization: isDark ? "#34d399" : "#10b981", // emerald
-	location: isDark ? "#fbbf24" : "#f59e0b", // amber
-	event: isDark ? "#f87171" : "#ef4444", // red
-	concept: isDark ? "#a78bfa" : "#8b5cf6", // violet
-	default: isDark ? "#9ca3af" : "#6b7280", // gray
-});
+// Color palette for dynamic node coloring
+const COLOR_PALETTE_DARK = [
+	["#60a5fa", "#3b82f6"], // blue
+	["#34d399", "#10b981"], // green
+	["#fbbf24", "#f59e0b"], // amber
+	["#f87171", "#ef4444"], // red
+	["#a78bfa", "#8b5cf6"], // purple
+	["#fb923c", "#f97316"], // orange
+	["#f472b6", "#ec4899"], // pink
+	["#22d3ee", "#06b6d4"], // cyan
+	["#a3e635", "#84cc16"], // lime
+	["#fb7185", "#f43f5e"], // rose
+];
+
+const COLOR_PALETTE_LIGHT = [
+	["#3b82f6", "#1e40af"], // blue
+	["#10b981", "#059669"], // green
+	["#f59e0b", "#d97706"], // amber
+	["#ef4444", "#dc2626"], // red
+	["#8b5cf6", "#7c3aed"], // purple
+	["#f97316", "#ea580c"], // orange
+	["#ec4899", "#db2777"], // pink
+	["#06b6d4", "#0891b2"], // cyan
+	["#84cc16", "#65a30d"], // lime
+	["#f43f5e", "#e11d48"], // rose
+];
+
+// Generate deterministic colors for node types
+const generateNodeColors = (
+	nodeTypes: string[],
+	isDark: boolean,
+): Record<string, string> => {
+	const colors: Record<string, string> = {};
+	const palette = isDark ? COLOR_PALETTE_DARK : COLOR_PALETTE_LIGHT;
+
+	nodeTypes.forEach((type, index) => {
+		const paletteIndex = index % palette.length;
+		colors[type] = palette[paletteIndex][0];
+	});
+
+	colors.default = isDark ? "#9ca3af" : "#6b7280";
+	return colors;
+};
 
 const getThemeColors = (isDark: boolean) => ({
 	background: isDark ? "#0f172a" : "#ffffff",
 	border: isDark ? "#374151" : "#e5e7eb",
 	text: isDark ? "#f1f5f9" : "#374151",
 	textMuted: isDark ? "#94a3b8" : "#6b7280",
-	stroke: isDark ? "#475569" : "#ffffff",
-	linkStroke: isDark ? "#6b7280" : "#9ca3af",
-	arrowFill: isDark ? "#6b7280" : "#9ca3af",
-	cardBg: isDark ? "#1e293b" : "#ffffff",
-	badgeBg: isDark ? "#374151" : "#f3f4f6",
-	infoPanel: isDark ? "#0f172a" : "#ffffff",
+	stroke: isDark ? "#1e293b" : "#ffffff",
+	strokeHover: isDark ? "#60a5fa" : "#2563eb",
+	linkStroke: isDark ? "#475569" : "#cbd5e1",
+	linkStrokeHover: isDark ? "#60a5fa" : "#3b82f6",
+	arrowFill: isDark ? "#64748b" : "#94a3b8",
+	shadow: isDark ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.15)",
 });
 
 const NODE_RADIUS: Record<string, number> = {
-	person: 8,
-	organization: 10,
-	location: 7,
-	event: 6,
-	concept: 9,
-	default: 6,
+	person: 12,
+	organization: 14,
+	location: 10,
+	event: 9,
+	concept: 13,
+	default: 10,
 };
+
+// Lucide Package icon (simple, clean, performant)
+// Will be defined once in SVG defs and reused with <use> elements
+
+// Memoized components
+interface ControlPanelProps {
+	onZoomIn: () => void;
+	onZoomOut: () => void;
+	onResetZoom: () => void;
+	isDark: boolean;
+}
+
+const ControlPanel = memo(
+	({ onZoomIn, onZoomOut, onResetZoom, isDark }: ControlPanelProps) => (
+		<div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
+			<button
+				onClick={onZoomIn}
+				className={cn(
+					"p-2 rounded-lg shadow-lg transition-all hover:scale-110",
+					isDark
+						? "bg-slate-800 text-gray-200 hover:bg-slate-700 border border-gray-700"
+						: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200",
+				)}
+				title="Zoom In"
+			>
+				<ZoomIn className="h-5 w-5" />
+			</button>
+			<button
+				onClick={onZoomOut}
+				className={cn(
+					"p-2 rounded-lg shadow-lg transition-all hover:scale-110",
+					isDark
+						? "bg-slate-800 text-gray-200 hover:bg-slate-700 border border-gray-700"
+						: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200",
+				)}
+				title="Zoom Out"
+			>
+				<ZoomOut className="h-5 w-5" />
+			</button>
+			<button
+				onClick={onResetZoom}
+				className={cn(
+					"p-2 rounded-lg shadow-lg transition-all hover:scale-110",
+					isDark
+						? "bg-slate-800 text-gray-200 hover:bg-slate-700 border border-gray-700"
+						: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200",
+				)}
+				title="Reset View"
+			>
+				<Maximize2 className="h-5 w-5" />
+			</button>
+		</div>
+	),
+);
+ControlPanel.displayName = "ControlPanel";
+
+interface LegendProps {
+	nodeColors: Record<string, string>;
+	uniqueNodeTypes: string[];
+	isDark: boolean;
+}
+
+const Legend = memo(({ nodeColors, uniqueNodeTypes, isDark }: LegendProps) => {
+	const [isVisible, setIsVisible] = useState(true);
+
+	return (
+		<div
+			className={cn(
+				"absolute bottom-4 left-4 rounded-lg shadow-lg z-20",
+				isDark
+					? "bg-slate-800/95 backdrop-blur border border-gray-700"
+					: "bg-white/95 backdrop-blur border border-gray-200",
+			)}
+		>
+			<button
+				onClick={() => setIsVisible(!isVisible)}
+				className={cn(
+					"w-full px-3 py-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide hover:bg-accent transition-colors rounded-t-lg",
+					isDark
+						? "text-gray-400 hover:text-gray-200"
+						: "text-gray-500 hover:text-gray-700",
+				)}
+			>
+				<span>Node Types ({uniqueNodeTypes.length})</span>
+				<svg
+					className={cn(
+						"w-4 h-4 transition-transform",
+						isVisible ? "rotate-180" : "",
+					)}
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						strokeWidth={2}
+						d="M19 9l-7 7-7-7"
+					/>
+				</svg>
+			</button>
+			{isVisible && (
+				<div className="px-3 pb-3 max-h-64 overflow-y-auto space-y-2">
+					{Object.entries(nodeColors)
+						.filter(([type]) => type !== "default")
+						.map(([type, color]) => (
+							<div key={type} className="flex items-center gap-2">
+								<div
+									className="w-3 h-3 rounded-full shadow-sm flex-shrink-0"
+									style={{
+										background: `radial-gradient(circle at 30% 30%, ${color}, ${color}dd)`,
+									}}
+								/>
+								<span
+									className={cn(
+										"text-xs capitalize",
+										isDark ? "text-gray-300" : "text-gray-700",
+									)}
+								>
+									{type}
+								</span>
+							</div>
+						))}
+				</div>
+			)}
+		</div>
+	);
+});
+Legend.displayName = "Legend";
+
+interface StatsPanelProps {
+	nodeCount: number;
+	edgeCount: number;
+	isDark: boolean;
+}
+
+const StatsPanel = memo(({ nodeCount, edgeCount, isDark }: StatsPanelProps) => (
+	<div
+		className={cn(
+			"absolute bottom-4 right-4 p-3 rounded-lg shadow-lg z-20",
+			isDark
+				? "bg-slate-800/95 backdrop-blur text-gray-300 border border-gray-700"
+				: "bg-white/95 backdrop-blur text-gray-700 border border-gray-200",
+		)}
+	>
+		<div className="text-xs space-y-1">
+			<div className="flex items-center gap-2">
+				<span className="font-semibold">Nodes:</span>
+				<span
+					className={cn(
+						"font-mono",
+						isDark ? "text-blue-400" : "text-blue-600",
+					)}
+				>
+					{nodeCount}
+				</span>
+			</div>
+			<div className="flex items-center gap-2">
+				<span className="font-semibold">Edges:</span>
+				<span
+					className={cn(
+						"font-mono",
+						isDark ? "text-green-400" : "text-green-600",
+					)}
+				>
+					{edgeCount}
+				</span>
+			</div>
+		</div>
+	</div>
+));
+StatsPanel.displayName = "StatsPanel";
+
+interface HoverTooltipProps {
+	node: D3Node;
+	isDark: boolean;
+}
+
+const HoverTooltip = memo(({ node, isDark }: HoverTooltipProps) => (
+	<div
+		className={cn(
+			"absolute pointer-events-none px-3 py-2 rounded-lg shadow-xl text-sm font-medium max-w-xs z-50",
+			isDark
+				? "bg-slate-900/95 text-gray-100 border border-gray-700"
+				: "bg-white/95 text-gray-900 border border-gray-200",
+		)}
+		style={{
+			left: "50%",
+			top: "20%",
+			transform: "translateX(-50%)",
+		}}
+	>
+		<div className="font-bold">{node.name}</div>
+		<div
+			className={cn("text-xs mt-1", isDark ? "text-gray-400" : "text-gray-500")}
+		>
+			{node.nodeType}
+		</div>
+	</div>
+));
+HoverTooltip.displayName = "HoverTooltip";
+
+interface SelectedNodePanelProps {
+	node: D3Node;
+	connectedEdges: ConnectedEdge[];
+	nodeColors: Record<string, string>;
+	isDark: boolean;
+	onClose: () => void;
+	onDelete: () => void;
+	deleting: boolean;
+}
+
+const SelectedNodePanel = memo(
+	({
+		node,
+		connectedEdges,
+		nodeColors,
+		isDark,
+		onClose,
+		onDelete,
+		deleting,
+	}: SelectedNodePanelProps) => (
+		<Card
+			className={cn(
+				"absolute top-4 left-4 w-96 max-h-[calc(100%-2rem)] flex flex-col shadow-2xl overflow-hidden backdrop-blur-sm z-20",
+				isDark
+					? "bg-slate-800/98 border-gray-700"
+					: "bg-white/98 border-gray-200",
+			)}
+		>
+			<div
+				className={cn(
+					"p-4 border-b flex-shrink-0",
+					isDark ? "border-gray-700" : "border-gray-200",
+				)}
+			>
+				<div className="flex items-start justify-between gap-3">
+					<div className="flex items-start gap-3 flex-1 min-w-0">
+						<div
+							className="w-8 h-8 rounded-full flex-shrink-0 shadow-lg"
+							style={{
+								background: `radial-gradient(circle at 30% 30%, ${
+									nodeColors[node.nodeType] || nodeColors.default
+								}, ${nodeColors[node.nodeType] || nodeColors.default}dd)`,
+							}}
+						/>
+						<div className="flex-1 min-w-0">
+							<h3
+								className={cn(
+									"font-bold text-base mb-1 break-words",
+									isDark ? "text-gray-100" : "text-gray-900",
+								)}
+							>
+								{node.name}
+							</h3>
+							<Badge variant="secondary" className="text-xs capitalize">
+								{node.nodeType}
+							</Badge>
+						</div>
+					</div>
+					<div className="flex items-center gap-1 flex-shrink-0">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={onDelete}
+							disabled={deleting}
+							className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+							title="Delete node"
+						>
+							{deleting ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<Trash2 className="h-4 w-4" />
+							)}
+						</Button>
+						<button
+							onClick={onClose}
+							className={cn(
+								"p-1.5 rounded-md transition-colors flex-shrink-0",
+								isDark
+									? "text-gray-400 hover:text-gray-200 hover:bg-gray-700"
+									: "text-gray-400 hover:text-gray-600 hover:bg-gray-100",
+							)}
+							title="Close"
+						>
+							<X className="h-4 w-4" />
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<div className="flex-1 overflow-hidden flex flex-col min-h-0">
+				<Tabs
+					defaultValue="summary"
+					className="flex-1 flex flex-col overflow-hidden min-h-0"
+				>
+					<TabsList
+						className={cn(
+							"grid grid-cols-2 mx-3 mt-3 mb-0 h-11 flex-shrink-0",
+							isDark ? "bg-slate-900/50" : "bg-gray-100",
+						)}
+					>
+						<TabsTrigger
+							value="summary"
+							className={cn(
+								"rounded-md font-medium text-sm transition-all data-[state=active]:shadow-sm",
+								isDark
+									? "data-[state=active]:bg-slate-700 data-[state=active]:text-gray-100"
+									: "data-[state=active]:bg-white data-[state=active]:text-gray-900",
+							)}
+						>
+							Summary
+						</TabsTrigger>
+						<TabsTrigger
+							value="edges"
+							className={cn(
+								"rounded-md font-medium text-sm transition-all data-[state=active]:shadow-sm",
+								isDark
+									? "data-[state=active]:bg-slate-700 data-[state=active]:text-gray-100"
+									: "data-[state=active]:bg-white data-[state=active]:text-gray-900",
+							)}
+						>
+							Edges ({connectedEdges.length})
+						</TabsTrigger>
+					</TabsList>
+
+					<TabsContent
+						value="summary"
+						className="flex-1 m-0 min-h-0 data-[state=active]:flex data-[state=active]:flex-col"
+					>
+						<div className="flex-1 min-h-0 overflow-auto py-4 pl-4 pr-3">
+							{node.summary ? (
+								<p
+									className={cn(
+										"text-sm leading-relaxed",
+										isDark ? "text-gray-300" : "text-gray-700",
+									)}
+								>
+									{node.summary}
+								</p>
+							) : (
+								<p
+									className={cn(
+										"text-sm italic",
+										isDark ? "text-gray-500" : "text-gray-400",
+									)}
+								>
+									No summary available
+								</p>
+							)}
+						</div>
+					</TabsContent>
+
+					<TabsContent
+						value="edges"
+						className="flex-1 m-0 min-h-0 data-[state=active]:flex data-[state=active]:flex-col"
+					>
+						<div className="flex-1 min-h-0 overflow-auto py-4 pl-4 pr-3">
+							{connectedEdges.length === 0 ? (
+								<p
+									className={cn(
+										"text-sm italic",
+										isDark ? "text-gray-500" : "text-gray-400",
+									)}
+								>
+									No connected edges
+								</p>
+							) : (
+								<div className="space-y-3">
+									{connectedEdges.map((connection, index) => (
+										<div
+											key={`${connection.edge.id}-${index}`}
+											className={cn(
+												"rounded-lg p-3 border transition-colors hover:scale-[1.02]",
+												isDark
+													? "bg-slate-900/50 border-gray-700 hover:bg-slate-900"
+													: "bg-gray-50 border-gray-200 hover:bg-gray-100",
+											)}
+										>
+											<div className="flex items-center gap-2 mb-2">
+												{connection.direction === "outgoing" ? (
+													<>
+														<span
+															className={cn(
+																"font-semibold text-xs",
+																isDark ? "text-blue-400" : "text-blue-600",
+															)}
+														>
+															{node.name}
+														</span>
+														<ArrowRight
+															className={cn(
+																"h-3 w-3",
+																isDark ? "text-gray-500" : "text-gray-400",
+															)}
+														/>
+														<span
+															className={cn(
+																"font-semibold text-xs",
+																isDark ? "text-green-400" : "text-green-600",
+															)}
+														>
+															{connection.connectedNode.name}
+														</span>
+													</>
+												) : (
+													<>
+														<span
+															className={cn(
+																"font-semibold text-xs",
+																isDark ? "text-green-400" : "text-green-600",
+															)}
+														>
+															{connection.connectedNode.name}
+														</span>
+														<ArrowRight
+															className={cn(
+																"h-3 w-3",
+																isDark ? "text-gray-500" : "text-gray-400",
+															)}
+														/>
+														<span
+															className={cn(
+																"font-semibold text-xs",
+																isDark ? "text-blue-400" : "text-blue-600",
+															)}
+														>
+															{node.name}
+														</span>
+													</>
+												)}
+											</div>
+
+											<div className="flex items-center gap-2 flex-wrap">
+												<Badge variant="outline" className="text-xs">
+													{connection.edge.edgeType}
+												</Badge>
+												<span
+													className={cn(
+														"text-xs",
+														isDark ? "text-gray-400" : "text-gray-500",
+													)}
+												>
+													{connection.direction === "outgoing"
+														? "Outgoing"
+														: "Incoming"}
+												</span>
+											</div>
+
+											{connection.edge.factText && (
+												<div
+													className={cn(
+														"mt-2 text-xs p-2 rounded border",
+														isDark
+															? "bg-slate-950 border-gray-700 text-gray-300"
+															: "bg-white border-gray-200 text-gray-600",
+													)}
+												>
+													{connection.edge.factText}
+												</div>
+											)}
+										</div>
+									))}
+								</div>
+							)}
+						</div>
+					</TabsContent>
+				</Tabs>
+			</div>
+		</Card>
+	),
+);
+SelectedNodePanel.displayName = "SelectedNodePanel";
 
 export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	selectedPageId,
@@ -113,6 +618,13 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	onNodeDeleted,
 }) => {
 	const svgRef = useRef<SVGSVGElement>(null);
+	const simulationRef = useRef<d3.Simulation<D3Node, D3Edge> | null>(null);
+	const zoomBehaviorRef = useRef<d3.ZoomBehavior<
+		SVGSVGElement,
+		unknown
+	> | null>(null);
+	const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
 	const [loading, setLoading] = useState(true);
 	const [graphData, setGraphData] = useState<GraphData>({
 		nodes: [],
@@ -120,62 +632,43 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	});
 	const [error, setError] = useState<string | null>(null);
 	const [selectedNode, setSelectedNode] = useState<D3Node | null>(null);
+	const [hoveredNode, setHoveredNode] = useState<D3Node | null>(null);
+	const [hoveredEdge, setHoveredEdge] = useState<D3Edge | null>(null);
+	const [highlightedEdgeFromPanel, setHighlightedEdgeFromPanel] = useState<
+		string | null
+	>(null);
 	const [connectedEdges, setConnectedEdges] = useState<ConnectedEdge[]>([]);
 	const [deleting, setDeleting] = useState(false);
-	const isDark = useTheme();
+
+	const { actualTheme } = useTheme();
+	const isDark = actualTheme === "dark";
+
+	const themeColors = useMemo(() => getThemeColors(isDark), [isDark]);
+
+	const uniqueNodeTypes = useMemo(() => {
+		const types = new Set(graphData.nodes.map((node) => node.nodeType));
+		return Array.from(types).sort();
+	}, [graphData.nodes]);
+
+	const nodeColors = useMemo(
+		() => generateNodeColors(uniqueNodeTypes, isDark),
+		[uniqueNodeTypes, isDark],
+	);
+
+	useEffect(() => {
+		return () => {
+			if (simulationRef.current) {
+				simulationRef.current.stop();
+			}
+			if (hoverTimeoutRef.current) {
+				clearTimeout(hoverTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		loadGraphData();
 	}, [selectedPageId, externalGraphData]);
-
-	// Handle external selectedNodeId changes
-	useEffect(() => {
-		if (selectedNodeId && graphData.nodes.length > 0) {
-			const node = graphData.nodes.find((n) => n.id === selectedNodeId);
-			if (node) {
-				setSelectedNode(node);
-			}
-		} else if (!selectedNodeId) {
-			setSelectedNode(null);
-			setConnectedEdges([]);
-		}
-	}, [selectedNodeId, graphData.nodes]);
-
-	// Update connected edges when selectedNode changes
-	useEffect(() => {
-		if (selectedNode && graphData.edges.length > 0) {
-			const connections: ConnectedEdge[] = [];
-			graphData.edges.forEach((edge) => {
-				const sourceNode = graphData.nodes.find(
-					(n) =>
-						n.id ===
-						(typeof edge.source === "string" ? edge.source : edge.source.id),
-				);
-				const targetNode = graphData.nodes.find(
-					(n) =>
-						n.id ===
-						(typeof edge.target === "string" ? edge.target : edge.target.id),
-				);
-
-				if (sourceNode?.id === selectedNode.id && targetNode) {
-					connections.push({
-						edge,
-						connectedNode: targetNode,
-						direction: "outgoing",
-					});
-				} else if (targetNode?.id === selectedNode.id && sourceNode) {
-					connections.push({
-						edge,
-						connectedNode: sourceNode,
-						direction: "incoming",
-					});
-				}
-			});
-			setConnectedEdges(connections);
-		} else {
-			setConnectedEdges([]);
-		}
-	}, [selectedNode, graphData.edges, graphData.nodes]);
 
 	useEffect(() => {
 		if (graphData.nodes.length > 0) {
@@ -183,36 +676,80 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 		}
 	}, [graphData, width, height, isDark]);
 
-	// Update node styling when selection changes
+	// Update styling when selection or hover changes
 	useEffect(() => {
-		if (svgRef.current) {
-			const themeColors = getThemeColors(isDark);
-			const svg = d3.select(svgRef.current);
-			svg
-				.selectAll("circle")
-				.attr("stroke", (d: any) =>
-					selectedNode?.id === d.id
-						? isDark
-							? "#60a5fa"
-							: "#2563eb"
-						: themeColors.stroke,
-				)
-				.attr("stroke-width", (d: any) => (selectedNode?.id === d.id ? 3 : 2));
-		}
-	}, [selectedNode, isDark]);
+		if (!svgRef.current) return;
 
-	useEffect(() => {
-		// Ensure SVG is sized properly
 		const svg = d3.select(svgRef.current);
-		svg.attr("width", width).attr("height", height);
-	}, [width, height]);
+		const connectedNodeIds = new Set<string>();
+		const connectedEdgeIds = new Set<string>();
 
-	const loadGraphData = async () => {
+		if (selectedNode) {
+			connectedNodeIds.add(selectedNode.id);
+			graphData.edges.forEach((edge) => {
+				const sourceId =
+					typeof edge.source === "string" ? edge.source : edge.source.id;
+				const targetId =
+					typeof edge.target === "string" ? edge.target : edge.target.id;
+
+				if (sourceId === selectedNode.id) {
+					connectedNodeIds.add(targetId);
+					connectedEdgeIds.add(edge.id);
+				} else if (targetId === selectedNode.id) {
+					connectedNodeIds.add(sourceId);
+					connectedEdgeIds.add(edge.id);
+				}
+			});
+		}
+
+		svg
+			.selectAll<SVGGElement, D3Node>("g.node-group")
+			.style("opacity", (d: D3Node) => {
+				if (!selectedNode) return hoveredNode?.id === d.id ? 1 : 0.85;
+				if (selectedNode.id === d.id) return 1;
+				return connectedNodeIds.has(d.id) ? 0.85 : 0.3;
+			})
+			.style("transition", "opacity 0.3s ease");
+
+		svg
+			.selectAll<SVGCircleElement, D3Node>("circle.node")
+			.attr("stroke", (d: D3Node) => {
+				if (selectedNode?.id === d.id) return themeColors.strokeHover;
+				if (hoveredNode?.id === d.id) return themeColors.linkStrokeHover;
+				return themeColors.stroke;
+			})
+			.attr("stroke-width", (d: D3Node) => {
+				if (selectedNode?.id === d.id) return 4;
+				if (hoveredNode?.id === d.id) return 3;
+				return 2.5;
+			});
+
+		svg
+			.selectAll<SVGPathElement, D3Edge>("path.link")
+			.attr("stroke", (d: D3Edge) => {
+				if (hoveredEdge?.id === d.id) return themeColors.linkStrokeHover;
+				if (selectedNode && connectedEdgeIds.has(d.id))
+					return themeColors.linkStrokeHover;
+				return themeColors.linkStroke;
+			})
+			.attr("stroke-width", (d: D3Edge) => {
+				if (hoveredEdge?.id === d.id) return 2;
+				if (selectedNode && connectedEdgeIds.has(d.id)) return 1.5;
+				return 1;
+			})
+			.attr("opacity", (d: D3Edge) => {
+				if (hoveredEdge?.id === d.id) return 1;
+				if (!selectedNode) return 0.6;
+				return connectedEdgeIds.has(d.id) ? 0.8 : 0.15;
+			})
+			.style("transition", "opacity 0.3s ease, stroke 0.3s ease");
+	}, [selectedNode, hoveredNode, hoveredEdge, themeColors, graphData.edges]);
+
+	const loadGraphData = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 
 		try {
-			// If external graph data is provided, use it instead of loading from DB
 			if (externalGraphData) {
 				const d3Nodes: D3Node[] = externalGraphData.nodes.map(
 					(node, index) => ({
@@ -222,7 +759,6 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 						summary: node.summary || undefined,
 						group: hash(node.nodeType) % 6,
 						radius: NODE_RADIUS[node.nodeType] || NODE_RADIUS.default,
-						// Add initial positions in a circle pattern
 						x:
 							400 +
 							Math.cos((index * 2 * Math.PI) / externalGraphData.nodes.length) *
@@ -241,9 +777,9 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 							d3Nodes.some((n) => n.id === edge.destinationId),
 					)
 					.map((edge) => ({
+						id: edge.id,
 						source: edge.sourceId,
 						target: edge.destinationId,
-						id: edge.id,
 						edgeType: edge.edgeType,
 						factText: edge.factText || undefined,
 						weight: 1,
@@ -254,146 +790,340 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 				return;
 			}
 
-			await serviceManager.databaseService.use(async ({ db, schema }) => {
-				let nodes: Node[] = [];
-				let edges: Edge[] = [];
+			if (!selectedPageId) {
+				setGraphData({ nodes: [], edges: [] });
+				setLoading(false);
+				return;
+			}
 
-				if (selectedPageId) {
-					// Load graph data for specific page
-					const sources = await db
+			const nodes = await serviceManager.databaseService.use(
+				async ({ db, schema }) => {
+					return await db
 						.select()
-						.from(schema.sources)
-						.where(
-							and(
-								eq(schema.sources.targetType, "file"),
-								eq(schema.sources.targetId, selectedPageId),
-							),
-						);
+						.from(schema.nodes)
+						.where(eq(schema.nodes.graph, selectedPageId || ""));
+				},
+			);
 
-					if (sources.length > 0) {
-						const sourceIds = sources.map((s) => s.id);
+			const edges = await serviceManager.databaseService.use(
+				async ({ db, schema }) => {
+					return await db
+						.select()
+						.from(schema.edges)
+						.where(eq(schema.edges.graph, selectedPageId || ""));
+				},
+			);
 
-						// Get nodes related to these sources
-						const sourceNodes = await db
-							.select({
-								nodeId: schema.sourceNodes.nodeId,
-							})
-							.from(schema.sourceNodes)
-							.where(inArray(schema.sourceNodes.sourceId, sourceIds));
+			const d3Nodes: D3Node[] = nodes.map((node, index) => ({
+				id: node.id,
+				name: node.name,
+				nodeType: node.nodeType,
+				summary: node.summary || undefined,
+				group: hash(node.nodeType) % 6,
+				radius: NODE_RADIUS[node.nodeType] || NODE_RADIUS.default,
+				x: 400 + Math.cos((index * 2 * Math.PI) / nodes.length) * 150,
+				y: 300 + Math.sin((index * 2 * Math.PI) / nodes.length) * 150,
+			}));
 
-						const nodeIds = sourceNodes.map((sn) => sn.nodeId);
-
-						if (nodeIds.length > 0) {
-							nodes = await db
-								.select()
-								.from(schema.nodes)
-								.where(inArray(schema.nodes.id, nodeIds));
-
-							// Get edges between these nodes
-							edges = await db
-								.select()
-								.from(schema.edges)
-								.where(
-									and(
-										inArray(schema.edges.sourceId, nodeIds),
-										inArray(schema.edges.destinationId, nodeIds),
-									),
-								);
-						}
-					}
-				} else {
-					// Load full graph (limit for performance)
-					nodes = await db.select().from(schema.nodes).limit(100);
-
-					if (nodes.length > 0) {
-						const nodeIds = nodes.map((n) => n.id);
-						edges = await db
-							.select()
-							.from(schema.edges)
-							.where(
-								and(
-									inArray(schema.edges.sourceId, nodeIds),
-									inArray(schema.edges.destinationId, nodeIds),
-								),
-							)
-							.limit(200);
-					}
-				}
-
-				// Transform to D3 format
-				const d3Nodes: D3Node[] = nodes.map((node, index) => ({
-					id: node.id,
-					name: node.name,
-					nodeType: node.nodeType,
-					summary: node.summary || undefined,
-					group: hash(node.nodeType) % 6,
-					radius: NODE_RADIUS[node.nodeType] || NODE_RADIUS.default,
-					// Add initial positions in a circle pattern
-					x: 400 + Math.cos((index * 2 * Math.PI) / nodes.length) * 150,
-					y: 300 + Math.sin((index * 2 * Math.PI) / nodes.length) * 150,
+			const d3Edges: D3Edge[] = edges
+				.filter(
+					(edge) =>
+						d3Nodes.some((n) => n.id === edge.sourceId) &&
+						d3Nodes.some((n) => n.id === edge.destinationId),
+				)
+				.map((edge) => ({
+					id: edge.id,
+					source: edge.sourceId,
+					target: edge.destinationId,
+					edgeType: edge.edgeType,
+					factText: edge.factText || undefined,
+					weight: 1,
 				}));
 
-				const d3Edges: D3Edge[] = edges
-					.filter(
-						(edge) =>
-							d3Nodes.some((n) => n.id === edge.sourceId) &&
-							d3Nodes.some((n) => n.id === edge.destinationId),
-					)
-					.map((edge) => ({
-						source: edge.sourceId,
-						target: edge.destinationId,
-						id: edge.id,
-						edgeType: edge.edgeType,
-						factText: edge.factText || undefined,
-						weight: 1,
-					}));
-
-				setGraphData({ nodes: d3Nodes, edges: d3Edges });
-			});
+			setGraphData({ nodes: d3Nodes, edges: d3Edges });
 		} catch (err) {
 			logError("Failed to load graph data:", err);
 			setError(err instanceof Error ? err.message : "Unknown error");
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [selectedPageId, externalGraphData]);
 
-	const renderGraph = () => {
+	const nodeMap = useMemo(() => {
+		const map = new Map<string, D3Node>();
+		graphData.nodes.forEach((node) => map.set(node.id, node));
+		return map;
+	}, [graphData.nodes]);
+
+	const getConnectedEdges = useCallback(
+		(node: D3Node): ConnectedEdge[] => {
+			const connected: ConnectedEdge[] = [];
+
+			graphData.edges.forEach((edge) => {
+				const sourceId =
+					typeof edge.source === "string" ? edge.source : edge.source.id;
+				const targetId =
+					typeof edge.target === "string" ? edge.target : edge.target.id;
+
+				if (sourceId === node.id) {
+					const targetNode = nodeMap.get(targetId);
+					if (targetNode) {
+						connected.push({
+							edge,
+							connectedNode: targetNode,
+							direction: "outgoing",
+						});
+					}
+				} else if (targetId === node.id) {
+					const sourceNode = nodeMap.get(sourceId);
+					if (sourceNode) {
+						connected.push({
+							edge,
+							connectedNode: sourceNode,
+							direction: "incoming",
+						});
+					}
+				}
+			});
+
+			return connected;
+		},
+		[graphData.edges, nodeMap],
+	);
+
+	const handleNodeClick = useCallback(
+		(node: D3Node) => {
+			setSelectedNode((prev) => {
+				if (prev?.id === node.id) {
+					setConnectedEdges([]);
+					return null;
+				}
+				setConnectedEdges(getConnectedEdges(node));
+				return node;
+			});
+		},
+		[getConnectedEdges],
+	);
+
+	const handleNodeHover = useCallback((node: D3Node | null) => {
+		if (hoverTimeoutRef.current) {
+			clearTimeout(hoverTimeoutRef.current);
+		}
+		hoverTimeoutRef.current = setTimeout(() => {
+			setHoveredNode(node);
+		}, 50);
+	}, []);
+
+	const handleEdgeHover = useCallback((edge: D3Edge | null) => {
+		if (hoverTimeoutRef.current) {
+			clearTimeout(hoverTimeoutRef.current);
+		}
+		hoverTimeoutRef.current = setTimeout(() => {
+			setHoveredEdge(edge);
+		}, 50);
+	}, []);
+
+	const handleDeleteNode = useCallback(async () => {
+		if (!selectedNode) return;
+
+		try {
+			setDeleting(true);
+
+			await serviceManager.databaseService.use(async ({ db, schema }) => {
+				const edgesToDelete = await db
+					.select()
+					.from(schema.edges)
+					.where(
+						and(
+							eq(schema.edges.graph, selectedPageId || ""),
+							inArray(schema.edges.sourceId, [selectedNode.id]),
+						),
+					);
+
+				const edgeIds = edgesToDelete.map((e) => e.id);
+				if (edgeIds.length > 0) {
+					await db
+						.delete(schema.edges)
+						.where(inArray(schema.edges.id, edgeIds));
+				}
+
+				await db
+					.delete(schema.nodes)
+					.where(eq(schema.nodes.id, selectedNode.id));
+			});
+
+			setSelectedNode(null);
+			setConnectedEdges([]);
+			loadGraphData();
+
+			if (onNodeDeleted) {
+				onNodeDeleted();
+			}
+		} catch (error) {
+			logError("Failed to delete node:", error);
+		} finally {
+			setDeleting(false);
+		}
+	}, [selectedNode, selectedPageId, onNodeDeleted, loadGraphData]);
+
+	const handleZoomIn = useCallback(() => {
+		if (svgRef.current && zoomBehaviorRef.current) {
+			const svg = d3.select(svgRef.current);
+			svg.transition().duration(300).call(zoomBehaviorRef.current.scaleBy, 1.3);
+		}
+	}, []);
+
+	const handleZoomOut = useCallback(() => {
+		if (svgRef.current && zoomBehaviorRef.current) {
+			const svg = d3.select(svgRef.current);
+			svg.transition().duration(300).call(zoomBehaviorRef.current.scaleBy, 0.7);
+		}
+	}, []);
+
+	const handleResetZoom = useCallback(() => {
+		if (svgRef.current && zoomBehaviorRef.current) {
+			const svg = d3.select(svgRef.current);
+			svg
+				.transition()
+				.duration(500)
+				.call(zoomBehaviorRef.current.transform, d3.zoomIdentity);
+		}
+	}, []);
+
+	const renderGraph = useCallback(() => {
 		if (!svgRef.current) return;
-
-		const nodeColors = getNodeColors(isDark);
-		const themeColors = getThemeColors(isDark);
 
 		const svg = d3.select(svgRef.current);
 		svg.selectAll("*").remove();
 
-		if (graphData.nodes.length === 0) {
-			return;
-		}
+		if (graphData.nodes.length === 0) return;
 
 		const g = svg.append("g");
 
-		// Add zoom behavior
 		const zoom = d3
 			.zoom<SVGSVGElement, unknown>()
-			.scaleExtent([0.1, 4])
+			.scaleExtent([0.1, 8])
 			.on("zoom", (event) => {
 				g.attr("transform", event.transform);
 			});
 
+		zoomBehaviorRef.current = zoom;
 		svg.call(zoom);
 
-		// Create simulation
+		const defs = svg.append("defs");
+
+		// Define arrow marker
+		defs
+			.append("marker")
+			.attr("id", "arrowhead")
+			.attr("viewBox", "0 -5 10 10")
+			.attr("refX", 18)
+			.attr("refY", 0)
+			.attr("markerWidth", 4)
+			.attr("markerHeight", 4)
+			.attr("orient", "auto")
+			.append("path")
+			.attr("d", "M0,-4L8,0L0,4")
+			.attr("fill", themeColors.linkStroke)
+			.attr("opacity", 0.7);
+
+		// Define Package icon as a reusable symbol (define once, use many times)
+		const iconSymbol = defs
+			.append("symbol")
+			.attr("id", "package-icon")
+			.attr("viewBox", "0 0 24 24");
+
+		// Add package icon paths to symbol
+		iconSymbol
+			.append("path")
+			.attr("d", "m7.5 4.27 9 5.15")
+			.attr("fill", "none")
+			.attr("stroke", "currentColor")
+			.attr("stroke-width", 2)
+			.attr("stroke-linecap", "round")
+			.attr("stroke-linejoin", "round");
+
+		iconSymbol
+			.append("path")
+			.attr(
+				"d",
+				"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z",
+			)
+			.attr("fill", "none")
+			.attr("stroke", "currentColor")
+			.attr("stroke-width", 2)
+			.attr("stroke-linecap", "round")
+			.attr("stroke-linejoin", "round");
+
+		iconSymbol
+			.append("path")
+			.attr("d", "m3.3 7 8.7 5 8.7-5")
+			.attr("fill", "none")
+			.attr("stroke", "currentColor")
+			.attr("stroke-width", 2)
+			.attr("stroke-linecap", "round")
+			.attr("stroke-linejoin", "round");
+
+		iconSymbol
+			.append("path")
+			.attr("d", "M12 22V12")
+			.attr("fill", "none")
+			.attr("stroke", "currentColor")
+			.attr("stroke-width", 2)
+			.attr("stroke-linecap", "round")
+			.attr("stroke-linejoin", "round");
+
+		// Store initial positions for spring force
+		graphData.nodes.forEach((node) => {
+			if (node.originalX === undefined) {
+				node.originalX = node.x || 0;
+			}
+			if (node.originalY === undefined) {
+				node.originalY = node.y || 0;
+			}
+		});
+
+		// Extremely subtle spring force - respects user's dropped position
+		const springForce = (alpha: number) => {
+			const springStrength = 0.005; // Barely noticeable pull (reduced from 0.02)
+			const minDistance = 100; // Only apply if node is very far
+			const maxDistance = 300; // Maximum distance for force scaling
+
+			graphData.nodes.forEach((node) => {
+				if (node.originalX !== undefined && node.originalY !== undefined) {
+					if (!node.fx && !node.fy) {
+						// Calculate distance from original position
+						const dx = node.originalX - (node.x || 0);
+						const dy = node.originalY - (node.y || 0);
+						const distance = Math.sqrt(dx * dx + dy * dy);
+
+						// Only apply force if node is very far from original position
+						// Most dropped positions stay exactly where user placed them
+						if (distance > minDistance) {
+							const forceFactor = Math.min(
+								(distance - minDistance) / (maxDistance - minDistance),
+								1,
+							);
+							const adjustedStrength = springStrength * forceFactor;
+
+							node.vx = (node.vx || 0) + dx * adjustedStrength * alpha;
+							node.vy = (node.vy || 0) + dy * adjustedStrength * alpha;
+						}
+					}
+				}
+			});
+		};
+
 		const simulation = d3
 			.forceSimulation<D3Node>(graphData.nodes)
-			.force("charge", d3.forceManyBody().strength(-200))
+			.force("charge", d3.forceManyBody().strength(-100))
 			.force("center", d3.forceCenter(width / 2, height / 2))
 			.force(
 				"collision",
 				d3.forceCollide().radius((d) => 2),
-			);
+			)
+			.force("spring", springForce); // Add spring force
 
-		// Only add link force if we have edges
 		if (graphData.edges.length > 0) {
 			simulation.force(
 				"link",
@@ -401,81 +1131,103 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 					.forceLink<D3Node, D3Edge>(graphData.edges)
 					.id((d) => d.id)
 					.distance(90)
-					.strength(0.5),
+					.strength(0.3),
 			);
 		}
 
-		// Create arrow markers
-		const defs = svg.append("defs");
-		defs
-			.append("marker")
-			.attr("id", "arrowhead")
-			.attr("viewBox", "0 -5 10 10")
-			.attr("refX", 15)
-			.attr("refY", 0)
-			.attr("markerWidth", 6)
-			.attr("markerHeight", 6)
-			.attr("orient", "auto")
-			.append("path")
-			.attr("d", "M0,-5L10,0L0,5")
-			.attr("fill", themeColors.arrowFill);
+		simulationRef.current = simulation;
 
-		// Create links
 		const links = g
-			.append("g")
-			.selectAll("line")
+			.selectAll<SVGPathElement, D3Edge>("path.link")
 			.data(graphData.edges)
 			.enter()
-			.append("line")
+			.append("path")
+			.attr("class", "link")
 			.attr("stroke", themeColors.linkStroke)
-			.attr("stroke-opacity", 0.8)
-			.attr("stroke-width", 2)
-			.attr("marker-end", "url(#arrowhead)");
+			.attr("stroke-width", 1)
+			.attr("fill", "none")
+			.attr("opacity", 0.6)
+			.attr("marker-end", "url(#arrowhead)")
+			.style("cursor", "pointer")
+			.on("mouseenter", (_event, d) => handleEdgeHover(d))
+			.on("mouseleave", () => handleEdgeHover(null));
 
-		// Create link labels
-		const linkLabels = g
-			.append("g")
-			.selectAll("text")
-			.data(graphData.edges)
-			.enter()
-			.append("text")
-			.attr("text-anchor", "middle")
-			.attr("font-size", "6px")
-			.attr("font-family", "Arial, sans-serif")
-			.attr("fill", themeColors.textMuted)
-			.attr("pointer-events", "none")
-			.text((d) => d.edgeType);
-
-		// Create nodes
-		const nodes = g
-			.append("g")
-			.selectAll("circle")
+		const nodeGroups = g
+			.selectAll<SVGGElement, D3Node>("g.node-group")
 			.data(graphData.nodes)
 			.enter()
+			.append("g")
+			.attr("class", "node-group");
+
+		nodeGroups
 			.append("circle")
+			.attr("class", "node-hit-area")
+			.attr("r", (d) => d.radius + 12)
+			.attr("fill", "transparent")
+			.attr("cursor", "pointer");
+
+		nodeGroups
+			.append("circle")
+			.attr("class", "node")
 			.attr("r", (d) => d.radius)
 			.attr("fill", (d) => nodeColors[d.nodeType] || nodeColors.default)
 			.attr("stroke", themeColors.stroke)
-			.attr("stroke-width", 2)
-			.style("cursor", "pointer")
+			.attr("stroke-width", 2.5)
+			.attr("pointer-events", "none");
+
+		// Add package icon using <use> to reference the symbol (very performant)
+		nodeGroups
+			.append("use")
+			.attr("href", "#package-icon")
+			.attr("class", "node-icon")
+			.attr("x", (d) => -d.radius * 0.5)
+			.attr("y", (d) => -d.radius * 0.5)
+			.attr("width", (d) => d.radius)
+			.attr("height", (d) => d.radius)
+			.attr("color", "rgba(255,255,255,0.95)")
+			.attr("filter", "drop-shadow(0 1px 2px rgba(0,0,0,0.3))")
+			.attr("pointer-events", "none");
+
+		nodeGroups
+			.append("text")
+			.attr("text-anchor", "middle")
+			.attr("dy", (d) => d.radius + 16)
+			.attr("font-size", "11px")
+			.attr("font-weight", "600")
+			.attr("font-family", "system-ui, sans-serif")
+			.attr("fill", themeColors.text)
+			.attr("pointer-events", "none")
+			.style(
+				"text-shadow",
+				isDark
+					? "0 1px 2px rgba(0,0,0,0.8)"
+					: "0 1px 2px rgba(255,255,255,0.8)",
+			)
+			.text((d) =>
+				d.name.length > 15 ? d.name.substring(0, 15) + "..." : d.name,
+			);
+
+		nodeGroups.attr("opacity", 0.85);
+
+		nodeGroups
+			.on("mouseenter", (_event, d) => handleNodeHover(d))
+			.on("mouseleave", () => handleNodeHover(null))
 			.on("click", (event, d) => {
-				if (selectedNode?.id === d.id) {
-					// If clicking the same node, unselect it
-					setSelectedNode(null);
-					setConnectedEdges([]);
-				} else {
-					// If clicking a different node, select it
-					setSelectedNode(d);
-					setConnectedEdges(getConnectedEdges(d));
-				}
+				event.stopPropagation();
+				handleNodeClick(d);
 			})
+			.style("cursor", "grab")
 			.call(
 				d3
-					.drag<SVGCircleElement, D3Node>()
+					.drag<SVGGElement, D3Node>()
 					.on("start", (event, d) => {
 						if (!event.active) simulation.alphaTarget(0.3).restart();
 						d.fx = d.x;
 						d.fy = d.y;
+						d3.select(event.currentTarget as SVGGElement).style(
+							"cursor",
+							"grabbing",
+						);
 					})
 					.on("drag", (event, d) => {
 						d.fx = event.x;
@@ -483,58 +1235,39 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 					})
 					.on("end", (event, d) => {
 						if (!event.active) simulation.alphaTarget(0);
-						d.fx = null;
-						d.fy = null;
+
+						// Release the node to let spring force pull it back
+						// Add a slight delay so the drag position is registered
+						setTimeout(() => {
+							d.fx = null;
+							d.fy = null;
+							// Restart simulation to animate spring effect
+							simulation.alpha(0.3).restart();
+						}, 100);
+
+						d3.select(event.currentTarget as SVGGElement).style(
+							"cursor",
+							"grab",
+						);
 					}),
 			);
 
-		// Create node labels
-		const nodeLabels = g
-			.append("g")
-			.selectAll("text")
-			.data(graphData.nodes)
-			.enter()
-			.append("text")
-			.attr("text-anchor", "middle")
-			.attr("dy", ".35em")
-			.attr("font-size", "6px")
-			.attr("font-family", "Arial, sans-serif")
-			.attr("fill", themeColors.text)
-			.attr("pointer-events", "none")
-			.text((d) =>
-				d.name.length > 12 ? d.name.substring(0, 12) + "..." : d.name,
-			);
-
-		// Update positions on tick
 		simulation.on("tick", () => {
-			links
-				.attr("x1", (d) => (d.source as D3Node).x!)
-				.attr("y1", (d) => (d.source as D3Node).y!)
-				.attr("x2", (d) => (d.target as D3Node).x!)
-				.attr("y2", (d) => (d.target as D3Node).y!);
+			links.attr("d", (d) => {
+				const source = d.source as D3Node;
+				const target = d.target as D3Node;
+				return `M${source.x},${source.y}L${target.x},${target.y}`;
+			});
 
-			linkLabels
-				.attr(
-					"x",
-					(d) => ((d.source as D3Node).x! + (d.target as D3Node).x!) / 2,
-				)
-				.attr(
-					"y",
-					(d) => ((d.source as D3Node).y! + (d.target as D3Node).y!) / 2,
-				);
-
-			nodes.attr("cx", (d) => d.x!).attr("cy", (d) => d.y!);
-
-			nodeLabels.attr("x", (d) => d.x!).attr("y", (d) => d.y! + d.radius + 12);
+			nodeGroups.attr("transform", (d) => `translate(${d.x},${d.y})`);
 		});
 
-		// Initial zoom to fit (delay to allow elements to render)
 		setTimeout(() => {
 			const bounds = g.node()?.getBBox();
 			if (bounds && bounds.width > 0 && bounds.height > 0) {
 				const fullWidth = bounds.width;
 				const fullHeight = bounds.height;
-				const scale = Math.min(width / fullWidth, height / fullHeight) * 0.8;
+				const scale = Math.min(width / fullWidth, height / fullHeight) * 0.75;
 				const translate = [
 					width / 2 - scale * (bounds.x + fullWidth / 2),
 					height / 2 - scale * (bounds.y + fullHeight / 2),
@@ -546,109 +1279,17 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 				);
 			}
 		}, 100);
-	};
-
-	const getConnectedEdges = (node: D3Node): ConnectedEdge[] => {
-		const connections: ConnectedEdge[] = [];
-
-		graphData.edges.forEach((edge) => {
-			const sourceNode = graphData.nodes.find(
-				(n) =>
-					n.id ===
-					(typeof edge.source === "string" ? edge.source : edge.source.id),
-			);
-			const targetNode = graphData.nodes.find(
-				(n) =>
-					n.id ===
-					(typeof edge.target === "string" ? edge.target : edge.target.id),
-			);
-
-			if (sourceNode?.id === node.id && targetNode) {
-				// Outgoing edge
-				connections.push({
-					edge,
-					connectedNode: targetNode,
-					direction: "outgoing",
-				});
-			} else if (targetNode?.id === node.id && sourceNode) {
-				// Incoming edge
-				connections.push({
-					edge,
-					connectedNode: sourceNode,
-					direction: "incoming",
-				});
-			}
-		});
-
-		return connections;
-	};
-
-	const handleDeleteNode = async () => {
-		if (!selectedNode) return;
-
-		const confirmDelete = confirm(
-			`Are you sure you want to delete the node "${selectedNode.name}"?\n\nThis will also delete:\n- All edges connected to this node\n- All source relationships for this node\n\nThis action cannot be undone.`,
-		);
-
-		if (!confirmDelete) return;
-
-		try {
-			setDeleting(true);
-			logInfo(`Deleting node: ${selectedNode.name} (${selectedNode.id})`);
-
-			await serviceManager.databaseService.use(async ({ db, schema }) => {
-				// Delete all edges where this node is source or destination
-				await db
-					.delete(schema.edges)
-					.where(eq(schema.edges.sourceId, selectedNode.id));
-
-				await db
-					.delete(schema.edges)
-					.where(eq(schema.edges.destinationId, selectedNode.id));
-
-				// Delete all source_nodes relationships
-				await db
-					.delete(schema.sourceNodes)
-					.where(eq(schema.sourceNodes.nodeId, selectedNode.id));
-
-				// Delete the node itself
-				await db
-					.delete(schema.nodes)
-					.where(eq(schema.nodes.id, selectedNode.id));
-			});
-
-			logInfo(`Successfully deleted node: ${selectedNode.name}`);
-
-			// Update local state immediately to remove node from visualization
-			const nodeIdToDelete = selectedNode.id;
-			setGraphData((prevData) => ({
-				nodes: prevData.nodes.filter((n) => n.id !== nodeIdToDelete),
-				edges: prevData.edges.filter((e) => {
-					const sourceId =
-						typeof e.source === "string" ? e.source : e.source.id;
-					const targetId =
-						typeof e.target === "string" ? e.target : e.target.id;
-					return sourceId !== nodeIdToDelete && targetId !== nodeIdToDelete;
-				}),
-			}));
-
-			// Clear selection
-			setSelectedNode(null);
-			setConnectedEdges([]);
-
-			// Notify parent if callback provided (for external data updates)
-			if (onNodeDeleted) {
-				onNodeDeleted();
-			}
-		} catch (error) {
-			logError("Failed to delete node:", error);
-			alert(
-				`Failed to delete node: ${error instanceof Error ? error.message : "Unknown error"}`,
-			);
-		} finally {
-			setDeleting(false);
-		}
-	};
+	}, [
+		graphData,
+		width,
+		height,
+		themeColors,
+		nodeColors,
+		handleNodeHover,
+		handleEdgeHover,
+		handleNodeClick,
+		isDark,
+	]);
 
 	const hash = (str: string): number => {
 		let hash = 0;
@@ -685,9 +1326,6 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 		);
 	}
 
-	const themeColors = getThemeColors(isDark);
-	const nodeColors = getNodeColors(isDark);
-
 	return (
 		<div className="relative w-full h-full">
 			<svg
@@ -695,217 +1333,51 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 				width="100%"
 				height="100%"
 				viewBox={`0 0 ${width} ${height}`}
-				className={`border rounded ${
-					isDark ? "border-gray-600 bg-slate-900" : "border-gray-200 bg-white"
-				}`}
+				className={cn(
+					"border rounded-lg transition-colors",
+					isDark
+						? "border-gray-700 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800"
+						: "border-gray-200 bg-gray-50",
+				)}
+			/>
+
+			<ControlPanel
+				onZoomIn={handleZoomIn}
+				onZoomOut={handleZoomOut}
+				onResetZoom={handleResetZoom}
+				isDark={isDark}
+			/>
+
+			<Legend
+				nodeColors={nodeColors}
+				uniqueNodeTypes={uniqueNodeTypes}
+				isDark={isDark}
+			/>
+
+			<StatsPanel
+				nodeCount={graphData.nodes.length}
+				edgeCount={graphData.edges.length}
+				isDark={isDark}
 			/>
 
 			{selectedNode && (
-				<Card
-					className={`absolute top-2 left-2 right-2 w-auto max-w-96 max-h-96 shadow-lg overflow-hidden ${
-						isDark ? "bg-slate-800 border-gray-600" : "bg-white border-gray-200"
-					}`}
-				>
-					<div
-						className={`p-4 border-b ${
-							isDark ? "border-gray-600" : "border-gray-200"
-						}`}
-					>
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-2">
-								<div
-									className="w-4 h-4 rounded-full"
-									style={{
-										backgroundColor:
-											nodeColors[selectedNode.nodeType] || nodeColors.default,
-									}}
-								/>
-								<h3
-									className={`font-semibold text-sm ${
-										isDark ? "text-gray-100" : "text-gray-900"
-									}`}
-								>
-									{selectedNode.name}
-								</h3>
-							</div>
-							<div className="flex items-center gap-1">
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={handleDeleteNode}
-									disabled={deleting}
-									className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-									title="Delete node"
-								>
-									{deleting ? (
-										<Loader2 className="h-4 w-4 animate-spin" />
-									) : (
-										<Trash2 className="h-4 w-4" />
-									)}
-								</Button>
-								<button
-									onClick={() => {
-										setSelectedNode(null);
-										setConnectedEdges([]);
-									}}
-									className={`${
-										isDark
-											? "text-gray-400 hover:text-gray-200"
-											: "text-gray-400 hover:text-gray-600"
-									}`}
-									title="Close"
-								>
-									<X className="h-4 w-4" />
-								</button>
-							</div>
-						</div>
-						<div className="mt-2 space-y-1">
-							<Badge variant="outline" className="text-xs">
-								{selectedNode.nodeType}
-							</Badge>
-							{selectedNode.summary && (
-								<p
-									className={`text-xs mt-1 ${
-										isDark ? "text-gray-300" : "text-gray-600"
-									}`}
-								>
-									{selectedNode.summary}
-								</p>
-							)}
-						</div>
-					</div>
-
-					<div className="p-4 max-h-64 overflow-y-auto">
-						<h4
-							className={`font-medium text-sm mb-3 ${
-								isDark ? "text-gray-200" : "text-gray-800"
-							}`}
-						>
-							Connected Edges ({connectedEdges.length})
-						</h4>
-
-						{connectedEdges.length === 0 ? (
-							<p
-								className={`text-xs italic ${
-									isDark ? "text-gray-400" : "text-gray-500"
-								}`}
-							>
-								No connected edges found
-							</p>
-						) : (
-							<div className="space-y-3">
-								{connectedEdges.map((connection, index) => (
-									<div
-										key={`${connection.edge.id}-${index}`}
-										className={`rounded-lg p-3 ${
-											isDark ? "bg-gray-700" : "bg-gray-50"
-										}`}
-									>
-										<div className="flex items-center gap-2 mb-2">
-											<div className="flex items-center gap-1 text-xs">
-												{connection.direction === "outgoing" ? (
-													<>
-														<span
-															className={`font-medium ${
-																isDark ? "text-blue-400" : "text-blue-600"
-															}`}
-														>
-															{selectedNode.name}
-														</span>
-														<ArrowRight
-															className={`h-3 w-3 ${
-																isDark ? "text-gray-500" : "text-gray-400"
-															}`}
-														/>
-														<span
-															className={`font-medium ${
-																isDark ? "text-green-400" : "text-green-600"
-															}`}
-														>
-															{connection.connectedNode.name}
-														</span>
-													</>
-												) : (
-													<>
-														<span
-															className={`font-medium ${
-																isDark ? "text-green-400" : "text-green-600"
-															}`}
-														>
-															{connection.connectedNode.name}
-														</span>
-														<ArrowRight
-															className={`h-3 w-3 ${
-																isDark ? "text-gray-500" : "text-gray-400"
-															}`}
-														/>
-														<span
-															className={`font-medium ${
-																isDark ? "text-blue-400" : "text-blue-600"
-															}`}
-														>
-															{selectedNode.name}
-														</span>
-													</>
-												)}
-											</div>
-										</div>
-
-										<div className="space-y-1">
-											<div className="flex items-center gap-2">
-												<Badge variant="secondary" className="text-xs">
-													{connection.edge.edgeType}
-												</Badge>
-												<span
-													className={`text-xs ${
-														isDark ? "text-gray-400" : "text-gray-500"
-													}`}
-												>
-													{connection.direction === "outgoing"
-														? "Outgoing"
-														: "Incoming"}
-												</span>
-											</div>
-
-											{connection.edge.factText && (
-												<div className="mt-2">
-													<p
-														className={`text-xs font-medium mb-1 ${
-															isDark ? "text-gray-300" : "text-gray-700"
-														}`}
-													>
-														Fact:
-													</p>
-													<p
-														className={`text-xs p-2 rounded border ${
-															isDark
-																? "text-gray-300 bg-gray-800 border-gray-600"
-																: "text-gray-600 bg-white border-gray-200"
-														}`}
-													>
-														{connection.edge.factText}
-													</p>
-												</div>
-											)}
-										</div>
-									</div>
-								))}
-							</div>
-						)}
-					</div>
-				</Card>
+				<SelectedNodePanel
+					node={selectedNode}
+					connectedEdges={connectedEdges}
+					nodeColors={nodeColors}
+					isDark={isDark}
+					onClose={() => {
+						setSelectedNode(null);
+						setConnectedEdges([]);
+					}}
+					onDelete={handleDeleteNode}
+					deleting={deleting}
+				/>
 			)}
 
-			<div
-				className={`absolute bottom-4 right-4 p-2 rounded shadow text-xs ${
-					isDark
-						? "bg-gray-800 text-gray-300 border border-gray-600"
-						: "bg-white text-gray-600 border border-gray-200"
-				}`}
-			>
-				<div>Nodes: {graphData.nodes.length}</div>
-				<div>Edges: {graphData.edges.length}</div>
-			</div>
+			{hoveredNode && !selectedNode && (
+				<HoverTooltip node={hoveredNode} isDark={isDark} />
+			)}
 		</div>
 	);
 };

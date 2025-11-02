@@ -3,7 +3,7 @@
  * Direct filesystem operations without metadata
  */
 
-import fs from "@/utils/fs";
+import fs, { initializeFs } from "@/utils/fs";
 import { nanoid } from "nanoid";
 import { logInfo, logError } from "@/utils/logger";
 import type {
@@ -13,12 +13,15 @@ import type {
 	DocumentTreeNode,
 	DocumentType,
 } from "@/types/document-library";
+import { CONTENT_BACKGROUND_EVENTS } from "@/constants/content-background";
 
 const DOCUMENTS_ROOT = "/home/documents";
 
 class DocumentStorageService {
 	private static instance: DocumentStorageService;
 	private initialized = false;
+	private changeListeners: Set<() => void> = new Set();
+	private messageListenerRegistered = false;
 
 	private constructor() {}
 
@@ -30,14 +33,90 @@ class DocumentStorageService {
 	}
 
 	/**
+	 * Register a listener for filesystem changes from other contexts
+	 * This allows UI components to react to changes made in other contexts (offscreen, popup, etc.)
+	 */
+	onFilesystemChanged(callback: () => void): () => void {
+		this.changeListeners.add(callback);
+
+		// Return unsubscribe function
+		return () => {
+			this.changeListeners.delete(callback);
+		};
+	}
+
+	/**
+	 * Notify all contexts (including this one) that the filesystem has changed
+	 * Uses chrome.runtime.sendMessage which broadcasts to ALL extension contexts automatically:
+	 * - Background service worker
+	 * - Popup windows
+	 * - Offscreen documents
+	 * - Options pages
+	 * - Extension tabs
+	 *
+	 * No relay needed in MV3 - the message reaches all contexts directly!
+	 */
+	private notifyFilesystemChanged(): void {
+		try {
+			// Broadcast to ALL extension contexts (MV3 auto-broadcast)
+			chrome.runtime
+				.sendMessage({
+					type: CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
+				})
+				.catch((err) => {
+					// Ignore "no receiver" errors (expected when no other contexts are open)
+					if (!err.message?.includes("Receiving end does not exist")) {
+						logError("Failed to send filesystem change notification:", err);
+					}
+				});
+		} catch (error) {
+			// In non-extension context, this might fail silently
+			logError("Failed to notify filesystem change:", error);
+		}
+	}
+
+	/**
+	 * Handle filesystem change messages from other contexts
+	 */
+	private handleFilesystemChangeMessage = (message: any): void => {
+		if (message.type === CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED) {
+			logInfo(
+				"📢 Received filesystem change notification from another context",
+			);
+
+			// Notify all registered listeners
+			this.changeListeners.forEach((callback) => {
+				try {
+					callback();
+				} catch (error) {
+					logError("Error in filesystem change listener:", error);
+				}
+			});
+		}
+	};
+
+	/**
 	 * Initialize the document storage system
 	 */
 	async initialize(): Promise<void> {
 		if (this.initialized) return;
 
 		try {
+			// Wait for filesystem to be ready
+			await initializeFs();
+
 			// Ensure documents directory exists
 			await this.ensureDirectory(DOCUMENTS_ROOT);
+
+			// Register message listener for changes from other contexts (only once)
+			if (!this.messageListenerRegistered) {
+				chrome.runtime.onMessage.addListener(
+					this.handleFilesystemChangeMessage,
+				);
+				this.messageListenerRegistered = true;
+				logInfo("📚 Document storage message listener registered");
+			}
+
 			this.initialized = true;
 			logInfo("📚 Document storage initialized");
 		} catch (error) {
@@ -118,6 +197,9 @@ class DocumentStorageService {
 		let fullPath = `${DOCUMENTS_ROOT}${normalizedPath}/${fileName}`;
 
 		try {
+			// Ensure target directory exists BEFORE checking if file exists
+			await this.ensureDirectory(`${DOCUMENTS_ROOT}${normalizedPath}`);
+
 			// Check if file already exists
 			try {
 				await fs.promises.stat(fullPath);
@@ -149,10 +231,7 @@ class DocumentStorageService {
 			const arrayBuffer = await file.arrayBuffer();
 			const uint8Array = new Uint8Array(arrayBuffer);
 
-			// Ensure target directory exists
-			await this.ensureDirectory(`${DOCUMENTS_ROOT}${normalizedPath}`);
-
-			// Write file to filesystem
+			// Write file to filesystem (directory already ensured above)
 			await fs.promises.writeFile(fullPath, uint8Array);
 
 			// Create file metadata (use path as ID for consistency)
@@ -170,6 +249,10 @@ class DocumentStorageService {
 			};
 
 			logInfo(`📄 Uploaded file: ${docFile.path}`);
+
+			// Notify other contexts about the filesystem change
+			this.notifyFilesystemChanged();
+
 			return docFile;
 		} catch (error) {
 			logError(`Failed to upload file ${fileName}:`, error);
@@ -191,6 +274,9 @@ class DocumentStorageService {
 		const fullPath = `${DOCUMENTS_ROOT}${folderPath}`;
 
 		try {
+			// Ensure parent directory exists BEFORE checking if folder exists
+			await this.ensureDirectory(`${DOCUMENTS_ROOT}${normalizedParentPath}`);
+
 			// Check if folder already exists
 			try {
 				await fs.promises.stat(fullPath);
@@ -219,6 +305,10 @@ class DocumentStorageService {
 			};
 
 			logInfo(`📁 Created folder: ${folder.path}`);
+
+			// Notify other contexts about the filesystem change
+			this.notifyFilesystemChanged();
+
 			return folder;
 		} catch (error) {
 			logError(`Failed to create folder ${name}:`, error);
@@ -383,6 +473,9 @@ class DocumentStorageService {
 		const fullPath = `${DOCUMENTS_ROOT}${file.path}`;
 		await fs.promises.unlink(fullPath);
 		logInfo(`🗑️ Deleted file: ${file.path}`);
+
+		// Notify other contexts about the filesystem change
+		this.notifyFilesystemChanged();
 	}
 
 	/**
@@ -447,6 +540,10 @@ class DocumentStorageService {
 			};
 
 			logInfo(`📝 Renamed file: ${file.path} -> ${newPath}`);
+
+			// Notify other contexts about the filesystem change
+			this.notifyFilesystemChanged();
+
 			return renamedFile;
 		} catch (error) {
 			logError(`Failed to rename file ${fileId}:`, error);
@@ -508,6 +605,10 @@ class DocumentStorageService {
 			};
 
 			logInfo(`📁 Renamed folder: ${folderId} -> ${newPath}`);
+
+			// Notify other contexts about the filesystem change
+			this.notifyFilesystemChanged();
+
 			return renamedFolder;
 		} catch (error) {
 			logError(`Failed to rename folder ${folderId}:`, error);
@@ -630,6 +731,9 @@ class DocumentStorageService {
 
 			logInfo(`✅ Moved file from ${fileId} to ${newId}`);
 
+			// Notify other contexts about the filesystem change
+			this.notifyFilesystemChanged();
+
 			return {
 				id: newId,
 				name: newFileName,
@@ -719,6 +823,9 @@ class DocumentStorageService {
 			const entries = await fs.promises.readdir(newFolderPath);
 
 			logInfo(`✅ Moved folder from ${folderId} to ${newId}`);
+
+			// Notify other contexts about the filesystem change
+			this.notifyFilesystemChanged();
 
 			return {
 				id: newId,

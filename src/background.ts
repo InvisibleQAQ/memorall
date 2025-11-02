@@ -478,6 +478,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		// Return true to indicate async response
 		return true;
 	}
+	// Note: FILESYSTEM_CHANGED relay removed - chrome.runtime.sendMessage auto-broadcasts
+	// in MV3, so document-storage.ts handles both sending and receiving directly
 });
 
 // Handle extension startup

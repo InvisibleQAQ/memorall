@@ -58,6 +58,7 @@ import { topicService } from "@/modules/topics/services/topic-service";
 import type { Topic } from "@/services/database/entities/topics";
 import { useKnowledgeConversion } from "@/modules/documents/hooks/useKnowledgeConversion";
 import { useMultipleSourceStatus } from "@/modules/documents/hooks/useSourceStatus";
+// CONTENT_BACKGROUND_EVENTS import removed - using unified service API instead
 
 export const DocumentLibraryPage: React.FC = () => {
 	// Hooks
@@ -95,6 +96,26 @@ export const DocumentLibraryPage: React.FC = () => {
 	// Initialize
 	useEffect(() => {
 		initializeLibrary();
+	}, []);
+
+	// Listen for filesystem changes from other contexts (e.g., offscreen)
+	// Using the unified service API instead of scattered message listeners
+	useEffect(() => {
+		const unsubscribe = documentStorageService.onFilesystemChanged(() => {
+			logInfo(
+				"[DOCUMENT_LIBRARY] Filesystem changed, reloading tree and topics...",
+			);
+			// Reload both tree and topics since files may have topic associations
+			Promise.all([loadTree(), loadTopics()]).catch((err) => {
+				logError(
+					"[DOCUMENT_LIBRARY] Failed to reload after filesystem change:",
+					err,
+				);
+			});
+		});
+
+		// Cleanup subscription on unmount
+		return unsubscribe;
 	}, []);
 
 	const initializeLibrary = async () => {

@@ -33,6 +33,7 @@ import { logInfo, logError } from "@/utils/logger";
 import { serviceManager } from "@/services";
 import { eq, inArray } from "drizzle-orm";
 import { TopicBadgeList } from "@/modules/topics/components";
+import { useIsProcessing } from "@/stores/process-monitor";
 
 interface DocumentViewerProps {
 	file: DocumentFile;
@@ -66,8 +67,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	const excelSheetSelector = useModalSelector();
 	const [loadedFileTopics, setLoadedFileTopics] = useState<Topic[]>([]);
 
-	// Track knowledge generation status using source
+	// Track knowledge generation status using source and process monitor
 	const sourceStatus = useSourceStatus(file.path);
+	const isProcessing = useIsProcessing(file.path);
 
 	// Use prop topics if provided, otherwise use loaded topics
 	const fileTopics = propFileTopics || loadedFileTopics;
@@ -266,11 +268,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							variant="default"
 							size="sm"
 							onClick={() => onConvertToKnowledge(file)}
-							disabled={sourceStatus.isGenerating}
+							disabled={sourceStatus.isGenerating || isProcessing}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
 							<span className="hidden sm:inline">
-								{sourceStatus.isGenerating
+								{sourceStatus.isGenerating || isProcessing
 									? "Converting..."
 									: "Convert to Knowledge"}
 							</span>
