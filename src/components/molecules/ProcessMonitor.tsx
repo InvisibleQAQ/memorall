@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	Activity,
 	Loader2,
@@ -46,12 +47,7 @@ const STATUS_COLORS = {
 	failed: "text-red-500",
 } as const;
 
-const STATUS_LABELS = {
-	pending: "Pending",
-	processing: "Processing",
-	completed: "Completed",
-	failed: "Failed",
-} as const;
+// STATUS_LABELS will be created inside component to access translations
 
 interface ProcessItemProps {
 	filePath: string;
@@ -61,6 +57,7 @@ interface ProcessItemProps {
 	stage?: string;
 	createdAt: Date;
 	updatedAt: Date;
+	formatRelativeTime: (date: Date) => string;
 }
 
 const ProcessItem: React.FC<ProcessItemProps> = ({
@@ -71,12 +68,13 @@ const ProcessItem: React.FC<ProcessItemProps> = ({
 	stage,
 	createdAt,
 	updatedAt,
+	formatRelativeTime,
 }) => {
+	const { t } = useTranslation("common");
 	const StatusIcon = STATUS_ICONS[status as keyof typeof STATUS_ICONS] || Clock;
 	const statusColor =
 		STATUS_COLORS[status as keyof typeof STATUS_COLORS] || "text-gray-500";
-	const statusLabel =
-		STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status;
+	const statusLabel = t(`processMonitor.status.${status}`, status);
 
 	const isActive = status === "processing" || status === "pending";
 	const showProgress = isActive && typeof progress === "number";
@@ -107,11 +105,11 @@ const ProcessItem: React.FC<ProcessItemProps> = ({
 					{showProgress && <Progress value={progress} className="h-1.5 mt-2" />}
 					<div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
 						<span title={createdAt.toLocaleString()}>
-							Started: {formatRelativeTime(createdAt)}
+							{t("processMonitor.started", { time: formatRelativeTime(createdAt) })}
 						</span>
 						{!isActive && (
 							<span title={updatedAt.toLocaleString()}>
-								Finished: {formatRelativeTime(updatedAt)}
+								{t("processMonitor.finished", { time: formatRelativeTime(updatedAt) })}
 							</span>
 						)}
 					</div>
@@ -121,21 +119,25 @@ const ProcessItem: React.FC<ProcessItemProps> = ({
 	);
 };
 
-function formatRelativeTime(date: Date): string {
-	const now = new Date();
-	const diff = now.getTime() - date.getTime();
-	const seconds = Math.floor(diff / 1000);
-	const minutes = Math.floor(seconds / 60);
-	const hours = Math.floor(minutes / 60);
-	const days = Math.floor(hours / 24);
-
-	if (days > 0) return `${days}d ago`;
-	if (hours > 0) return `${hours}h ago`;
-	if (minutes > 0) return `${minutes}m ago`;
-	return "just now";
-}
+// formatRelativeTime will be created inside component to access translations
 
 export const ProcessMonitor: React.FC = () => {
+	const { t } = useTranslation("common");
+	
+	// Create formatRelativeTime with translations
+	const formatRelativeTime = (date: Date): string => {
+		const now = new Date();
+		const diff = now.getTime() - date.getTime();
+		const seconds = Math.floor(diff / 1000);
+		const minutes = Math.floor(seconds / 60);
+		const hours = Math.floor(minutes / 60);
+		const days = Math.floor(hours / 24);
+
+		if (days > 0) return t("processMonitor.timeAgo.daysAgo", { count: days });
+		if (hours > 0) return t("processMonitor.timeAgo.hoursAgo", { count: hours });
+		if (minutes > 0) return t("processMonitor.timeAgo.minutesAgo", { count: minutes });
+		return t("processMonitor.timeAgo.justNow");
+	};
 	const [open, setOpen] = useState(false);
 	const activeProcessCount = useActiveProcessCount();
 	const {
@@ -270,7 +272,7 @@ export const ProcessMonitor: React.FC = () => {
 					variant="ghost"
 					size="icon"
 					className="relative h-8 w-8"
-					title="View Processes"
+					title={t("processMonitor.viewProcesses")}
 				>
 					<Activity className="h-4 w-4" />
 					{hasActiveProcesses && (
@@ -285,11 +287,11 @@ export const ProcessMonitor: React.FC = () => {
 				<div className="flex items-center justify-between px-4 py-3 border-b">
 					<div className="flex items-center gap-2">
 						<Activity className="h-4 w-4" />
-						<h3 className="font-semibold text-sm">Processing Activity</h3>
+						<h3 className="font-semibold text-sm">{t("processMonitor.title")}</h3>
 					</div>
 					{hasActiveProcesses && (
 						<Badge variant="secondary" className="text-xs">
-							{activeProcessCount} active
+							{t("processMonitor.activeCount", { count: activeProcessCount })}
 						</Badge>
 					)}
 				</div>
@@ -304,10 +306,10 @@ export const ProcessMonitor: React.FC = () => {
 						<div className="flex flex-col items-center justify-center py-12 px-4 text-center">
 							<FileText className="h-12 w-12 text-muted-foreground/50 mb-3" />
 							<p className="text-sm text-muted-foreground">
-								No processing activity yet
+								{t("processMonitor.noActivity")}
 							</p>
 							<p className="text-xs text-muted-foreground mt-1">
-								Convert documents to knowledge graphs to see activity here
+								{t("processMonitor.noActivityHelp")}
 							</p>
 						</div>
 					)}
@@ -316,12 +318,12 @@ export const ProcessMonitor: React.FC = () => {
 						<div className="p-2">
 							<div className="px-2 py-1.5">
 								<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-									Active Processes
+									{t("processMonitor.activeProcesses")}
 								</p>
 							</div>
 							<div className="space-y-1">
 								{activeProcessArray.map((process) => (
-									<ProcessItem key={process.filePath} {...process} />
+									<ProcessItem key={process.filePath} {...process} formatRelativeTime={formatRelativeTime} />
 								))}
 							</div>
 						</div>
@@ -333,12 +335,12 @@ export const ProcessMonitor: React.FC = () => {
 						<div className="p-2">
 							<div className="px-2 py-1.5">
 								<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-									Recent History
+									{t("processMonitor.recentHistory")}
 								</p>
 							</div>
 							<div className="space-y-1">
 								{historyItems.map((item) => (
-									<ProcessItem key={item.filePath} {...item} />
+									<ProcessItem key={item.filePath} {...item} formatRelativeTime={formatRelativeTime} />
 								))}
 							</div>
 							{/* Loading more indicator */}
@@ -346,7 +348,7 @@ export const ProcessMonitor: React.FC = () => {
 								<div className="flex items-center justify-center py-4">
 									<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
 									<span className="ml-2 text-sm text-muted-foreground">
-										Loading more...
+										{t("processMonitor.loadingMore")}
 									</span>
 								</div>
 							)}
@@ -355,7 +357,7 @@ export const ProcessMonitor: React.FC = () => {
 								!isLoadingMore &&
 								historyItems.length >= ITEMS_PER_PAGE && (
 									<div className="text-center py-4 text-xs text-muted-foreground">
-										No more history to load
+										{t("processMonitor.noMoreHistory")}
 									</div>
 								)}
 						</div>

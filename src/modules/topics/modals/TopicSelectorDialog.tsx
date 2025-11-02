@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { Check, Loader2, Plus, Search, Tags, X } from "lucide-react";
 import {
@@ -35,6 +36,7 @@ type ViewMode = "select" | "create";
 export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 	({ filePath, fileName, initialTopicIds }) => {
 		const modal = useModal();
+		const { t } = useTranslation("topics");
 
 		// Ensure initialTopicIds is always an array
 		const safeInitialTopicIds = Array.isArray(initialTopicIds)
@@ -165,7 +167,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<Tags className="h-5 w-5 text-primary" />
-							Manage Topics
+							{t("selector.title")}
 						</DialogTitle>
 						<DialogDescription className="truncate">
 							{fileName}
@@ -180,7 +182,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 								<div className="relative">
 									<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 									<Input
-										placeholder="Search topics..."
+										placeholder={t("selector.searchPlaceholder")}
 										value={searchQuery}
 										onChange={(e) => setSearchQuery(e.target.value)}
 										className="pl-9 pr-9"
@@ -199,7 +201,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 								{/* Selection Info */}
 								{selectedCount > 0 && (
 									<div className="text-sm text-muted-foreground">
-										{selectedCount} topic{selectedCount > 1 ? "s" : ""} selected
+										{t("selector.selectedCount", { count: selectedCount })}
 									</div>
 								)}
 
@@ -214,8 +216,8 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 											{filteredTopics.length === 0 ? (
 												<div className="py-8 text-center text-sm text-muted-foreground">
 													{searchQuery
-														? "No topics found"
-														: "No topics available"}
+														? t("selector.noTopicsFound")
+														: t("selector.noTopicsAvailable")}
 												</div>
 											) : (
 												filteredTopics.map((topic) => {
@@ -274,7 +276,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 									className="w-full gap-2"
 								>
 									<Plus className="h-4 w-4" />
-									Create New Topic
+									{t("selector.createNewTopic")}
 								</Button>
 							</div>
 
@@ -284,16 +286,16 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 									onClick={() => modal.hide()}
 									disabled={saving}
 								>
-									Cancel
+									{t("selector.cancel")}
 								</Button>
 								<Button onClick={handleSave} disabled={saving || !hasChanges}>
 									{saving ? (
 										<>
 											<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-											Saving...
+											{t("selector.saving")}
 										</>
 									) : (
-										"Save"
+										t("selector.save")
 									)}
 								</Button>
 							</DialogFooter>
@@ -303,10 +305,10 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 							{/* Create Topic View */}
 							<div className="space-y-4">
 								<div className="space-y-2">
-									<Label htmlFor="new-topic-name">Topic Name *</Label>
+									<Label htmlFor="new-topic-name">{t("selector.topicName")} *</Label>
 									<Input
 										id="new-topic-name"
-										placeholder="e.g., Machine Learning, React Development..."
+										placeholder={t("selector.topicNamePlaceholder")}
 										value={newTopicName}
 										onChange={(e) => setNewTopicName(e.target.value)}
 										onKeyDown={(e) => {
@@ -323,18 +325,17 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 
 								<div className="space-y-2">
 									<Label htmlFor="new-topic-description">
-										Goal & Purpose *
+										{t("selector.goalPurpose")} *
 									</Label>
 									<Textarea
 										id="new-topic-description"
-										placeholder="Describe what you want to achieve with this topic. What specific knowledge or skills are you building?"
+										placeholder={t("selector.goalPlaceholder")}
 										value={newTopicDescription}
 										onChange={(e) => setNewTopicDescription(e.target.value)}
 										rows={3}
 									/>
 									<p className="text-xs text-muted-foreground">
-										Example: "Learn modern React patterns and best practices for
-										building scalable web applications"
+										{t("selector.example")}
 									</p>
 								</div>
 							</div>
@@ -345,7 +346,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 									onClick={() => setViewMode("select")}
 									disabled={creating}
 								>
-									Back
+									{t("selector.back")}
 								</Button>
 								<Button
 									onClick={handleCreateTopic}
@@ -358,12 +359,12 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 									{creating ? (
 										<>
 											<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-											Creating...
+											{t("selector.creating")}
 										</>
 									) : (
 										<>
 											<Plus className="h-4 w-4 mr-2" />
-											Create & Add
+											{t("selector.createAndAdd")}
 										</>
 									)}
 								</Button>

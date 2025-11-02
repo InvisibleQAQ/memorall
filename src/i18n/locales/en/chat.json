@@ -25,14 +25,22 @@
 	"actions": {
 		"deleteChat": "Delete Chat",
 		"moreActions": "More actions",
-		"insertSeparator": "Insert separator"
+		"insertSeparator": "Insert separator",
+		"query_analysis": "Query Analysis",
+		"knowledge_retrieval": "Knowledge Retrieval", 
+		"context_graph": "Context Graph",
+		"context_knowledge": "Context Knowledge",
+		"response_generation": "Response Generation",
+		"quick_knowledge_retrieval": "Quick Knowledge Retrieval"
 	},
 	"messages": {
 		"thinking": "Thinking...",
+		"thought": "Thought",
 		"error": "Failed to send message",
 		"stop": "Stop",
 		"retry": "Retry",
-		"empty": "No messages yet. Start a conversation!"
+		"empty": "No messages yet. Start a conversation!",
+		"count": "{{count}} message{{count, plural, one {} other {s}}}"
 	},
 	"model": {
 		"notLoaded": "No model loaded",

@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 	onOpenChange,
 	onConvert,
 }) => {
+	const { t } = useTranslation("documents");
 	const [loading, setLoading] = useState(false);
 	const [pages, setPages] = useState<PDFPageContent[]>([]);
 	const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set());
@@ -201,17 +203,16 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
 				<DialogHeader className="flex-shrink-0">
-					<DialogTitle>Convert PDF Pages to Remembered Content</DialogTitle>
+					<DialogTitle>{t("pdfSelector.title")}</DialogTitle>
 					<DialogDescription>
-						Select the pages you want to convert and save to your remembered
-						content library
+						{t("pdfSelector.description")}
 					</DialogDescription>
 				</DialogHeader>
 
 				{loading ? (
 					<div className="flex items-center justify-center py-12">
 						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-						<span className="ml-3 text-muted-foreground">Loading pages...</span>
+						<span className="ml-3 text-muted-foreground">{t("pdfSelector.loadingPages")}</span>
 					</div>
 				) : (
 					<div className="flex flex-col gap-4 flex-1 min-h-0">
@@ -225,7 +226,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 										onClick={selectAll}
 										disabled={pages.length === 0}
 									>
-										Select All
+										{t("pdfSelector.selectAll")}
 									</Button>
 									<Button
 										variant="outline"
@@ -233,11 +234,11 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 										onClick={deselectAll}
 										disabled={selectedPages.size === 0}
 									>
-										Deselect All
+										{t("pdfSelector.deselectAll")}
 									</Button>
 								</div>
 								<Badge variant="secondary">
-									{selectedPages.size} of {pages.length} pages selected
+									{t("pdfSelector.pagesSelected", { count: selectedPages.size, total: pages.length })}
 								</Badge>
 							</div>
 
@@ -245,7 +246,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 							<div className="flex items-end gap-2">
 								<div className="flex-1">
 									<Label htmlFor="range-start" className="text-xs">
-										From Page
+										{t("pdfSelector.fromPage")}
 									</Label>
 									<Input
 										id="range-start"
@@ -260,7 +261,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 								</div>
 								<div className="flex-1">
 									<Label htmlFor="range-end" className="text-xs">
-										To Page
+										{t("pdfSelector.toPage")}
 									</Label>
 									<Input
 										id="range-end"
@@ -280,7 +281,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 									disabled={!pageRangeStart || !pageRangeEnd}
 									className="h-8"
 								>
-									Add Range
+									{t("pdfSelector.addRange")}
 								</Button>
 							</div>
 						</div>
@@ -313,7 +314,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 												<div className="flex items-center gap-2 mb-1">
 													<BookOpen className="h-4 w-4 text-muted-foreground" />
 													<span className="font-medium text-sm">
-														Page {page.pageNumber}
+														{t("pdfSelector.page", { number: page.pageNumber })}
 													</span>
 													<span className="text-xs text-muted-foreground">
 														{page.width.toFixed(0)} × {page.height.toFixed(0)}
@@ -337,7 +338,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 						onClick={() => onOpenChange(false)}
 						disabled={converting}
 					>
-						Cancel
+						{t("pdfSelector.cancel")}
 					</Button>
 					<Button
 						onClick={handleConvert}
@@ -346,10 +347,10 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 						{converting ? (
 							<>
 								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-								Converting...
+								{t("pdfSelector.converting")}
 							</>
 						) : (
-							`Convert ${selectedPages.size} ${selectedPages.size === 1 ? "Page" : "Pages"}`
+							t("pdfSelector.convert", { count: selectedPages.size })
 						)}
 					</Button>
 				</DialogFooter>

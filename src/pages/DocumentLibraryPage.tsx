@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import NiceModal from "@ebay/nice-modal-react";
 import {
 	Upload,
@@ -62,6 +63,7 @@ import { useMultipleSourceStatus } from "@/modules/documents/hooks/useSourceStat
 
 export const DocumentLibraryPage: React.FC = () => {
 	// Hooks
+	const { t } = useTranslation("documents");
 	const { convertToKnowledge } = useKnowledgeConversion();
 
 	// State
@@ -126,7 +128,7 @@ export const DocumentLibraryPage: React.FC = () => {
 			setError(null);
 		} catch (err) {
 			logError("Failed to initialize document library:", err);
-			setError("Failed to initialize document library");
+			setError(t("library.initializationError"));
 		} finally {
 			setLoading(false);
 		}
@@ -338,7 +340,7 @@ export const DocumentLibraryPage: React.FC = () => {
 			await loadTree();
 		} catch (err) {
 			logError("Failed to create folder:", err);
-			setError("Failed to create folder");
+			setError(t("library.createFolderError"));
 			throw err; // Re-throw to let modal handle error
 		}
 	};
@@ -346,7 +348,9 @@ export const DocumentLibraryPage: React.FC = () => {
 	const handleDeleteItem = async (item: DocumentLibraryItem) => {
 		if (
 			!confirm(
-				`Are you sure you want to delete "${item.item.name}"?${item.type === "folder" ? " All contents will be deleted." : ""}`,
+				item.type === "folder" 
+					? t("library.deleteConfirmFolder", { name: item.item.name })
+					: t("library.deleteConfirm", { name: item.item.name })
 			)
 		) {
 			return;
@@ -389,7 +393,7 @@ export const DocumentLibraryPage: React.FC = () => {
 			}
 		} catch (err) {
 			logError("Failed to delete item:", err);
-			setError("Failed to delete item");
+			setError(t("library.deleteItemError"));
 		}
 	};
 
@@ -432,14 +436,14 @@ export const DocumentLibraryPage: React.FC = () => {
 			logInfo(`Renamed ${item.type}: ${item.item.name} -> ${newName}`);
 		} catch (err) {
 			logError("Failed to rename item:", err);
-			setError("Failed to rename item");
+			setError(t("library.renameItemError"));
 		}
 	};
 
 	const handleDeleteSelectedFile = async () => {
 		if (!selectedNode || selectedNode.type !== "file") return;
 
-		if (!confirm(`Are you sure you want to delete "${selectedNode.name}"?`)) {
+		if (!confirm(t("library.deleteConfirm", { name: selectedNode.name }))) {
 			return;
 		}
 
@@ -472,7 +476,7 @@ export const DocumentLibraryPage: React.FC = () => {
 			}
 		} catch (err) {
 			logError("Failed to delete file:", err);
-			setError("Failed to delete file");
+			setError(t("library.deleteFileError"));
 		}
 	};
 
@@ -513,7 +517,7 @@ export const DocumentLibraryPage: React.FC = () => {
 			URL.revokeObjectURL(url);
 		} catch (err) {
 			logError("Failed to download file:", err);
-			setError("Failed to download file");
+			setError(t("library.downloadFileError"));
 		}
 	};
 
@@ -677,7 +681,7 @@ export const DocumentLibraryPage: React.FC = () => {
 								}
 							}}
 							className="flex items-center gap-1 hover:text-foreground transition-colors flex-shrink-0"
-							title="Documents"
+							title={t("title")}
 						>
 							<Home className="h-3.5 w-3.5 md:h-4 md:w-4" />
 						</button>
@@ -739,13 +743,13 @@ export const DocumentLibraryPage: React.FC = () => {
 							<DropdownMenuTrigger asChild>
 								<Button size="sm" className="h-8 gap-1.5">
 									<Plus className="h-4 w-4" />
-									<span className="hidden md:inline">Add</span>
+									<span className="hidden md:inline">{t("library.add")}</span>
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
 								<DropdownMenuItem onClick={triggerFileUpload}>
 									<Upload className="h-4 w-4 mr-2" />
-									Upload Files
+									{t("upload.uploadFiles")}
 								</DropdownMenuItem>
 								<DropdownMenuItem
 									onClick={() =>
@@ -755,7 +759,7 @@ export const DocumentLibraryPage: React.FC = () => {
 									}
 								>
 									<FolderPlus className="h-4 w-4 mr-2" />
-									Create Folder
+									{t("upload.createFolder")}
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
@@ -769,7 +773,7 @@ export const DocumentLibraryPage: React.FC = () => {
 							title="Manage Topics"
 						>
 							<Tags className="h-4 w-4" />
-							<span className="hidden md:inline">Topics</span>
+							<span className="hidden md:inline">{t("library.topics")}</span>
 						</Button>
 					</div>
 				</div>
@@ -782,7 +786,7 @@ export const DocumentLibraryPage: React.FC = () => {
 						<div className="relative flex-1 min-w-0">
 							<Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
 							<Input
-								placeholder="Search files..."
+								placeholder={t("library.searchPlaceholder")}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								className="pl-8 md:pl-10 h-8 md:h-9 text-sm"
@@ -806,7 +810,7 @@ export const DocumentLibraryPage: React.FC = () => {
 							size="sm"
 							onClick={() => setViewMode("list")}
 							className="h-6 w-6 md:h-7 md:w-7 p-0"
-							title="List view"
+							title={t("library.listView")}
 						>
 							<List className="h-3.5 w-3.5 md:h-4 md:w-4" />
 						</Button>
@@ -815,7 +819,7 @@ export const DocumentLibraryPage: React.FC = () => {
 							size="sm"
 							onClick={() => setViewMode("grid")}
 							className="h-6 w-6 md:h-7 md:w-7 p-0"
-							title="Grid view"
+							title={t("library.gridView")}
 						>
 							<Grid3x3 className="h-3.5 w-3.5 md:h-4 md:w-4" />
 						</Button>
@@ -966,7 +970,7 @@ export const DocumentLibraryPage: React.FC = () => {
 						<div className="flex items-center justify-center h-full text-muted-foreground">
 							<div className="text-center">
 								<Folder className="h-12 w-12 mx-auto mb-4 opacity-50" />
-								<p className="text-sm">Select a folder or file to view</p>
+								<p className="text-sm">{t("library.emptyState")}</p>
 							</div>
 						</div>
 					)}

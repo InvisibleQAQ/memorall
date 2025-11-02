@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { MessageRenderer } from "./MessageRenderer";
 import type { MessageGroup as MessageGroupType } from "../utils/message-grouping";
@@ -17,6 +18,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
 	inProgressMessage,
 	defaultCollapsed = false,
 }) => {
+	const { t } = useTranslation("chat");
 	const [isCollapsed, setIsCollapsed] = useState(
 		defaultCollapsed && !group.isLatest,
 	);
@@ -89,8 +91,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
 						)}
 					</div>
 					<span className="text-xs text-muted-foreground flex-1">
-						{group.messages.length} message
-						{group.messages.length !== 1 ? "s" : ""}
+						{t("messages.count", { count: group.messages.length })}
 						{group.separator && (
 							<span className="ml-2">
 								• {dayjs(group.separator.createdAt).format("MMM D, h:mm A")}

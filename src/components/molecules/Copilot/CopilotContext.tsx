@@ -5,6 +5,7 @@ import React, {
 	useCallback,
 	useEffect,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { serviceManager } from "@/services";
 import { logError } from "@/utils/logger";
 
@@ -46,132 +47,125 @@ const CopilotContext = createContext<CopilotContextType | undefined>(undefined);
 
 const STORAGE_KEY = "memorall-copilot-completed";
 
-const defaultSteps: CopilotStep[] = [
-	{
-		id: "welcome",
-		title: "Welcome to Memorall! 🧠",
-		content:
-			"Memorall is your AI-powered knowledge companion that helps you remember, organize, and interact with information. It captures web content, processes it intelligently, and lets you chat with your accumulated knowledge using advanced AI models.",
-		target: "body",
-		placement: "bottom",
-		showProgress: true,
-	},
-	{
-		id: "product-overview",
-		title: "What Memorall Does",
-		content:
-			"🔍 Capture: Save web pages, selections, and notes\n📊 Process: AI extracts key information and creates knowledge graphs\n💬 Chat: Ask questions about your saved content\n🎯 Remember: Never lose important information again",
-		target: "body",
-		placement: "bottom",
-		showProgress: true,
-	},
-	{
-		id: "chat-tab-quick",
-		title: "💬 Chat Tab",
-		content:
-			"Your main interface for conversing with your AI assistant about saved content.",
-		target: '[href="/"]',
-		placement: "bottom",
-		action: "navigate",
-		navigationPath: "/",
-		showProgress: true,
-	},
-	{
-		id: "topics-tab-quick",
-		title: "🏷️ Topics Tab",
-		content:
-			"Categorize your remembered pages and knowledge graph by topics. This helps organize your knowledge around focused areas instead of random information, making it easier to find and connect related content.",
-		target: '[href="/topics"]',
-		placement: "bottom",
-		action: "navigate",
-		navigationPath: "/topics",
-		showProgress: true,
-	},
-	{
-		id: "remembered-tab-quick",
-		title: "📚 Remembered Tab",
-		content:
-			"Your knowledge library where all saved content is stored and organized.",
-		target: '[href="/remembered"]',
-		placement: "bottom",
-		action: "navigate",
-		navigationPath: "/remembered",
-		showProgress: true,
-	},
-	{
-		id: "knowledge-graph-tab-quick",
-		title: "🕸️ Knowledge Graph Tab",
-		content:
-			"Interactive visualization showing connections between your saved content.",
-		target: '[href="/knowledge-graph"]',
-		placement: "bottom",
-		action: "navigate",
-		navigationPath: "/knowledge-graph",
-		showProgress: true,
-	},
-	{
-		id: "documents-tab-quick",
-		title: "📄 Documents Tab",
-		content:
-			"Your personal document library where you can upload, organize, and manage PDFs, Excel files, images, and other documents. Access them anytime and use AI to analyze their content.",
-		target: '[href="/documents"]',
-		placement: "bottom",
-		action: "navigate",
-		navigationPath: "/documents",
-		showProgress: true,
-	},
-	{
-		id: "models-tab-intro",
-		title: "🤖 Models Tab - Setup Required!",
-		content:
-			"Now let's focus on the most important step: setting up your AI models. This is essential to start using Memorall's features.",
-		target: '[href="/llm"]',
-		placement: "bottom",
-		action: "navigate",
-		navigationPath: "/llm",
-		showProgress: true,
-	},
-	{
-		id: "current-model-section",
-		title: "📊 Current Model Status",
-		content:
-			"This section shows which AI model is currently active. It displays:\n• Model name and provider\n• Status: Active (ready to use) / Configured (set up but not loaded) / Inactive (needs setup)\n• This is your quick reference for what's running",
-		target: '[data-copilot="current-model"]',
-		placement: "bottom",
-		showProgress: true,
-	},
-	{
-		id: "quick-setup-section",
-		title: "⚡ My Models - Quick Setup",
-		content:
-			"This section provides easy setup for different AI providers. Choose from:\n\n🌐 **WebLLM**: Browser-based models\n🔑 **OpenAI**: GPT models (API key needed)\n🏠 **LM Studio**: Local model server\n🦙 **Ollama**: Local open-source models\n🧠 **Wllama**: WASM-based local models",
-		target: '[data-copilot="quick-setup"]',
-		placement: "top",
-		showProgress: true,
-	},
-	{
-		id: "provider-advantages",
-		title: "🎯 Choose What's Best for You",
-		content:
-			"**WebLLM**: ✅ Free, private, works offline, no setup\n**OpenAI**: ✅ Most powerful models, fast responses\n**LM Studio**: ✅ Full control, privacy, highly customizable\n**Ollama**: ✅ Open source, privacy-focused, completely free\n**Wllama**: ✅ Fast local inference, WebAssembly-based\n\n💡 **Recommendation**: Start with WebLLM for immediate use, then explore others for specific needs!",
-		target: '[data-copilot="quick-setup"]',
-		placement: "top",
-		showProgress: true,
-	},
-	{
-		id: "get-started",
-		title: "🚀 You're Ready to Start!",
-		content:
-			"Perfect! Now you understand Memorall's interface and setup options.\n\n**Next steps:**\n1. Choose and configure an AI model below\n2. Start saving content (right-click → 'Remember this page')\n3. Chat with your knowledge in the Chat tab\n\nLet's get your first model set up!",
-		target: '[data-copilot="quick-setup"]',
-		placement: "top",
-		showProgress: true,
-	},
-];
+// Default steps will be created inside component to access translations
 
 export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 	children,
 }) => {
+	const { t } = useTranslation("common");
+	
+	// Create default steps with translations
+	const defaultSteps: CopilotStep[] = [
+		{
+			id: "welcome",
+			title: t("copilot.steps.welcome.title"),
+			content: t("copilot.steps.welcome.content"),
+			target: "body",
+			placement: "bottom",
+			showProgress: true,
+		},
+		{
+			id: "product-overview",
+			title: t("copilot.steps.productOverview.title"),
+			content: t("copilot.steps.productOverview.content"),
+			target: "body",
+			placement: "bottom",
+			showProgress: true,
+		},
+		{
+			id: "chat-tab-quick",
+			title: t("copilot.steps.chatTab.title"),
+			content: t("copilot.steps.chatTab.content"),
+			target: '[href="/"]',
+			placement: "bottom",
+			action: "navigate",
+			navigationPath: "/",
+			showProgress: true,
+		},
+		{
+			id: "topics-tab-quick",
+			title: t("copilot.steps.topicsTab.title"),
+			content: t("copilot.steps.topicsTab.content"),
+			target: '[href="/topics"]',
+			placement: "bottom",
+			action: "navigate",
+			navigationPath: "/topics",
+			showProgress: true,
+		},
+		{
+			id: "remembered-tab-quick",
+			title: t("copilot.steps.rememberedTab.title"),
+			content: t("copilot.steps.rememberedTab.content"),
+			target: '[href="/remembered"]',
+			placement: "bottom",
+			action: "navigate",
+			navigationPath: "/remembered",
+			showProgress: true,
+		},
+		{
+			id: "knowledge-graph-tab-quick",
+			title: t("copilot.steps.knowledgeGraphTab.title"),
+			content: t("copilot.steps.knowledgeGraphTab.content"),
+			target: '[href="/knowledge-graph"]',
+			placement: "bottom",
+			action: "navigate",
+			navigationPath: "/knowledge-graph",
+			showProgress: true,
+		},
+		{
+			id: "documents-tab-quick",
+			title: t("copilot.steps.documentsTab.title"),
+			content: t("copilot.steps.documentsTab.content"),
+			target: '[href="/documents"]',
+			placement: "bottom",
+			action: "navigate",
+			navigationPath: "/documents",
+			showProgress: true,
+		},
+		{
+			id: "models-tab-intro",
+			title: t("copilot.steps.modelsTabIntro.title"),
+			content: t("copilot.steps.modelsTabIntro.content"),
+			target: '[href="/llm"]',
+			placement: "bottom",
+			action: "navigate",
+			navigationPath: "/llm",
+			showProgress: true,
+		},
+		{
+			id: "current-model-section",
+			title: t("copilot.steps.currentModelSection.title"),
+			content: t("copilot.steps.currentModelSection.content"),
+			target: '[data-copilot="current-model"]',
+			placement: "bottom",
+			showProgress: true,
+		},
+		{
+			id: "quick-setup-section",
+			title: t("copilot.steps.quickSetupSection.title"),
+			content: t("copilot.steps.quickSetupSection.content"),
+			target: '[data-copilot="quick-setup"]',
+			placement: "top",
+			showProgress: true,
+		},
+		{
+			id: "provider-advantages",
+			title: t("copilot.steps.providerAdvantages.title"),
+			content: t("copilot.steps.providerAdvantages.content"),
+			target: '[data-copilot="quick-setup"]',
+			placement: "top",
+			showProgress: true,
+		},
+		{
+			id: "get-started",
+			title: t("copilot.steps.getStarted.title"),
+			content: t("copilot.steps.getStarted.content"),
+			target: '[data-copilot="quick-setup"]',
+			placement: "top",
+			showProgress: true,
+		},
+	];
+
 	const [state, setState] = useState<CopilotState>(() => {
 		const hasCompleted = localStorage.getItem(STORAGE_KEY) === "true";
 		return {
@@ -308,9 +302,10 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 };
 
 export const useCopilot = (): CopilotContextType => {
+	const { t } = useTranslation("common");
 	const context = useContext(CopilotContext);
 	if (!context) {
-		throw new Error("useCopilot must be used within a CopilotProvider");
+		throw new Error(t("copilot.error"));
 	}
 	return context;
 };

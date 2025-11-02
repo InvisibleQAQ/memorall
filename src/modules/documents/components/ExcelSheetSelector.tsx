@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -39,6 +40,7 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 	onOpenChange,
 	onConvert,
 }) => {
+	const { t } = useTranslation("documents");
 	const [loading, setLoading] = useState(false);
 	const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
 	const [sheetNames, setSheetNames] = useState<string[]>([]);
@@ -179,7 +181,7 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 
 			return `${rowCount} rows × ${colCount} columns | ${previewCells.slice(0, 4).join(", ")}${previewCells.length > 4 ? "..." : ""}`;
 		} catch {
-			return "Preview unavailable";
+			return t("excelSelector.previewUnavailable");
 		}
 	};
 
@@ -187,10 +189,9 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
 				<DialogHeader className="flex-shrink-0">
-					<DialogTitle>Convert Excel Sheets to Remembered Content</DialogTitle>
+					<DialogTitle>{t("excelSelector.title")}</DialogTitle>
 					<DialogDescription>
-						Select the sheets you want to convert to markdown tables and save to
-						your remembered content library
+						{t("excelSelector.description")}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -198,7 +199,7 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 					<div className="flex items-center justify-center py-12">
 						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
 						<span className="ml-3 text-muted-foreground">
-							Loading sheets...
+							{t("excelSelector.loadingSheets")}
 						</span>
 					</div>
 				) : (
@@ -213,7 +214,7 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 										onClick={selectAll}
 										disabled={sheetNames.length === 0}
 									>
-										Select All
+										{t("excelSelector.selectAll")}
 									</Button>
 									<Button
 										variant="outline"
@@ -221,11 +222,11 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 										onClick={deselectAll}
 										disabled={selectedSheets.size === 0}
 									>
-										Deselect All
+										{t("excelSelector.deselectAll")}
 									</Button>
 								</div>
 								<Badge variant="secondary">
-									{selectedSheets.size} of {sheetNames.length} sheets selected
+									{t("excelSelector.sheetsSelected", { count: selectedSheets.size, total: sheetNames.length })}
 								</Badge>
 							</div>
 						</div>
@@ -279,7 +280,7 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 						onClick={() => onOpenChange(false)}
 						disabled={converting}
 					>
-						Cancel
+						{t("excelSelector.cancel")}
 					</Button>
 					<Button
 						onClick={handleConvert}
@@ -288,10 +289,10 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 						{converting ? (
 							<>
 								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-								Converting...
+								{t("excelSelector.converting")}
 							</>
 						) : (
-							`Convert ${selectedSheets.size} ${selectedSheets.size === 1 ? "Sheet" : "Sheets"}`
+							t("excelSelector.convert", { count: selectedSheets.size })
 						)}
 					</Button>
 				</DialogFooter>

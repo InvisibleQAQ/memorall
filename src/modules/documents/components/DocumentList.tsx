@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	File,
 	FileText,
@@ -89,6 +90,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 	sourceStatusMap,
 	viewMode = "list",
 }) => {
+	const { t } = useTranslation("documents");
 	const [editingItem, setEditingItem] = useState<string | null>(null);
 	const [editingName, setEditingName] = useState<string>("");
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -215,7 +217,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 									</div>
 								)}
 								<div className="text-xs text-muted-foreground">
-									{folder.childCount} items
+									{t("list.items", { count: folder.childCount })}
 								</div>
 							</div>
 							<div className="text-xs text-muted-foreground">
@@ -240,7 +242,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 												}}
 											>
 												<Edit className="h-4 w-4 mr-2" />
-												Rename
+												{t("list.rename")}
 											</DropdownMenuItem>
 											<DropdownMenuSeparator />
 										</>
@@ -249,7 +251,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 										onClick={() => onDeleteItem?.(item)}
 										className="text-destructive"
 									>
-										Delete Folder
+										{t("list.deleteFolder")}
 									</DropdownMenuItem>
 								</DropdownMenuContent>
 							</DropdownMenu>
@@ -331,7 +333,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 												}}
 											>
 												<Tags className="h-4 w-4 mr-2" />
-												Manage Topics
+												{t("list.manageTopics")}
 											</DropdownMenuItem>
 											<DropdownMenuSeparator />
 										</>
@@ -351,8 +353,8 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 												<Brain className="h-4 w-4 mr-2" />
 												{sourceStatusMap?.get(file.path)?.isGenerating ||
 												isProcessing
-													? "Converting..."
-													: "Convert to knowledge"}
+													? t("list.converting")
+													: t("list.convertToKnowledge")}
 											</DropdownMenuItem>
 											<DropdownMenuSeparator />
 										</>
@@ -366,14 +368,14 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 												}}
 											>
 												<Edit className="h-4 w-4 mr-2" />
-												Rename
+												{t("list.rename")}
 											</DropdownMenuItem>
 											<DropdownMenuSeparator />
 										</>
 									)}
 									<DropdownMenuItem onClick={() => onDownloadFile?.(file.id)}>
 										<Download className="h-4 w-4 mr-2" />
-										Download
+										{t("list.download")}
 									</DropdownMenuItem>
 									<DropdownMenuSeparator />
 									<DropdownMenuItem
@@ -381,7 +383,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 										className="text-destructive"
 									>
 										<Trash2 className="h-4 w-4 mr-2" />
-										Delete
+										{t("list.delete")}
 									</DropdownMenuItem>
 								</DropdownMenuContent>
 							</DropdownMenu>
@@ -431,7 +433,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 													}}
 												>
 													<Edit className="h-4 w-4 mr-2" />
-													Rename
+													{t("list.rename")}
 												</DropdownMenuItem>
 												<DropdownMenuSeparator />
 											</>
@@ -441,7 +443,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 											className="text-destructive"
 										>
 											<Trash2 className="h-4 w-4 mr-2" />
-											Delete Folder
+											{t("list.deleteFolder")}
 										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
@@ -464,7 +466,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 								</div>
 							)}
 							<div className="text-xs text-muted-foreground">
-								{folder.childCount} items
+								{t("list.items", { count: folder.childCount })}
 							</div>
 						</div>
 					);
@@ -507,7 +509,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 													}}
 												>
 													<Tags className="h-4 w-4 mr-2" />
-													Manage Topics
+													{t("list.manageTopics")}
 												</DropdownMenuItem>
 												<DropdownMenuSeparator />
 											</>
@@ -527,8 +529,8 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 													<Brain className="h-4 w-4 mr-2" />
 													{sourceStatusMap?.get(file.path)?.isGenerating ||
 													isProcessing
-														? "Converting..."
-														: "Convert to knowledge"}
+														? t("list.converting")
+														: t("list.convertToKnowledge")}
 												</DropdownMenuItem>
 												<DropdownMenuSeparator />
 											</>
@@ -542,14 +544,14 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 													}}
 												>
 													<Edit className="h-4 w-4 mr-2" />
-													Rename
+													{t("list.rename")}
 												</DropdownMenuItem>
 												<DropdownMenuSeparator />
 											</>
 										)}
 										<DropdownMenuItem onClick={() => onDownloadFile?.(file.id)}>
 											<Download className="h-4 w-4 mr-2" />
-											Download
+											{t("list.download")}
 										</DropdownMenuItem>
 										<DropdownMenuSeparator />
 										<DropdownMenuItem
@@ -557,7 +559,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 											className="text-destructive"
 										>
 											<Trash2 className="h-4 w-4 mr-2" />
-											Delete
+											{t("list.delete")}
 										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>
@@ -611,8 +613,8 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 			<div className="flex items-center justify-center h-full text-muted-foreground">
 				<div className="text-center">
 					<Folder className="h-12 w-12 mx-auto mb-4 opacity-50" />
-					<p className="text-sm">This folder is empty</p>
-					<p className="text-xs mt-1">Upload files to get started</p>
+					<p className="text-sm">{t("list.emptyFolder")}</p>
+					<p className="text-xs mt-1">{t("list.emptyFolderDescription")}</p>
 				</div>
 			</div>
 		);

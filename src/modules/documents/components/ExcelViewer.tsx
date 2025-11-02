@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	LocaleType,
 	mergeLocales,
@@ -62,6 +63,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 	fileName,
 	className = "",
 }) => {
+	const { t } = useTranslation("documents");
 	const containerRef = useRef<HTMLDivElement>(null);
 	const univerRef = useRef<Univer | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -303,7 +305,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 			{loading && (
 				<div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
 					<div className="text-sm text-muted-foreground">
-						Loading Excel file...
+						{t("excelViewer.loading")}
 					</div>
 				</div>
 			)}
@@ -312,9 +314,9 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 				<div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-4">
 					<div className="text-sm text-destructive mb-4">{error}</div>
 					<div className="text-xs text-muted-foreground text-center">
-						Excel file could not be rendered with Univer.
+						{t("excelViewer.error")}
 						<br />
-						Try downloading the file to view it in Excel.
+						{t("excelViewer.errorDescription")}
 					</div>
 				</div>
 			)}

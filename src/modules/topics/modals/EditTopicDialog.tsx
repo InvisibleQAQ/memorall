@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { Edit2, Loader2 } from "lucide-react";
 import {
@@ -29,6 +30,7 @@ interface EditTopicDialogProps {
 export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 	({ topic }) => {
 		const modal = useModal();
+		const { t } = useTranslation("topics");
 		const [topicName, setTopicName] = useState("");
 		const [topicDescription, setTopicDescription] = useState("");
 		const [updating, setUpdating] = useState(false);
@@ -84,19 +86,19 @@ export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<Edit2 className="h-5 w-5 text-primary" />
-							Edit Topic
+							{t("edit.title")}
 						</DialogTitle>
 						<DialogDescription>
-							Update the name and description of this topic.
+							{t("edit.description")}
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-4" onKeyDown={handleKeyDown}>
 						<div className="space-y-2">
-							<Label htmlFor="edit-topic-name">Topic Name *</Label>
+							<Label htmlFor="edit-topic-name">{t("edit.topicName")} *</Label>
 							<Input
 								id="edit-topic-name"
-								placeholder="e.g., Machine Learning, React Development..."
+								placeholder={t("edit.namePlaceholder")}
 								value={topicName}
 								onChange={(e) => setTopicName(e.target.value)}
 								autoFocus
@@ -104,10 +106,10 @@ export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="edit-topic-description">Goal & Purpose *</Label>
+							<Label htmlFor="edit-topic-description">{t("edit.goalPurpose")} *</Label>
 							<Textarea
 								id="edit-topic-description"
-								placeholder="Describe what you want to achieve with this topic..."
+								placeholder={t("edit.descriptionPlaceholder")}
 								value={topicDescription}
 								onChange={(e) => setTopicDescription(e.target.value)}
 								rows={3}
@@ -115,11 +117,11 @@ export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 						</div>
 
 						<p className="text-xs text-muted-foreground">
-							💡 Tip: Press{" "}
+							{t("edit.tip")} {" "}
 							<kbd className="px-1 py-0.5 bg-muted rounded text-xs">
-								Ctrl+Enter
+								{t("edit.ctrlEnter")}
 							</kbd>{" "}
-							to save quickly
+							{t("edit.toSaveQuickly")}
 						</p>
 					</div>
 
@@ -129,7 +131,7 @@ export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 							onClick={() => modal.hide()}
 							disabled={updating}
 						>
-							Cancel
+							{t("edit.cancel")}
 						</Button>
 						<Button
 							onClick={handleUpdate}
@@ -140,12 +142,12 @@ export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 							{updating ? (
 								<>
 									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-									Saving...
+									{t("edit.saving")}
 								</>
 							) : (
 								<>
 									<Edit2 className="h-4 w-4 mr-2" />
-									Save Changes
+									{t("edit.saveChanges")}
 								</>
 							)}
 						</Button>

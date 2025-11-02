@@ -4,6 +4,7 @@
  */
 
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Topic } from "@/services/database/entities/topics";
@@ -87,6 +88,7 @@ export const TopicBadge: React.FC<TopicBadgeProps> = ({
 	isActive = false,
 	className,
 }) => {
+	const { t } = useTranslation("topics");
 	const color = getTopicColor(topic.id);
 
 	const handleClick = (e: React.MouseEvent) => {
@@ -138,7 +140,7 @@ export const TopicBadge: React.FC<TopicBadgeProps> = ({
 				<X
 					className={cn(iconSize[size], "flex-shrink-0")}
 					onClick={handleRemove}
-					aria-label={`Remove ${topic.name}`}
+					aria-label={t("badge.removeAriaLabel", { name: topic.name })}
 				/>
 			)}
 		</button>
@@ -176,6 +178,7 @@ export const TopicBadgeList: React.FC<TopicBadgeListProps> = ({
 	activeTopicIds = [],
 	className,
 }) => {
+	const { t } = useTranslation("topics");
 	const [showAll, setShowAll] = React.useState(false);
 
 	const visibleTopics = showAll ? topics : topics.slice(0, maxVisible);
@@ -211,7 +214,7 @@ export const TopicBadgeList: React.FC<TopicBadgeListProps> = ({
 						sizeClasses[size],
 					)}
 				>
-					+{hiddenCount} more
+					{t("badge.showMore", { count: hiddenCount })}
 				</button>
 			)}
 		</div>

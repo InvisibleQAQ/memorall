@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -175,6 +176,7 @@ const MarkdownMessageComponent: React.FC<MarkdownMessageProps> = ({
 	children,
 	isAnimating = false,
 }) => {
+	const { t } = useTranslation("chat");
 	const isDark = useTheme();
 
 	// Parse thinking tags from content
@@ -255,11 +257,11 @@ const MarkdownMessageComponent: React.FC<MarkdownMessageProps> = ({
 
 						return (
 							<Task key={index} defaultOpen={isIncomplete}>
-								<TaskTrigger title={isThinking ? "Thinking..." : "Thought"}>
+								<TaskTrigger title={isThinking ? t("messages.thinking") : t("messages.thought")}>
 									<div className="flex cursor-pointer items-center gap-2 text-muted-foreground hover:text-foreground">
 										<Brain className="size-4" />
 										<p className="text-sm">
-											{isThinking ? "Thinking..." : "Thought"}
+											{isThinking ? t("messages.thinking") : t("messages.thought")}
 										</p>
 										<ChevronDownIcon className="size-4 transition-transform group-data-[state=open]:rotate-180" />
 									</div>

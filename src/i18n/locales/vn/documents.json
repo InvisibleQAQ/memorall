@@ -1,30 +1,97 @@
 {
-	"title": "Thư viện tài liệu",
+	"title": "Tài liệu",
+	"library": {
+		"title": "Thư viện tài liệu",
+		"searchPlaceholder": "Tìm kiếm tệp...",
+		"add": "Thêm",
+		"topics": "Chủ đề",
+		"listView": "Xem danh sách",
+		"gridView": "Xem lưới",
+		"emptyState": "Chọn một thư mục hoặc tệp để xem",
+		"initializationError": "Không thể khởi tạo thư viện tài liệu",
+		"deleteConfirm": "Bạn có chắc chắn muốn xóa \"{{name}}\" không?",
+		"deleteConfirmFolder": "Bạn có chắc chắn muốn xóa \"{{name}}\" không? Tất cả nội dung sẽ bị xóa.",
+		"createFolderError": "Không thể tạo thư mục",
+		"deleteItemError": "Không thể xóa mục",
+		"renameItemError": "Không thể đổi tên mục",
+		"deleteFileError": "Không thể xóa tệp",
+		"downloadFileError": "Không thể tải xuống tệp"
+	},
 	"upload": {
-		"button": "Tải lên",
-		"dragDrop": "Kéo thả tệp vào đây hoặc nhấp để chọn",
+		"uploadFiles": "Tải lên tệp",
+		"createFolder": "Tạo thư mục",
 		"success": "Tải tệp thành công",
 		"error": "Không thể tải tệp"
 	},
-	"file": {
-		"name": "Tên tệp",
+	"list": {
+		"items": "{{count}} mục",
+		"rename": "Đổi tên",
+		"deleteFolder": "Xóa thư mục",
+		"manageTopics": "Quản lý chủ đề",
+		"converting": "Đang chuyển đổi...",
+		"convertToKnowledge": "Chuyển đổi thành kiến thức",
+		"download": "Tải xuống",
+		"delete": "Xóa",
+		"emptyFolder": "Thư mục này trống",
+		"emptyFolderDescription": "Tải lên tệp để bắt đầu"
+	},
+	"viewer": {
+		"pages": "{{count}} trang",
+		"sheets": "{{count}} bảng tính",
+		"manage": "Quản lý",
+		"addTopics": "Thêm chủ đề",
+		"convertToKnowledge": "Chuyển đổi thành kiến thức",
+		"converting": "Đang chuyển đổi...",
+		"loadingPreview": "Đang tải xem trước...",
+		"documentInformation": "Thông tin tài liệu",
+		"title": "Tiêu đề",
+		"author": "Tác giả",
+		"sheetsLabel": "Bảng tính",
+		"sheetNames": "Tên bảng tính",
 		"type": "Loại",
 		"size": "Kích thước",
-		"date": "Ngày",
-		"actions": "Hành động",
-		"delete": "Xóa tệp",
-		"download": "Tải xuống",
-		"view": "Xem",
-		"convertToKnowledge": "Chuyển đổi sang Đồ thị tri thức"
+		"created": "Đã tạo",
+		"modified": "Đã sửa đổi",
+		"tags": "Thẻ",
+		"topics": "Chủ đề",
+		"description": "Mô tả"
 	},
-	"folder": {
-		"create": "Thư mục mới",
-		"name": "Tên thư mục",
-		"empty": "Thư mục này trống"
+	"tree": {
+		"dropToRoot": "Thả để di chuyển đến thư mục gốc",
+		"rootFolder": "Thư mục gốc"
 	},
-	"search": {
-		"placeholder": "Tìm kiếm tài liệu..."
+	"excelSelector": {
+		"title": "Chuyển đổi bảng tính Excel thành nội dung đã nhớ",
+		"description": "Chọn các bảng tính bạn muốn chuyển đổi thành bảng markdown và lưu vào thư viện nội dung đã nhớ",
+		"loadingSheets": "Đang tải bảng tính...",
+		"selectAll": "Chọn tất cả",
+		"deselectAll": "Bỏ chọn tất cả",
+		"sheetsSelected": "Đã chọn {{count}} trong {{total}} bảng tính",
+		"previewUnavailable": "Không có bản xem trước",
+		"cancel": "Hủy",
+		"converting": "Đang chuyển đổi...",
+		"convert": "Chuyển đổi {{count}} bảng tính",
+		"allSheets": "Tất cả bảng tính"
 	},
-	"empty": "Không tìm thấy tài liệu",
-	"processing": "Đang xử lý tài liệu..."
+	"excelViewer": {
+		"loading": "Đang tải tệp Excel...",
+		"error": "Không thể hiển thị tệp Excel với Univer.",
+		"errorDescription": "Hãy thử tải xuống tệp để xem trong Excel."
+	},
+	"pdfSelector": {
+		"title": "Chuyển đổi trang PDF thành nội dung đã nhớ",
+		"description": "Chọn các trang bạn muốn chuyển đổi và lưu vào thư viện nội dung đã nhớ",
+		"loadingPages": "Đang tải trang...",
+		"selectAll": "Chọn tất cả",
+		"deselectAll": "Bỏ chọn tất cả",
+		"pagesSelected": "Đã chọn {{count}} trong {{total}} trang",
+		"fromPage": "Từ trang",
+		"toPage": "Đến trang",
+		"addRange": "Thêm phạm vi",
+		"page": "Trang {{number}}",
+		"cancel": "Hủy",
+		"converting": "Đang chuyển đổi...",
+		"convert": "Chuyển đổi {{count}} trang",
+		"allPages": "Tất cả trang"
+	}
 }

@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import {
 	Edit2,
@@ -55,6 +56,7 @@ interface TopicWithFileCount extends Topic {
 
 export const ManageTopicsDialog = NiceModal.create(() => {
 	const modal = useModal();
+	const { t } = useTranslation("topics");
 	const [topics, setTopics] = useState<TopicWithFileCount[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -153,10 +155,10 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<Tags className="h-5 w-5 text-primary" />
-							Manage Topics
+							{t("manage.title")}
 						</DialogTitle>
 						<DialogDescription>
-							View, edit, and organize all your topics in one place.
+							{t("manage.description")}
 						</DialogDescription>
 					</DialogHeader>
 
@@ -164,7 +166,7 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 					<div className="relative">
 						<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 						<Input
-							placeholder="Search topics..."
+							placeholder={t("manage.searchPlaceholder")}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							className="pl-9 pr-9"
@@ -191,7 +193,7 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 								<div className="py-12 text-center text-muted-foreground">
 									<Tags className="h-12 w-12 mx-auto mb-3 opacity-50" />
 									<p className="text-sm">
-										{searchQuery ? "No topics found" : "No topics created yet"}
+										{searchQuery ? t("manage.noTopicsFound") : t("manage.noTopicsCreated")}
 									</p>
 								</div>
 							) : (
@@ -212,12 +214,10 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 												</p>
 												<div className="flex items-center gap-2 text-xs text-muted-foreground">
 													<Badge variant="secondary" className="text-xs">
-														{topic.fileCount} file
-														{topic.fileCount !== 1 ? "s" : ""}
+														{t("manage.fileCount", { count: topic.fileCount })}
 													</Badge>
 													<span>
-														Created{" "}
-														{new Date(topic.createdAt).toLocaleDateString()}
+														{t("manage.createdDate", { date: new Date(topic.createdAt).toLocaleDateString() })}
 													</span>
 												</div>
 											</div>
@@ -237,7 +237,7 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 														onClick={() => handleEditClick(topic)}
 													>
 														<Edit2 className="h-4 w-4 mr-2" />
-														Edit
+														{t("manage.edit")}
 													</DropdownMenuItem>
 													<DropdownMenuSeparator />
 													<DropdownMenuItem
@@ -245,7 +245,7 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 														className="text-destructive"
 													>
 														<Trash2 className="h-4 w-4 mr-2" />
-														Delete
+														{t("manage.delete")}
 													</DropdownMenuItem>
 												</DropdownMenuContent>
 											</DropdownMenu>
@@ -265,10 +265,10 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 							className="gap-2"
 						>
 							<Plus className="h-4 w-4" />
-							New Topic
+							{t("manage.newTopic")}
 						</Button>
 						<Button variant="outline" onClick={() => modal.hide()}>
-							Close
+							{t("manage.close")}
 						</Button>
 					</div>
 				</DialogContent>
@@ -278,17 +278,16 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Delete Topic?</AlertDialogTitle>
+						<AlertDialogTitle>{t("manage.deleteConfirmTitle")}</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete "{deletingTopic?.name}"?
+							{t("manage.deleteConfirmMessage", { name: deletingTopic?.name })}
 							<br />
 							<br />
-							This will remove the topic from all associated files. This action
-							cannot be undone.
+							{t("manage.deleteWarning")}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+						<AlertDialogCancel disabled={deleting}>{t("manage.cancel")}</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleDeleteConfirm}
 							disabled={deleting}
@@ -297,10 +296,10 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 							{deleting ? (
 								<>
 									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-									Deleting...
+									{t("manage.deleting")}
 								</>
 							) : (
-								"Delete"
+								t("manage.deleteButton")
 							)}
 						</AlertDialogAction>
 					</AlertDialogFooter>

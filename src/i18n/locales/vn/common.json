@@ -65,5 +65,132 @@
 		"search": "Tìm kiếm",
 		"noResults": "Không tìm thấy kết quả",
 		"total": "Tổng"
+	},
+	"appLoading": {
+		"title": "Đang khởi tạo Memorall...",
+		"subtitle": "Thiết lập trợ lý tri thức AI của bạn",
+		"taglines": [
+			"Tri thức của bạn phát triển cùng bạn",
+			"Khi bạn nhớ, nó nhớ cho bạn"
+		],
+		"steps": {
+			"database": {
+				"title": "Thiết lập cơ sở dữ liệu",
+				"description": "Thiết lập cơ sở dữ liệu đồ thị tri thức với các tiện ích mở rộng vector"
+			},
+			"embedding": {
+				"title": "Mô hình nhúng", 
+				"description": "Tải các mô hình nhúng cho tìm kiếm ngữ nghĩa"
+			},
+			"llm": {
+				"title": "Dịch vụ LLM",
+				"description": "Khởi tạo dịch vụ suy luận LLM cục bộ"
+			},
+			"interface": {
+				"title": "Giao diện sẵn sàng",
+				"description": "Chuẩn bị giao diện trò chuyện và quản lý mô hình"
+			}
+		},
+		"done": "✓ Hoàn thành",
+		"elapsed": "Đã trôi qua: {{time}}",
+		"firstLaunch": "Có thể mất một chút thời gian khi khởi chạy lần đầu...",
+		"error": {
+			"title": "Khởi tạo dịch vụ thất bại",
+			"tryAgain": "Thử lại",
+			"consoleHelp": "Nếu vấn đề vẫn tiếp tục, hãy kiểm tra console trình duyệt để biết thêm chi tiết."
+		}
+	},
+	"passkeyDialog": {
+		"title": "Yêu cầu xác thực {{provider}}",
+		"description": "Bạn đã cấu hình mô hình {{provider}}. Vui lòng nhập mã khóa 6 ký tự để giải mã và tải cấu hình.",
+		"passkeyLabel": "Mã khóa mã hóa",
+		"placeholder": "6 ký tự",
+		"lengthError": "Mã khóa phải có chính xác 6 ký tự",
+		"lengthHint": "Mã khóa phải có chính xác 6 ký tự ({{current}}/6)",
+		"decryptError": "Không thể giải mã",
+		"decrypting": "Đang giải mã...",
+		"unlock": "Mở khóa",
+		"cancel": "Hủy",
+		"cancelConfirm": "Bạn có chắc chắn muốn hủy?\n\nĐiều này sẽ xóa mô hình {{provider}} đã chọn. Bạn sẽ cần chọn một mô hình khác để tiếp tục.",
+		"helpText": "Mã khóa này đã được đặt khi bạn lần đầu cấu hình {{provider}}. Nếu bạn quên, bạn sẽ cần cấu hình lại nhà cung cấp."
+	},
+	"processMonitor": {
+		"title": "Hoạt động xử lý",
+		"viewProcesses": "Xem tiến trình",
+		"activeCount": "{{count}} đang hoạt động",
+		"activeProcesses": "Tiến trình đang hoạt động",
+		"recentHistory": "Lịch sử gần đây",
+		"noActivity": "Chưa có hoạt động xử lý nào",
+		"noActivityHelp": "Chuyển đổi tài liệu thành đồ thị tri thức để xem hoạt động tại đây",
+		"loadingMore": "Đang tải thêm...",
+		"noMoreHistory": "Không còn lịch sử để tải",
+		"started": "Bắt đầu: {{time}}",
+		"finished": "Hoàn thành: {{time}}",
+		"timeAgo": {
+			"justNow": "vừa xong",
+			"secondsAgo": "{{count}} giây trước",
+			"minutesAgo": "{{count}} phút trước", 
+			"hoursAgo": "{{count}} giờ trước",
+			"daysAgo": "{{count}} ngày trước"
+		},
+		"status": {
+			"pending": "Đang chờ",
+			"processing": "Đang xử lý",
+			"completed": "Hoàn thành",
+			"failed": "Thất bại"
+		}
+	},
+	"copilot": {
+		"error": "useCopilot phải được sử dụng trong CopilotProvider",
+		"steps": {
+			"welcome": {
+				"title": "Chào mừng đến với Memorall! 🧠",
+				"content": "Memorall là người bạn đồng hành tri thức được hỗ trợ bởi AI giúp bạn ghi nhớ, tổ chức và tương tác với thông tin. Nó thu thập nội dung web, xử lý thông minh và cho phép bạn trò chuyện với kiến thức tích lũy bằng các mô hình AI tiên tiến."
+			},
+			"productOverview": {
+				"title": "Memorall làm gì",
+				"content": "🔍 Thu thập: Lưu trang web, lựa chọn và ghi chú\n📊 Xử lý: AI trích xuất thông tin chính và tạo đồ thị tri thức\n💬 Trò chuyện: Đặt câu hỏi về nội dung đã lưu\n🎯 Ghi nhớ: Không bao giờ mất thông tin quan trọng"
+			},
+			"chatTab": {
+				"title": "💬 Tab Trò chuyện",
+				"content": "Giao diện chính để trò chuyện với trợ lý AI về nội dung đã lưu."
+			},
+			"topicsTab": {
+				"title": "🏷️ Tab Chủ đề",
+				"content": "Phân loại các trang đã nhớ và đồ thị tri thức theo chủ đề. Điều này giúp tổ chức kiến thức xung quanh các lĩnh vực tập trung thay vì thông tin ngẫu nhiên, giúp dễ dàng tìm kiếm và kết nối nội dung liên quan."
+			},
+			"rememberedTab": {
+				"title": "📚 Tab Đã nhớ",
+				"content": "Thư viện tri thức nơi tất cả nội dung đã lưu được lưu trữ và tổ chức."
+			},
+			"knowledgeGraphTab": {
+				"title": "🕸️ Tab Đồ thị tri thức",
+				"content": "Trực quan hóa tương tác hiển thị kết nối giữa nội dung đã lưu của bạn."
+			},
+			"documentsTab": {
+				"title": "📄 Tab Tài liệu",
+				"content": "Thư viện tài liệu cá nhân nơi bạn có thể tải lên, tổ chức và quản lý PDF, tệp Excel, hình ảnh và các tài liệu khác. Truy cập chúng bất cứ lúc nào và sử dụng AI để phân tích nội dung."
+			},
+			"modelsTabIntro": {
+				"title": "🤖 Tab Mô hình - Cần thiết lập!",
+				"content": "Bây giờ hãy tập trung vào bước quan trọng nhất: thiết lập các mô hình AI. Điều này rất cần thiết để bắt đầu sử dụng các tính năng của Memorall."
+			},
+			"currentModelSection": {
+				"title": "📊 Trạng thái mô hình hiện tại",
+				"content": "Phần này hiển thị mô hình AI nào đang hoạt động. Nó hiển thị:\n• Tên mô hình và nhà cung cấp\n• Trạng thái: Hoạt động (sẵn sàng sử dụng) / Đã cấu hình (đã thiết lập nhưng chưa tải) / Không hoạt động (cần thiết lập)\n• Đây là tham chiếu nhanh cho những gì đang chạy"
+			},
+			"quickSetupSection": {
+				"title": "⚡ Mô hình của tôi - Thiết lập nhanh",
+				"content": "Phần này cung cấp thiết lập dễ dàng cho các nhà cung cấp AI khác nhau. Chọn từ:\n\n🌐 **WebLLM**: Mô hình dựa trên trình duyệt\n🔑 **OpenAI**: Mô hình GPT (cần khóa API)\n🏠 **LM Studio**: Máy chủ mô hình cục bộ\n🦙 **Ollama**: Mô hình mã nguồn mở cục bộ\n🧠 **Wllama**: Mô hình cục bộ dựa trên WASM"
+			},
+			"providerAdvantages": {
+				"title": "🎯 Chọn điều tốt nhất cho bạn",
+				"content": "**WebLLM**: ✅ Miễn phí, riêng tư, hoạt động ngoại tuyến, không cần thiết lập\n**OpenAI**: ✅ Mô hình mạnh nhất, phản hồi nhanh\n**LM Studio**: ✅ Kiểm soát hoàn toàn, riêng tư, có thể tùy chỉnh cao\n**Ollama**: ✅ Mã nguồn mở, tập trung vào quyền riêng tư, hoàn toàn miễn phí\n**Wllama**: ✅ Suy luận cục bộ nhanh, dựa trên WebAssembly\n\n💡 **Khuyến nghị**: Bắt đầu với WebLLM để sử dụng ngay lập tức, sau đó khám phá những cái khác cho nhu cầu cụ thể!"
+			},
+			"getStarted": {
+				"title": "🚀 Bạn đã sẵn sàng bắt đầu!",
+				"content": "Hoàn hảo! Bây giờ bạn đã hiểu giao diện và tùy chọn thiết lập của Memorall.\n\n**Các bước tiếp theo:**\n1. Chọn và cấu hình mô hình AI bên dưới\n2. Bắt đầu lưu nội dung (nhấp chuột phải → 'Nhớ trang này')\n3. Trò chuyện với kiến thức của bạn trong tab Trò chuyện\n\nHãy thiết lập mô hình đầu tiên của bạn!"
+			}
+		}
 	}
 }

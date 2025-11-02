@@ -1,4 +1,5 @@
 import React, { useRef, lazy, Suspense } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { Message, MessageContent } from "@/components/ui/shadcn-io/ai/message";
 import {
@@ -58,6 +59,27 @@ interface ActionItem {
 	metadata?: Record<string, unknown>;
 }
 
+// Helper function to translate action names
+const useTranslateActionName = () => {
+	const { t } = useTranslation("chat");
+	
+	return (actionName: string): string => {
+		// Try to get translation from actions namespace
+		const translationKey = `actions.${actionName}`;
+		const translated = t(translationKey);
+		
+		// If translation exists and is different from the key, use it
+		if (translated !== translationKey) {
+			return translated;
+		}
+		
+		// Fallback: replace underscores with spaces and capitalize first letter
+		return actionName
+			.replace(/_/g, ' ')
+			.replace(/^\w/, (c) => c.toUpperCase());
+	};
+};
+
 // TaskItemRenderer component to properly manage state per task
 interface TaskItemRendererProps {
 	item: ActionItem;
@@ -66,6 +88,7 @@ interface TaskItemRendererProps {
 
 const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 	({ item, index }) => {
+		const translateActionName = useTranslateActionName();
 		const [isOpen, setIsOpen] = React.useState(false);
 
 		const trimmedDesc = item.description ? item.description.trim() : "";
@@ -78,7 +101,7 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 				defaultOpen={false}
 				onOpenChange={setIsOpen}
 			>
-				<TaskTrigger title={item.name} />
+				<TaskTrigger title={translateActionName(item.name)} />
 				<TaskContent>
 					<TaskItem>
 						{isOpen ? (

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	Dialog,
 	DialogContent,
@@ -23,6 +24,7 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 	onPasskeySubmit,
 	onCancel,
 }) => {
+	const { t } = useTranslation("common");
 	const [passkey, setPasskey] = useState("");
 	const [showPasskey, setShowPasskey] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +34,7 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 
 	const handleSubmit = async () => {
 		if (passkey.length !== 6) {
-			setError("Passkey must be exactly 6 characters");
+			setError(t("passkeyDialog.lengthError"));
 			return;
 		}
 
@@ -43,7 +45,7 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 			await onPasskeySubmit(passkey);
 			// Success - dialog will be closed by parent
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : "Failed to decrypt";
+			const msg = err instanceof Error ? err.message : t("passkeyDialog.decryptError");
 			setError(msg);
 		} finally {
 			setIsLoading(false);
@@ -58,7 +60,7 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 
 	const handleCancelClick = () => {
 		const confirmed = window.confirm(
-			`Are you sure you want to cancel?\n\nThis will clear the selected ${providerLabel} model. You'll need to select a different model to continue.`,
+			t("passkeyDialog.cancelConfirm", { provider: providerLabel }),
 		);
 
 		if (confirmed) {
@@ -75,23 +77,22 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<Key className="w-5 h-5 text-primary" />
-						{providerLabel} Authentication Required
+						{t("passkeyDialog.title", { provider: providerLabel })}
 					</DialogTitle>
 					<DialogDescription>
-						You have a {providerLabel} model configured. Please enter your
-						6-character passkey to decrypt and load the configuration.
+						{t("passkeyDialog.description", { provider: providerLabel })}
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">
 					<div>
 						<label className="text-sm text-muted-foreground mb-2 block">
-							Encryption Passkey <span className="text-destructive">*</span>
+							{t("passkeyDialog.passkeyLabel")} <span className="text-destructive">*</span>
 						</label>
 						<div className="relative">
 							<Input
 								type={showPasskey ? "text" : "password"}
-								placeholder="6 characters"
+								placeholder={t("passkeyDialog.placeholder")}
 								value={passkey}
 								onChange={(e) => setPasskey(e.target.value.slice(0, 6))}
 								onKeyDown={handleKeyDown}
@@ -117,7 +118,7 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 							<div className="flex items-center gap-2 p-2 mt-2 border rounded bg-muted/50 border-border">
 								<AlertCircle className="w-4 h-4 text-muted-foreground" />
 								<span className="text-xs text-muted-foreground">
-									Passkey must be exactly 6 characters ({passkey.length}/6)
+									{t("passkeyDialog.lengthHint", { current: passkey.length })}
 								</span>
 							</div>
 						)}
@@ -139,12 +140,12 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 							{isLoading ? (
 								<>
 									<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-									Decrypting...
+									{t("passkeyDialog.decrypting")}
 								</>
 							) : (
 								<>
 									<Key className="w-4 h-4 mr-2" />
-									Unlock
+									{t("passkeyDialog.unlock")}
 								</>
 							)}
 						</Button>
@@ -154,13 +155,12 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 							variant="outline"
 							className="flex-1"
 						>
-							Cancel
+							{t("passkeyDialog.cancel")}
 						</Button>
 					</div>
 
 					<div className="text-xs text-muted-foreground text-center pt-2 border-t">
-						This passkey was set when you first configured {providerLabel}. If
-						you've forgotten it, you'll need to reconfigure the provider.
+						{t("passkeyDialog.helpText", { provider: providerLabel })}
 					</div>
 				</div>
 			</DialogContent>

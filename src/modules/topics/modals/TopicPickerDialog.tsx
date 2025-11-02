@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { Tags, Loader2 } from "lucide-react";
 import {
@@ -27,6 +28,7 @@ interface TopicPickerDialogProps {
 export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 	({ fileName }) => {
 		const modal = useModal();
+		const { t } = useTranslation("topics");
 
 		const [loading, setLoading] = useState(false);
 		const [topics, setTopics] = useState<Topic[]>([]);
@@ -73,9 +75,9 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<Tags className="h-5 w-5 text-primary" />
-							Select Topic
+							{t("picker.title")}
 						</DialogTitle>
-						<DialogDescription>Choose topic for "{fileName}"</DialogDescription>
+						<DialogDescription>{t("picker.description", { fileName })}</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4">
@@ -109,9 +111,9 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 											)}
 										</div>
 										<div>
-											<div className="font-medium">Default</div>
+											<div className="font-medium">{t("picker.default")}</div>
 											<div className="text-sm text-muted-foreground">
-												No topic association
+												{t("picker.noTopicAssociation")}
 											</div>
 										</div>
 									</button>
@@ -119,7 +121,7 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 									{/* Topic options */}
 									{topics.length === 0 ? (
 										<div className="py-8 text-center text-sm text-muted-foreground">
-											No topics available
+											{t("picker.noTopicsAvailable")}
 										</div>
 									) : (
 										topics.map((topic) => (
@@ -163,9 +165,9 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 
 					<DialogFooter>
 						<Button variant="outline" onClick={handleCancel}>
-							Cancel
+							{t("picker.cancel")}
 						</Button>
-						<Button onClick={handleSelect}>Select</Button>
+						<Button onClick={handleSelect}>{t("picker.select")}</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

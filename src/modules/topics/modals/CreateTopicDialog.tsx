@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { Loader2, Plus, Tags } from "lucide-react";
 import {
@@ -24,6 +25,7 @@ import { logError, logInfo } from "@/utils/logger";
 
 export const CreateTopicDialog = NiceModal.create(() => {
 	const modal = useModal();
+	const { t } = useTranslation("topics");
 	const [topicName, setTopicName] = useState("");
 	const [topicDescription, setTopicDescription] = useState("");
 	const [creating, setCreating] = useState(false);
@@ -80,20 +82,19 @@ export const CreateTopicDialog = NiceModal.create(() => {
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<Tags className="h-5 w-5 text-primary" />
-						Create New Topic
+						{t("create.title")}
 					</DialogTitle>
 					<DialogDescription>
-						Organize your documents by creating focused topics for different
-						areas of knowledge.
+						{t("create.description")}
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4 py-4" onKeyDown={handleKeyDown}>
 					<div className="space-y-2">
-						<Label htmlFor="topic-name">Topic Name *</Label>
+						<Label htmlFor="topic-name">{t("create.topicName")} *</Label>
 						<Input
 							id="topic-name"
-							placeholder="e.g., Machine Learning, React Development..."
+							placeholder={t("create.namePlaceholder")}
 							value={topicName}
 							onChange={(e) => setTopicName(e.target.value)}
 							autoFocus
@@ -101,26 +102,25 @@ export const CreateTopicDialog = NiceModal.create(() => {
 					</div>
 
 					<div className="space-y-2">
-						<Label htmlFor="topic-description">Goal & Purpose *</Label>
+						<Label htmlFor="topic-description">{t("create.goalPurpose")} *</Label>
 						<Textarea
 							id="topic-description"
-							placeholder="Describe what you want to achieve with this topic. What specific knowledge or skills are you building? This helps organize relevant information effectively."
+							placeholder={t("create.descriptionPlaceholder")}
 							value={topicDescription}
 							onChange={(e) => setTopicDescription(e.target.value)}
 							rows={3}
 						/>
 						<p className="text-xs text-muted-foreground">
-							Example: "Learn modern React patterns and best practices for
-							building scalable web applications"
+							{t("create.example")}
 						</p>
 					</div>
 
 					<p className="text-xs text-muted-foreground">
-						💡 Tip: Press{" "}
+						{t("create.tip")} {" "}
 						<kbd className="px-1 py-0.5 bg-muted rounded text-xs">
-							Ctrl+Enter
+							{t("create.ctrlEnter")}
 						</kbd>{" "}
-						to create quickly
+						{t("create.toCreateQuickly")}
 					</p>
 				</div>
 
@@ -130,7 +130,7 @@ export const CreateTopicDialog = NiceModal.create(() => {
 						onClick={() => modal.hide()}
 						disabled={creating}
 					>
-						Cancel
+						{t("create.cancel")}
 					</Button>
 					<Button
 						onClick={handleCreate}
@@ -139,12 +139,12 @@ export const CreateTopicDialog = NiceModal.create(() => {
 						{creating ? (
 							<>
 								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-								Creating...
+								{t("create.creating")}
 							</>
 						) : (
 							<>
 								<Plus className="h-4 w-4 mr-2" />
-								Create Topic
+								{t("create.createTopic")}
 							</>
 						)}
 					</Button>

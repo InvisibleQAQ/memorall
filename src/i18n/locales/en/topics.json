@@ -31,51 +31,67 @@
 	},
 	"manage": {
 		"title": "Manage Topics",
-		"description": "View, edit, and organize all your topics.",
+		"description": "View, edit, and organize all your topics in one place.",
 		"searchPlaceholder": "Search topics...",
-		"createNew": "Create New Topic",
-		"noTopics": "No topics found",
-		"noTopicsDescription": "Create your first topic to start organizing your knowledge.",
-		"files": "{{count}} files",
+		"noTopicsFound": "No topics found",
+		"noTopicsCreated": "No topics created yet",
+		"fileCount": "{{count}} file{{count, plural, one {} other {s}}}",
+		"createdDate": "Created {{date}}",
 		"edit": "Edit",
 		"delete": "Delete",
-		"deleteConfirm": {
-			"title": "Delete Topic",
-			"description": "Are you sure you want to delete \"{{topicName}}\"? This action cannot be undone. Files associated with this topic will not be deleted.",
-			"cancel": "Cancel",
-			"delete": "Delete Topic"
-		}
+		"newTopic": "New Topic",
+		"close": "Close",
+		"deleteConfirmTitle": "Delete Topic?",
+		"deleteConfirmMessage": "Are you sure you want to delete \"{{name}}\"?",
+		"deleteWarning": "This will remove the topic from all associated files. This action cannot be undone.",
+		"cancel": "Cancel",
+		"deleting": "Deleting...",
+		"deleteButton": "Delete"
 	},
 	"selector": {
-		"title": "Select Topics",
-		"description": "Choose which topics this file belongs to. You can select multiple topics or create new ones.",
-		"fileName": "File: {{fileName}}",
+		"title": "Manage Topics",
 		"searchPlaceholder": "Search topics...",
-		"noTopics": "No topics available",
-		"noTopicsDescription": "Create your first topic to start organizing your files.",
-		"createNew": "Create New Topic",
-		"selected": "{{count}} selected",
+		"selectedCount": "{{count}} topic{{count, plural, one {} other {s}}} selected",
+		"noTopicsFound": "No topics found",
+		"noTopicsAvailable": "No topics available",
+		"createNewTopic": "Create New Topic",
 		"cancel": "Cancel",
-		"save": "Save Topics",
+		"save": "Save",
 		"saving": "Saving...",
-		"createMode": {
-			"title": "Create New Topic",
-			"topicName": "Topic Name",
-			"goalPurpose": "Goal & Purpose",
-			"namePlaceholder": "e.g., Machine Learning, React Development...",
-			"descriptionPlaceholder": "Describe what you want to achieve with this topic...",
-			"backToSelection": "Back to Selection",
-			"creating": "Creating...",
-			"createAndSelect": "Create & Select"
-		}
+		"topicName": "Topic Name",
+		"goalPurpose": "Goal & Purpose",
+		"topicNamePlaceholder": "e.g., Machine Learning, React Development...",
+		"goalPlaceholder": "Describe what you want to achieve with this topic. What specific knowledge or skills are you building?",
+		"example": "Example: \"Learn modern React patterns and best practices for building scalable web applications\"",
+		"back": "Back",
+		"creating": "Creating...",
+		"createAndAdd": "Create & Add"
 	},
 	"filter": {
-		"allTopics": "All Topics",
-		"noTopic": "No Topic",
-		"selectTopic": "Select a topic to filter by"
+		"topics": "Topics",
+		"oneTopic": "1 Topic",
+		"multipleTopics": "{{count}} Topics",
+		"searchPlaceholder": "Search topics...",
+		"selectedCount": "{{count}} selected",
+		"clearAll": "Clear All",
+		"noTopicsFound": "No topics found",
+		"noTopicsAvailable": "No topics available",
+		"selectAllResults": "Select All Results",
+		"createNewTopic": "Create New Topic",
+		"filteredBy": "Filtered by:"
 	},
 	"badge": {
-		"defaultTopic": "Default"
+		"removeAriaLabel": "Remove {{name}}",
+		"showMore": "+{{count}} more"
+	},
+	"picker": {
+		"title": "Select Topic",
+		"description": "Choose topic for \"{{fileName}}\"",
+		"default": "Default",
+		"noTopicAssociation": "No topic association",
+		"noTopicsAvailable": "No topics available",
+		"cancel": "Cancel",
+		"select": "Select"
 	},
 	"common": {
 		"required": "*",

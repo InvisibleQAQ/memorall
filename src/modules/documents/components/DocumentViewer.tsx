@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	FileText,
 	Calendar,
@@ -58,6 +59,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	selectedTopicIds = [],
 	onTopicClick,
 }) => {
+	const { t } = useTranslation("documents");
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [textContent, setTextContent] = useState<string | null>(null);
 	const [excelData, setExcelData] = useState<Uint8Array | null>(null);
@@ -204,7 +206,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							<>
 								<span className="text-muted-foreground">•</span>
 								<span className="text-sm text-muted-foreground">
-									{file.metadata.pageCount} pages
+									{t("viewer.pages", { count: file.metadata.pageCount })}
 								</span>
 							</>
 						)}
@@ -212,7 +214,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							<>
 								<span className="text-muted-foreground">•</span>
 								<span className="text-sm text-muted-foreground">
-									{file.metadata.sheetCount} sheets
+									{t("viewer.sheets", { count: file.metadata.sheetCount })}
 								</span>
 							</>
 						)}
@@ -236,7 +238,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 									className="h-6 px-2 text-xs"
 								>
 									<Tags className="h-3 w-3 mr-1" />
-									Manage
+									{t("viewer.manage")}
 								</Button>
 							)}
 						</div>
@@ -248,7 +250,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							className="h-7 px-2 text-xs gap-1"
 						>
 							<Tags className="h-3 w-3" />
-							Add Topics
+							{t("viewer.addTopics")}
 						</Button>
 					) : null}
 				</div>
@@ -260,7 +262,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							onClick={pdfPageSelector.openSelector}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
-							<span className="hidden sm:inline">Convert to Knowledge</span>
+							<span className="hidden sm:inline">{t("viewer.convertToKnowledge")}</span>
 						</Button>
 					)}
 					{file.type === "text" && onConvertToKnowledge && (
@@ -273,8 +275,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							<BookmarkPlus className="h-4 w-4 mr-2" />
 							<span className="hidden sm:inline">
 								{sourceStatus.isGenerating || isProcessing
-									? "Converting..."
-									: "Convert to Knowledge"}
+									? t("viewer.converting")
+									: t("viewer.convertToKnowledge")}
 							</span>
 						</Button>
 					)}
@@ -285,7 +287,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							onClick={excelSheetSelector.openSelector}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
-							<span className="hidden sm:inline">Convert to Knowledge</span>
+							<span className="hidden sm:inline">{t("viewer.convertToKnowledge")}</span>
 						</Button>
 					)}
 					<Button
@@ -371,7 +373,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					<div className="flex-1 p-4 overflow-hidden">
 						<div className="flex items-center justify-center h-full border rounded-lg">
 							<div className="text-sm text-muted-foreground">
-								Loading preview...
+								{t("viewer.loadingPreview")}
 							</div>
 						</div>
 					</div>
@@ -381,14 +383,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				{showProperties && (
 					<ScrollArea className="flex-shrink-0 border-t max-h-[400px]">
 						<div className="p-4 space-y-4">
-							<h3 className="text-sm font-semibold">Document Information</h3>
+							<h3 className="text-sm font-semibold">{t("viewer.documentInformation")}</h3>
 
 							<div className="grid grid-cols-1 gap-3">
 								{file.metadata?.title && (
 									<div className="flex items-start gap-3">
 										<FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
 										<div className="flex-1 min-w-0">
-											<div className="text-xs text-muted-foreground">Title</div>
+											<div className="text-xs text-muted-foreground">{t("viewer.title")}</div>
 											<div className="text-sm">{file.metadata.title}</div>
 										</div>
 									</div>
@@ -399,7 +401,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 										<FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
 										<div className="flex-1 min-w-0">
 											<div className="text-xs text-muted-foreground">
-												Author
+												{t("viewer.author")}
 											</div>
 											<div className="text-sm">{file.metadata.author}</div>
 										</div>
@@ -411,7 +413,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 										<FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
 										<div className="flex-1 min-w-0">
 											<div className="text-xs text-muted-foreground">
-												Sheets
+												{t("viewer.sheetsLabel")}
 											</div>
 											<div className="text-sm">{file.metadata.sheetCount}</div>
 										</div>
@@ -424,7 +426,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 											<FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
 											<div className="flex-1 min-w-0">
 												<div className="text-xs text-muted-foreground">
-													Sheet Names
+													{t("viewer.sheetNames")}
 												</div>
 												<div className="text-sm">
 													{file.metadata.sheetNames.join(", ")}
@@ -438,7 +440,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 								<div className="flex items-start gap-3">
 									<FileType className="h-4 w-4 mt-0.5 text-muted-foreground" />
 									<div className="flex-1 min-w-0">
-										<div className="text-xs text-muted-foreground">Type</div>
+										<div className="text-xs text-muted-foreground">{t("viewer.type")}</div>
 										<div className="text-sm">{file.mimeType}</div>
 									</div>
 								</div>
@@ -446,7 +448,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 								<div className="flex items-start gap-3">
 									<HardDrive className="h-4 w-4 mt-0.5 text-muted-foreground" />
 									<div className="flex-1 min-w-0">
-										<div className="text-xs text-muted-foreground">Size</div>
+										<div className="text-xs text-muted-foreground">{t("viewer.size")}</div>
 										<div className="text-sm">{formatFileSize(file.size)}</div>
 									</div>
 								</div>
@@ -454,7 +456,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 								<div className="flex items-start gap-3">
 									<Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
 									<div className="flex-1 min-w-0">
-										<div className="text-xs text-muted-foreground">Created</div>
+										<div className="text-xs text-muted-foreground">{t("viewer.created")}</div>
 										<div className="text-sm">{formatDate(file.createdAt)}</div>
 									</div>
 								</div>
@@ -463,7 +465,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 									<Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
 									<div className="flex-1 min-w-0">
 										<div className="text-xs text-muted-foreground">
-											Modified
+											{t("viewer.modified")}
 										</div>
 										<div className="text-sm">{formatDate(file.modifiedAt)}</div>
 									</div>
@@ -473,7 +475,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							{/* Tags Section */}
 							{file.metadata?.tags && file.metadata.tags.length > 0 && (
 								<div className="space-y-2">
-									<h3 className="text-sm font-semibold">Tags</h3>
+									<h3 className="text-sm font-semibold">{t("viewer.tags")}</h3>
 									<div className="flex flex-wrap gap-2">
 										{file.metadata.tags.map((tag, index) => (
 											<Badge key={index} variant="outline">
@@ -489,7 +491,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 								<div className="space-y-2">
 									<div className="flex items-center gap-2">
 										<Tag className="h-4 w-4 text-muted-foreground" />
-										<h3 className="text-sm font-semibold">Topics</h3>
+										<h3 className="text-sm font-semibold">{t("viewer.topics")}</h3>
 									</div>
 									<div className="flex flex-wrap gap-2">
 										{fileTopics.map((topic) => (
@@ -504,7 +506,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							{/* Description Section */}
 							{file.metadata?.description && (
 								<div className="space-y-2">
-									<h3 className="text-sm font-semibold">Description</h3>
+									<h3 className="text-sm font-semibold">{t("viewer.description")}</h3>
 									<p className="text-sm text-muted-foreground">
 										{file.metadata.description}
 									</p>

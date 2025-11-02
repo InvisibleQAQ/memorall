@@ -4,6 +4,7 @@
  */
 
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	ChevronRight,
 	ChevronDown,
@@ -314,6 +315,7 @@ export const DocumentTreeDraggable: React.FC<DocumentTreeProps> = ({
 
 	// Root drop zone component (only visible when dragging)
 	const RootDropZone = () => {
+		const { t } = useTranslation("documents");
 		const { setNodeRef, isOver } = useDroppable({
 			id: "root-dropzone",
 			data: {
@@ -337,7 +339,7 @@ export const DocumentTreeDraggable: React.FC<DocumentTreeProps> = ({
 				<div className="flex items-center gap-2 text-sm">
 					<Home className="h-4 w-4" />
 					<span className="font-medium">
-						{isOver ? "Drop to move to root folder" : "Root folder"}
+						{isOver ? t("tree.dropToRoot") : t("tree.rootFolder")}
 					</span>
 				</div>
 			</div>

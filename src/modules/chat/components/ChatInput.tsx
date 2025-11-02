@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	Square,
 	Minus,
@@ -65,6 +66,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	onDeleteChat,
 	topics,
 }) => {
+	const { t } = useTranslation("chat");
 	const getModeIcon = (mode: ChatMode) => {
 		switch (mode) {
 			case "normal":
@@ -77,9 +79,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	const getModeLabel = (mode: ChatMode) => {
 		switch (mode) {
 			case "normal":
-				return "Chat";
+				return t("mode.normal");
 			case "knowledge":
-				return "Knowledge";
+				return t("mode.knowledge");
 		}
 	};
 	return (
@@ -91,7 +93,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 						onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
 							setInputValue(e.target.value)
 						}
-						placeholder="Type your message..."
+						placeholder={t("input.placeholder")}
 						disabled={isLoading}
 					/>
 					<PromptInputToolbar>
@@ -120,7 +122,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 													: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 											}
 										`}
-										title={`Switch to ${chatMode === "knowledge" ? "Normal Chat" : "Knowledge Mode"}`}
+										title={t("mode.selectMode")}
 									>
 										<div
 											className={`
@@ -149,11 +151,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 													<Tags size={12} />
 													<span className="max-w-20 truncate">
 														{isLoadingTopics
-															? "..."
+															? t("topic.loading")
 															: selectedTopic === "__all__"
-																? "All"
-																: topics.find((t) => t.id === selectedTopic)
-																		?.name || "Topic"}
+																? t("topic.all")
+																: topics.find((topic) => topic.id === selectedTopic)
+																		?.name || t("topic.select")}
 													</span>
 													<ChevronDown size={10} className="opacity-50" />
 												</Button>
@@ -164,7 +166,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 													className="flex items-center gap-2"
 												>
 													<Tags size={14} />
-													<span>All Topics</span>
+													<span>{t("topic.all")}</span>
 												</DropdownMenuItem>
 												{topics.map((topic) => (
 													<DropdownMenuItem
@@ -191,10 +193,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 									disabled={isLoading}
 									onClick={onInsertSeparator}
 									className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
-									title="Clear chat"
+									title={t("input.clearTitle")}
 								>
 									<Minus size={12} />
-									<span>Clear</span>
+									<span>{t("input.clearButton")}</span>
 								</Button>
 
 								{/* Actions Menu - less frequent actions */}
@@ -206,7 +208,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 											size="sm"
 											disabled={isLoading}
 											className="text-muted-foreground hover:text-foreground"
-											title="More actions"
+											title={t("actions.moreActions")}
 										>
 											<MoreHorizontal size={14} />
 										</Button>
@@ -217,7 +219,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 											className="flex items-center gap-2 text-red-600 hover:text-red-700"
 										>
 											<Trash2 size={14} />
-											<span>Delete Chat</span>
+											<span>{t("actions.deleteChat")}</span>
 										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>

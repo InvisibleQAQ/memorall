@@ -176,7 +176,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 				actions: [
 					{
 						id: crypto.randomUUID(),
-						name: "Query Analysis",
+						name: "query_analysis",
 						description: `Extracted ${analysisResult?.entities?.map((e) => `"${e}"`).join(", ")} entities with "${analysisResult?.intent}" intent`,
 						metadata: {
 							entities: analysisResult?.entities,
@@ -520,7 +520,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 				actions: [
 					{
 						id: crypto.randomUUID(),
-						name: "Knowledge Retrieval",
+						name: "knowledge_retrieval",
 						description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} relationships (${sqlNodes.length}+${trigramNodeResults.length}+${vectorNodes.length} nodes, ${sqlEdges.length}+${trigramEdgeResults.length}+${vectorEdges.length} edges)`,
 						metadata: {
 							nodeCount: relevantNodes.length,
@@ -592,7 +592,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 				actions: [
 					{
 						id: crypto.randomUUID(),
-						name: "Context Graph",
+						name: "context_graph",
 						description: mermaidDiagram.trim()
 							? `\`\`\`mermaid\n${mermaidDiagram}\n\`\`\``
 							: "No graph found.",
@@ -604,7 +604,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 					},
 					{
 						id: crypto.randomUUID(),
-						name: "Context Knowledge",
+						name: "context_knowledge",
 						description: knowledgeContext,
 						metadata: {},
 					},
@@ -697,7 +697,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 				actions: [
 					{
 						id: crypto.randomUUID(),
-						name: "Response Generation",
+						name: "response_generation",
 						description: "Generated knowledge-based response",
 						metadata: { responseLength: responseContent.length },
 					},
@@ -773,7 +773,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 				actions: [
 					{
 						id: crypto.randomUUID(),
-						name: "Quick Knowledge Retrieval",
+						name: "quick_knowledge_retrieval",
 						description: `Found ${grownResults.nodes.length} nodes and ${grownResults.edges.length} relationships using semantic search and ${this.config.maxGrowthLevels} levels of graph growth`,
 						metadata: {
 							mode: "quick",

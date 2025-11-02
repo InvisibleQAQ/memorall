@@ -29,7 +29,6 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
 				<option value="lmstudio">{t("providers.lmstudio")} (Local)</option>
 				<option value="ollama">{t("providers.ollama")} (Local)</option>
 			</select>
-			<span className="text-xs text-muted-foreground">Recommended models</span>
 		</div>
 	);
 };

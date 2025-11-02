@@ -1,30 +1,97 @@
 {
-	"title": "Document Library",
+	"title": "Documents",
+	"library": {
+		"title": "Document Library",
+		"searchPlaceholder": "Search files...",
+		"add": "Add",
+		"topics": "Topics",
+		"listView": "List view",
+		"gridView": "Grid view",
+		"emptyState": "Select a folder or file to view",
+		"initializationError": "Failed to initialize document library",
+		"deleteConfirm": "Are you sure you want to delete \"{{name}}\"?",
+		"deleteConfirmFolder": "Are you sure you want to delete \"{{name}}\"? All contents will be deleted.",
+		"createFolderError": "Failed to create folder",
+		"deleteItemError": "Failed to delete item",
+		"renameItemError": "Failed to rename item",
+		"deleteFileError": "Failed to delete file",
+		"downloadFileError": "Failed to download file"
+	},
 	"upload": {
-		"button": "Upload",
-		"dragDrop": "Drag and drop files here or click to browse",
+		"uploadFiles": "Upload Files",
+		"createFolder": "Create Folder",
 		"success": "File uploaded successfully",
 		"error": "Failed to upload file"
 	},
-	"file": {
-		"name": "File name",
+	"list": {
+		"items": "{{count}} item{{count, plural, one {} other {s}}}",
+		"rename": "Rename",
+		"deleteFolder": "Delete Folder",
+		"manageTopics": "Manage Topics",
+		"converting": "Converting...",
+		"convertToKnowledge": "Convert to knowledge",
+		"download": "Download",
+		"delete": "Delete",
+		"emptyFolder": "This folder is empty",
+		"emptyFolderDescription": "Upload files to get started"
+	},
+	"viewer": {
+		"pages": "{{count}} page{{count, plural, one {} other {s}}}",
+		"sheets": "{{count}} sheet{{count, plural, one {} other {s}}}",
+		"manage": "Manage",
+		"addTopics": "Add Topics",
+		"convertToKnowledge": "Convert to Knowledge",
+		"converting": "Converting...",
+		"loadingPreview": "Loading preview...",
+		"documentInformation": "Document Information",
+		"title": "Title",
+		"author": "Author",
+		"sheetsLabel": "Sheets",
+		"sheetNames": "Sheet Names",
 		"type": "Type",
 		"size": "Size",
-		"date": "Date",
-		"actions": "Actions",
-		"delete": "Delete file",
-		"download": "Download",
-		"view": "View",
-		"convertToKnowledge": "Convert to Knowledge Graph"
+		"created": "Created",
+		"modified": "Modified",
+		"tags": "Tags",
+		"topics": "Topics",
+		"description": "Description"
 	},
-	"folder": {
-		"create": "New Folder",
-		"name": "Folder name",
-		"empty": "This folder is empty"
+	"tree": {
+		"dropToRoot": "Drop to move to root folder",
+		"rootFolder": "Root folder"
 	},
-	"search": {
-		"placeholder": "Search documents..."
+	"excelSelector": {
+		"title": "Convert Excel Sheets to Remembered Content",
+		"description": "Select the sheets you want to convert to markdown tables and save to your remembered content library",
+		"loadingSheets": "Loading sheets...",
+		"selectAll": "Select All",
+		"deselectAll": "Deselect All",
+		"sheetsSelected": "{{count}} of {{total}} sheets selected",
+		"previewUnavailable": "Preview unavailable",
+		"cancel": "Cancel",
+		"converting": "Converting...",
+		"convert": "Convert {{count}} {{count, plural, one {Sheet} other {Sheets}}}",
+		"allSheets": "All Sheets"
 	},
-	"empty": "No documents found",
-	"processing": "Processing document..."
+	"excelViewer": {
+		"loading": "Loading Excel file...",
+		"error": "Excel file could not be rendered with Univer.",
+		"errorDescription": "Try downloading the file to view it in Excel."
+	},
+	"pdfSelector": {
+		"title": "Convert PDF Pages to Remembered Content",
+		"description": "Select the pages you want to convert and save to your remembered content library",
+		"loadingPages": "Loading pages...",
+		"selectAll": "Select All",
+		"deselectAll": "Deselect All",
+		"pagesSelected": "{{count}} of {{total}} pages selected",
+		"fromPage": "From Page",
+		"toPage": "To Page",
+		"addRange": "Add Range",
+		"page": "Page {{number}}",
+		"cancel": "Cancel",
+		"converting": "Converting...",
+		"convert": "Convert {{count}} {{count, plural, one {Page} other {Pages}}}",
+		"allPages": "All Pages"
+	}
 }

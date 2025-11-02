@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "../ui/card";
 import { TextGenerateEffect } from "../ui/shadcn-io/text-generate-effect";
 import { Progress } from "../ui/progress";
@@ -28,42 +29,60 @@ interface AppLoadingScreenProps {
 	uiProgress?: number;
 }
 
-const LOADING_STEPS: LoadingStep[] = [
-	{
-		id: "database",
-		icon: <Database className="w-4 h-4" />,
-		title: "Database Setup",
-		description: "Setting up knowledge graph database with vector extensions",
-		duration: 2000,
-	},
-	{
-		id: "embedding",
-		icon: <Brain className="w-4 h-4" />,
-		title: "Embedding Models",
-		description: "Loading embedding models for semantic search",
-		duration: 3000,
-	},
-	{
-		id: "llm",
-		icon: <Zap className="w-4 h-4" />,
-		title: "LLM Service",
-		description: "Initializing local LLM inference service",
-		duration: 2500,
-	},
-	{
-		id: "interface",
-		icon: <MessageSquare className="w-4 h-4" />,
-		title: "Interface Ready",
-		description: "Preparing chat interface and model management",
-		duration: 1500,
-	},
-];
+// Loading steps will be created inside component to access translations
+const LOADING_STEP_ICONS = {
+	database: <Database className="w-4 h-4" />,
+	embedding: <Brain className="w-4 h-4" />,
+	llm: <Zap className="w-4 h-4" />,
+	interface: <MessageSquare className="w-4 h-4" />,
+} as const;
+
+const LOADING_STEP_DURATIONS = {
+	database: 2000,
+	embedding: 3000,
+	llm: 2500,
+	interface: 1500,
+} as const;
 
 export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 	error,
 	onRetry,
 	uiProgress = 0,
 }) => {
+	const { t } = useTranslation("common");
+	
+	// Create loading steps with translations
+	const LOADING_STEPS: LoadingStep[] = [
+		{
+			id: "database",
+			icon: LOADING_STEP_ICONS.database,
+			title: t("appLoading.steps.database.title"),
+			description: t("appLoading.steps.database.description"),
+			duration: LOADING_STEP_DURATIONS.database,
+		},
+		{
+			id: "embedding",
+			icon: LOADING_STEP_ICONS.embedding,
+			title: t("appLoading.steps.embedding.title"),
+			description: t("appLoading.steps.embedding.description"),
+			duration: LOADING_STEP_DURATIONS.embedding,
+		},
+		{
+			id: "llm",
+			icon: LOADING_STEP_ICONS.llm,
+			title: t("appLoading.steps.llm.title"),
+			description: t("appLoading.steps.llm.description"),
+			duration: LOADING_STEP_DURATIONS.llm,
+		},
+		{
+			id: "interface",
+			icon: LOADING_STEP_ICONS.interface,
+			title: t("appLoading.steps.interface.title"),
+			description: t("appLoading.steps.interface.description"),
+			duration: LOADING_STEP_DURATIONS.interface,
+		},
+	];
+
 	const [serviceProgress, setServiceProgress] =
 		useState<InitializationProgress>({
 			step: "Starting",
@@ -147,7 +166,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 								/>
 							</div>
 							<h2 className="text-xl font-semibold text-foreground mb-2">
-								Service Initialization Failed
+								{t("appLoading.error.title")}
 							</h2>
 							<p className="text-sm text-muted-foreground mb-6 break-words">
 								{error}
@@ -157,11 +176,10 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 									onClick={onRetry}
 									className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
 								>
-									Try Again
+									{t("appLoading.error.tryAgain")}
 								</button>
 								<p className="text-xs text-muted-foreground">
-									If the problem persists, check your browser console for more
-									details.
+									{t("appLoading.error.consoleHelp")}
 								</p>
 							</div>
 						</div>
@@ -187,10 +205,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 							</div>
 							<TypingText
 								text={[
-									"Initializing Memorall...",
-									"Setting up your AI-powered knowledge assistant",
-									"Your knowledge evolves with you",
-									"As you remember, it remembers for you",
+									t("appLoading.title"),
+									t("appLoading.subtitle"),
+									...t("appLoading.taglines", { returnObjects: true }) as string[],
 								]}
 								typingSpeed={60}
 								pauseDuration={200}
@@ -201,7 +218,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 								variableSpeed={{ min: 50, max: 120 }}
 							/>
 							<p className="text-sm text-muted-foreground">
-								Setting up your AI-powered knowledge assistant
+								{t("appLoading.subtitle")}
 							</p>
 						</div>
 
@@ -280,7 +297,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 										</div>
 										{isCompleted && (
 											<div className="text-xs text-green-600 dark:text-green-400 font-medium">
-												✓ Done
+												{t("appLoading.done")}
 											</div>
 										)}
 									</div>
@@ -291,8 +308,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 						{/* Footer info */}
 						<div className="mt-8 pt-6 border-t border-border">
 							<div className="flex justify-between items-center text-xs text-muted-foreground">
-								<span>Elapsed: {formatElapsedTime(elapsedTime)}</span>
-								<span>This may take a moment on first launch...</span>
+								<span>{t("appLoading.elapsed", { time: formatElapsedTime(elapsedTime) })}</span>
+								<span>{t("appLoading.firstLaunch")}</span>
 							</div>
 						</div>
 					</div>

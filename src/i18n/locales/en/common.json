@@ -65,5 +65,132 @@
 		"search": "Search",
 		"noResults": "No results found",
 		"total": "Total"
+	},
+	"appLoading": {
+		"title": "Initializing Memorall...",
+		"subtitle": "Setting up your AI-powered knowledge assistant",
+		"taglines": [
+			"Your knowledge evolves with you",
+			"As you remember, it remembers for you"
+		],
+		"steps": {
+			"database": {
+				"title": "Database Setup",
+				"description": "Setting up knowledge graph database with vector extensions"
+			},
+			"embedding": {
+				"title": "Embedding Models", 
+				"description": "Loading embedding models for semantic search"
+			},
+			"llm": {
+				"title": "LLM Service",
+				"description": "Initializing local LLM inference service"
+			},
+			"interface": {
+				"title": "Interface Ready",
+				"description": "Preparing chat interface and model management"
+			}
+		},
+		"done": "✓ Done",
+		"elapsed": "Elapsed: {{time}}",
+		"firstLaunch": "This may take a moment on first launch...",
+		"error": {
+			"title": "Service Initialization Failed",
+			"tryAgain": "Try Again",
+			"consoleHelp": "If the problem persists, check your browser console for more details."
+		}
+	},
+	"passkeyDialog": {
+		"title": "{{provider}} Authentication Required",
+		"description": "You have a {{provider}} model configured. Please enter your 6-character passkey to decrypt and load the configuration.",
+		"passkeyLabel": "Encryption Passkey",
+		"placeholder": "6 characters",
+		"lengthError": "Passkey must be exactly 6 characters",
+		"lengthHint": "Passkey must be exactly 6 characters ({{current}}/6)",
+		"decryptError": "Failed to decrypt",
+		"decrypting": "Decrypting...",
+		"unlock": "Unlock",
+		"cancel": "Cancel",
+		"cancelConfirm": "Are you sure you want to cancel?\n\nThis will clear the selected {{provider}} model. You'll need to select a different model to continue.",
+		"helpText": "This passkey was set when you first configured {{provider}}. If you've forgotten it, you'll need to reconfigure the provider."
+	},
+	"processMonitor": {
+		"title": "Processing Activity",
+		"viewProcesses": "View Processes",
+		"activeCount": "{{count}} active",
+		"activeProcesses": "Active Processes",
+		"recentHistory": "Recent History",
+		"noActivity": "No processing activity yet",
+		"noActivityHelp": "Convert documents to knowledge graphs to see activity here",
+		"loadingMore": "Loading more...",
+		"noMoreHistory": "No more history to load",
+		"started": "Started: {{time}}",
+		"finished": "Finished: {{time}}",
+		"timeAgo": {
+			"justNow": "just now",
+			"secondsAgo": "{{count}}s ago",
+			"minutesAgo": "{{count}}m ago", 
+			"hoursAgo": "{{count}}h ago",
+			"daysAgo": "{{count}}d ago"
+		},
+		"status": {
+			"pending": "Pending",
+			"processing": "Processing",
+			"completed": "Completed",
+			"failed": "Failed"
+		}
+	},
+	"copilot": {
+		"error": "useCopilot must be used within a CopilotProvider",
+		"steps": {
+			"welcome": {
+				"title": "Welcome to Memorall! 🧠",
+				"content": "Memorall is your AI-powered knowledge companion that helps you remember, organize, and interact with information. It captures web content, processes it intelligently, and lets you chat with your accumulated knowledge using advanced AI models."
+			},
+			"productOverview": {
+				"title": "What Memorall Does",
+				"content": "🔍 Capture: Save web pages, selections, and notes\n📊 Process: AI extracts key information and creates knowledge graphs\n💬 Chat: Ask questions about your saved content\n🎯 Remember: Never lose important information again"
+			},
+			"chatTab": {
+				"title": "💬 Chat Tab",
+				"content": "Your main interface for conversing with your AI assistant about saved content."
+			},
+			"topicsTab": {
+				"title": "🏷️ Topics Tab",
+				"content": "Categorize your remembered pages and knowledge graph by topics. This helps organize your knowledge around focused areas instead of random information, making it easier to find and connect related content."
+			},
+			"rememberedTab": {
+				"title": "📚 Remembered Tab",
+				"content": "Your knowledge library where all saved content is stored and organized."
+			},
+			"knowledgeGraphTab": {
+				"title": "🕸️ Knowledge Graph Tab",
+				"content": "Interactive visualization showing connections between your saved content."
+			},
+			"documentsTab": {
+				"title": "📄 Documents Tab",
+				"content": "Your personal document library where you can upload, organize, and manage PDFs, Excel files, images, and other documents. Access them anytime and use AI to analyze their content."
+			},
+			"modelsTabIntro": {
+				"title": "🤖 Models Tab - Setup Required!",
+				"content": "Now let's focus on the most important step: setting up your AI models. This is essential to start using Memorall's features."
+			},
+			"currentModelSection": {
+				"title": "📊 Current Model Status",
+				"content": "This section shows which AI model is currently active. It displays:\n• Model name and provider\n• Status: Active (ready to use) / Configured (set up but not loaded) / Inactive (needs setup)\n• This is your quick reference for what's running"
+			},
+			"quickSetupSection": {
+				"title": "⚡ My Models - Quick Setup",
+				"content": "This section provides easy setup for different AI providers. Choose from:\n\n🌐 **WebLLM**: Browser-based models\n🔑 **OpenAI**: GPT models (API key needed)\n🏠 **LM Studio**: Local model server\n🦙 **Ollama**: Local open-source models\n🧠 **Wllama**: WASM-based local models"
+			},
+			"providerAdvantages": {
+				"title": "🎯 Choose What's Best for You",
+				"content": "**WebLLM**: ✅ Free, private, works offline, no setup\n**OpenAI**: ✅ Most powerful models, fast responses\n**LM Studio**: ✅ Full control, privacy, highly customizable\n**Ollama**: ✅ Open source, privacy-focused, completely free\n**Wllama**: ✅ Fast local inference, WebAssembly-based\n\n💡 **Recommendation**: Start with WebLLM for immediate use, then explore others for specific needs!"
+			},
+			"getStarted": {
+				"title": "🚀 You're Ready to Start!",
+				"content": "Perfect! Now you understand Memorall's interface and setup options.\n\n**Next steps:**\n1. Choose and configure an AI model below\n2. Start saving content (right-click → 'Remember this page')\n3. Chat with your knowledge in the Chat tab\n\nLet's get your first model set up!"
+			}
+		}
 	}
 }

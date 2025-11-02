@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, ChevronDown, Plus, Search, Tags, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 	loading = false,
 	className,
 }) => {
+	const { t } = useTranslation("topics");
 	const [open, setOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 
@@ -105,9 +107,9 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 							{hasSelection
 								? selectedCount === 1
 									? topics.find((t) => t.id === selectedTopicIds[0])?.name ||
-										"1 Topic"
-									: `${selectedCount} Topics`
-								: "Topics"}
+										t("filter.oneTopic")
+									: t("filter.multipleTopics", { count: selectedCount })
+								: t("filter.topics")}
 						</span>
 					</span>
 					<ChevronDown
@@ -132,7 +134,7 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 					<div className="relative">
 						<Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
 						<Input
-							placeholder="Search topics..."
+							placeholder={t("filter.searchPlaceholder")}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							className="h-8 pl-8 pr-8 text-sm"
@@ -158,7 +160,7 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 				{hasSelection && (
 					<div className="px-2 py-1.5 border-b bg-muted/50 flex items-center justify-between">
 						<span className="text-xs text-muted-foreground">
-							{selectedCount} selected
+							{t("filter.selectedCount", { count: selectedCount })}
 						</span>
 						<Button
 							variant="ghost"
@@ -169,7 +171,7 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 							}}
 							className="h-6 px-2 text-xs"
 						>
-							Clear All
+							{t("filter.clearAll")}
 						</Button>
 					</div>
 				)}
@@ -179,7 +181,7 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 					<div className="p-1">
 						{filteredTopics.length === 0 ? (
 							<div className="py-6 text-center text-sm text-muted-foreground">
-								{searchQuery ? "No topics found" : "No topics available"}
+								{searchQuery ? t("filter.noTopicsFound") : t("filter.noTopicsAvailable")}
 							</div>
 						) : (
 							<>
@@ -203,7 +205,7 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 													<Check className="h-3 w-3 text-primary" />
 												</div>
 												<span className="flex-1 text-sm font-medium">
-													Select All Results
+													{t("filter.selectAllResults")}
 												</span>
 											</div>
 										</DropdownMenuItem>
@@ -271,7 +273,7 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 								className="cursor-pointer text-primary"
 							>
 								<Plus className="h-4 w-4 mr-2" />
-								<span className="text-sm font-medium">Create New Topic</span>
+								<span className="text-sm font-medium">{t("filter.createNewTopic")}</span>
 							</DropdownMenuItem>
 						</div>
 					</>
@@ -303,13 +305,15 @@ export const ActiveTopicChips: React.FC<ActiveTopicChipsProps> = ({
 	onClearAll,
 	className,
 }) => {
+	const { t } = useTranslation("topics");
+	
 	if (selectedTopics.length === 0) {
 		return null;
 	}
 
 	return (
 		<div className={cn("flex flex-wrap items-center gap-2", className)}>
-			<span className="text-xs text-muted-foreground">Filtered by:</span>
+			<span className="text-xs text-muted-foreground">{t("filter.filteredBy")}</span>
 
 			{selectedTopics.map((topic) => (
 				<button
@@ -336,7 +340,7 @@ export const ActiveTopicChips: React.FC<ActiveTopicChipsProps> = ({
 					onClick={onClearAll}
 					className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
 				>
-					Clear All
+					{t("filter.clearAll")}
 				</Button>
 			)}
 		</div>

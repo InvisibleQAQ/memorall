@@ -25,14 +25,22 @@
 	"actions": {
 		"deleteChat": "Xóa cuộc trò chuyện",
 		"moreActions": "Thêm hành động",
-		"insertSeparator": "Chèn dấu phân cách"
+		"insertSeparator": "Chèn dấu phân cách",
+		"query_analysis": "Phân tích truy vấn",
+		"knowledge_retrieval": "Truy xuất kiến thức", 
+		"context_graph": "Biểu đồ ngữ cảnh",
+		"context_knowledge": "Kiến thức ngữ cảnh",
+		"response_generation": "Tạo phản hồi",
+		"quick_knowledge_retrieval": "Truy xuất kiến thức nhanh"
 	},
 	"messages": {
 		"thinking": "Đang suy nghĩ...",
+		"thought": "Suy nghĩ",
 		"error": "Không thể gửi tin nhắn",
 		"stop": "Dừng",
 		"retry": "Thử lại",
-		"empty": "Chưa có tin nhắn nào. Bắt đầu cuộc trò chuyện!"
+		"empty": "Chưa có tin nhắn nào. Bắt đầu cuộc trò chuyện!",
+		"count": "{{count}} tin nhắn"
 	},
 	"model": {
 		"notLoaded": "Chưa tải mô hình",
