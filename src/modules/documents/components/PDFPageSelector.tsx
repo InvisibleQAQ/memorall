@@ -204,15 +204,15 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 			<DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
 				<DialogHeader className="flex-shrink-0">
 					<DialogTitle>{t("pdfSelector.title")}</DialogTitle>
-					<DialogDescription>
-						{t("pdfSelector.description")}
-					</DialogDescription>
+					<DialogDescription>{t("pdfSelector.description")}</DialogDescription>
 				</DialogHeader>
 
 				{loading ? (
 					<div className="flex items-center justify-center py-12">
 						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-						<span className="ml-3 text-muted-foreground">{t("pdfSelector.loadingPages")}</span>
+						<span className="ml-3 text-muted-foreground">
+							{t("pdfSelector.loadingPages")}
+						</span>
 					</div>
 				) : (
 					<div className="flex flex-col gap-4 flex-1 min-h-0">
@@ -238,7 +238,10 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 									</Button>
 								</div>
 								<Badge variant="secondary">
-									{t("pdfSelector.pagesSelected", { count: selectedPages.size, total: pages.length })}
+									{t("pdfSelector.pagesSelected", {
+										count: selectedPages.size,
+										total: pages.length,
+									})}
 								</Badge>
 							</div>
 

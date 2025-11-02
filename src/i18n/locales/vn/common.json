@@ -79,7 +79,7 @@
 				"description": "Thiết lập cơ sở dữ liệu đồ thị tri thức với các tiện ích mở rộng vector"
 			},
 			"embedding": {
-				"title": "Mô hình nhúng", 
+				"title": "Mô hình nhúng",
 				"description": "Tải các mô hình nhúng cho tìm kiếm ngữ nghĩa"
 			},
 			"llm": {
@@ -129,7 +129,7 @@
 		"timeAgo": {
 			"justNow": "vừa xong",
 			"secondsAgo": "{{count}} giây trước",
-			"minutesAgo": "{{count}} phút trước", 
+			"minutesAgo": "{{count}} phút trước",
 			"hoursAgo": "{{count}} giờ trước",
 			"daysAgo": "{{count}} ngày trước"
 		},

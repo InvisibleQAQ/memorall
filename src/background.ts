@@ -6,6 +6,27 @@ import { backgroundJob } from "./services/background-jobs/background-job";
 import { backgroundJobMessageForwarder } from "./background/message-forwarder";
 import { sharedStorageService } from "./services/shared-storage";
 import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
+import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "./constants/language";
+import type { Language } from "./constants/language";
+
+// Language management
+let currentLanguage: Language = DEFAULT_LANGUAGE;
+
+// Context menu text translations
+const CONTEXT_MENU_TEXTS = {
+	en: {
+		savePage: "💾 Save page",
+		recall: "🧠 Recall",
+		openPlatform: "🚀 Open platform",
+		openDocuments: "📄 Open documents",
+	},
+	vn: {
+		savePage: "💾 Lưu trang",
+		recall: "🧠 Gợi nhớ",
+		openPlatform: "🚀 Mở nền tảng",
+		openDocuments: "📄 Mở tài liệu",
+	},
+};
 
 // Save section
 const SAVE_PAGE_CONTEXT_MENU_ID = "save-page";
@@ -26,6 +47,64 @@ function createNotification(title: string, message: string): void {
 		iconUrl: chrome.runtime.getURL("icons/extension_48.png"), // Use extension icon (build transforms images/ to icons/)
 	});
 }
+
+// Load current language from storage
+async function loadCurrentLanguage(): Promise<void> {
+	try {
+		const result = await chrome.storage.local.get(LANGUAGE_STORAGE_KEY);
+		const savedLanguage = result[LANGUAGE_STORAGE_KEY];
+
+		if (savedLanguage && (savedLanguage === "en" || savedLanguage === "vn")) {
+			currentLanguage = savedLanguage;
+			logInfo(`📝 Loaded language: ${currentLanguage}`);
+		} else {
+			currentLanguage = "en"; // Default to English
+			logInfo("📝 Using default language: en");
+		}
+	} catch (error) {
+		logError("❌ Failed to load language:", error);
+		currentLanguage = "en"; // Fallback to English
+	}
+}
+
+// Update context menu text based on current language
+async function updateContextMenuText(): Promise<void> {
+	try {
+		const texts = CONTEXT_MENU_TEXTS[currentLanguage];
+
+		await chrome.contextMenus.update(SAVE_PAGE_CONTEXT_MENU_ID, {
+			title: texts.savePage,
+		});
+
+		await chrome.contextMenus.update(RECALL_CONTEXT_MENU_ID, {
+			title: texts.recall,
+		});
+
+		await chrome.contextMenus.update(OPEN_PLATFORM_CONTEXT_MENU_ID, {
+			title: texts.openPlatform,
+		});
+
+		await chrome.contextMenus.update(OPEN_DOCUMENTS_CONTEXT_MENU_ID, {
+			title: texts.openDocuments,
+		});
+
+		logInfo(`✅ Context menu text updated to ${currentLanguage}`);
+	} catch (error) {
+		logError("❌ Failed to update context menu text:", error);
+	}
+}
+
+// Listen for language changes in storage
+chrome.storage.onChanged.addListener((changes, namespace) => {
+	if (namespace === "local" && changes[LANGUAGE_STORAGE_KEY]) {
+		const newLanguage = changes[LANGUAGE_STORAGE_KEY].newValue;
+		if (newLanguage && (newLanguage === "en" || newLanguage === "vn")) {
+			currentLanguage = newLanguage;
+			logInfo(`🔄 Language changed to: ${currentLanguage}`);
+			updateContextMenuText();
+		}
+	}
+});
 
 // Offscreen document management
 let offscreenCreated = false;
@@ -138,6 +217,10 @@ logInfo("🔄 Service Worker loaded, initializing core services...");
 
 		// Initialize offscreen document
 		await ensureOffscreenDocument();
+
+		// Load current language
+		await loadCurrentLanguage();
+
 		logInfo("✅ Immediate initialization completed");
 	} catch (error) {
 		logError("❌ Failed immediate initialization:", error);
@@ -147,10 +230,14 @@ logInfo("🔄 Service Worker loaded, initializing core services...");
 // Create context menus on install
 chrome.runtime.onInstalled.addListener(async () => {
 	try {
+		// Load current language first
+		await loadCurrentLanguage();
+		const texts = CONTEXT_MENU_TEXTS[currentLanguage];
+
 		// === SAVE SECTION ===
 		chrome.contextMenus.create({
 			id: SAVE_PAGE_CONTEXT_MENU_ID,
-			title: "💾 Save page",
+			title: texts.savePage,
 			contexts: ["page", "selection"],
 		});
 
@@ -162,7 +249,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 		// === RECALL SECTION ===
 		chrome.contextMenus.create({
 			id: RECALL_CONTEXT_MENU_ID,
-			title: "🧠 Recall",
+			title: texts.recall,
 			contexts: ["page", "selection"],
 		});
 
@@ -174,13 +261,13 @@ chrome.runtime.onInstalled.addListener(async () => {
 		// === OPEN SECTION ===
 		chrome.contextMenus.create({
 			id: OPEN_PLATFORM_CONTEXT_MENU_ID,
-			title: "🚀 Open platform",
+			title: texts.openPlatform,
 			contexts: ["page", "link"],
 		});
 
 		chrome.contextMenus.create({
 			id: OPEN_DOCUMENTS_CONTEXT_MENU_ID,
-			title: "📄 Open documents",
+			title: texts.openDocuments,
 			contexts: ["page"],
 		});
 

@@ -181,7 +181,9 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 					<div className="p-1">
 						{filteredTopics.length === 0 ? (
 							<div className="py-6 text-center text-sm text-muted-foreground">
-								{searchQuery ? t("filter.noTopicsFound") : t("filter.noTopicsAvailable")}
+								{searchQuery
+									? t("filter.noTopicsFound")
+									: t("filter.noTopicsAvailable")}
 							</div>
 						) : (
 							<>
@@ -273,7 +275,9 @@ export const TopicFilterDropdown: React.FC<TopicFilterDropdownProps> = ({
 								className="cursor-pointer text-primary"
 							>
 								<Plus className="h-4 w-4 mr-2" />
-								<span className="text-sm font-medium">{t("filter.createNewTopic")}</span>
+								<span className="text-sm font-medium">
+									{t("filter.createNewTopic")}
+								</span>
 							</DropdownMenuItem>
 						</div>
 					</>
@@ -306,14 +310,16 @@ export const ActiveTopicChips: React.FC<ActiveTopicChipsProps> = ({
 	className,
 }) => {
 	const { t } = useTranslation("topics");
-	
+
 	if (selectedTopics.length === 0) {
 		return null;
 	}
 
 	return (
 		<div className={cn("flex flex-wrap items-center gap-2", className)}>
-			<span className="text-xs text-muted-foreground">{t("filter.filteredBy")}</span>
+			<span className="text-xs text-muted-foreground">
+				{t("filter.filteredBy")}
+			</span>
 
 			{selectedTopics.map((topic) => (
 				<button

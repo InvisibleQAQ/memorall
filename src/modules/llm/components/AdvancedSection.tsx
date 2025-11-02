@@ -140,9 +140,7 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 					<Settings size={20} />
 					{t("advanced.title")}
 				</CardTitle>
-				<CardDescription>
-					{t("advanced.description")}
-				</CardDescription>
+				<CardDescription>{t("advanced.description")}</CardDescription>
 			</CardHeader>
 			<CardContent className="p-3 space-y-4">
 				<ProgressSection
@@ -235,7 +233,9 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 					</div>
 				)}
 
-				<div className="text-sm text-muted-foreground">{t("advanced.status", { status })}</div>
+				<div className="text-sm text-muted-foreground">
+					{t("advanced.status", { status })}
+				</div>
 
 				<ChatSection
 					ready={ready}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import type { LogFilter } from "@/utils/indexeddb-storage";
 interface LogsPageProps {}
 
 export const LogsPage: React.FC<LogsPageProps> = () => {
+	const { t } = useTranslation("logs");
 	const [logs, setLogs] = useState<LogEntry[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -137,11 +139,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 	};
 
 	const handleClearLogs = async () => {
-		if (
-			confirm(
-				"Are you sure you want to clear all logs? This action cannot be undone.",
-			)
-		) {
+		if (confirm(t("actions.clearConfirm"))) {
 			try {
 				await logger.clearLogs();
 				await loadLogs();
@@ -233,7 +231,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 				{/* Header */}
 				<div className="bg-card shadow-sm border-b p-3">
 					<div className="flex items-center justify-between mb-3">
-						<h1 className="text-lg font-bold text-foreground">Debug Logs</h1>
+						<h1 className="text-lg font-bold text-foreground">{t("title")}</h1>
 						<TooltipProvider>
 							<div className="flex items-center space-x-1">
 								<Tooltip>
@@ -247,7 +245,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>
-										<p>Card view</p>
+										<p>{t("view.card")}</p>
 									</TooltipContent>
 								</Tooltip>
 
@@ -262,7 +260,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>
-										<p>Text view</p>
+										<p>{t("view.text")}</p>
 									</TooltipContent>
 								</Tooltip>
 
@@ -282,7 +280,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>
-										<p>Refresh logs</p>
+										<p>{t("actions.refresh")}</p>
 									</TooltipContent>
 								</Tooltip>
 
@@ -297,7 +295,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>
-										<p>Export logs</p>
+										<p>{t("actions.export")}</p>
 									</TooltipContent>
 								</Tooltip>
 
@@ -312,7 +310,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>
-										<p>Clear all logs</p>
+										<p>{t("actions.clearAll")}</p>
 									</TooltipContent>
 								</Tooltip>
 							</div>
@@ -321,17 +319,15 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 
 					{/* Stats */}
 					<div className="flex items-center justify-between text-xs text-muted-foreground mb-2 px-1">
-						<span>
-							Total: <strong>{stats.total}</strong>
-						</span>
+						<span>{t("stats.total", { count: stats.total })}</span>
 						<span className="text-red-600">
-							Errors: <strong>{stats.byLevel.error}</strong>
+							{t("stats.errors", { count: stats.byLevel.error })}
 						</span>
 						<span className="text-yellow-600">
-							Warnings: <strong>{stats.byLevel.warn}</strong>
+							{t("stats.warnings", { count: stats.byLevel.warn })}
 						</span>
 						<span className="text-blue-600">
-							Info: <strong>{stats.byLevel.info}</strong>
+							{t("stats.info", { count: stats.byLevel.info })}
 						</span>
 					</div>
 
@@ -341,7 +337,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 							<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
 							<Input
 								type="text"
-								placeholder="Search logs..."
+								placeholder={t("search.placeholder")}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								className="pl-10 h-8"
@@ -360,14 +356,16 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 								}
 							>
 								<SelectTrigger className="flex-1 h-8">
-									<SelectValue placeholder="All Levels" />
+									<SelectValue placeholder={t("filters.allLevels")} />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="__ALL__">All Levels</SelectItem>
-									<SelectItem value="debug">Debug</SelectItem>
-									<SelectItem value="info">Info</SelectItem>
-									<SelectItem value="warn">Warning</SelectItem>
-									<SelectItem value="error">Error</SelectItem>
+									<SelectItem value="__ALL__">
+										{t("filters.allLevels")}
+									</SelectItem>
+									<SelectItem value="debug">{t("level.debug")}</SelectItem>
+									<SelectItem value="info">{t("level.info")}</SelectItem>
+									<SelectItem value="warn">{t("level.warning")}</SelectItem>
+									<SelectItem value="error">{t("level.error")}</SelectItem>
 								</SelectContent>
 							</Select>
 
@@ -381,15 +379,25 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 								}
 							>
 								<SelectTrigger className="flex-1 h-8">
-									<SelectValue placeholder="All Sources" />
+									<SelectValue placeholder={t("filters.allSources")} />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="__ALL__">All Sources</SelectItem>
-									<SelectItem value="background">Background</SelectItem>
-									<SelectItem value="content">Content</SelectItem>
-									<SelectItem value="popup">Popup</SelectItem>
-									<SelectItem value="options">Options</SelectItem>
-									<SelectItem value="offscreen">Offscreen</SelectItem>
+									<SelectItem value="__ALL__">
+										{t("filters.allSources")}
+									</SelectItem>
+									<SelectItem value="background">
+										{t("sources.background")}
+									</SelectItem>
+									<SelectItem value="content">
+										{t("sources.content")}
+									</SelectItem>
+									<SelectItem value="popup">{t("sources.popup")}</SelectItem>
+									<SelectItem value="options">
+										{t("sources.options")}
+									</SelectItem>
+									<SelectItem value="offscreen">
+										{t("sources.offscreen")}
+									</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -404,11 +412,11 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 					{loading ? (
 						<div className="text-center py-8">
 							<div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-							<p className="text-muted-foreground">Loading logs...</p>
+							<p className="text-muted-foreground">{t("status.loading")}</p>
 						</div>
 					) : logs.length === 0 ? (
 						<div className="text-center py-8">
-							<p className="text-muted-foreground">No logs found</p>
+							<p className="text-muted-foreground">{t("status.empty")}</p>
 						</div>
 					) : viewMode === "text" ? (
 						<div className="bg-black text-green-400 p-4 rounded-lg font-mono text-sm overflow-auto">
@@ -454,7 +462,9 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 
 												{log.context && (
 													<div className="text-xs text-muted-foreground mb-1">
-														<span className="font-medium">Context:</span>{" "}
+														<span className="font-medium">
+															{t("entry.context")}
+														</span>{" "}
 														<span className="break-all">{log.context}</span>
 													</div>
 												)}
@@ -462,11 +472,12 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 												{log.data ? (
 													<details className="mt-2">
 														<summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-															Show data (
-															{typeof log.data === "object"
-																? "object"
-																: typeof log.data}
-															)
+															{t("entry.showData", {
+																type:
+																	typeof log.data === "object"
+																		? "object"
+																		: typeof log.data,
+															})}
 														</summary>
 														<pre className="mt-1 p-2 bg-background rounded text-xs text-muted-foreground overflow-x-auto overflow-y-auto max-h-40 whitespace-pre">
 															{formatData(log.data)}

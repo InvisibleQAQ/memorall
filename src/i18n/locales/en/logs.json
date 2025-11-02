@@ -49,6 +49,6 @@
 	},
 	"entry": {
 		"context": "Context:",
-		"showData": "Show data"
+		"showData": "Show data ({{type}})"
 	}
 }

@@ -2,6 +2,30 @@ import { Loader } from "lucide-react";
 import React, { type FormEventHandler } from "react";
 import { CloseIcon } from "./Icons";
 
+// Translation map for message controls
+export const MESSAGE_CONTROL_TEXTS = {
+	en: {
+		reasoning: "💭 Reasoning",
+		sources: "🔗 Sources",
+		stop: "Stop",
+		send: "Send",
+		recall: "Recall",
+		noModel: "No model",
+		openFullVersion: "Open full version",
+		close: "Close",
+	},
+	vn: {
+		reasoning: "💭 Lý luận",
+		sources: "🔗 Nguồn",
+		stop: "Dừng",
+		send: "Gửi",
+		recall: "Gợi nhớ",
+		noModel: "Không có mô hình",
+		openFullVersion: "Mở phiên bản đầy đủ",
+		close: "Đóng",
+	},
+};
+
 // Workflow type (matches api-types from workflows module)
 export interface Workflow {
 	id: string;
@@ -83,7 +107,9 @@ export const Reasoning: React.FC<{
 	</details>
 );
 
-export const ReasoningTrigger: React.FC = () => (
+export const ReasoningTrigger: React.FC<{
+	texts?: typeof MESSAGE_CONTROL_TEXTS.en;
+}> = ({ texts = MESSAGE_CONTROL_TEXTS.en }) => (
 	<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
 		<svg
 			className="w-3 h-3 group-open:rotate-90 transition-transform"
@@ -99,7 +125,7 @@ export const ReasoningTrigger: React.FC = () => (
 				clipRule="evenodd"
 			/>
 		</svg>
-		<span>💭 Reasoning</span>
+		<span>{texts.reasoning}</span>
 	</summary>
 );
 
@@ -115,7 +141,10 @@ export const Sources: React.FC<{ children: React.ReactNode }> = ({
 	children,
 }) => <details className="group">{children}</details>;
 
-export const SourcesTrigger: React.FC<{ count: number }> = ({ count }) => (
+export const SourcesTrigger: React.FC<{
+	count: number;
+	texts?: typeof MESSAGE_CONTROL_TEXTS.en;
+}> = ({ count, texts = MESSAGE_CONTROL_TEXTS.en }) => (
 	<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
 		<svg
 			className="w-3 h-3 group-open:rotate-90 transition-transform"
@@ -131,7 +160,9 @@ export const SourcesTrigger: React.FC<{ count: number }> = ({ count }) => (
 				clipRule="evenodd"
 			/>
 		</svg>
-		<span>🔗 Sources ({count})</span>
+		<span>
+			{texts.sources} ({count})
+		</span>
 	</summary>
 );
 
@@ -265,7 +296,8 @@ export const PromptInputSubmit: React.FC<{
 	disabled: boolean;
 	status: "ready" | "streaming";
 	onStop?: () => void;
-}> = ({ disabled, status, onStop }) => (
+	texts?: typeof MESSAGE_CONTROL_TEXTS.en;
+}> = ({ disabled, status, onStop, texts = MESSAGE_CONTROL_TEXTS.en }) => (
 	<button
 		type={status === "streaming" ? "button" : "submit"}
 		disabled={disabled}
@@ -275,10 +307,10 @@ export const PromptInputSubmit: React.FC<{
 		{status === "streaming" ? (
 			<>
 				<Loader size={14} />
-				<span className="ml-1">Stop</span>
+				<span className="ml-1">{texts.stop}</span>
 			</>
 		) : (
-			"Send"
+			texts.send
 		)}
 	</button>
 );
@@ -291,6 +323,7 @@ interface ChatHeaderProps {
 	modelId?: string;
 	provider?: string;
 	modelAvailable?: boolean;
+	texts?: typeof MESSAGE_CONTROL_TEXTS.en;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -300,6 +333,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 	modelId,
 	provider,
 	modelAvailable,
+	texts = MESSAGE_CONTROL_TEXTS.en,
 }) => {
 	return (
 		<div className="border-b bg-muted/50 px-4 py-3 flex-shrink-0">
@@ -310,7 +344,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 						alt="Memorall"
 						className="w-6 h-6 flex-shrink-0"
 					/>
-					<span className="font-semibold text-base flex-shrink-0">Recall</span>
+					<span className="font-semibold text-base flex-shrink-0">
+						{texts.recall}
+					</span>
 					{modelAvailable && modelId && provider ? (
 						<div className="flex items-center gap-1 text-xs min-w-0">
 							<div className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
@@ -321,7 +357,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 					) : (
 						<div className="flex items-center gap-1 text-xs">
 							<div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-							<span className="text-muted-foreground">No model</span>
+							<span className="text-muted-foreground">{texts.noModel}</span>
 						</div>
 					)}
 				</div>
@@ -329,8 +365,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 					<button
 						onClick={onOpenFullVersion}
 						className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
-						aria-label="Open full version"
-						title="Open full version"
+						aria-label={texts.openFullVersion}
+						title={texts.openFullVersion}
 						onKeyDown={(e) => e.stopPropagation()}
 						onKeyUp={(e) => e.stopPropagation()}
 						onKeyPress={(e) => e.stopPropagation()}
@@ -352,7 +388,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 					<button
 						onClick={onClose}
 						className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
-						aria-label="Close"
+						aria-label={texts.close}
+						title={texts.close}
 						onKeyDown={(e) => e.stopPropagation()}
 						onKeyUp={(e) => e.stopPropagation()}
 						onKeyPress={(e) => e.stopPropagation()}

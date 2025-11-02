@@ -1,22 +1,48 @@
 {
 	"title": "Embeddings",
-	"model": {
-		"select": "Select Embedding Model",
-		"status": "Model Status",
-		"loaded": "Loaded",
-		"notLoaded": "Not Loaded"
+	"vectorSearch": {
+		"title": "Vector Search",
+		"searchQuery": "Search Query",
+		"searchButton": "Search",
+		"searchPlaceholder": "Enter text to search for similar content...",
+		"table": "Table",
+		"vectorColumn": "Vector Column",
+		"limit": "Limit",
+		"threshold": "Threshold",
+		"results": "Results ({{count}}) - {{tableName}}",
+		"similarityScores": "Similarity scores shown"
 	},
-	"test": {
-		"title": "Test Embedding",
-		"input": "Input Text",
-		"generate": "Generate Embedding",
-		"result": "Embedding Result",
-		"dimensions": "Dimensions"
+	"status": {
+		"notInitialized": "Database not yet initialized. Please wait for app startup to complete.",
+		"embeddingNotReady": "Embedding service not ready. Please wait for initialization to complete.",
+		"noVectorTables": "No vector-enabled tables found in the database schema.",
+		"searching": "Searching...",
+		"noResults": "No similar content found. Try adjusting the threshold or search query.",
+		"enterQuery": "Enter a search query to find similar content"
 	},
-	"search": {
-		"title": "Similarity Search",
-		"query": "Search Query",
-		"results": "Results",
-		"similarity": "Similarity"
+	"details": {
+		"title": "Result Details",
+		"similarity": "{{percent}}% similarity",
+		"vectorEmbedding": "[Vector embedding - {{dimensions}} dimensions]"
+	},
+	"stats": {
+		"vectorTables": "Vector-Enabled Tables",
+		"embeddingService": "Embedding Service",
+		"serviceStatus": "Status:",
+		"ready": "Ready",
+		"notReady": "Not Ready",
+		"searchType": "Search Type:",
+		"cosineSimilarity": "Cosine Similarity"
+	},
+	"tips": {
+		"title": "Search Tips",
+		"naturalLanguage": "• Use natural language to search for similar content",
+		"adjustThreshold": "• Adjust the threshold to control result precision",
+		"higherThreshold": "• Higher threshold = more similar results",
+		"similarityScores": "• Similarity scores show content relevance"
+	},
+	"placeholder": {
+		"searchSimilar": "Search for similar content",
+		"enterQuery": "Enter a query to find semantically similar items"
 	}
 }

@@ -257,11 +257,17 @@ const MarkdownMessageComponent: React.FC<MarkdownMessageProps> = ({
 
 						return (
 							<Task key={index} defaultOpen={isIncomplete}>
-								<TaskTrigger title={isThinking ? t("messages.thinking") : t("messages.thought")}>
+								<TaskTrigger
+									title={
+										isThinking ? t("messages.thinking") : t("messages.thought")
+									}
+								>
 									<div className="flex cursor-pointer items-center gap-2 text-muted-foreground hover:text-foreground">
 										<Brain className="size-4" />
 										<p className="text-sm">
-											{isThinking ? t("messages.thinking") : t("messages.thought")}
+											{isThinking
+												? t("messages.thinking")
+												: t("messages.thought")}
 										</p>
 										<ChevronDownIcon className="size-4 transition-transform group-data-[state=open]:rotate-180" />
 									</div>

@@ -6,10 +6,10 @@
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { logInfo, logError } from "@/utils/logger";
+import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "@/constants/language";
+import type { Language } from "@/constants/language";
 
-export type Language = "en" | "vn";
-
-const LANGUAGE_STORAGE_KEY = "memorall_language";
+export type { Language };
 
 /**
  * Hook for managing language with chrome storage sync
@@ -34,7 +34,9 @@ export function useLanguage() {
 					}
 				} else {
 					// Set default language if none saved
-					await chrome.storage.local.set({ [LANGUAGE_STORAGE_KEY]: "en" });
+					await chrome.storage.local.set({
+						[LANGUAGE_STORAGE_KEY]: DEFAULT_LANGUAGE,
+					});
 				}
 			} catch (error) {
 				logError("Failed to load language from storage:", error);

@@ -5,6 +5,24 @@ import type { ChatMessage } from "../types";
 import { Loader } from "./Icons";
 import html2canvas from "html2canvas";
 
+// Translation map for context sections
+export const CONTEXT_SECTIONS_TEXTS = {
+	en: {
+		selectContext: "Select context:",
+		clearAll: "Clear all",
+		hideContextSection: "Hide context section",
+		showContextSection: "Show context section",
+		sendWithContext: "Send with context",
+	},
+	vn: {
+		selectContext: "Chọn ngữ cảnh:",
+		clearAll: "Xóa tất cả",
+		hideContextSection: "Ẩn phần ngữ cảnh",
+		showContextSection: "Hiển thị phần ngữ cảnh",
+		sendWithContext: "Gửi với ngữ cảnh",
+	},
+};
+
 const hasUnsupportedColors = (element: Element): boolean => {
 	try {
 		if (!(element instanceof HTMLElement)) return false;
@@ -41,6 +59,7 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 	>;
 	showContextSection: boolean;
 	onToggleContextSection: () => void;
+	texts?: typeof CONTEXT_SECTIONS_TEXTS.en;
 }> = ({
 	pageUrl,
 	pageTitle,
@@ -50,6 +69,7 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 	setSelectedContexts,
 	showContextSection,
 	onToggleContextSection,
+	texts = CONTEXT_SECTIONS_TEXTS.en,
 }) => {
 	const [availableContexts, setAvailableContexts] = useState<
 		Array<{ type: string; label: string; content: string }>
@@ -314,8 +334,8 @@ ${contextParts.join("\n")}
 								className="flex items-center justify-center p-1 text-muted-foreground hover:text-foreground transition-colors"
 								title={
 									showContextSection
-										? "Hide context section"
-										: "Show context section"
+										? texts.hideContextSection
+										: texts.showContextSection
 								}
 								onKeyDown={(e) => e.stopPropagation()}
 								onKeyUp={(e) => e.stopPropagation()}
@@ -336,7 +356,7 @@ ${contextParts.join("\n")}
 								</svg>
 							</button>
 							<div className="text-xs font-medium text-muted-foreground">
-								Select context:
+								{texts.selectContext}
 							</div>
 						</div>
 						{selectedContexts.length > 0 && (
@@ -350,7 +370,7 @@ ${contextParts.join("\n")}
 								onKeyUp={(e) => e.stopPropagation()}
 								onKeyPress={(e) => e.stopPropagation()}
 							>
-								Clear
+								{texts.clearAll}
 							</button>
 						)}
 					</div>

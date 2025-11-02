@@ -39,7 +39,11 @@ export const ChatSection: React.FC<ChatSectionProps> = ({
 					placeholder={t("chat.placeholder")}
 				/>
 				<Button onClick={onGenerate} disabled={loading || !prompt.trim()}>
-					{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("chat.generate")}
+					{loading ? (
+						<Loader2 className="w-4 h-4 animate-spin" />
+					) : (
+						t("chat.generate")
+					)}
 				</Button>
 			</div>
 

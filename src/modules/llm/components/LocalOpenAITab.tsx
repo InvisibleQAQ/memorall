@@ -205,14 +205,13 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 						{t("localProvider.title")}
 					</span>
 				</div>
-				<p className="text-xs text-primary">
-					{t("localProvider.description")}
-				</p>
+				<p className="text-xs text-primary">{t("localProvider.description")}</p>
 			</div>
 
 			{view === "loading" && (
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
-					<Loader2 className="w-4 h-4 animate-spin" /> {t("localProvider.checkingConfiguration")}
+					<Loader2 className="w-4 h-4 animate-spin" />{" "}
+					{t("localProvider.checkingConfiguration")}
 				</div>
 			)}
 
@@ -220,7 +219,9 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 				<div className="space-y-3">
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 						<div>
-							<label className="text-xs text-muted-foreground">{t("localProvider.baseUrl")}</label>
+							<label className="text-xs text-muted-foreground">
+								{t("localProvider.baseUrl")}
+							</label>
 							<Input
 								value={baseUrl}
 								onChange={(e) => setBaseUrl(e.target.value)}
@@ -236,7 +237,9 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 							</label>
 							<Input
 								placeholder={
-									providerKind === "ollama" ? t("localProvider.placeholders.ollama") : t("localProvider.placeholders.lmstudio")
+									providerKind === "ollama"
+										? t("localProvider.placeholders.ollama")
+										: t("localProvider.placeholders.lmstudio")
 								}
 								value={modelId}
 								onChange={(e) => setModelId(e.target.value)}
@@ -247,7 +250,9 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 					<div className="flex gap-2">
 						<Button onClick={save} disabled={busy || !isValidNew}>
 							{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-							<span className="ml-2">{t("localProvider.saveConfiguration")}</span>
+							<span className="ml-2">
+								{t("localProvider.saveConfiguration")}
+							</span>
 						</Button>
 					</div>
 				</div>
@@ -255,10 +260,14 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 
 			{view === "has-config" && (
 				<div className="space-y-3">
-					<div className="text-sm text-foreground">{t("localProvider.configurationFound")}</div>
+					<div className="text-sm text-foreground">
+						{t("localProvider.configurationFound")}
+					</div>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 						<div>
-							<label className="text-xs text-muted-foreground">{t("localProvider.baseUrl")}</label>
+							<label className="text-xs text-muted-foreground">
+								{t("localProvider.baseUrl")}
+							</label>
 							<Input
 								value={existingBaseUrl}
 								onChange={(e) => setExistingBaseUrl(e.target.value)}
@@ -274,7 +283,9 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 							</label>
 							<Input
 								placeholder={
-									providerKind === "ollama" ? t("localProvider.placeholders.ollama") : t("localProvider.placeholders.lmstudio")
+									providerKind === "ollama"
+										? t("localProvider.placeholders.ollama")
+										: t("localProvider.placeholders.lmstudio")
 								}
 								value={existingModelId}
 								onChange={(e) => setExistingModelId(e.target.value)}

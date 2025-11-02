@@ -50,7 +50,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 	uiProgress = 0,
 }) => {
 	const { t } = useTranslation("common");
-	
+
 	// Create loading steps with translations
 	const LOADING_STEPS: LoadingStep[] = [
 		{
@@ -207,7 +207,9 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 								text={[
 									t("appLoading.title"),
 									t("appLoading.subtitle"),
-									...t("appLoading.taglines", { returnObjects: true }) as string[],
+									...(t("appLoading.taglines", {
+										returnObjects: true,
+									}) as string[]),
 								]}
 								typingSpeed={60}
 								pauseDuration={200}
@@ -308,7 +310,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 						{/* Footer info */}
 						<div className="mt-8 pt-6 border-t border-border">
 							<div className="flex justify-between items-center text-xs text-muted-foreground">
-								<span>{t("appLoading.elapsed", { time: formatElapsedTime(elapsedTime) })}</span>
+								<span>
+									{t("appLoading.elapsed", {
+										time: formatElapsedTime(elapsedTime),
+									})}
+								</span>
 								<span>{t("appLoading.firstLaunch")}</span>
 							</div>
 						</div>

@@ -8,9 +8,7 @@ import { createRoot } from "react-dom/client";
 import { nanoid } from "nanoid";
 import type { ChatModalProps, ChatMessage, ChatAction } from "../types";
 import { embeddedChatService } from "../chat-service";
-import { backgroundJob } from "@/services/background-jobs/background-job";
-import { customStyles } from "./styles/customStyles";
-import { EmbeddedMessageRenderer } from "./EmbeddedMessageRenderer";
+import { DEFAULT_LANGUAGE, type Language } from "@/constants/language";
 import { Loader } from "./Icons";
 import {
 	ChatHeader,
@@ -31,7 +29,63 @@ import {
 	SourcesContent,
 	SourcesTrigger,
 } from "./MessageControl";
-import { ShadcnEmbeddedContextSections } from "./ContextSections";
+import {
+	ShadcnEmbeddedContextSections,
+	CONTEXT_SECTIONS_TEXTS,
+} from "./ContextSections";
+import { MESSAGE_CONTROL_TEXTS } from "./MessageControl";
+import { loadLanguageFromStorage } from "../language";
+import { EmbeddedMessageRenderer } from "./EmbeddedMessageRenderer";
+import { backgroundJob } from "@/services/background-jobs/background-job";
+import { customStyles } from "./styles/customStyles";
+
+// Translation map for embedded chat
+const EMBEDDED_CHAT_TEXTS = {
+	en: {
+		loadingTopics: "Loading topics...",
+		defaultTopic: "Default",
+		recallKnowledge: "Recall Knowledge",
+		recallDescription:
+			"Ask me anything about your saved knowledge and I'll help you recall relevant information.",
+		context: "Context",
+		noTopics: "No topics",
+		noModelAvailable: "No model available...",
+		typeMessage: "Type your message...",
+		clearChat: "Clear chat",
+		closeChat: "Close chat?",
+		closeConfirmation:
+			"You have unsaved messages or input. Are you sure you want to close?",
+		cancel: "Cancel",
+		closeAnyway: "Close anyway",
+		contextFromPage: "Context from page:",
+		tellMeAboutTopics: "Tell me about topics related to:",
+		whatDoYouKnow: "What do you know about:",
+		errorMessage:
+			"Sorry, I encountered an error while processing your request. Please try again.",
+	},
+	vn: {
+		loadingTopics: "Đang tải chủ đề...",
+		defaultTopic: "Mặc định",
+		recallKnowledge: "Gợi nhớ kiến thức",
+		recallDescription:
+			"Hỏi tôi bất cứ điều gì về kiến thức đã lưu và tôi sẽ giúp bạn gợi nhớ thông tin liên quan.",
+		context: "Ngữ cảnh",
+		noTopics: "Không có chủ đề",
+		noModelAvailable: "Không có mô hình khả dụng...",
+		typeMessage: "Nhập tin nhắn của bạn...",
+		clearChat: "Xóa cuộc trò chuyện",
+		closeChat: "Đóng cuộc trò chuyện?",
+		closeConfirmation:
+			"Bạn có tin nhắn hoặc đầu vào chưa lưu. Bạn có chắc chắn muốn đóng không?",
+		cancel: "Hủy",
+		closeAnyway: "Vẫn đóng",
+		contextFromPage: "Ngữ cảnh từ trang:",
+		tellMeAboutTopics: "Hãy nói cho tôi biết về các chủ đề liên quan đến:",
+		whatDoYouKnow: "Bạn biết gì về:",
+		errorMessage:
+			"Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.",
+	},
+};
 
 // Topic Selector Component
 const TopicSelector: React.FC<{
@@ -39,12 +93,13 @@ const TopicSelector: React.FC<{
 	onTopicChange: (topicId: string) => void;
 	topics: Array<{ id: string; name: string }>;
 	isLoading: boolean;
-}> = ({ selectedTopic, onTopicChange, topics, isLoading }) => {
+	texts: typeof EMBEDDED_CHAT_TEXTS.en;
+}> = ({ selectedTopic, onTopicChange, topics, isLoading, texts }) => {
 	if (isLoading) {
 		return (
 			<div className="flex items-center gap-2 text-xs text-muted-foreground">
 				<Loader size={12} />
-				<span>Loading topics...</span>
+				<span>{texts.loadingTopics}</span>
 			</div>
 		);
 	}
@@ -67,12 +122,17 @@ const TopicSelector: React.FC<{
 	);
 };
 
-const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
+interface EmbeddedChatProps extends ChatModalProps {
+	language?: Language;
+}
+
+const ShadcnEmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	context,
 	mode = "general",
 	pageUrl,
 	pageTitle,
 	contextOptions,
+	language = DEFAULT_LANGUAGE,
 	onClose,
 }) => {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -83,8 +143,13 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
 	const [selectedTopic, setSelectedTopic] = useState<string>("default");
 	const [topicsLoading, setTopicsLoading] = useState(true);
-	const [isTyping, setIsTyping] = useState(false);
 	const [, setStreamingMessageId] = useState<string | null>(null);
+	const [isTyping, setIsTyping] = useState(false);
+
+	// Get translation texts based on current language
+	const texts = EMBEDDED_CHAT_TEXTS[language];
+	const messageControlTexts = MESSAGE_CONTROL_TEXTS[language];
+	const contextSectionTexts = CONTEXT_SECTIONS_TEXTS[language];
 	const [abortController, setAbortController] =
 		useState<AbortController | null>(null);
 	const [selectedContexts, setSelectedContexts] = useState<
@@ -150,7 +215,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 	// Topic status
 	const hasTopics = topics.length > 0;
 
-	// Initialize model and check status
+	// Initialize model on mount
 	useEffect(() => {
 		const initializeModel = async () => {
 			try {
@@ -215,7 +280,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 						// Add default option at the top
 						const defaultTopic = {
 							id: "default",
-							name: "Default",
+							name: texts.defaultTopic,
 						};
 						const topicsWithDefault = [defaultTopic, ...topicList];
 
@@ -308,7 +373,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 		if (context) {
 			const contextMessage: ChatMessage = {
 				id: nanoid(),
-				content: `Context from page: "${context}"`,
+				content: `${texts.contextFromPage} "${context}"`,
 				role: "user",
 				timestamp: new Date(),
 			};
@@ -317,11 +382,11 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 			// Auto-populate input with query
 			const autoQuery =
 				mode === "topic"
-					? `Tell me about topics related to: ${context}`
-					: `What do you know about: ${context}`;
+					? `${texts.tellMeAboutTopics} ${context}`
+					: `${texts.whatDoYouKnow} ${context}`;
 			setInputValue(autoQuery);
 		}
-	}, [context, mode]);
+	}, [context, mode, texts]);
 
 	const handleStop = useCallback(() => {
 		if (abortController) {
@@ -346,79 +411,6 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 			// Create abort controller for this request
 			const controller = new AbortController();
 			setAbortController(controller);
-
-			// Build hidden context with page information - only visible viewport content
-			const getPageContext = () => {
-				try {
-					const selection = window.getSelection()?.toString() || "";
-
-					// Get only visible text in viewport
-					const visibleText: string[] = [];
-					const walker = document.createTreeWalker(
-						document.body,
-						NodeFilter.SHOW_TEXT,
-						{
-							acceptNode: (node) => {
-								const parent = node.parentElement;
-								if (!parent) return NodeFilter.FILTER_REJECT;
-
-								// Skip script, style, noscript
-								const tag = parent.tagName.toLowerCase();
-								if (tag === "script" || tag === "style" || tag === "noscript") {
-									return NodeFilter.FILTER_REJECT;
-								}
-
-								// Check if element is in viewport
-								const rect = parent.getBoundingClientRect();
-								const isInViewport =
-									rect.top < window.innerHeight &&
-									rect.bottom > 0 &&
-									rect.left < window.innerWidth &&
-									rect.right > 0;
-
-								if (!isInViewport) return NodeFilter.FILTER_REJECT;
-
-								// Check visibility
-								const style = window.getComputedStyle(parent);
-								const isVisible =
-									style.display !== "none" &&
-									style.visibility !== "hidden" &&
-									style.opacity !== "0";
-
-								return isVisible
-									? NodeFilter.FILTER_ACCEPT
-									: NodeFilter.FILTER_REJECT;
-							},
-						},
-					);
-
-					let node: Node | null;
-					let totalLength = 0;
-					const maxLength = 2000;
-
-					while ((node = walker.nextNode()) && totalLength < maxLength) {
-						const text = node.textContent?.trim() || "";
-						if (text && text.length > 0) {
-							visibleText.push(text);
-							totalLength += text.length;
-						}
-					}
-
-					const viewportContent = visibleText.join(" ").slice(0, maxLength);
-
-					return {
-						viewportContent,
-						selection,
-					};
-				} catch (error) {
-					console.error("Error getting page context:", error);
-					const bodyText = document.body?.innerText?.slice(0, 2000) || "";
-					return {
-						viewportContent: bodyText,
-						selection: window.getSelection()?.toString() || "",
-					};
-				}
-			};
 
 			const userMessage: ChatMessage = {
 				id: nanoid(),
@@ -500,8 +492,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 								if (msg.id === assistantMessageId) {
 									return {
 										...msg,
-										content:
-											"Sorry, I encountered an error while processing your request. Please try again.",
+										content: texts.errorMessage,
 										isStreaming: false,
 									};
 								}
@@ -523,8 +514,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 						if (msg.id === assistantMessageId) {
 							return {
 								...msg,
-								content:
-									"Sorry, I encountered an error while processing your request. Please try again.",
+								content: texts.errorMessage,
 								isStreaming: false,
 							};
 						}
@@ -568,7 +558,8 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 					onClose={handleCloseButtonClick}
 					modelId={selectedModel}
 					provider={selectedProvider}
-					modelAvailable={modelAvailable && !!selectedModel}
+					modelAvailable={modelAvailable}
+					texts={messageControlTexts}
 				/>
 
 				{/* Conversation Area - exact same structure as your example */}
@@ -587,10 +578,9 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 										className="w-8 h-8 object-contain"
 									/>
 								</div>
-								<h3 className="font-medium mb-2">Recall Knowledge</h3>
+								<h3 className="font-medium mb-2">{texts.recallKnowledge}</h3>
 								<p className="text-muted-foreground text-xs leading-relaxed">
-									Ask me anything about your saved knowledge and I'll help you
-									recall relevant information.
+									{texts.recallDescription}
 								</p>
 							</div>
 						) : (
@@ -664,7 +654,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 									d="M4 6h16M4 12h16M4 18h16"
 								/>
 							</svg>
-							<span>Context</span>
+							<span>{texts.context}</span>
 						</button>
 					</div>
 				)}
@@ -686,6 +676,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 						setSelectedContexts={setSelectedContexts}
 						showContextSection={showContextSection}
 						onToggleContextSection={handleToggleContextSection}
+						texts={contextSectionTexts}
 					/>
 				</div>
 
@@ -696,9 +687,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 							value={inputValue}
 							onChange={(e) => setInputValue(e.target.value)}
 							placeholder={
-								!modelAvailable
-									? "No model available..."
-									: "Type your message..."
+								!modelAvailable ? texts.noModelAvailable : texts.typeMessage
 							}
 							disabled={isTyping || !modelAvailable}
 						/>
@@ -735,11 +724,12 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 										onTopicChange={setSelectedTopic}
 										topics={topics}
 										isLoading={topicsLoading}
+										texts={texts}
 									/>
 								)}
 								{!hasTopics && (
 									<span className="text-xs text-muted-foreground px-3 py-1.5">
-										No topics
+										{texts.noTopics}
 									</span>
 								)}
 							</PromptInputTools>
@@ -747,6 +737,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 								disabled={!inputValue.trim() || isTyping || !modelAvailable}
 								status={isTyping ? "streaming" : "ready"}
 								onStop={handleStop}
+								texts={messageControlTexts}
 							/>
 						</PromptInputToolbar>
 					</PromptInput>
@@ -773,11 +764,10 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 							<div className="space-y-4">
 								<div className="space-y-2">
 									<h3 className="text-lg font-semibold text-foreground">
-										Close chat?
+										{texts.closeChat}
 									</h3>
 									<p className="text-sm text-muted-foreground">
-										You have unsaved messages or input. Are you sure you want to
-										close?
+										{texts.closeConfirmation}
 									</p>
 								</div>
 								<div className="flex gap-3 justify-end">
@@ -788,7 +778,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 										onKeyUp={(e) => e.stopPropagation()}
 										onKeyPress={(e) => e.stopPropagation()}
 									>
-										Cancel
+										{texts.cancel}
 									</button>
 									<button
 										onClick={handleConfirmedClose}
@@ -797,7 +787,7 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 										onKeyUp={(e) => e.stopPropagation()}
 										onKeyPress={(e) => e.stopPropagation()}
 									>
-										Close anyway
+										{texts.closeAnyway}
 									</button>
 								</div>
 							</div>
@@ -810,9 +800,11 @@ const ShadcnEmbeddedChat: React.FC<ChatModalProps> = ({
 };
 
 // Function to create and mount the shadcn-style chat modal with Shadow DOM isolation
-export function createShadcnEmbeddedChatModal(
+export async function createShadcnEmbeddedChatModal(
 	props: ChatModalProps,
-): () => void {
+): Promise<() => void> {
+	// Load language once at creation time
+	const language = await loadLanguageFromStorage();
 	// Create container element
 	const container = document.createElement("div");
 	container.id = "memorall-embedded-chat-modal";
@@ -848,6 +840,7 @@ export function createShadcnEmbeddedChatModal(
 
 	const modalProps = {
 		...props,
+		language,
 		onClose: () => {
 			props.onClose();
 			cleanupModal();

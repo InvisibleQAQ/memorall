@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -91,25 +92,35 @@ const getFieldType = (columnType: string): string => {
 	return "text"; // fallback
 };
 
-const OPERATORS: Record<string, { name: string; types: string[] }> = {
+// Note: OPERATORS will be translated dynamically in the component
+const OPERATORS: Record<string, { nameKey: string; types: string[] }> = {
 	eq: {
-		name: "Equals",
+		nameKey: "operators.equals",
 		types: ["text", "varchar", "uuid", "integer", "real", "boolean"],
 	},
 	ne: {
-		name: "Not Equals",
+		nameKey: "operators.notEquals",
 		types: ["text", "varchar", "uuid", "integer", "real", "boolean"],
 	},
-	like: { name: "Contains", types: ["text", "varchar"] },
-	gt: { name: "Greater Than", types: ["integer", "real", "timestamp"] },
-	gte: {
-		name: "Greater Than or Equal",
+	like: { nameKey: "operators.contains", types: ["text", "varchar"] },
+	gt: {
+		nameKey: "operators.greaterThan",
 		types: ["integer", "real", "timestamp"],
 	},
-	lt: { name: "Less Than", types: ["integer", "real", "timestamp"] },
-	lte: { name: "Less Than or Equal", types: ["integer", "real", "timestamp"] },
+	gte: {
+		nameKey: "operators.greaterThanOrEqual",
+		types: ["integer", "real", "timestamp"],
+	},
+	lt: {
+		nameKey: "operators.lessThan",
+		types: ["integer", "real", "timestamp"],
+	},
+	lte: {
+		nameKey: "operators.lessThanOrEqual",
+		types: ["integer", "real", "timestamp"],
+	},
 	isNull: {
-		name: "Is Null",
+		nameKey: "operators.isNull",
 		types: [
 			"text",
 			"varchar",
@@ -122,7 +133,7 @@ const OPERATORS: Record<string, { name: string; types: string[] }> = {
 		],
 	},
 	isNotNull: {
-		name: "Is Not Null",
+		nameKey: "operators.isNotNull",
 		types: [
 			"text",
 			"varchar",
@@ -137,6 +148,7 @@ const OPERATORS: Record<string, { name: string; types: string[] }> = {
 };
 
 export const DatabasePage: React.FC = () => {
+	const { t } = useTranslation("database");
 	const [loading, setLoading] = useState(false);
 	const [items, setItems] = useState<DatabaseRecord[]>([]);
 	const [stats, setStats] = useState<Partial<Record<EntityType, number>>>({});
@@ -589,7 +601,9 @@ export const DatabasePage: React.FC = () => {
 					<div className="flex items-center justify-between mb-2">
 						<div className="flex items-center gap-2">
 							<Database className="h-4 w-4" />
-							<span className="font-medium text-sm">Query Builder</span>
+							<span className="font-medium text-sm">
+								{t("queryBuilder.title")}
+							</span>
 							<div className="flex items-center gap-1 ml-2">
 								{getServiceStatusIcon(serviceStatus.database)}
 								{getServiceStatusIcon(serviceStatus.overall)}
@@ -603,7 +617,7 @@ export const DatabasePage: React.FC = () => {
 								size="sm"
 								className="h-7 text-xs"
 							>
-								Reset
+								{t("queryBuilder.reset")}
 							</Button>
 							<Button
 								onClick={executeQuery}
@@ -615,7 +629,7 @@ export const DatabasePage: React.FC = () => {
 								<Play
 									className={`h-3 w-3 ${loading ? "animate-spin" : ""} mr-1`}
 								/>
-								Query
+								{t("queryBuilder.query")}
 							</Button>
 						</div>
 					</div>
@@ -624,7 +638,9 @@ export const DatabasePage: React.FC = () => {
 					<div className="space-y-2">
 						<div className="flex gap-1 items-end">
 							<div className="flex-1">
-								<label className="block text-xs font-medium mb-1">Entity</label>
+								<label className="block text-xs font-medium mb-1">
+									{t("queryBuilder.entity")}
+								</label>
 								<Select
 									value={queryParams.entityType}
 									onValueChange={(value: EntityType) => {
@@ -652,7 +668,9 @@ export const DatabasePage: React.FC = () => {
 								</Select>
 							</div>
 							<div className="flex-1">
-								<label className="block text-xs font-medium mb-1">Sort</label>
+								<label className="block text-xs font-medium mb-1">
+									{t("queryBuilder.sort")}
+								</label>
 								<Select
 									value={queryParams.sortBy}
 									onValueChange={(value) =>
@@ -680,13 +698,17 @@ export const DatabasePage: React.FC = () => {
 											sortOrder: prev.sortOrder === "desc" ? "asc" : "desc",
 										}))
 									}
-									title={`Sort ${queryParams.sortOrder === "desc" ? "Ascending" : "Descending"}`}
+									title={t(
+										`queryBuilder.sort${queryParams.sortOrder === "desc" ? "Ascending" : "Descending"}`,
+									)}
 								>
 									{queryParams.sortOrder === "desc" ? "↓" : "↑"}
 								</button>
 							</div>
 							<div className="w-16">
-								<label className="block text-xs font-medium mb-1">Limit</label>
+								<label className="block text-xs font-medium mb-1">
+									{t("queryBuilder.limit")}
+								</label>
 								<Input
 									type="number"
 									min="1"
@@ -702,7 +724,9 @@ export const DatabasePage: React.FC = () => {
 								/>
 							</div>
 							<div className="w-16">
-								<label className="block text-xs font-medium mb-1">Offset</label>
+								<label className="block text-xs font-medium mb-1">
+									{t("queryBuilder.offset")}
+								</label>
 								<Input
 									type="number"
 									min="0"
@@ -720,7 +744,7 @@ export const DatabasePage: React.FC = () => {
 								<button
 									onClick={addCondition}
 									className="h-6 w-6 border border-border rounded text-xs hover:bg-muted/50 flex items-center justify-center"
-									title="Add Condition"
+									title={t("queryBuilder.addCondition")}
 								>
 									+
 								</button>
@@ -732,7 +756,7 @@ export const DatabasePage: React.FC = () => {
 							{queryParams.conditions.length > 0 && (
 								<div className="mb-1">
 									<label className="block text-xs font-medium">
-										Conditions
+										{t("queryBuilder.conditions")}
 									</label>
 								</div>
 							)}
@@ -784,7 +808,7 @@ export const DatabasePage: React.FC = () => {
 												<SelectContent>
 													{availableOperators.map(([op, config]) => (
 														<SelectItem key={op} value={op}>
-															{config.name}
+															{t(config.nameKey)}
 														</SelectItem>
 													))}
 												</SelectContent>
@@ -797,7 +821,7 @@ export const DatabasePage: React.FC = () => {
 												condition.operator,
 											) && (
 												<Input
-													placeholder="Value"
+													placeholder={t("placeholders.value")}
 													value={condition.value}
 													onChange={(e) =>
 														updateCondition(index, { value: e.target.value })
@@ -831,7 +855,10 @@ export const DatabasePage: React.FC = () => {
 					<div className="p-3 border-b bg-muted/20 flex-shrink-0">
 						<div className="flex items-center justify-between">
 							<span className="text-sm font-medium">
-								Results ({items.length}) - {queryParams.entityType}
+								{t("results.title", {
+									count: items.length,
+									entityType: queryParams.entityType,
+								})}
 							</span>
 							<div className="flex gap-1">
 								<Button
@@ -840,7 +867,7 @@ export const DatabasePage: React.FC = () => {
 									variant="outline"
 									size="sm"
 								>
-									Previous
+									{t("results.previous")}
 								</Button>
 								<Button
 									onClick={nextPage}
@@ -848,7 +875,7 @@ export const DatabasePage: React.FC = () => {
 									variant="outline"
 									size="sm"
 								>
-									Next
+									{t("results.next")}
 								</Button>
 							</div>
 						</div>
@@ -859,16 +886,15 @@ export const DatabasePage: React.FC = () => {
 						<ScrollArea className="h-full">
 							{!isInitialized ? (
 								<div className="p-3 text-center text-muted-foreground">
-									Database not yet initialized. Please wait for app startup to
-									complete.
+									{t("status.notInitialized")}
 								</div>
 							) : loading ? (
 								<div className="p-3 text-center text-muted-foreground">
-									Loading...
+									{t("status.loading")}
 								</div>
 							) : items.length === 0 ? (
 								<div className="p-3 text-center text-muted-foreground">
-									No items found matching your query
+									{t("results.noItems")}
 								</div>
 							) : (
 								<div className="divide-y">
@@ -908,7 +934,7 @@ export const DatabasePage: React.FC = () => {
 						<div className="border-b bg-card p-3">
 							<div className="flex items-center justify-between">
 								<h2 className="text-lg font-semibold">
-									{queryParams.entityType} Details
+									{t("details.title", { entityType: queryParams.entityType })}
 								</h2>
 								<Button
 									variant="ghost"
@@ -916,11 +942,13 @@ export const DatabasePage: React.FC = () => {
 									onClick={handleBackToList}
 									className="sm:hidden"
 								>
-									Back
+									{t("details.back")}
 								</Button>
 							</div>
 							<div className="text-sm text-muted-foreground mt-1">
-								ID: {selectedItem?.id?.toString().slice(0, 8) || "N/A"}
+								{t("details.id", {
+									id: selectedItem?.id?.toString().slice(0, 8) || "N/A",
+								})}
 							</div>
 						</div>
 
@@ -948,7 +976,7 @@ export const DatabasePage: React.FC = () => {
 								<CardHeader>
 									<CardTitle className="flex items-center gap-2 text-sm">
 										<BarChart3 size={16} />
-										Entity Statistics
+										{t("stats.title")}
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
@@ -972,7 +1000,7 @@ export const DatabasePage: React.FC = () => {
 								<CardHeader>
 									<CardTitle className="flex items-center gap-2 text-sm">
 										<Zap size={16} />
-										Quick Actions
+										{t("quickActions.title")}
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
@@ -984,7 +1012,7 @@ export const DatabasePage: React.FC = () => {
 											size="sm"
 											className="w-full"
 										>
-											Create Sample Conversation
+											{t("quickActions.createSample")}
 										</Button>
 										<Button
 											onClick={loadStats}
@@ -993,7 +1021,7 @@ export const DatabasePage: React.FC = () => {
 											size="sm"
 											className="w-full"
 										>
-											Refresh Stats
+											{t("quickActions.refreshStats")}
 										</Button>
 									</div>
 								</CardContent>
@@ -1004,12 +1032,8 @@ export const DatabasePage: React.FC = () => {
 						<div className="flex items-center justify-center h-64 text-muted-foreground">
 							<div className="text-center">
 								<Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-								<p className="text-sm font-medium">
-									Select an item to view details
-								</p>
-								<p className="text-xs">
-									Run a query and choose an item from the results
-								</p>
+								<p className="text-sm font-medium">{t("results.selectItem")}</p>
+								<p className="text-xs">{t("results.selectItemHelp")}</p>
 							</div>
 						</div>
 					</div>

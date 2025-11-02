@@ -53,7 +53,7 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 	children,
 }) => {
 	const { t } = useTranslation("common");
-	
+
 	// Create default steps with translations
 	const defaultSteps: CopilotStep[] = [
 		{

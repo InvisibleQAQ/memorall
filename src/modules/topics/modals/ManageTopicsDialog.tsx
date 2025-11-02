@@ -157,9 +157,7 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 							<Tags className="h-5 w-5 text-primary" />
 							{t("manage.title")}
 						</DialogTitle>
-						<DialogDescription>
-							{t("manage.description")}
-						</DialogDescription>
+						<DialogDescription>{t("manage.description")}</DialogDescription>
 					</DialogHeader>
 
 					{/* Search */}
@@ -193,7 +191,9 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 								<div className="py-12 text-center text-muted-foreground">
 									<Tags className="h-12 w-12 mx-auto mb-3 opacity-50" />
 									<p className="text-sm">
-										{searchQuery ? t("manage.noTopicsFound") : t("manage.noTopicsCreated")}
+										{searchQuery
+											? t("manage.noTopicsFound")
+											: t("manage.noTopicsCreated")}
 									</p>
 								</div>
 							) : (
@@ -217,7 +217,11 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 														{t("manage.fileCount", { count: topic.fileCount })}
 													</Badge>
 													<span>
-														{t("manage.createdDate", { date: new Date(topic.createdAt).toLocaleDateString() })}
+														{t("manage.createdDate", {
+															date: new Date(
+																topic.createdAt,
+															).toLocaleDateString(),
+														})}
 													</span>
 												</div>
 											</div>
@@ -278,7 +282,9 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>{t("manage.deleteConfirmTitle")}</AlertDialogTitle>
+						<AlertDialogTitle>
+							{t("manage.deleteConfirmTitle")}
+						</AlertDialogTitle>
 						<AlertDialogDescription>
 							{t("manage.deleteConfirmMessage", { name: deletingTopic?.name })}
 							<br />
@@ -287,7 +293,9 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel disabled={deleting}>{t("manage.cancel")}</AlertDialogCancel>
+						<AlertDialogCancel disabled={deleting}>
+							{t("manage.cancel")}
+						</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleDeleteConfirm}
 							disabled={deleting}

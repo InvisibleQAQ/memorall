@@ -97,9 +97,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 	// Save new configuration to database
 	const handleSaveConfig = async () => {
 		if (!tempApiKey.trim() || !tempPasskey.trim() || tempPasskey.length !== 6) {
-			setError(
-				t("openai.fillAllRequiredFields"),
-			);
+			setError(t("openai.fillAllRequiredFields"));
 			return;
 		}
 
@@ -259,9 +257,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 
 	// Delete configuration from database
 	const handleDeleteConfig = async () => {
-		if (
-			!confirm(t("openai.deleteConfigurationConfirm"))
-		) {
+		if (!confirm(t("openai.deleteConfigurationConfirm"))) {
 			return;
 		}
 
@@ -338,7 +334,8 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 					<div className="grid grid-cols-1 gap-3">
 						<div>
 							<label className="text-xs text-muted-foreground">
-								{t("openrouter.apiKey")} <span className="text-destructive">*</span>
+								{t("openrouter.apiKey")}{" "}
+								<span className="text-destructive">*</span>
 							</label>
 							<div className="relative">
 								<Input
@@ -365,7 +362,9 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 						</div>
 
 						<div>
-							<label className="text-xs text-muted-foreground">{t("openai.baseUrl")}</label>
+							<label className="text-xs text-muted-foreground">
+								{t("openai.baseUrl")}
+							</label>
 							<Input
 								placeholder={t("openrouter.baseUrlPlaceholder")}
 								value={tempBaseUrl}
@@ -379,7 +378,8 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 
 						<div>
 							<label className="text-xs text-muted-foreground">
-								{t("openai.encryptionPasskey")} <span className="text-destructive">*</span>
+								{t("openai.encryptionPasskey")}{" "}
+								<span className="text-destructive">*</span>
 							</label>
 							<div className="relative">
 								<Input
@@ -426,7 +426,9 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 						<div className="flex items-center gap-2 p-2 border rounded bg-muted/50 border-border">
 							<AlertCircle className="w-4 h-4 text-muted-foreground" />
 							<span className="text-xs text-muted-foreground">
-								{t("openai.passkeyLengthWarning", { current: tempPasskey.length })}
+								{t("openai.passkeyLengthWarning", {
+									current: tempPasskey.length,
+								})}
 							</span>
 						</div>
 					)}
@@ -461,7 +463,9 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 								{t("openai.configurationFound")}
 							</div>
 							<div className="text-xs text-primary">
-								{t("openai.createdDate", { date: configDate && configDate.toLocaleDateString() })}
+								{t("openai.createdDate", {
+									date: configDate && configDate.toLocaleDateString(),
+								})}
 							</div>
 						</div>
 					</div>
@@ -477,7 +481,8 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 
 					<div>
 						<label className="text-xs text-muted-foreground">
-							{t("openai.encryptionPasskey")} <span className="text-destructive">*</span>
+							{t("openai.encryptionPasskey")}{" "}
+							<span className="text-destructive">*</span>
 						</label>
 						<div className="relative">
 							<Input

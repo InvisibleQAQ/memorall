@@ -348,9 +348,9 @@ export const DocumentLibraryPage: React.FC = () => {
 	const handleDeleteItem = async (item: DocumentLibraryItem) => {
 		if (
 			!confirm(
-				item.type === "folder" 
+				item.type === "folder"
 					? t("library.deleteConfirmFolder", { name: item.item.name })
-					: t("library.deleteConfirm", { name: item.item.name })
+					: t("library.deleteConfirm", { name: item.item.name }),
 			)
 		) {
 			return;

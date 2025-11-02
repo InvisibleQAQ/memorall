@@ -84,9 +84,7 @@ export const CreateTopicDialog = NiceModal.create(() => {
 						<Tags className="h-5 w-5 text-primary" />
 						{t("create.title")}
 					</DialogTitle>
-					<DialogDescription>
-						{t("create.description")}
-					</DialogDescription>
+					<DialogDescription>{t("create.description")}</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4 py-4" onKeyDown={handleKeyDown}>
@@ -102,7 +100,9 @@ export const CreateTopicDialog = NiceModal.create(() => {
 					</div>
 
 					<div className="space-y-2">
-						<Label htmlFor="topic-description">{t("create.goalPurpose")} *</Label>
+						<Label htmlFor="topic-description">
+							{t("create.goalPurpose")} *
+						</Label>
 						<Textarea
 							id="topic-description"
 							placeholder={t("create.descriptionPlaceholder")}
@@ -116,7 +116,7 @@ export const CreateTopicDialog = NiceModal.create(() => {
 					</div>
 
 					<p className="text-xs text-muted-foreground">
-						{t("create.tip")} {" "}
+						{t("create.tip")}{" "}
 						<kbd className="px-1 py-0.5 bg-muted rounded text-xs">
 							{t("create.ctrlEnter")}
 						</kbd>{" "}

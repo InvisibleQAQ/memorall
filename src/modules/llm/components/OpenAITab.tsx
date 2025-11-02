@@ -240,9 +240,7 @@ export const OpenAITab: React.FC<OpenAITabProps> = ({ onModelLoaded }) => {
 
 	// Delete configuration from database
 	const handleDeleteConfig = async () => {
-		if (
-			!confirm(t("openai.deleteConfigurationConfirm"))
-		) {
+		if (!confirm(t("openai.deleteConfigurationConfirm"))) {
 			return;
 		}
 
@@ -346,7 +344,9 @@ export const OpenAITab: React.FC<OpenAITabProps> = ({ onModelLoaded }) => {
 						</div>
 
 						<div>
-							<label className="text-xs text-muted-foreground">{t("openai.baseUrl")}</label>
+							<label className="text-xs text-muted-foreground">
+								{t("openai.baseUrl")}
+							</label>
 							<Input
 								placeholder={t("openai.placeholders.baseUrl")}
 								value={tempBaseUrl}
@@ -360,7 +360,8 @@ export const OpenAITab: React.FC<OpenAITabProps> = ({ onModelLoaded }) => {
 
 						<div>
 							<label className="text-xs text-muted-foreground">
-								{t("openai.encryptionPasskey")} <span className="text-destructive">*</span>
+								{t("openai.encryptionPasskey")}{" "}
+								<span className="text-destructive">*</span>
 							</label>
 							<div className="relative">
 								<Input
@@ -405,7 +406,9 @@ export const OpenAITab: React.FC<OpenAITabProps> = ({ onModelLoaded }) => {
 						<div className="flex items-center gap-2 p-2 border rounded bg-muted/50 border-border">
 							<AlertCircle className="w-4 h-4 text-muted-foreground" />
 							<span className="text-xs text-muted-foreground">
-								{t("openai.passkeyLengthWarning", { current: tempPasskey.length })}
+								{t("openai.passkeyLengthWarning", {
+									current: tempPasskey.length,
+								})}
 							</span>
 						</div>
 					)}
@@ -440,7 +443,9 @@ export const OpenAITab: React.FC<OpenAITabProps> = ({ onModelLoaded }) => {
 								{t("openai.configurationFound")}
 							</div>
 							<div className="text-xs text-primary">
-								{t("openai.createdDate", { date: configDate && configDate.toLocaleDateString() })}
+								{t("openai.createdDate", {
+									date: configDate && configDate.toLocaleDateString(),
+								})}
 							</div>
 						</div>
 					</div>
@@ -456,7 +461,8 @@ export const OpenAITab: React.FC<OpenAITabProps> = ({ onModelLoaded }) => {
 
 					<div>
 						<label className="text-xs text-muted-foreground">
-							{t("openai.encryptionPasskey")} <span className="text-destructive">*</span>
+							{t("openai.encryptionPasskey")}{" "}
+							<span className="text-destructive">*</span>
 						</label>
 						<div className="relative">
 							<Input

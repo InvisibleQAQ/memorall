@@ -45,7 +45,8 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 			await onPasskeySubmit(passkey);
 			// Success - dialog will be closed by parent
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : t("passkeyDialog.decryptError");
+			const msg =
+				err instanceof Error ? err.message : t("passkeyDialog.decryptError");
 			setError(msg);
 		} finally {
 			setIsLoading(false);
@@ -87,7 +88,8 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 				<div className="space-y-4">
 					<div>
 						<label className="text-sm text-muted-foreground mb-2 block">
-							{t("passkeyDialog.passkeyLabel")} <span className="text-destructive">*</span>
+							{t("passkeyDialog.passkeyLabel")}{" "}
+							<span className="text-destructive">*</span>
 						</label>
 						<div className="relative">
 							<Input

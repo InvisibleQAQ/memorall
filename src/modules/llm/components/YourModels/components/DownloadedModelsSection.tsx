@@ -91,9 +91,13 @@ export const DownloadedModelsSection: React.FC<
 							</div>
 							<div className="text-xs text-muted-foreground">
 								{model.loaded ? (
-									<span className="text-green-600 font-medium">● {t("model.loaded")}</span>
+									<span className="text-green-600 font-medium">
+										● {t("model.loaded")}
+									</span>
 								) : (
-									<span className="text-gray-500">○ {t("model.available")}</span>
+									<span className="text-gray-500">
+										○ {t("model.available")}
+									</span>
 								)}
 								{model.filename && (
 									<span className="ml-2">• {model.filename}</span>

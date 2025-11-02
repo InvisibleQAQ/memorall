@@ -33,12 +33,13 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
 		<div className="space-y-3 p-4 border rounded-lg bg-muted/50">
 			<div className="flex items-center justify-between text-sm">
 				<span className="font-medium">
-					{t("progress.loading", { 
-						model: advancedProvider === "wllama"
-							? filePath
-								? `${repo}/${filePath}`
-								: repo
-							: webllmModel || "WebLLM model"
+					{t("progress.loading", {
+						model:
+							advancedProvider === "wllama"
+								? filePath
+									? `${repo}/${filePath}`
+									: repo
+								: webllmModel || "WebLLM model",
 					})}
 				</span>
 				<span className="text-muted-foreground">

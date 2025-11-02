@@ -62,21 +62,19 @@ interface ActionItem {
 // Helper function to translate action names
 const useTranslateActionName = () => {
 	const { t } = useTranslation("chat");
-	
+
 	return (actionName: string): string => {
 		// Try to get translation from actions namespace
 		const translationKey = `actions.${actionName}`;
 		const translated = t(translationKey);
-		
+
 		// If translation exists and is different from the key, use it
 		if (translated !== translationKey) {
 			return translated;
 		}
-		
+
 		// Fallback: replace underscores with spaces and capitalize first letter
-		return actionName
-			.replace(/_/g, ' ')
-			.replace(/^\w/, (c) => c.toUpperCase());
+		return actionName.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 	};
 };
 

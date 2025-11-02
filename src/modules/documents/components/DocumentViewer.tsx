@@ -262,7 +262,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							onClick={pdfPageSelector.openSelector}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
-							<span className="hidden sm:inline">{t("viewer.convertToKnowledge")}</span>
+							<span className="hidden sm:inline">
+								{t("viewer.convertToKnowledge")}
+							</span>
 						</Button>
 					)}
 					{file.type === "text" && onConvertToKnowledge && (
@@ -287,7 +289,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							onClick={excelSheetSelector.openSelector}
 						>
 							<BookmarkPlus className="h-4 w-4 mr-2" />
-							<span className="hidden sm:inline">{t("viewer.convertToKnowledge")}</span>
+							<span className="hidden sm:inline">
+								{t("viewer.convertToKnowledge")}
+							</span>
 						</Button>
 					)}
 					<Button
@@ -383,14 +387,18 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				{showProperties && (
 					<ScrollArea className="flex-shrink-0 border-t max-h-[400px]">
 						<div className="p-4 space-y-4">
-							<h3 className="text-sm font-semibold">{t("viewer.documentInformation")}</h3>
+							<h3 className="text-sm font-semibold">
+								{t("viewer.documentInformation")}
+							</h3>
 
 							<div className="grid grid-cols-1 gap-3">
 								{file.metadata?.title && (
 									<div className="flex items-start gap-3">
 										<FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
 										<div className="flex-1 min-w-0">
-											<div className="text-xs text-muted-foreground">{t("viewer.title")}</div>
+											<div className="text-xs text-muted-foreground">
+												{t("viewer.title")}
+											</div>
 											<div className="text-sm">{file.metadata.title}</div>
 										</div>
 									</div>
@@ -440,7 +448,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 								<div className="flex items-start gap-3">
 									<FileType className="h-4 w-4 mt-0.5 text-muted-foreground" />
 									<div className="flex-1 min-w-0">
-										<div className="text-xs text-muted-foreground">{t("viewer.type")}</div>
+										<div className="text-xs text-muted-foreground">
+											{t("viewer.type")}
+										</div>
 										<div className="text-sm">{file.mimeType}</div>
 									</div>
 								</div>
@@ -448,7 +458,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 								<div className="flex items-start gap-3">
 									<HardDrive className="h-4 w-4 mt-0.5 text-muted-foreground" />
 									<div className="flex-1 min-w-0">
-										<div className="text-xs text-muted-foreground">{t("viewer.size")}</div>
+										<div className="text-xs text-muted-foreground">
+											{t("viewer.size")}
+										</div>
 										<div className="text-sm">{formatFileSize(file.size)}</div>
 									</div>
 								</div>
@@ -456,7 +468,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 								<div className="flex items-start gap-3">
 									<Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
 									<div className="flex-1 min-w-0">
-										<div className="text-xs text-muted-foreground">{t("viewer.created")}</div>
+										<div className="text-xs text-muted-foreground">
+											{t("viewer.created")}
+										</div>
 										<div className="text-sm">{formatDate(file.createdAt)}</div>
 									</div>
 								</div>
@@ -491,7 +505,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 								<div className="space-y-2">
 									<div className="flex items-center gap-2">
 										<Tag className="h-4 w-4 text-muted-foreground" />
-										<h3 className="text-sm font-semibold">{t("viewer.topics")}</h3>
+										<h3 className="text-sm font-semibold">
+											{t("viewer.topics")}
+										</h3>
 									</div>
 									<div className="flex flex-wrap gap-2">
 										{fileTopics.map((topic) => (
@@ -506,7 +522,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							{/* Description Section */}
 							{file.metadata?.description && (
 								<div className="space-y-2">
-									<h3 className="text-sm font-semibold">{t("viewer.description")}</h3>
+									<h3 className="text-sm font-semibold">
+										{t("viewer.description")}
+									</h3>
 									<p className="text-sm text-muted-foreground">
 										{file.metadata.description}
 									</p>

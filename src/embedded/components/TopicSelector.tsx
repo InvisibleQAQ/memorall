@@ -3,27 +3,31 @@ import { createRoot } from "react-dom/client";
 import type { TopicSelectorProps } from "../types";
 import { getTopicsForSelector, sendContentWithTopic } from "../messaging";
 import { customStyles } from "./styles/customStyles";
+import { DEFAULT_LANGUAGE } from "@/constants/language";
+import type { Language } from "@/constants/language";
+import { loadLanguageFromStorage } from "../language";
+
+// Translation map for topic selector
+const TOPIC_SELECTOR_TEXTS = {
+	en: {
+		loading: "Loading...",
+		chooseATopic: "Choose a topic...",
+		savedToTopic: "Saved to Topic",
+		contentSaved: "Content saved to",
+	},
+	vn: {
+		loading: "Đang tải...",
+		chooseATopic: "Chọn một chủ đề...",
+		savedToTopic: "Đã lưu vào chủ đề",
+		contentSaved: "Nội dung đã được lưu vào",
+	},
+};
 
 interface Topic {
 	id: string;
 	name: string;
 	description?: string;
 }
-
-// Simple icon components to match ShadcnEmbeddedChat style
-const BookOpenIcon: React.FC<{ className?: string }> = ({ className }) => (
-	<svg
-		className={className || "w-4 h-4"}
-		fill="currentColor"
-		viewBox="0 0 20 20"
-	>
-		<path
-			fillRule="evenodd"
-			d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm5.707 7.707a1 1 0 001.414-1.414L8.414 9.5l1.707-1.793a1 1 0 00-1.414-1.414L7 8.086 5.293 6.293a1 1 0 00-1.414 1.414L5.586 9.5 3.879 11.207a1 1 0 001.414 1.414L7 10.914l1.707 1.793z"
-			clipRule="evenodd"
-		/>
-	</svg>
-);
 
 const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
 	<svg
@@ -39,81 +43,24 @@ const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
 	</svg>
 );
 
-const CloseIcon: React.FC<{
-	className?: string;
-	style?: React.CSSProperties;
-}> = ({ className, style }) => (
-	<svg
-		className={className || "w-4 h-4"}
-		fill="currentColor"
-		viewBox="0 0 20 20"
-		style={style}
-	>
-		<path
-			fillRule="evenodd"
-			d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-			clipRule="evenodd"
-		/>
-	</svg>
-);
+interface EmbeddedTopicSelectorProps extends TopicSelectorProps {
+	language?: Language;
+}
 
-const Loader: React.FC<{ size?: number; className?: string }> = ({
-	size = 16,
-	className,
-}) => (
-	<svg
-		className={className || ""}
-		width={size}
-		height={size}
-		viewBox="0 0 24 24"
-		fill="none"
-	>
-		<circle
-			className="opacity-25"
-			cx="12"
-			cy="12"
-			r="10"
-			stroke="currentColor"
-			strokeWidth="4"
-		></circle>
-		<path
-			className="opacity-75"
-			fill="currentColor"
-			d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-		></path>
-	</svg>
-);
-
-// Button component to match ShadcnEmbeddedChat style
-const Button: React.FC<{
-	variant?: "ghost";
-	size?: "sm";
-	onClick?: () => void;
-	className?: string;
-	children: React.ReactNode;
-}> = ({ variant, size, onClick, className, children }) => (
-	<button
-		onClick={onClick}
-		className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${
-			variant === "ghost"
-				? "hover:bg-accent hover:text-accent-foreground"
-				: "bg-primary text-primary-foreground hover:bg-primary/90"
-		} ${size === "sm" ? "h-8 px-3" : "h-10 px-4 py-2"} ${className || ""}`}
-	>
-		{children}
-	</button>
-);
-
-const TopicSelector: React.FC<TopicSelectorProps> = ({
+const TopicSelector: React.FC<EmbeddedTopicSelectorProps> = ({
 	context,
 	pageUrl,
 	pageTitle,
 	onClose,
+	language = DEFAULT_LANGUAGE,
 }) => {
 	const [topics, setTopics] = useState<Topic[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
 	const [saving, setSaving] = useState(false);
+
+	// Get translation texts based on current language
+	const texts = TOPIC_SELECTOR_TEXTS[language];
 
 	useEffect(() => {
 		loadTopics();
@@ -183,9 +130,9 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
 						<CheckIcon className="w-8 h-8" />
 					</div>
 					<div className="text-center">
-						<h3 className="font-semibold text-sm">Saved to Topic</h3>
+						<h3 className="font-semibold text-sm">{texts.savedToTopic}</h3>
 						<p className="text-xs text-muted-foreground mt-1">
-							Content saved to "{selectedTopic.name}"
+							{texts.contentSaved} "{selectedTopic.name}"
 						</p>
 					</div>
 				</div>
@@ -219,7 +166,7 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
 						borderRadius: "6px",
 					}}
 				>
-					Loading...
+					{texts.loading}
 				</div>
 			) : (
 				<select
@@ -245,7 +192,7 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
 					defaultValue=""
 				>
 					<option value="" disabled style={{ color: "#999" }}>
-						Choose a topic...
+						{texts.chooseATopic}
 					</option>
 					{topics.map((topic) => (
 						<option key={topic.id} value={topic.id} style={{ color: "#333" }}>
@@ -259,9 +206,11 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
 };
 
 // Function to create and mount the topic selector with Shadow DOM isolation
-export function createEmbeddedTopicSelector(
+export async function createEmbeddedTopicSelector(
 	props: TopicSelectorProps,
-): () => void {
+): Promise<() => void> {
+	// Load language once at creation time
+	const language = await loadLanguageFromStorage();
 	// Create container element
 	const container = document.createElement("div");
 	container.id = "memorall-embedded-topic-selector";
@@ -297,6 +246,7 @@ export function createEmbeddedTopicSelector(
 
 	const selectorProps = {
 		...props,
+		language,
 		onClose: () => {
 			props.onClose();
 			cleanupModal();

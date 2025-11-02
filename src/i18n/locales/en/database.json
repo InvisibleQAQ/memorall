@@ -1,26 +1,55 @@
 {
 	"title": "Database",
-	"tables": {
-		"title": "Tables",
-		"name": "Table Name",
-		"rows": "Rows",
-		"columns": "Columns"
+	"queryBuilder": {
+		"title": "Query Builder",
+		"reset": "Reset",
+		"query": "Query",
+		"entity": "Entity",
+		"sort": "Sort",
+		"limit": "Limit",
+		"offset": "Offset",
+		"conditions": "Conditions",
+		"addCondition": "Add Condition",
+		"sortAscending": "Sort Ascending",
+		"sortDescending": "Sort Descending"
 	},
-	"query": {
-		"title": "Query",
-		"execute": "Execute",
-		"clear": "Clear",
-		"result": "Query Result",
-		"error": "Query Error"
+	"results": {
+		"title": "Results ({{count}}) - {{entityType}}",
+		"previous": "Previous",
+		"next": "Next",
+		"noItems": "No items found matching your query",
+		"selectItem": "Select an item to view details",
+		"selectItemHelp": "Run a query and choose an item from the results"
 	},
-	"export": {
-		"button": "Export",
-		"success": "Database exported successfully",
-		"error": "Failed to export database"
+	"details": {
+		"title": "{{entityType}} Details",
+		"back": "Back",
+		"id": "ID: {{id}}"
 	},
-	"import": {
-		"button": "Import",
-		"success": "Database imported successfully",
-		"error": "Failed to import database"
+	"stats": {
+		"title": "Entity Statistics"
+	},
+	"quickActions": {
+		"title": "Quick Actions",
+		"createSample": "Create Sample Conversation",
+		"refreshStats": "Refresh Stats"
+	},
+	"operators": {
+		"equals": "Equals",
+		"notEquals": "Not Equals",
+		"contains": "Contains",
+		"greaterThan": "Greater Than",
+		"greaterThanOrEqual": "Greater Than or Equal",
+		"lessThan": "Less Than",
+		"lessThanOrEqual": "Less Than or Equal",
+		"isNull": "Is Null",
+		"isNotNull": "Is Not Null"
+	},
+	"status": {
+		"notInitialized": "Database not yet initialized. Please wait for app startup to complete.",
+		"loading": "Loading..."
+	},
+	"placeholders": {
+		"value": "Value"
 	}
 }

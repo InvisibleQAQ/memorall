@@ -154,8 +154,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 															? t("topic.loading")
 															: selectedTopic === "__all__"
 																? t("topic.all")
-																: topics.find((topic) => topic.id === selectedTopic)
-																		?.name || t("topic.select")}
+																: topics.find(
+																		(topic) => topic.id === selectedTopic,
+																	)?.name || t("topic.select")}
 													</span>
 													<ChevronDown size={10} className="opacity-50" />
 												</Button>

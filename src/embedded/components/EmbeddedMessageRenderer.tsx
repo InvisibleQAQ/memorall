@@ -3,6 +3,43 @@ import type { ChatMessage } from "../types";
 import { EmbeddedMarkdown } from "./EmbeddedMarkdown";
 import { Task, TaskTrigger, TaskContent, TaskItem } from "./TaskComponents";
 import { Loader } from "./Icons";
+import { backgroundJob } from "@/services/background-jobs/background-job";
+import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "@/constants/language";
+import type { Language } from "@/constants/language";
+
+// Translation map for action names
+const ACTION_TRANSLATIONS = {
+	en: {
+		// Add common action translations here - these should match the chat.json actions namespace
+		search_knowledge: "Search Knowledge",
+		retrieve_documents: "Retrieve Documents",
+		analyze_content: "Analyze Content",
+		generate_response: "Generate Response",
+		process_query: "Process Query",
+	},
+	vn: {
+		search_knowledge: "Tìm kiếm kiến thức",
+		retrieve_documents: "Truy xuất tài liệu",
+		analyze_content: "Phân tích nội dung",
+		generate_response: "Tạo phản hồi",
+		process_query: "Xử lý truy vấn",
+	},
+};
+
+// Helper function to translate action names (similar to MessageRenderer.tsx)
+const translateActionName = (
+	actionName: string,
+	language: Language,
+): string => {
+	// Try to get translation from actions map
+	const translations = ACTION_TRANSLATIONS[language];
+	if (translations && translations[actionName as keyof typeof translations]) {
+		return translations[actionName as keyof typeof translations];
+	}
+
+	// Fallback: replace underscores with spaces and capitalize first letter
+	return actionName.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+};
 
 // Component to render user message content with enhanced context UI
 const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
@@ -398,11 +435,14 @@ const MessageActions: React.FC<{
 				},
 			};
 
-			// Use backgroundJob directly from content script
-			const { backgroundJob } = await import(
-				"@/services/background-jobs/background-job"
+			const jobResponse = await backgroundJob.execute(
+				"remember-save",
+				pageData,
+				{ stream: false },
 			);
-			await backgroundJob.execute("remember-save", pageData, { stream: false });
+			if ("promise" in jobResponse) {
+				await jobResponse.promise;
+			}
 
 			setSaved(true);
 			setTimeout(() => setSaved(false), 3000);
@@ -504,6 +544,29 @@ export const EmbeddedMessageRenderer: React.FC<
 	EmbeddedMessageRendererProps
 > = ({ message, isLoading }) => {
 	const actions = message.metadata?.actions || [];
+	const [language, setLanguage] = useState<Language>(DEFAULT_LANGUAGE);
+
+	// Load language from storage on mount
+	React.useEffect(() => {
+		const loadLanguage = async () => {
+			try {
+				const result = await chrome.storage.local.get(LANGUAGE_STORAGE_KEY);
+				const savedLanguage = result[LANGUAGE_STORAGE_KEY];
+
+				if (
+					savedLanguage &&
+					(savedLanguage === "en" || savedLanguage === "vn")
+				) {
+					setLanguage(savedLanguage);
+				}
+			} catch (error) {
+				console.error("Failed to load language:", error);
+				// Keep default language
+			}
+		};
+
+		loadLanguage();
+	}, []);
 
 	// Loading state with actions
 	if (!message.content && isLoading && message.role === "assistant") {
@@ -516,7 +579,7 @@ export const EmbeddedMessageRenderer: React.FC<
 							className="w-full"
 							defaultOpen={false}
 						>
-							<TaskTrigger title={action.name} />
+							<TaskTrigger title={translateActionName(action.name, language)} />
 							<TaskContent>
 								<TaskItem>{action.description}</TaskItem>
 							</TaskContent>
@@ -539,7 +602,7 @@ export const EmbeddedMessageRenderer: React.FC<
 						className="w-full"
 						defaultOpen={false}
 					>
-						<TaskTrigger title={action.name} />
+						<TaskTrigger title={translateActionName(action.name, language)} />
 						<TaskContent>
 							<TaskItem>{action.description}</TaskItem>
 						</TaskContent>

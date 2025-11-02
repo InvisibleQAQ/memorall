@@ -34,6 +34,8 @@ import { useLanguage } from "@/i18n/hooks/useLanguage";
 import { useTranslation } from "react-i18next";
 import { CopilotTrigger } from "@/components/atoms/copilot";
 import { ProcessMonitor } from "@/components/molecules/ProcessMonitor";
+import { VietnamFlag, USFlag } from "@/components/atoms/flags";
+import manifest from "../../manifest.json";
 
 interface LayoutProps {
 	children: React.ReactNode;
@@ -62,7 +64,7 @@ const debugItems = [
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
 	const location = useLocation();
-	const { theme, setTheme, actualTheme } = useTheme();
+	const { theme, setTheme } = useTheme();
 	const { language, changeLanguage } = useLanguage();
 	const { t } = useTranslation();
 
@@ -199,7 +201,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 											onClick={() => changeLanguage("en")}
 											className="flex items-center gap-2 cursor-pointer"
 										>
-											<span>🇬🇧</span>
+											<USFlag
+												className="flex-shrink-0"
+												width={16}
+												height={12}
+											/>
 											<span>{t("language.english")}</span>
 											{language === "en" && <span className="ml-auto">✓</span>}
 										</DropdownMenuItem>
@@ -207,7 +213,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 											onClick={() => changeLanguage("vn")}
 											className="flex items-center gap-2 cursor-pointer"
 										>
-											<span>🇻🇳</span>
+											<VietnamFlag
+												className="flex-shrink-0"
+												width={16}
+												height={12}
+											/>
 											<span>{t("language.vietnamese")}</span>
 											{language === "vn" && <span className="ml-auto">✓</span>}
 										</DropdownMenuItem>
@@ -243,6 +253,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 											<span>{t("theme.system")}</span>
 											{theme === "system" && <span className="ml-auto">✓</span>}
 										</DropdownMenuItem>
+
+										<DropdownMenuSeparator />
+
+										{/* Version */}
+										<div className="px-2 py-1.5 text-xs text-muted-foreground text-center">
+											{t("common.version", { version: manifest.version })}
+										</div>
 									</DropdownMenuContent>
 								</DropdownMenu>
 							</TooltipProvider>

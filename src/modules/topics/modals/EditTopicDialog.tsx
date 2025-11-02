@@ -88,9 +88,7 @@ export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 							<Edit2 className="h-5 w-5 text-primary" />
 							{t("edit.title")}
 						</DialogTitle>
-						<DialogDescription>
-							{t("edit.description")}
-						</DialogDescription>
+						<DialogDescription>{t("edit.description")}</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-4" onKeyDown={handleKeyDown}>
@@ -106,7 +104,9 @@ export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="edit-topic-description">{t("edit.goalPurpose")} *</Label>
+							<Label htmlFor="edit-topic-description">
+								{t("edit.goalPurpose")} *
+							</Label>
 							<Textarea
 								id="edit-topic-description"
 								placeholder={t("edit.descriptionPlaceholder")}
@@ -117,7 +117,7 @@ export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 						</div>
 
 						<p className="text-xs text-muted-foreground">
-							{t("edit.tip")} {" "}
+							{t("edit.tip")}{" "}
 							<kbd className="px-1 py-0.5 bg-muted rounded text-xs">
 								{t("edit.ctrlEnter")}
 							</kbd>{" "}

@@ -64,7 +64,8 @@
 		"settings": "Settings",
 		"search": "Search",
 		"noResults": "No results found",
-		"total": "Total"
+		"total": "Total",
+		"version": "Version {{version}}"
 	},
 	"appLoading": {
 		"title": "Initializing Memorall...",
@@ -79,7 +80,7 @@
 				"description": "Setting up knowledge graph database with vector extensions"
 			},
 			"embedding": {
-				"title": "Embedding Models", 
+				"title": "Embedding Models",
 				"description": "Loading embedding models for semantic search"
 			},
 			"llm": {
@@ -129,7 +130,7 @@
 		"timeAgo": {
 			"justNow": "just now",
 			"secondsAgo": "{{count}}s ago",
-			"minutesAgo": "{{count}}m ago", 
+			"minutesAgo": "{{count}}m ago",
 			"hoursAgo": "{{count}}h ago",
 			"daysAgo": "{{count}}d ago"
 		},

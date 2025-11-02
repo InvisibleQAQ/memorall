@@ -226,7 +226,10 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 									</Button>
 								</div>
 								<Badge variant="secondary">
-									{t("excelSelector.sheetsSelected", { count: selectedSheets.size, total: sheetNames.length })}
+									{t("excelSelector.sheetsSelected", {
+										count: selectedSheets.size,
+										total: sheetNames.length,
+									})}
 								</Badge>
 							</div>
 						</div>

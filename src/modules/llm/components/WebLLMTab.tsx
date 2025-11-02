@@ -26,7 +26,9 @@ export const WebLLMTab: React.FC<WebLLMTabProps> = ({
 		<div className="space-y-4">
 			<div className="grid grid-cols-1 gap-3">
 				<div>
-					<label className="text-xs text-muted-foreground">{t("webllm.model")}</label>
+					<label className="text-xs text-muted-foreground">
+						{t("webllm.model")}
+					</label>
 					<Select
 						value={webllmModel}
 						onValueChange={setWebllmModel}

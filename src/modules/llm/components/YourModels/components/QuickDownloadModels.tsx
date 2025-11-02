@@ -156,7 +156,9 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 										</span>
 									)}
 									{isDownloaded && !isLoaded && (
-										<span className="text-xs text-gray-500">○ {t("model.available")}</span>
+										<span className="text-xs text-gray-500">
+											○ {t("model.available")}
+										</span>
 									)}
 								</div>
 								<div className="text-xs text-muted-foreground">

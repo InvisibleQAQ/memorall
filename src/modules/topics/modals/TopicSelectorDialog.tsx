@@ -305,7 +305,9 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 							{/* Create Topic View */}
 							<div className="space-y-4">
 								<div className="space-y-2">
-									<Label htmlFor="new-topic-name">{t("selector.topicName")} *</Label>
+									<Label htmlFor="new-topic-name">
+										{t("selector.topicName")} *
+									</Label>
 									<Input
 										id="new-topic-name"
 										placeholder={t("selector.topicNamePlaceholder")}

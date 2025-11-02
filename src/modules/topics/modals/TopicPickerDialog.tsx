@@ -77,7 +77,9 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 							<Tags className="h-5 w-5 text-primary" />
 							{t("picker.title")}
 						</DialogTitle>
-						<DialogDescription>{t("picker.description", { fileName })}</DialogDescription>
+						<DialogDescription>
+							{t("picker.description", { fileName })}
+						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4">

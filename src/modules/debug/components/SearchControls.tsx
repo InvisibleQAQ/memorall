@@ -91,7 +91,9 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 			<div className="space-y-2">
 				<div className="flex gap-1 items-end">
 					<div className="flex-1">
-						<label className="block text-xs font-medium mb-1">{t("controls.table")}</label>
+						<label className="block text-xs font-medium mb-1">
+							{t("controls.table")}
+						</label>
 						<Select value={selectedTable} onValueChange={onTableChange}>
 							<SelectTrigger className="h-6 text-xs">
 								<SelectValue />
@@ -126,7 +128,9 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 						</Select>
 					</div>
 					<div className="w-16">
-						<label className="block text-xs font-medium mb-1">{t("controls.limit")}</label>
+						<label className="block text-xs font-medium mb-1">
+							{t("controls.limit")}
+						</label>
 						<Input
 							type="number"
 							min="1"
@@ -137,7 +141,9 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 						/>
 					</div>
 					<div className="w-20">
-						<label className="block text-xs font-medium mb-1">{t("controls.threshold")}</label>
+						<label className="block text-xs font-medium mb-1">
+							{t("controls.threshold")}
+						</label>
 						<Input
 							type="number"
 							min="0"
@@ -153,7 +159,9 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 				</div>
 
 				<div>
-					<label className="block text-xs font-medium mb-1">{t("vectorSearch.searchQuery")}</label>
+					<label className="block text-xs font-medium mb-1">
+						{t("vectorSearch.searchQuery")}
+					</label>
 					<Input
 						placeholder={t("vectorSearch.placeholder")}
 						value={query}

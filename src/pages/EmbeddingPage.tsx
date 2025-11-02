@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -167,6 +168,7 @@ interface SearchResult {
 interface EmbeddingPageProps {}
 
 export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
+	const { t } = useTranslation("embedding");
 	const [loading, setLoading] = useState(false);
 	const [results, setResults] = useState<SearchResult[]>([]);
 	const [selectedResult, setSelectedResult] = useState<SearchResult | null>(
@@ -434,7 +436,9 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 					<div className="flex items-center justify-between mb-2">
 						<div className="flex items-center gap-2">
 							<Target className="h-4 w-4" />
-							<span className="font-medium text-sm">Vector Search</span>
+							<span className="font-medium text-sm">
+								{t("vectorSearch.title")}
+							</span>
 							<div className="flex items-center gap-1 ml-2">
 								{getServiceStatusIcon(serviceStatus.database)}
 								{getServiceStatusIcon(serviceStatus.overall)}
@@ -453,15 +457,14 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 							<Search
 								className={`h-3 w-3 ${loading ? "animate-spin" : ""} mr-1`}
 							/>
-							Search
+							{t("vectorSearch.searchButton")}
 						</Button>
 					</div>
 
 					{/* Service Status */}
 					{!isEmbeddingReady && (
 						<div className="mb-2 p-2 bg-destructive/10 border border-destructive/20 rounded text-xs text-destructive">
-							Embedding service not ready. Please wait for initialization to
-							complete.
+							{t("status.embeddingNotReady")}
 						</div>
 					)}
 
@@ -469,7 +472,9 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 					<div className="space-y-2">
 						<div className="flex gap-1 items-end">
 							<div className="flex-1">
-								<label className="block text-xs font-medium mb-1">Table</label>
+								<label className="block text-xs font-medium mb-1">
+									{t("vectorSearch.table")}
+								</label>
 								<Select
 									value={searchParams.table}
 									onValueChange={(value: VectorTableKey) => {
@@ -494,7 +499,7 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 							</div>
 							<div className="flex-1">
 								<label className="block text-xs font-medium mb-1">
-									Vector Column
+									{t("vectorSearch.vectorColumn")}
 								</label>
 								<Select
 									value={searchParams.vectorColumn}
@@ -520,7 +525,9 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 								</Select>
 							</div>
 							<div className="w-16">
-								<label className="block text-xs font-medium mb-1">Limit</label>
+								<label className="block text-xs font-medium mb-1">
+									{t("vectorSearch.limit")}
+								</label>
 								<Input
 									type="number"
 									min="1"
@@ -537,7 +544,7 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 							</div>
 							<div className="w-20">
 								<label className="block text-xs font-medium mb-1">
-									Threshold
+									{t("vectorSearch.threshold")}
 								</label>
 								<Input
 									type="number"
@@ -559,10 +566,10 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 						{/* Search Query */}
 						<div>
 							<label className="block text-xs font-medium mb-1">
-								Search Query
+								{t("vectorSearch.searchQuery")}
 							</label>
 							<Input
-								placeholder="Enter text to search for similar content..."
+								placeholder={t("vectorSearch.searchPlaceholder")}
 								value={searchParams.query}
 								onChange={(e) =>
 									setSearchParams((prev) => ({
@@ -583,12 +590,14 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 					<div className="p-3 border-b bg-muted/20 flex-shrink-0">
 						<div className="flex items-center justify-between">
 							<span className="text-sm font-medium">
-								Results ({results.length}) -{" "}
-								{VECTOR_TABLES[searchParams.table].name}
+								{t("vectorSearch.results", {
+									count: results.length,
+									tableName: VECTOR_TABLES[searchParams.table].name,
+								})}
 							</span>
 							<div className="flex items-center gap-2 text-xs text-muted-foreground">
 								<Hash className="h-3 w-3" />
-								Similarity scores shown
+								{t("vectorSearch.similarityScores")}
 							</div>
 						</div>
 					</div>
@@ -598,28 +607,26 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 						<ScrollArea className="h-full">
 							{Object.keys(VECTOR_TABLES).length === 0 ? (
 								<div className="p-3 text-center text-muted-foreground">
-									No vector-enabled tables found in the database schema.
+									{t("status.noVectorTables")}
 								</div>
 							) : !isInitialized ? (
 								<div className="p-3 text-center text-muted-foreground">
-									Database not yet initialized. Please wait for app startup to
-									complete.
+									{t("status.notInitialized")}
 								</div>
 							) : !isEmbeddingReady ? (
 								<div className="p-3 text-center text-muted-foreground">
-									Embedding service not ready. Please wait for initialization to
-									complete.
+									{t("status.embeddingNotReady")}
 								</div>
 							) : loading ? (
 								<div className="p-3 text-center text-muted-foreground">
 									<div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-									Searching...
+									{t("status.searching")}
 								</div>
 							) : results.length === 0 ? (
 								<div className="p-3 text-center text-muted-foreground">
 									{searchParams.query.trim()
-										? "No similar content found. Try adjusting the threshold or search query."
-										: "Enter a search query to find similar content"}
+										? t("status.noResults")
+										: t("status.enterQuery")}
 								</div>
 							) : (
 								<div className="divide-y divide-border">
@@ -654,7 +661,7 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 						{/* Header */}
 						<div className="border-b bg-card p-3">
 							<div className="flex items-center justify-between">
-								<h2 className="text-lg font-semibold">Result Details</h2>
+								<h2 className="text-lg font-semibold">{t("details.title")}</h2>
 								<Button
 									variant="ghost"
 									size="sm"
@@ -670,7 +677,9 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 									variant="secondary"
 									className={getSimilarityColor(selectedResult.similarity)}
 								>
-									{(selectedResult.similarity * 100).toFixed(1)}% similarity
+									{t("details.similarity", {
+										percent: (selectedResult.similarity * 100).toFixed(1),
+									})}
 								</Badge>
 							</div>
 						</div>
@@ -684,9 +693,11 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 										<div className="text-xs bg-muted p-2 rounded overflow-auto">
 											{key === searchParams.vectorColumn ? (
 												<span className="text-muted-foreground italic">
-													[Vector embedding -{" "}
-													{Array.isArray(value) ? value.length : "unknown"}{" "}
-													dimensions]
+													{t("details.vectorEmbedding", {
+														dimensions: Array.isArray(value)
+															? value.length
+															: "unknown",
+													})}
 												</span>
 											) : typeof value === "object" && value !== null ? (
 												JSON.stringify(value, null, 2)
@@ -707,7 +718,7 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 								<CardHeader>
 									<CardTitle className="flex items-center gap-2 text-sm">
 										<Database size={16} />
-										Vector-Enabled Tables
+										{t("stats.vectorTables")}
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
@@ -729,22 +740,26 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 								<CardHeader>
 									<CardTitle className="flex items-center gap-2 text-sm">
 										<Zap size={16} />
-										Embedding Service
+										{t("stats.embeddingService")}
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
 									<div className="space-y-2 text-sm">
 										<div className="flex justify-between">
-											<span>Status:</span>
+											<span>{t("stats.serviceStatus")}</span>
 											<span
 												className={`font-medium ${isEmbeddingReady ? "text-primary" : "text-destructive"}`}
 											>
-												{isEmbeddingReady ? "Ready" : "Not Ready"}
+												{isEmbeddingReady
+													? t("stats.ready")
+													: t("stats.notReady")}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span>Search Type:</span>
-											<span className="font-medium">Cosine Similarity</span>
+											<span>{t("stats.searchType")}</span>
+											<span className="font-medium">
+												{t("stats.cosineSimilarity")}
+											</span>
 										</div>
 									</div>
 								</CardContent>
@@ -757,15 +772,15 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 								<CardHeader>
 									<CardTitle className="flex items-center gap-2 text-sm">
 										<Target size={16} />
-										Search Tips
+										{t("tips.title")}
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
 									<div className="space-y-2 text-xs text-muted-foreground">
-										<p>• Use natural language to search for similar content</p>
-										<p>• Adjust the threshold to control result precision</p>
-										<p>• Higher threshold = more similar results</p>
-										<p>• Similarity scores show content relevance</p>
+										<p>{t("tips.naturalLanguage")}</p>
+										<p>{t("tips.adjustThreshold")}</p>
+										<p>{t("tips.higherThreshold")}</p>
+										<p>{t("tips.similarityScores")}</p>
 									</div>
 								</CardContent>
 							</Card>
@@ -776,11 +791,9 @@ export const EmbeddingPage: React.FC<EmbeddingPageProps> = () => {
 							<div className="text-center">
 								<Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
 								<p className="text-sm font-medium">
-									Search for similar content
+									{t("placeholder.searchSimilar")}
 								</p>
-								<p className="text-xs">
-									Enter a query to find semantically similar items
-								</p>
+								<p className="text-xs">{t("placeholder.enterQuery")}</p>
 							</div>
 						</div>
 					</div>
