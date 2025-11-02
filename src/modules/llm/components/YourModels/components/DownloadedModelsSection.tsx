@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Download, Play, Square, Bot } from "lucide-react";
@@ -39,6 +40,7 @@ export const DownloadedModelsSection: React.FC<
 	showDownloadMoreButton,
 	onDownloadMore,
 }) => {
+	const { t } = useTranslation("llm");
 	if (downloadedOnly.length === 0) {
 		return null;
 	}
@@ -74,7 +76,7 @@ export const DownloadedModelsSection: React.FC<
 					) : (
 						<Download className="w-4 h-4" />
 					)}
-					Refresh
+					{t("model.refresh")}
 				</Button>
 			</div>
 			<div className="space-y-2">
@@ -89,9 +91,9 @@ export const DownloadedModelsSection: React.FC<
 							</div>
 							<div className="text-xs text-muted-foreground">
 								{model.loaded ? (
-									<span className="text-green-600 font-medium">● Loaded</span>
+									<span className="text-green-600 font-medium">● {t("model.loaded")}</span>
 								) : (
-									<span className="text-gray-500">○ Available</span>
+									<span className="text-gray-500">○ {t("model.available")}</span>
 								)}
 								{model.filename && (
 									<span className="ml-2">• {model.filename}</span>
@@ -123,7 +125,7 @@ export const DownloadedModelsSection: React.FC<
 									) : (
 										<Square className="w-4 h-4" />
 									)}
-									Unload
+									{t("model.unload")}
 								</Button>
 							) : (
 								<Button
@@ -141,7 +143,7 @@ export const DownloadedModelsSection: React.FC<
 									) : (
 										<Play className="w-4 h-4" />
 									)}
-									Load
+									{t("model.load")}
 								</Button>
 							)}
 						</div>
@@ -152,7 +154,7 @@ export const DownloadedModelsSection: React.FC<
 				<div className="pt-4 border-t">
 					<Button onClick={onDownloadMore} variant="outline" className="w-full">
 						<Download className="w-4 h-4 mr-2" />
-						Download More Models
+						{t("downloadedModels.downloadMoreModels")}
 					</Button>
 				</div>
 			)}

@@ -1,0 +1,20 @@
+{
+	"title": "Debug Tools",
+	"vectorSearch": {
+		"title": "Vector Search",
+		"search": "Search",
+		"searchQuery": "Search Query",
+		"placeholder": "Enter text to search for similar content...",
+		"embeddingNotReady": "Embedding service not ready. Please wait for initialization to complete."
+	},
+	"controls": {
+		"table": "Table",
+		"vectorColumn": "Vector Column",
+		"limit": "Limit",
+		"threshold": "Threshold"
+	},
+	"status": {
+		"ready": "Ready",
+		"notReady": "Not Ready"
+	}
+}

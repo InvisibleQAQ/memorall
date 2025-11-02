@@ -41,8 +41,12 @@
 	},
 	"empty": {
 		"title": "Không có đồ thị tri thức",
-		"description": "Chuyển đổi một số nội dung để tạo nút đồ thị tri thức"
+		"description": "Chuyển đổi một số nội dung để tạo nút đồ thị tri thức",
+		"noNodes": "Không tìm thấy nút nào cho đồ thị tri thức"
 	},
 	"loading": "Đang tải đồ thị tri thức...",
-	"error": "Lỗi khi tải đồ thị"
+	"error": "Lỗi khi tải đồ thị: {{error}}",
+	"actions": {
+		"close": "Đóng"
+	}
 }

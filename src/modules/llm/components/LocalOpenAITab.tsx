@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { serviceManager } from "@/services";
@@ -17,6 +18,7 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 	providerKind,
 	onModelLoaded,
 }) => {
+	const { t } = useTranslation("llm");
 	const defaultBase =
 		providerKind === "lmstudio"
 			? "http://localhost:1234/v1"
@@ -74,7 +76,7 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 
 	async function save() {
 		if (!baseUrl.trim()) {
-			setError("Base URL is required");
+			setError(t("localProvider.baseUrlRequired"));
 			return;
 		}
 		setBusy(true);
@@ -111,7 +113,7 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 			await refresh();
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : "Unknown error";
-			setError(`Failed to save configuration: ${msg}`);
+			setError(t("localProvider.failedToSaveConfiguration", { error: msg }));
 		} finally {
 			setBusy(false);
 		}
@@ -161,14 +163,14 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 			setView(trimmedModelId || modelExists ? "loaded" : "has-config");
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : "Unknown error";
-			setError(`Failed to connect: ${msg}`);
+			setError(t("localProvider.failedToConnect", { error: msg }));
 		} finally {
 			setBusy(false);
 		}
 	}
 
 	async function removeConfig() {
-		if (!confirm("Delete configuration?")) return;
+		if (!confirm(t("localProvider.deleteConfigurationConfirm"))) return;
 		setBusy(true);
 		setError("");
 		try {
@@ -185,7 +187,7 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 			setView("no-config");
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : "Unknown error";
-			setError(`Failed to delete configuration: ${msg}`);
+			setError(t("localProvider.failedToDeleteConfiguration", { error: msg }));
 		} finally {
 			setBusy(false);
 		}
@@ -200,18 +202,17 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 				<div className="flex items-center gap-2 mb-2">
 					<Shield className="w-4 h-4 text-primary" />
 					<span className="text-sm font-medium text-foreground">
-						Local Endpoint
+						{t("localProvider.title")}
 					</span>
 				</div>
 				<p className="text-xs text-primary">
-					Configuration is stored locally (JSONB). No encryption for local
-					endpoints.
+					{t("localProvider.description")}
 				</p>
 			</div>
 
 			{view === "loading" && (
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
-					<Loader2 className="w-4 h-4 animate-spin" /> Checking configuration...
+					<Loader2 className="w-4 h-4 animate-spin" /> {t("localProvider.checkingConfiguration")}
 				</div>
 			)}
 
@@ -219,23 +220,23 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 				<div className="space-y-3">
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 						<div>
-							<label className="text-xs text-muted-foreground">Base URL</label>
+							<label className="text-xs text-muted-foreground">{t("localProvider.baseUrl")}</label>
 							<Input
 								value={baseUrl}
 								onChange={(e) => setBaseUrl(e.target.value)}
 								disabled={busy}
 							/>
 							<div className="text-xs text-muted-foreground mt-1">
-								Default: {defaultBase}
+								{t("localProvider.defaultLabel", { url: defaultBase })}
 							</div>
 						</div>
 						<div>
 							<label className="text-xs text-muted-foreground">
-								Model ID (optional)
+								{t("localProvider.modelId")}
 							</label>
 							<Input
 								placeholder={
-									providerKind === "ollama" ? "e.g. llama3" : "your model id"
+									providerKind === "ollama" ? t("localProvider.placeholders.ollama") : t("localProvider.placeholders.lmstudio")
 								}
 								value={modelId}
 								onChange={(e) => setModelId(e.target.value)}
@@ -246,7 +247,7 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 					<div className="flex gap-2">
 						<Button onClick={save} disabled={busy || !isValidNew}>
 							{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-							<span className="ml-2">Save Configuration</span>
+							<span className="ml-2">{t("localProvider.saveConfiguration")}</span>
 						</Button>
 					</div>
 				</div>
@@ -254,26 +255,26 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 
 			{view === "has-config" && (
 				<div className="space-y-3">
-					<div className="text-sm text-foreground">Configuration found.</div>
+					<div className="text-sm text-foreground">{t("localProvider.configurationFound")}</div>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 						<div>
-							<label className="text-xs text-muted-foreground">Base URL</label>
+							<label className="text-xs text-muted-foreground">{t("localProvider.baseUrl")}</label>
 							<Input
 								value={existingBaseUrl}
 								onChange={(e) => setExistingBaseUrl(e.target.value)}
 								disabled={busy}
 							/>
 							<div className="text-xs text-muted-foreground mt-1">
-								Default: {defaultBase}
+								{t("localProvider.defaultLabel", { url: defaultBase })}
 							</div>
 						</div>
 						<div>
 							<label className="text-xs text-muted-foreground">
-								Model ID (optional)
+								{t("localProvider.modelId")}
 							</label>
 							<Input
 								placeholder={
-									providerKind === "ollama" ? "e.g. llama3" : "your model id"
+									providerKind === "ollama" ? t("localProvider.placeholders.ollama") : t("localProvider.placeholders.lmstudio")
 								}
 								value={existingModelId}
 								onChange={(e) => setExistingModelId(e.target.value)}
@@ -284,10 +285,10 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 					<div className="flex gap-2">
 						<Button onClick={connect} disabled={busy || !isValidExisting}>
 							{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-							<span className="ml-2">Connect</span>
+							<span className="ml-2">{t("localProvider.connect")}</span>
 						</Button>
 						<Button onClick={save} variant="outline" disabled={busy}>
-							Update
+							{t("localProvider.update")}
 						</Button>
 						<Button
 							onClick={removeConfig}
@@ -307,16 +308,16 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 						<CheckCircle className="w-4 h-4 text-primary" />
 						<div>
 							<div className="text-sm font-medium text-foreground">
-								Local LLM Ready
+								{t("localProvider.ready")}
 							</div>
 							<div className="text-xs text-primary">
-								Configuration loaded and service connected
+								{t("localProvider.configurationLoadedAndConnected")}
 							</div>
 						</div>
 					</div>
 					<div className="flex gap-2">
 						<Button onClick={() => setView("has-config")} variant="outline">
-							Disconnect
+							{t("localProvider.disconnect")}
 						</Button>
 						<Button
 							onClick={removeConfig}

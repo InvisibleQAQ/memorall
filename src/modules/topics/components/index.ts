@@ -8,7 +8,3 @@ export {
 	TopicFilterDropdown,
 	ActiveTopicChips,
 } from "./TopicFilterDropdown";
-export { TopicSelectorDialog } from "./TopicSelectorDialog";
-export { CreateTopicDialog } from "./CreateTopicDialog";
-export { EditTopicDialog } from "./EditTopicDialog";
-export { ManageTopicsDialog } from "./ManageTopicsDialog";

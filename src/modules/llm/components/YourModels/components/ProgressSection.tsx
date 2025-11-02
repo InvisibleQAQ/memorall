@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Progress } from "@/components/ui/progress";
 import type { DownloadProgress } from "../../../hooks/use-download-progress";
 
@@ -13,6 +14,7 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
 	quickDownloadModel,
 	downloadProgress,
 }) => {
+	const { t } = useTranslation("llm");
 	// Show progress only during active loading, not when complete
 	const shouldShowProgress =
 		loading || (downloadProgress.percent > 0 && downloadProgress.percent < 100);

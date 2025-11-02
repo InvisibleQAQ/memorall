@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
 	Card,
 	CardHeader,
@@ -131,16 +132,16 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 	onOpenAITabSelect,
 	onModelLoaded,
 }) => {
+	const { t } = useTranslation("llm");
 	return (
 		<Card className="rounded-none md:rounded-lg">
 			<CardHeader className="p-3">
 				<CardTitle className="flex items-center gap-2">
 					<Settings size={20} />
-					Advanced - Download New Model
+					{t("advanced.title")}
 				</CardTitle>
 				<CardDescription>
-					Download and run models locally via worker - supports both Wllama
-					(GGUF) and WebLLM (MLC)
+					{t("advanced.description")}
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="p-3 space-y-4">
@@ -222,19 +223,19 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 									: !webllmModel)
 							}
 						>
-							Load Model
+							{t("advanced.loadModel")}
 						</Button>
 						<Button
 							onClick={onUnloadModel}
 							variant="outline"
 							disabled={loading || !ready}
 						>
-							Unload
+							{t("advanced.unload")}
 						</Button>
 					</div>
 				)}
 
-				<div className="text-sm text-muted-foreground">Status: {status}</div>
+				<div className="text-sm text-muted-foreground">{t("advanced.status", { status })}</div>
 
 				<ChatSection
 					ready={ready}

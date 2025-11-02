@@ -41,8 +41,12 @@
 	},
 	"empty": {
 		"title": "No knowledge graph available",
-		"description": "Convert some content to generate knowledge graph nodes"
+		"description": "Convert some content to generate knowledge graph nodes",
+		"noNodes": "No nodes found for knowledge graph"
 	},
 	"loading": "Loading knowledge graph...",
-	"error": "Error loading graph"
+	"error": "Error loading graph: {{error}}",
+	"actions": {
+		"close": "Close"
+	}
 }

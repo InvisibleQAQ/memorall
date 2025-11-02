@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Progress } from "@/components/ui/progress";
 
 interface ProgressData {
@@ -25,18 +26,20 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
 	webllmModel,
 	downloadProgress,
 }) => {
+	const { t } = useTranslation("llm");
 	if (!loading) return null;
 
 	return (
 		<div className="space-y-3 p-4 border rounded-lg bg-muted/50">
 			<div className="flex items-center justify-between text-sm">
 				<span className="font-medium">
-					Loading{" "}
-					{advancedProvider === "wllama"
-						? filePath
-							? `${repo}/${filePath}`
-							: repo
-						: webllmModel || "WebLLM model"}
+					{t("progress.loading", { 
+						model: advancedProvider === "wllama"
+							? filePath
+								? `${repo}/${filePath}`
+								: repo
+							: webllmModel || "WebLLM model"
+					})}
 				</span>
 				<span className="text-muted-foreground">
 					{Number(downloadProgress.percent.toFixed(2))}%
@@ -47,7 +50,7 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
 				<span>
 					{downloadProgress.loaded > 0 && downloadProgress.total > 0
 						? `${(downloadProgress.loaded / (1024 * 1024)).toFixed(2)} MB / ${(downloadProgress.total / (1024 * 1024)).toFixed(2)} MB`
-						: "Initializing..."}
+						: t("progress.initializing")}
 				</span>
 				<span>
 					{downloadProgress.loaded > 0 && downloadProgress.total > 0

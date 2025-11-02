@@ -14,6 +14,14 @@
 		"noModelSelected": "Chưa chọn mô hình",
 		"selectModel": "Chọn một mô hình từ các tùy chọn bên dưới"
 	},
+	"providers": {
+		"wllama": "Wllama (GGUF)",
+		"webllm": "WebLLM (MLC)",
+		"openai": "OpenAI",
+		"openrouter": "OpenRouter",
+		"lmstudio": "LM Studio",
+		"ollama": "Ollama"
+	},
 	"yourModels": {
 		"title": "Mô hình của tôi",
 		"description": "Không gian mô hình cục bộ của bạn - tải xuống mô hình được đề xuất hoặc quản lý mô hình hiện có.",
@@ -32,7 +40,133 @@
 		"loaded": "Đã tải",
 		"notLoaded": "Chưa tải",
 		"loading": "Đang tải...",
-		"downloading": "Đang tải xuống..."
+		"downloading": "Đang tải xuống...",
+		"available": "Có sẵn",
+		"ready": "Sẵn sàng",
+		"use": "Sử dụng",
+		"connect": "Kết nối",
+		"get": "Tải về",
+		"refresh": "Làm mới"
+	},
+	"openai": {
+		"secureStorage": "Lưu trữ bảo mật",
+		"secureStorageDescription": "API key của bạn được mã hóa bằng AES-256 và lưu trữ an toàn trên đĩa. Mật khẩu 6 ký tự bảo vệ cấu hình của bạn.",
+		"checkingConfiguration": "Đang kiểm tra cấu hình...",
+		"noConfigurationFound": "Không tìm thấy cấu hình",
+		"createNewConfiguration": "Tạo cấu hình OpenAI mới",
+		"apiKey": "OpenAI API Key",
+		"baseUrl": "Base URL",
+		"baseUrlDescription": "Sử dụng base URL khác cho API tương thích OpenAI (tùy chọn)",
+		"encryptionPasskey": "Mật khẩu mã hóa",
+		"passkeyDescription": "Mật khẩu 6 ký tự để mã hóa cấu hình của bạn",
+		"apiKeyWarning": "OpenAI API key thường bắt đầu bằng \"sk-\"",
+		"passkeyLengthWarning": "Mật khẩu phải có đúng 6 ký tự ({{current}}/6)",
+		"saving": "Đang lưu...",
+		"saveAndEncrypt": "Lưu & Mã hóa cấu hình",
+		"configurationFound": "Đã tìm thấy cấu hình",
+		"createdDate": "Tạo: {{date}}",
+		"enterPasskeyToLoad": "Nhập mật khẩu để tải",
+		"decryptSavedConfiguration": "Giải mã cấu hình OpenAI đã lưu của bạn",
+		"loadConfiguration": "Tải cấu hình",
+		"openaiReady": "OpenAI sẵn sàng",
+		"configurationLoadedAndConnected": "Cấu hình đã tải và dịch vụ đã kết nối",
+		"modelsAvailableInYourModels": "Các mô hình OpenAI của bạn hiện có sẵn trong phần **Mô hình của tôi** ở trên.",
+		"unloadConfiguration": "Gỡ cấu hình",
+		"deleteConfigurationConfirm": "Bạn có chắc chắn muốn xóa cấu hình OpenAI của mình không?",
+		"fillAllRequiredFields": "Vui lòng điền tất cả các trường bắt buộc và đảm bảo mật khẩu có 6 ký tự",
+		"enterValidPasskey": "Vui lòng nhập mật khẩu hợp lệ 6 ký tự",
+		"noConfigurationFoundError": "Không tìm thấy cấu hình OpenAI",
+		"failedToSaveConfiguration": "Không thể lưu cấu hình: {{error}}",
+		"failedToLoadConfiguration": "Không thể tải cấu hình: {{error}}",
+		"failedToDeleteConfiguration": "Không thể xóa cấu hình: {{error}}",
+		"passkey": "Mật khẩu (6 ký tự)",
+		"loadPasskey": "Tải mật khẩu",
+		"placeholders": {
+			"apiKey": "sk-...",
+			"baseUrl": "https://api.openai.com/v1",
+			"passkey": "6 ký tự"
+		}
+	},
+	"webllm": {
+		"model": "Mô hình WebLLM",
+		"selectModel": "Chọn một mô hình WebLLM..."
+	},
+	"downloadedModels": {
+		"downloadMoreModels": "Tải xuống thêm mô hình"
+	},
+	"advanced": {
+		"title": "Nâng cao - Tải xuống mô hình mới",
+		"description": "Tải xuống và chạy mô hình cục bộ qua worker - hỗ trợ cả Wllama (GGUF) và WebLLM (MLC)",
+		"loadModel": "Tải mô hình",
+		"unload": "Gỡ",
+		"status": "Trạng thái: {{status}}"
+	},
+	"logs": {
+		"title": "Nhật ký"
+	},
+	"chat": {
+		"title": "Trò chuyện",
+		"placeholder": "Nhập tin nhắn của bạn...",
+		"generate": "Tạo",
+		"output": "Kết quả"
+	},
+	"progress": {
+		"loading": "Đang tải {{model}}",
+		"initializing": "Đang khởi tạo...",
+		"eta": "Thời gian còn lại: {{time}}s"
+	},
+	"localProvider": {
+		"title": "Điểm cuối cục bộ",
+		"description": "Cấu hình được lưu trữ cục bộ (JSONB). Không mã hóa cho các điểm cuối cục bộ.",
+		"checkingConfiguration": "Đang kiểm tra cấu hình...",
+		"configurationFound": "Đã tìm thấy cấu hình.",
+		"baseUrl": "Base URL",
+		"modelId": "ID mô hình (tùy chọn)",
+		"defaultLabel": "Mặc định: {{url}}",
+		"saveConfiguration": "Lưu cấu hình",
+		"connect": "Kết nối",
+		"update": "Cập nhật",
+		"disconnect": "Ngắt kết nối",
+		"ready": "LLM cục bộ sẵn sàng",
+		"configurationLoadedAndConnected": "Cấu hình đã tải và dịch vụ đã kết nối",
+		"deleteConfigurationConfirm": "Xóa cấu hình?",
+		"baseUrlRequired": "Base URL là bắt buộc",
+		"failedToSaveConfiguration": "Không thể lưu cấu hình: {{error}}",
+		"failedToConnect": "Không thể kết nối: {{error}}",
+		"failedToDeleteConfiguration": "Không thể xóa cấu hình: {{error}}",
+		"placeholders": {
+			"ollama": "ví dụ: llama3",
+			"lmstudio": "id mô hình của bạn"
+		}
+	},
+	"wllama": {
+		"recommendedModels": "Mô hình được đề xuất",
+		"customRepository": "Kho tùy chỉnh",
+		"modelRepository": "Kho mô hình",
+		"selectRepository": "Chọn một kho mô hình...",
+		"ggufFilename": "Tên tệp GGUF (trong kho)",
+		"selectFile": "Chọn một tệp...",
+		"unknownSize": "Kích thước không xác định",
+		"huggingFaceRepo": "Kho Hugging Face (tên người dùng/kho)",
+		"repoPlaceholder": "ví dụ: microsoft/DialoGPT-medium",
+		"search": "Tìm kiếm",
+		"availableFiles": "Tệp GGUF có sẵn (tìm thấy {{count}})",
+		"filePlaceholder": "ví dụ: Q4_K_M.gguf hoặc ggml-model-q4_0.gguf"
+	},
+	"openrouter": {
+		"title": "Cấu hình OpenRouter",
+		"description": "Cấu hình API OpenRouter để truy cập nhiều nhà cung cấp LLM",
+		"apiKey": "Khóa API OpenRouter",
+		"apiKeyPlaceholder": "sk-or-...",
+		"baseUrl": "Base URL (tùy chọn)",
+		"baseUrlPlaceholder": "https://openrouter.ai/api/v1",
+		"testConnection": "Kiểm tra kết nối",
+		"testing": "Đang kiểm tra...",
+		"connectionSuccessful": "Kết nối thành công!",
+		"connectionFailed": "Kết nối thất bại: {{error}}",
+		"save": "Lưu cấu hình",
+		"saving": "Đang lưu...",
+		"configurationSaved": "Cấu hình đã được lưu thành công!"
 	},
 	"add": {
 		"button": "Thêm mô hình",

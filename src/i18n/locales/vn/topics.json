@@ -1,0 +1,84 @@
+{
+	"title": "Chủ đề",
+	"create": {
+		"title": "Tạo chủ đề mới",
+		"description": "Tổ chức tài liệu của bạn bằng cách tạo các chủ đề tập trung cho các lĩnh vực kiến thức khác nhau.",
+		"topicName": "Tên chủ đề",
+		"goalPurpose": "Mục tiêu & Mục đích",
+		"namePlaceholder": "ví dụ: Học máy, Phát triển React...",
+		"descriptionPlaceholder": "Mô tả những gì bạn muốn đạt được với chủ đề này. Bạn đang xây dựng kiến thức hoặc kỹ năng cụ thể nào? Điều này giúp tổ chức thông tin liên quan một cách hiệu quả.",
+		"example": "Ví dụ: \"Học các mẫu React hiện đại và thực hành tốt nhất để xây dựng ứng dụng web có thể mở rộng\"",
+		"tip": "💡 Mẹo: Nhấn",
+		"ctrlEnter": "Ctrl+Enter",
+		"toCreateQuickly": "để tạo nhanh",
+		"cancel": "Hủy",
+		"creating": "Đang tạo...",
+		"createTopic": "Tạo chủ đề"
+	},
+	"edit": {
+		"title": "Chỉnh sửa chủ đề",
+		"description": "Cập nhật tên và mô tả của chủ đề này.",
+		"topicName": "Tên chủ đề",
+		"goalPurpose": "Mục tiêu & Mục đích",
+		"namePlaceholder": "ví dụ: Học máy, Phát triển React...",
+		"descriptionPlaceholder": "Mô tả những gì bạn muốn đạt được với chủ đề này...",
+		"tip": "💡 Mẹo: Nhấn",
+		"ctrlEnter": "Ctrl+Enter",
+		"toSaveQuickly": "để lưu nhanh",
+		"cancel": "Hủy",
+		"saving": "Đang lưu...",
+		"saveChanges": "Lưu thay đổi"
+	},
+	"manage": {
+		"title": "Quản lý chủ đề",
+		"description": "Xem, chỉnh sửa và tổ chức tất cả các chủ đề của bạn.",
+		"searchPlaceholder": "Tìm kiếm chủ đề...",
+		"createNew": "Tạo chủ đề mới",
+		"noTopics": "Không tìm thấy chủ đề nào",
+		"noTopicsDescription": "Tạo chủ đề đầu tiên để bắt đầu tổ chức kiến thức của bạn.",
+		"files": "{{count}} tệp",
+		"edit": "Chỉnh sửa",
+		"delete": "Xóa",
+		"deleteConfirm": {
+			"title": "Xóa chủ đề",
+			"description": "Bạn có chắc chắn muốn xóa \"{{topicName}}\" không? Hành động này không thể hoàn tác. Các tệp liên quan đến chủ đề này sẽ không bị xóa.",
+			"cancel": "Hủy",
+			"delete": "Xóa chủ đề"
+		}
+	},
+	"selector": {
+		"title": "Chọn chủ đề",
+		"description": "Chọn chủ đề mà tệp này thuộc về. Bạn có thể chọn nhiều chủ đề hoặc tạo chủ đề mới.",
+		"fileName": "Tệp: {{fileName}}",
+		"searchPlaceholder": "Tìm kiếm chủ đề...",
+		"noTopics": "Không có chủ đề nào",
+		"noTopicsDescription": "Tạo chủ đề đầu tiên để bắt đầu tổ chức các tệp của bạn.",
+		"createNew": "Tạo chủ đề mới",
+		"selected": "Đã chọn {{count}}",
+		"cancel": "Hủy",
+		"save": "Lưu chủ đề",
+		"saving": "Đang lưu...",
+		"createMode": {
+			"title": "Tạo chủ đề mới",
+			"topicName": "Tên chủ đề",
+			"goalPurpose": "Mục tiêu & Mục đích",
+			"namePlaceholder": "ví dụ: Học máy, Phát triển React...",
+			"descriptionPlaceholder": "Mô tả những gì bạn muốn đạt được với chủ đề này...",
+			"backToSelection": "Quay lại lựa chọn",
+			"creating": "Đang tạo...",
+			"createAndSelect": "Tạo & Chọn"
+		}
+	},
+	"filter": {
+		"allTopics": "Tất cả chủ đề",
+		"noTopic": "Không có chủ đề",
+		"selectTopic": "Chọn một chủ đề để lọc"
+	},
+	"badge": {
+		"defaultTopic": "Mặc định"
+	},
+	"common": {
+		"required": "*",
+		"close": "Đóng"
+	}
+}

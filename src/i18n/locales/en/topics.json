@@ -1,0 +1,84 @@
+{
+	"title": "Topics",
+	"create": {
+		"title": "Create New Topic",
+		"description": "Organize your documents by creating focused topics for different areas of knowledge.",
+		"topicName": "Topic Name",
+		"goalPurpose": "Goal & Purpose",
+		"namePlaceholder": "e.g., Machine Learning, React Development...",
+		"descriptionPlaceholder": "Describe what you want to achieve with this topic. What specific knowledge or skills are you building? This helps organize relevant information effectively.",
+		"example": "Example: \"Learn modern React patterns and best practices for building scalable web applications\"",
+		"tip": "💡 Tip: Press",
+		"ctrlEnter": "Ctrl+Enter",
+		"toCreateQuickly": "to create quickly",
+		"cancel": "Cancel",
+		"creating": "Creating...",
+		"createTopic": "Create Topic"
+	},
+	"edit": {
+		"title": "Edit Topic",
+		"description": "Update the name and description of this topic.",
+		"topicName": "Topic Name",
+		"goalPurpose": "Goal & Purpose",
+		"namePlaceholder": "e.g., Machine Learning, React Development...",
+		"descriptionPlaceholder": "Describe what you want to achieve with this topic...",
+		"tip": "💡 Tip: Press",
+		"ctrlEnter": "Ctrl+Enter",
+		"toSaveQuickly": "to save quickly",
+		"cancel": "Cancel",
+		"saving": "Saving...",
+		"saveChanges": "Save Changes"
+	},
+	"manage": {
+		"title": "Manage Topics",
+		"description": "View, edit, and organize all your topics.",
+		"searchPlaceholder": "Search topics...",
+		"createNew": "Create New Topic",
+		"noTopics": "No topics found",
+		"noTopicsDescription": "Create your first topic to start organizing your knowledge.",
+		"files": "{{count}} files",
+		"edit": "Edit",
+		"delete": "Delete",
+		"deleteConfirm": {
+			"title": "Delete Topic",
+			"description": "Are you sure you want to delete \"{{topicName}}\"? This action cannot be undone. Files associated with this topic will not be deleted.",
+			"cancel": "Cancel",
+			"delete": "Delete Topic"
+		}
+	},
+	"selector": {
+		"title": "Select Topics",
+		"description": "Choose which topics this file belongs to. You can select multiple topics or create new ones.",
+		"fileName": "File: {{fileName}}",
+		"searchPlaceholder": "Search topics...",
+		"noTopics": "No topics available",
+		"noTopicsDescription": "Create your first topic to start organizing your files.",
+		"createNew": "Create New Topic",
+		"selected": "{{count}} selected",
+		"cancel": "Cancel",
+		"save": "Save Topics",
+		"saving": "Saving...",
+		"createMode": {
+			"title": "Create New Topic",
+			"topicName": "Topic Name",
+			"goalPurpose": "Goal & Purpose",
+			"namePlaceholder": "e.g., Machine Learning, React Development...",
+			"descriptionPlaceholder": "Describe what you want to achieve with this topic...",
+			"backToSelection": "Back to Selection",
+			"creating": "Creating...",
+			"createAndSelect": "Create & Select"
+		}
+	},
+	"filter": {
+		"allTopics": "All Topics",
+		"noTopic": "No Topic",
+		"selectTopic": "Select a topic to filter by"
+	},
+	"badge": {
+		"defaultTopic": "Default"
+	},
+	"common": {
+		"required": "*",
+		"close": "Close"
+	}
+}

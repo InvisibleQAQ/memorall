@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 interface ProviderTabsProps {
 	advancedProvider:
@@ -33,6 +34,7 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 	webllmAvailableModels,
 	onOpenAITabSelect,
 }) => {
+	const { t } = useTranslation("llm");
 	return (
 		<div className="flex border-b overflow-x-auto">
 			<button
@@ -49,7 +51,7 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 				}`}
 				disabled={loading}
 			>
-				Wllama (GGUF)
+				{t("providers.wllama")}
 			</button>
 			<button
 				onClick={() => {
@@ -66,7 +68,7 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 				}`}
 				disabled={loading}
 			>
-				WebLLM (MLC)
+				{t("providers.webllm")}
 			</button>
 			<button
 				onClick={() => {
@@ -83,7 +85,7 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 				}`}
 				disabled={loading}
 			>
-				OpenAI
+				{t("providers.openai")}
 			</button>
 			<button
 				onClick={() => {
@@ -99,7 +101,7 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 				}`}
 				disabled={loading}
 			>
-				OpenRouter
+				{t("providers.openrouter")}
 			</button>
 			<button
 				onClick={() => {
@@ -115,7 +117,7 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 				}`}
 				disabled={loading}
 			>
-				LM Studio
+				{t("providers.lmstudio")}
 			</button>
 			<button
 				onClick={() => {
@@ -131,7 +133,7 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 				}`}
 				disabled={loading}
 			>
-				Ollama
+				{t("providers.ollama")}
 			</button>
 		</div>
 	);

@@ -1,5 +1,6 @@
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 interface ProviderSelectorProps {
 	quickProvider: ServiceProvider;
@@ -12,6 +13,7 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
 	setQuickProvider,
 	loading,
 }) => {
+	const { t } = useTranslation("llm");
 	return (
 		<div className="flex items-center gap-2">
 			<select
@@ -20,12 +22,12 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
 				className="text-xs border rounded px-2 py-1 bg-background"
 				disabled={loading}
 			>
-				<option value="wllama">Wllama (GGUF)</option>
-				<option value="webllm">WebLLM (MLC)</option>
-				<option value="openai">OpenAI (Cloud)</option>
-				<option value="openrouter">OpenRouter (Cloud)</option>
-				<option value="lmstudio">LM Studio (Local)</option>
-				<option value="ollama">Ollama (Local)</option>
+				<option value="wllama">{t("providers.wllama")}</option>
+				<option value="webllm">{t("providers.webllm")}</option>
+				<option value="openai">{t("providers.openai")} (Cloud)</option>
+				<option value="openrouter">{t("providers.openrouter")} (Cloud)</option>
+				<option value="lmstudio">{t("providers.lmstudio")} (Local)</option>
+				<option value="ollama">{t("providers.ollama")} (Local)</option>
 			</select>
 			<span className="text-xs text-muted-foreground">Recommended models</span>
 		</div>

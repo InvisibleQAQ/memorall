@@ -1,0 +1,20 @@
+{
+	"title": "Công cụ gỡ lỗi",
+	"vectorSearch": {
+		"title": "Tìm kiếm vector",
+		"search": "Tìm kiếm",
+		"searchQuery": "Truy vấn tìm kiếm",
+		"placeholder": "Nhập văn bản để tìm kiếm nội dung tương tự...",
+		"embeddingNotReady": "Dịch vụ embedding chưa sẵn sàng. Vui lòng đợi quá trình khởi tạo hoàn tất."
+	},
+	"controls": {
+		"table": "Bảng",
+		"vectorColumn": "Cột vector",
+		"limit": "Giới hạn",
+		"threshold": "Ngưỡng"
+	},
+	"status": {
+		"ready": "Sẵn sàng",
+		"notReady": "Chưa sẵn sàng"
+	}
+}

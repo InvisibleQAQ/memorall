@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Play, Square, Search } from "lucide-react";
@@ -24,6 +25,7 @@ export const LocalModelsList: React.FC<LocalModelsListProps> = ({
 	current,
 	onModelLoaded,
 }) => {
+	const { t } = useTranslation("llm");
 	const [searchFilter, setSearchFilter] = useState("");
 
 	// Filter models by name

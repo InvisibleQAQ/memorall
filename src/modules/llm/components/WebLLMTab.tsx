@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
 	Select,
 	SelectContent,
@@ -20,18 +21,19 @@ export const WebLLMTab: React.FC<WebLLMTabProps> = ({
 	webllmAvailableModels,
 	loading,
 }) => {
+	const { t } = useTranslation("llm");
 	return (
 		<div className="space-y-4">
 			<div className="grid grid-cols-1 gap-3">
 				<div>
-					<label className="text-xs text-muted-foreground">WebLLM Model</label>
+					<label className="text-xs text-muted-foreground">{t("webllm.model")}</label>
 					<Select
 						value={webllmModel}
 						onValueChange={setWebllmModel}
 						disabled={loading}
 					>
 						<SelectTrigger className="w-full">
-							<SelectValue placeholder="Select a WebLLM model..." />
+							<SelectValue placeholder={t("webllm.selectModel")} />
 						</SelectTrigger>
 						<SelectContent>
 							{webllmAvailableModels.map((model) => (

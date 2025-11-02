@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -48,6 +49,7 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 	onThresholdChange,
 	onSearch,
 }) => {
+	const { t } = useTranslation("debug");
 	const getServiceStatusIcon = (status: boolean) => {
 		return status ? (
 			<CheckCircle className="h-4 w-4 text-primary" />
@@ -61,7 +63,7 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 			<div className="flex items-center justify-between mb-2">
 				<div className="flex items-center gap-2">
 					<Target className="h-4 w-4" />
-					<span className="font-medium text-sm">Vector Search</span>
+					<span className="font-medium text-sm">{t("vectorSearch.title")}</span>
 					<div className="flex items-center gap-1 ml-2">
 						{getServiceStatusIcon(serviceStatus.database)}
 						{getServiceStatusIcon(serviceStatus.overall)}
@@ -76,21 +78,20 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 					className="h-7 text-xs"
 				>
 					<Search className={`h-3 w-3 ${loading ? "animate-spin" : ""} mr-1`} />
-					Search
+					{t("vectorSearch.search")}
 				</Button>
 			</div>
 
 			{!isEmbeddingReady && (
 				<div className="mb-2 p-2 bg-destructive/10 border border-destructive/20 rounded text-xs text-destructive">
-					Embedding service not ready. Please wait for initialization to
-					complete.
+					{t("vectorSearch.embeddingNotReady")}
 				</div>
 			)}
 
 			<div className="space-y-2">
 				<div className="flex gap-1 items-end">
 					<div className="flex-1">
-						<label className="block text-xs font-medium mb-1">Table</label>
+						<label className="block text-xs font-medium mb-1">{t("controls.table")}</label>
 						<Select value={selectedTable} onValueChange={onTableChange}>
 							<SelectTrigger className="h-6 text-xs">
 								<SelectValue />
@@ -106,7 +107,7 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 					</div>
 					<div className="flex-1">
 						<label className="block text-xs font-medium mb-1">
-							Vector Column
+							{t("controls.vectorColumn")}
 						</label>
 						<Select
 							value={selectedVectorColumn}
@@ -125,7 +126,7 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 						</Select>
 					</div>
 					<div className="w-16">
-						<label className="block text-xs font-medium mb-1">Limit</label>
+						<label className="block text-xs font-medium mb-1">{t("controls.limit")}</label>
 						<Input
 							type="number"
 							min="1"
@@ -136,7 +137,7 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 						/>
 					</div>
 					<div className="w-20">
-						<label className="block text-xs font-medium mb-1">Threshold</label>
+						<label className="block text-xs font-medium mb-1">{t("controls.threshold")}</label>
 						<Input
 							type="number"
 							min="0"
@@ -152,9 +153,9 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
 				</div>
 
 				<div>
-					<label className="block text-xs font-medium mb-1">Search Query</label>
+					<label className="block text-xs font-medium mb-1">{t("vectorSearch.searchQuery")}</label>
 					<Input
-						placeholder="Enter text to search for similar content..."
+						placeholder={t("vectorSearch.placeholder")}
 						value={query}
 						onChange={(e) => onQueryChange(e.target.value)}
 						className="text-sm"

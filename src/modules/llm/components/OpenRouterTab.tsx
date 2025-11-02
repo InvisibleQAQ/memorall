@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +33,7 @@ interface OpenRouterTabProps {
 export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 	onModelLoaded,
 }) => {
+	const { t } = useTranslation("llm");
 	// Component state
 	const [configState, setConfigState] = useState<
 		"loading" | "no-config" | "has-config" | "loaded"
@@ -96,7 +98,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 	const handleSaveConfig = async () => {
 		if (!tempApiKey.trim() || !tempPasskey.trim() || tempPasskey.length !== 6) {
 			setError(
-				"Please fill all required fields and ensure passkey is 6 characters",
+				t("openai.fillAllRequiredFields"),
 			);
 			return;
 		}
@@ -163,7 +165,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 			logInfo("OpenRouter configuration saved successfully");
 		} catch (error) {
 			const msg = error instanceof Error ? error.message : "Unknown error";
-			setError(`Failed to save configuration: ${msg}`);
+			setError(t("openai.failedToSaveConfiguration", { error: msg }));
 			logError("Failed to save config:", error);
 		} finally {
 			setIsLoading(false);
@@ -173,7 +175,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 	// Load configuration from database to memory
 	const handleLoadConfig = async () => {
 		if (!loadPasskey.trim() || loadPasskey.length !== 6) {
-			setError("Please enter a valid 6-character passkey");
+			setError(t("openai.enterValidPasskey"));
 			return;
 		}
 
@@ -191,7 +193,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 			)[0];
 
 			if (!encryptedConfig) {
-				setError("No OpenRouter configuration found");
+				setError(t("openai.noConfigurationFoundError"));
 				return;
 			}
 
@@ -248,7 +250,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 			}
 		} catch (error) {
 			const msg = error instanceof Error ? error.message : "Unknown error";
-			setError(`Failed to load configuration: ${msg}`);
+			setError(t("openai.failedToLoadConfiguration", { error: msg }));
 			logError("Failed to load config:", error);
 		} finally {
 			setIsLoading(false);
@@ -258,7 +260,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 	// Delete configuration from database
 	const handleDeleteConfig = async () => {
 		if (
-			!confirm("Are you sure you want to delete your OpenRouter configuration?")
+			!confirm(t("openai.deleteConfigurationConfirm"))
 		) {
 			return;
 		}
@@ -282,7 +284,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 			logInfo("OpenRouter configuration deleted successfully");
 		} catch (error) {
 			const msg = error instanceof Error ? error.message : "Unknown error";
-			setError(`Failed to delete configuration: ${msg}`);
+			setError(t("openai.failedToDeleteConfiguration", { error: msg }));
 			logError("Failed to delete config:", error);
 		} finally {
 			setIsLoading(false);
@@ -303,12 +305,11 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 				<div className="flex items-center gap-2 mb-2">
 					<Shield className="w-4 h-4 text-primary" />
 					<span className="text-sm font-medium text-foreground">
-						Secure Storage
+						{t("openai.secureStorage")}
 					</span>
 				</div>
 				<p className="text-xs text-muted-foreground">
-					Your API key is encrypted with AES-256 and stored securely on disk. A
-					6-character passkey protects your configuration.
+					{t("openai.securityDescription")}
 				</p>
 			</div>
 
@@ -317,7 +318,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 				<div className="flex items-center justify-center py-8">
 					<Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
 					<span className="ml-2 text-sm text-muted-foreground">
-						Checking configuration...
+						{t("openai.checkingConfiguration")}
 					</span>
 				</div>
 			)}
@@ -327,22 +328,22 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 				<div className="space-y-4">
 					<div className="text-center py-2">
 						<h3 className="text-sm font-medium text-foreground mb-1">
-							No Configuration Found
+							{t("openai.noConfigurationFound")}
 						</h3>
 						<p className="text-xs text-muted-foreground">
-							Create a new OpenRouter configuration
+							{t("openai.createNewConfiguration")}
 						</p>
 					</div>
 
 					<div className="grid grid-cols-1 gap-3">
 						<div>
 							<label className="text-xs text-muted-foreground">
-								OpenRouter API Key <span className="text-destructive">*</span>
+								{t("openrouter.apiKey")} <span className="text-destructive">*</span>
 							</label>
 							<div className="relative">
 								<Input
 									type={showApiKey ? "text" : "password"}
-									placeholder="sk-or-v1-..."
+									placeholder={t("openrouter.apiKeyPlaceholder")}
 									value={tempApiKey}
 									onChange={(e) => setTempApiKey(e.target.value)}
 									disabled={isLoading}
@@ -364,26 +365,26 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 						</div>
 
 						<div>
-							<label className="text-xs text-muted-foreground">Base URL</label>
+							<label className="text-xs text-muted-foreground">{t("openai.baseUrl")}</label>
 							<Input
-								placeholder="https://openrouter.ai/api/v1"
+								placeholder={t("openrouter.baseUrlPlaceholder")}
 								value={tempBaseUrl}
 								onChange={(e) => setTempBaseUrl(e.target.value)}
 								disabled={isLoading}
 							/>
 							<div className="text-xs text-muted-foreground mt-1">
-								Default is https://openrouter.ai/api/v1
+								{t("openai.defaultBaseUrl")}
 							</div>
 						</div>
 
 						<div>
 							<label className="text-xs text-muted-foreground">
-								Encryption Passkey <span className="text-destructive">*</span>
+								{t("openai.encryptionPasskey")} <span className="text-destructive">*</span>
 							</label>
 							<div className="relative">
 								<Input
 									type={showPasskey ? "text" : "password"}
-									placeholder="6 characters"
+									placeholder={t("openai.placeholders.passkey")}
 									value={tempPasskey}
 									onChange={(e) => setTempPasskey(e.target.value.slice(0, 6))}
 									disabled={isLoading}
@@ -404,7 +405,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 								</button>
 							</div>
 							<div className="text-xs text-muted-foreground mt-1">
-								6-character password to encrypt your configuration
+								{t("openai.passkeyDescription")}
 							</div>
 						</div>
 					</div>
@@ -416,7 +417,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 							<div className="flex items-center gap-2 p-2 border rounded bg-muted/50 border-border">
 								<AlertCircle className="w-4 h-4 text-muted-foreground" />
 								<span className="text-xs text-muted-foreground">
-									OpenRouter API keys typically start with "sk-or-"
+									{t("openai.apiKeyWarning")}
 								</span>
 							</div>
 						)}
@@ -425,7 +426,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 						<div className="flex items-center gap-2 p-2 border rounded bg-muted/50 border-border">
 							<AlertCircle className="w-4 h-4 text-muted-foreground" />
 							<span className="text-xs text-muted-foreground">
-								Passkey must be exactly 6 characters ({tempPasskey.length}/6)
+								{t("openai.passkeyLengthWarning", { current: tempPasskey.length })}
 							</span>
 						</div>
 					)}
@@ -438,12 +439,12 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 						{isLoading ? (
 							<>
 								<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-								Saving...
+								{t("openai.saving")}
 							</>
 						) : (
 							<>
 								<Shield className="w-4 h-4 mr-2" />
-								Save & Encrypt Configuration
+								{t("openai.saveAndEncrypt")}
 							</>
 						)}
 					</Button>
@@ -457,31 +458,31 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 						<CheckCircle className="w-4 h-4 text-primary" />
 						<div className="flex-1">
 							<div className="text-sm font-medium text-foreground">
-								Configuration Found
+								{t("openai.configurationFound")}
 							</div>
 							<div className="text-xs text-primary">
-								Created: {configDate && configDate.toLocaleDateString()}
+								{t("openai.createdDate", { date: configDate && configDate.toLocaleDateString() })}
 							</div>
 						</div>
 					</div>
 
 					<div className="text-center py-2">
 						<h3 className="text-sm font-medium text-foreground mb-1">
-							Enter Passkey to Load
+							{t("openai.enterPasskeyToLoad")}
 						</h3>
 						<p className="text-xs text-muted-foreground">
-							Decrypt your saved OpenRouter configuration
+							{t("openai.decryptSavedConfiguration")}
 						</p>
 					</div>
 
 					<div>
 						<label className="text-xs text-muted-foreground">
-							Encryption Passkey <span className="text-destructive">*</span>
+							{t("openai.encryptionPasskey")} <span className="text-destructive">*</span>
 						</label>
 						<div className="relative">
 							<Input
 								type={showLoadPasskey ? "text" : "password"}
-								placeholder="6 characters"
+								placeholder={t("openai.placeholders.passkey")}
 								value={loadPasskey}
 								onChange={(e) => setLoadPasskey(e.target.value.slice(0, 6))}
 								disabled={isLoading}
@@ -515,12 +516,12 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 							{isLoading ? (
 								<>
 									<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-									Loading...
+									{t("openai.loading")}
 								</>
 							) : (
 								<>
 									<Key className="w-4 h-4 mr-2" />
-									Load Configuration
+									{t("openai.loadConfiguration")}
 								</>
 							)}
 						</Button>
@@ -543,18 +544,17 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 						<CheckCircle className="w-4 h-4 text-primary" />
 						<div className="flex-1">
 							<div className="text-sm font-medium text-foreground">
-								OpenRouter Ready
+								{t("openai.openrouterReady")}
 							</div>
 							<div className="text-xs text-primary">
-								Configuration loaded and service connected
+								{t("openai.configurationLoadedAndConnected")}
 							</div>
 						</div>
 					</div>
 
 					<div className="text-center py-4">
 						<p className="text-sm text-muted-foreground">
-							Your OpenRouter models are now available in the{" "}
-							<strong>Your Models</strong> section above.
+							{t("openai.modelsAvailableInYourModels")}
 						</p>
 					</div>
 
@@ -564,7 +564,7 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 							variant="outline"
 							className="flex-1"
 						>
-							Unload Configuration
+							{t("openai.unloadConfiguration")}
 						</Button>
 						<Button
 							onClick={handleDeleteConfig}

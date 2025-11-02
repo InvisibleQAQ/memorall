@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Loader2, Download, Play, Square } from "lucide-react";
 import { QUICK_WALLAMA_LLMS } from "@/constants/wllama";
@@ -34,6 +35,7 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 	current,
 	handleQuickDownload,
 }) => {
+	const { t } = useTranslation("llm");
 	const currentQuickModels =
 		quickProvider === "wllama"
 			? QUICK_WALLAMA_LLMS
@@ -150,11 +152,11 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 									</div>
 									{isLoaded && (
 										<span className="text-xs text-green-600 font-medium">
-											● Loaded
+											● {t("model.loaded")}
 										</span>
 									)}
 									{isDownloaded && !isLoaded && (
-										<span className="text-xs text-gray-500">○ Available</span>
+										<span className="text-xs text-gray-500">○ {t("model.available")}</span>
 									)}
 								</div>
 								<div className="text-xs text-muted-foreground">
@@ -176,7 +178,7 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 								) : isLoaded ? (
 									<>
 										<Square className="w-4 h-4" />
-										Ready
+										{t("model.ready")}
 									</>
 								) : isDownloaded ? (
 									<>
@@ -200,9 +202,9 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 											| "lmstudio"
 											| "ollama") === "ollama"
 											? serviceManager.llmService.has("openai")
-												? "Use"
-												: "Connect"
-											: "Load"}
+												? t("model.use")
+												: t("model.connect")
+											: t("model.load")}
 									</>
 								) : (
 									<>
@@ -226,9 +228,9 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 											| "lmstudio"
 											| "ollama") === "ollama"
 											? serviceManager.llmService.has("openai")
-												? "Use"
-												: "Connect"
-											: "Get"}
+												? t("model.use")
+												: t("model.connect")
+											: t("model.get")}
 									</>
 								)}
 							</Button>

@@ -6,6 +6,7 @@ import React, {
 	useCallback,
 	memo,
 } from "react";
+import { useTranslation } from "react-i18next";
 import * as d3 from "d3";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -148,7 +149,9 @@ interface ControlPanelProps {
 }
 
 const ControlPanel = memo(
-	({ onZoomIn, onZoomOut, onResetZoom, isDark }: ControlPanelProps) => (
+	({ onZoomIn, onZoomOut, onResetZoom, isDark }: ControlPanelProps) => {
+		const { t } = useTranslation("knowledge");
+		return (
 		<div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
 			<button
 				onClick={onZoomIn}
@@ -158,7 +161,7 @@ const ControlPanel = memo(
 						? "bg-slate-800 text-gray-200 hover:bg-slate-700 border border-gray-700"
 						: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200",
 				)}
-				title="Zoom In"
+				title={t("visualization.zoomIn")}
 			>
 				<ZoomIn className="h-5 w-5" />
 			</button>
@@ -170,7 +173,7 @@ const ControlPanel = memo(
 						? "bg-slate-800 text-gray-200 hover:bg-slate-700 border border-gray-700"
 						: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200",
 				)}
-				title="Zoom Out"
+				title={t("visualization.zoomOut")}
 			>
 				<ZoomOut className="h-5 w-5" />
 			</button>
@@ -182,12 +185,13 @@ const ControlPanel = memo(
 						? "bg-slate-800 text-gray-200 hover:bg-slate-700 border border-gray-700"
 						: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200",
 				)}
-				title="Reset View"
+				title={t("visualization.resetView")}
 			>
 				<Maximize2 className="h-5 w-5" />
 			</button>
 		</div>
-	),
+		);
+	},
 );
 ControlPanel.displayName = "ControlPanel";
 
@@ -198,6 +202,7 @@ interface LegendProps {
 }
 
 const Legend = memo(({ nodeColors, uniqueNodeTypes, isDark }: LegendProps) => {
+	const { t } = useTranslation("knowledge");
 	const [isVisible, setIsVisible] = useState(true);
 
 	return (
@@ -218,7 +223,7 @@ const Legend = memo(({ nodeColors, uniqueNodeTypes, isDark }: LegendProps) => {
 						: "text-gray-500 hover:text-gray-700",
 				)}
 			>
-				<span>Node Types ({uniqueNodeTypes.length})</span>
+				<span>{t("legend.nodeTypes")} ({uniqueNodeTypes.length})</span>
 				<svg
 					className={cn(
 						"w-4 h-4 transition-transform",
@@ -271,7 +276,9 @@ interface StatsPanelProps {
 	isDark: boolean;
 }
 
-const StatsPanel = memo(({ nodeCount, edgeCount, isDark }: StatsPanelProps) => (
+const StatsPanel = memo(({ nodeCount, edgeCount, isDark }: StatsPanelProps) => {
+	const { t } = useTranslation("knowledge");
+	return (
 	<div
 		className={cn(
 			"absolute bottom-4 right-4 p-3 rounded-lg shadow-lg z-20",
@@ -282,7 +289,7 @@ const StatsPanel = memo(({ nodeCount, edgeCount, isDark }: StatsPanelProps) => (
 	>
 		<div className="text-xs space-y-1">
 			<div className="flex items-center gap-2">
-				<span className="font-semibold">Nodes:</span>
+				<span className="font-semibold">{t("stats.nodes")}:</span>
 				<span
 					className={cn(
 						"font-mono",
@@ -293,7 +300,7 @@ const StatsPanel = memo(({ nodeCount, edgeCount, isDark }: StatsPanelProps) => (
 				</span>
 			</div>
 			<div className="flex items-center gap-2">
-				<span className="font-semibold">Edges:</span>
+				<span className="font-semibold">{t("stats.edges")}:</span>
 				<span
 					className={cn(
 						"font-mono",
@@ -305,7 +312,8 @@ const StatsPanel = memo(({ nodeCount, edgeCount, isDark }: StatsPanelProps) => (
 			</div>
 		</div>
 	</div>
-));
+	);
+});
 StatsPanel.displayName = "StatsPanel";
 
 interface HoverTooltipProps {
@@ -356,8 +364,10 @@ const SelectedNodePanel = memo(
 		onClose,
 		onDelete,
 		deleting,
-	}: SelectedNodePanelProps) => (
-		<Card
+	}: SelectedNodePanelProps) => {
+		const { t } = useTranslation("knowledge");
+		return (
+			<Card
 			className={cn(
 				"absolute top-4 left-4 w-96 max-h-[calc(100%-2rem)] flex flex-col shadow-2xl overflow-hidden backdrop-blur-sm z-20",
 				isDark
@@ -402,7 +412,7 @@ const SelectedNodePanel = memo(
 							onClick={onDelete}
 							disabled={deleting}
 							className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-							title="Delete node"
+							title={t("node.delete")}
 						>
 							{deleting ? (
 								<Loader2 className="h-4 w-4 animate-spin" />
@@ -418,7 +428,7 @@ const SelectedNodePanel = memo(
 									? "text-gray-400 hover:text-gray-200 hover:bg-gray-700"
 									: "text-gray-400 hover:text-gray-600 hover:bg-gray-100",
 							)}
-							title="Close"
+							title={t("actions.close")}
 						>
 							<X className="h-4 w-4" />
 						</button>
@@ -446,7 +456,7 @@ const SelectedNodePanel = memo(
 									: "data-[state=active]:bg-white data-[state=active]:text-gray-900",
 							)}
 						>
-							Summary
+							{t("node.summary")}
 						</TabsTrigger>
 						<TabsTrigger
 							value="edges"
@@ -457,7 +467,7 @@ const SelectedNodePanel = memo(
 									: "data-[state=active]:bg-white data-[state=active]:text-gray-900",
 							)}
 						>
-							Edges ({connectedEdges.length})
+							{t("node.edges")} ({connectedEdges.length})
 						</TabsTrigger>
 					</TabsList>
 
@@ -482,7 +492,7 @@ const SelectedNodePanel = memo(
 										isDark ? "text-gray-500" : "text-gray-400",
 									)}
 								>
-									No summary available
+									{t("node.noSummary")}
 								</p>
 							)}
 						</div>
@@ -500,7 +510,7 @@ const SelectedNodePanel = memo(
 										isDark ? "text-gray-500" : "text-gray-400",
 									)}
 								>
-									No connected edges
+									{t("node.noEdges")}
 								</p>
 							) : (
 								<div className="space-y-3">
@@ -579,8 +589,8 @@ const SelectedNodePanel = memo(
 													)}
 												>
 													{connection.direction === "outgoing"
-														? "Outgoing"
-														: "Incoming"}
+														? t("edge.outgoing")
+														: t("edge.incoming")}
 												</span>
 											</div>
 
@@ -605,7 +615,8 @@ const SelectedNodePanel = memo(
 				</Tabs>
 			</div>
 		</Card>
-	),
+		);
+	},
 );
 SelectedNodePanel.displayName = "SelectedNodePanel";
 
@@ -617,6 +628,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	height = 600,
 	onNodeDeleted,
 }) => {
+	const { t } = useTranslation("knowledge");
 	const svgRef = useRef<SVGSVGElement>(null);
 	const simulationRef = useRef<d3.Simulation<D3Node, D3Edge> | null>(null);
 	const zoomBehaviorRef = useRef<d3.ZoomBehavior<
@@ -1305,7 +1317,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 		return (
 			<div className="flex items-center justify-center h-full">
 				<Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-				<span className="ml-2 text-gray-600">Loading knowledge graph...</span>
+				<span className="ml-2 text-gray-600">{t("loading")}</span>
 			</div>
 		);
 	}
@@ -1313,7 +1325,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	if (error) {
 		return (
 			<div className="flex items-center justify-center h-full text-red-600">
-				<p>Error loading graph: {error}</p>
+				<p>{t("error", { error })}</p>
 			</div>
 		);
 	}
@@ -1321,7 +1333,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	if (graphData.nodes.length === 0) {
 		return (
 			<div className="flex items-center justify-center h-full text-gray-500">
-				<p>No nodes found for knowledge graph</p>
+				<p>{t("empty.noNodes")}</p>
 			</div>
 		);
 	}

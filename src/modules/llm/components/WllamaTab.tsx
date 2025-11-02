@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -45,6 +46,7 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 	loading,
 	onFetchRepoFiles,
 }) => {
+	const { t } = useTranslation("llm");
 	return (
 		<div className="space-y-4">
 			{/* Repository Selection Mode */}
@@ -60,7 +62,7 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 						}}
 						disabled={loading}
 					/>
-					Recommended Models
+					{t("wllama.recommendedModels")}
 				</label>
 				<label className="flex items-center gap-2 text-sm">
 					<input
@@ -73,7 +75,7 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 						}}
 						disabled={loading}
 					/>
-					Custom Repository
+					{t("wllama.customRepository")}
 				</label>
 			</div>
 
@@ -82,11 +84,11 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 					<div>
 						<label className="text-xs text-muted-foreground">
-							Model repository
+							{t("wllama.modelRepository")}
 						</label>
 						<Select value={repo} onValueChange={setRepo} disabled={loading}>
 							<SelectTrigger className="w-full">
-								<SelectValue placeholder="Select a model repository..." />
+								<SelectValue placeholder={t("wllama.selectRepository")} />
 							</SelectTrigger>
 							<SelectContent>
 								{RECOMMENDATION_WALLAMA_LLMS.map((r) => (
@@ -99,7 +101,7 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 					</div>
 					<div>
 						<label className="text-xs text-muted-foreground">
-							GGUF filename (inside repo)
+							{t("wllama.ggufFilename")}
 						</label>
 						{availableFiles.length > 0 ? (
 							<Select
@@ -108,7 +110,7 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 								disabled={loading}
 							>
 								<SelectTrigger className="w-full">
-									<SelectValue placeholder="Select a file..." />
+									<SelectValue placeholder={t("wllama.selectFile")} />
 								</SelectTrigger>
 								<SelectContent>
 									{availableFiles.map((f) => (
@@ -116,7 +118,7 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 											{f.name} (
 											{f.size > 0
 												? `${(f.size / (1024 * 1024)).toFixed(0)}MB`
-												: "Unknown size"}
+												: t("wllama.unknownSize")}
 											)
 										</SelectItem>
 									))}
@@ -124,7 +126,7 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 							</Select>
 						) : (
 							<Input
-								placeholder="e.g., Q4_K_M.gguf or ggml-model-q4_0.gguf"
+								placeholder={t("wllama.filePlaceholder")}
 								value={filePath}
 								onChange={(e) => setFilePath(e.target.value)}
 								disabled={loading}
@@ -137,11 +139,11 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 				<div className="space-y-3">
 					<div>
 						<label className="text-xs text-muted-foreground">
-							Hugging Face Repository (username/repo)
+							{t("wllama.huggingFaceRepo")}
 						</label>
 						<div className="flex gap-2">
 							<Input
-								placeholder="e.g., microsoft/DialoGPT-medium"
+								placeholder={t("wllama.repoPlaceholder")}
 								value={customRepo}
 								onChange={(e) => {
 									setCustomRepo(e.target.value);
@@ -157,14 +159,14 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 								className="!h-10"
 							>
 								<Search size={16} />
-								Search
+								{t("wllama.search")}
 							</Button>
 						</div>
 					</div>
 					{availableFiles.length > 0 && (
 						<div>
 							<label className="text-xs text-muted-foreground">
-								Available GGUF files ({availableFiles.length} found)
+								{t("wllama.availableFiles", { count: availableFiles.length })}
 							</label>
 							<Select
 								value={filePath}
@@ -172,7 +174,7 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 								disabled={loading}
 							>
 								<SelectTrigger className="w-full">
-									<SelectValue placeholder="Select a file..." />
+									<SelectValue placeholder={t("wllama.selectFile")} />
 								</SelectTrigger>
 								<SelectContent>
 									{availableFiles.map((f) => (
@@ -180,7 +182,7 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 											{f.name} (
 											{f.size > 0
 												? `${(f.size / (1024 * 1024)).toFixed(0)}MB`
-												: "Unknown size"}
+												: t("wllama.unknownSize")}
 											)
 										</SelectItem>
 									))}
