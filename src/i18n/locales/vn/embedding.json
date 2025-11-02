@@ -1,0 +1,22 @@
+{
+	"title": "Nhúng",
+	"model": {
+		"select": "Chọn mô hình nhúng",
+		"status": "Trạng thái mô hình",
+		"loaded": "Đã tải",
+		"notLoaded": "Chưa tải"
+	},
+	"test": {
+		"title": "Kiểm tra nhúng",
+		"input": "Văn bản đầu vào",
+		"generate": "Tạo nhúng",
+		"result": "Kết quả nhúng",
+		"dimensions": "Chiều"
+	},
+	"search": {
+		"title": "Tìm kiếm tương tự",
+		"query": "Truy vấn tìm kiếm",
+		"results": "Kết quả",
+		"similarity": "Độ tương tự"
+	}
+}

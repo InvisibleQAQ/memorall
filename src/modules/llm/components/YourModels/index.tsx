@@ -3,6 +3,7 @@ import { Loader2, Zap } from "lucide-react";
 import { OpenAITab } from "@/modules/llm/components/OpenAITab";
 import { OpenRouterTab } from "@/modules/llm/components/OpenRouterTab";
 import { LocalOpenAITab } from "@/modules/llm/components/LocalOpenAITab";
+import { useTranslation } from "react-i18next";
 
 // Hooks
 import { useProviderConfig } from "@/hooks/use-provider-config";
@@ -37,9 +38,11 @@ export const YourModels: React.FC<YourModelsProps> = ({
 	onModelLoaded,
 	showDownloadMoreButton = false,
 	onDownloadMore,
-	title = "Your Models",
+	title,
 	showQuickDownload = true,
 }) => {
+	const { t } = useTranslation("llm");
+
 	// Local state
 	const [loading, setLoading] = useState(false);
 
@@ -125,7 +128,7 @@ export const YourModels: React.FC<YourModelsProps> = ({
 					<div className="flex items-center justify-between">
 						<h3 className="text-sm font-semibold flex items-center gap-2">
 							<Zap size={16} />
-							Quick Download
+							{t("yourModels.quickDownload")}
 						</h3>
 						<ProviderSelector
 							quickProvider={quickProvider}
@@ -176,7 +179,7 @@ export const YourModels: React.FC<YourModelsProps> = ({
 						<div className="flex items-center justify-center p-4 border rounded-lg">
 							<Loader2 className="w-4 h-4 animate-spin mr-2" />
 							<span className="text-sm text-muted-foreground">
-								Loading {quickProvider} models...
+								{t("yourModels.loadingModels", { provider: quickProvider })}
 							</span>
 						</div>
 					) : (

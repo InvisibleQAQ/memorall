@@ -1,0 +1,43 @@
+{
+	"title": "Chat",
+	"loading": "Initializing services...",
+	"noModels": {
+		"title": "No Models Loaded",
+		"description": "You need to load a model before you can start chatting. Choose from your downloaded models below or download new ones.",
+		"downloadMore": "Download More Models"
+	},
+	"input": {
+		"placeholder": "Type your message...",
+		"send": "Send",
+		"clearTitle": "Clear chat",
+		"clearButton": "Clear"
+	},
+	"mode": {
+		"normal": "Chat",
+		"knowledge": "Knowledge",
+		"selectMode": "Select chat mode"
+	},
+	"topic": {
+		"select": "Select topic",
+		"all": "All Topics",
+		"loading": "Loading topics..."
+	},
+	"actions": {
+		"deleteChat": "Delete Chat",
+		"moreActions": "More actions",
+		"insertSeparator": "Insert separator"
+	},
+	"messages": {
+		"thinking": "Thinking...",
+		"error": "Failed to send message",
+		"stop": "Stop",
+		"retry": "Retry",
+		"empty": "No messages yet. Start a conversation!"
+	},
+	"model": {
+		"notLoaded": "No model loaded",
+		"loading": "Loading model...",
+		"noModels": "No models available",
+		"goToModels": "Go to Models"
+	}
+}

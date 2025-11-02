@@ -1,0 +1,22 @@
+{
+	"title": "Embeddings",
+	"model": {
+		"select": "Select Embedding Model",
+		"status": "Model Status",
+		"loaded": "Loaded",
+		"notLoaded": "Not Loaded"
+	},
+	"test": {
+		"title": "Test Embedding",
+		"input": "Input Text",
+		"generate": "Generate Embedding",
+		"result": "Embedding Result",
+		"dimensions": "Dimensions"
+	},
+	"search": {
+		"title": "Similarity Search",
+		"query": "Search Query",
+		"results": "Results",
+		"similarity": "Similarity"
+	}
+}

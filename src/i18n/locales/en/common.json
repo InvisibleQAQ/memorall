@@ -1,0 +1,69 @@
+{
+	"navigation": {
+		"chat": "Chat",
+		"models": "Models",
+		"knowledgeGraph": "Knowledge Graph",
+		"documents": "Documents",
+		"debug": "Debug",
+		"embeddings": "Embeddings",
+		"database": "Database",
+		"logs": "Logs"
+	},
+	"theme": {
+		"label": "Theme",
+		"light": "Light",
+		"dark": "Dark",
+		"system": "System"
+	},
+	"language": {
+		"label": "Language",
+		"english": "English",
+		"vietnamese": "Tiếng Việt"
+	},
+	"buttons": {
+		"save": "Save",
+		"cancel": "Cancel",
+		"delete": "Delete",
+		"edit": "Edit",
+		"add": "Add",
+		"close": "Close",
+		"confirm": "Confirm",
+		"back": "Back",
+		"next": "Next",
+		"submit": "Submit",
+		"retry": "Retry",
+		"refresh": "Refresh",
+		"search": "Search",
+		"filter": "Filter",
+		"clear": "Clear",
+		"upload": "Upload",
+		"download": "Download",
+		"export": "Export",
+		"import": "Import"
+	},
+	"status": {
+		"loading": "Loading...",
+		"saving": "Saving...",
+		"saved": "Saved successfully",
+		"error": "An error occurred",
+		"success": "Success",
+		"failed": "Failed",
+		"processing": "Processing...",
+		"completed": "Completed",
+		"pending": "Pending"
+	},
+	"common": {
+		"name": "Name",
+		"description": "Description",
+		"type": "Type",
+		"date": "Date",
+		"time": "Time",
+		"status": "Status",
+		"actions": "Actions",
+		"details": "Details",
+		"settings": "Settings",
+		"search": "Search",
+		"noResults": "No results found",
+		"total": "Total"
+	}
+}

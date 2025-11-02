@@ -12,6 +12,8 @@ import {
 	Moon,
 	Monitor,
 	FileText,
+	Languages,
+	Settings,
 } from "lucide-react";
 import {
 	Tooltip,
@@ -24,8 +26,12 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
+	DropdownMenuSeparator,
+	DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/molecules/ThemeContext";
+import { useLanguage } from "@/i18n/hooks/useLanguage";
+import { useTranslation } from "react-i18next";
 import { CopilotTrigger } from "@/components/atoms/copilot";
 import { ProcessMonitor } from "@/components/molecules/ProcessMonitor";
 
@@ -34,21 +40,31 @@ interface LayoutProps {
 }
 
 const navigation = [
-	{ name: "Chat", path: "/", icon: MessageCircle },
-	{ name: "Models", path: "/llm", icon: Bot },
-	{ name: "Knowledge Graph", path: "/knowledge-graph", icon: Network },
-	{ name: "Documents", path: "/documents", icon: FileText },
+	{ nameKey: "navigation.chat", path: "/", icon: MessageCircle },
+	{ nameKey: "navigation.models", path: "/llm", icon: Bot },
+	{
+		nameKey: "navigation.knowledgeGraph",
+		path: "/knowledge-graph",
+		icon: Network,
+	},
+	{ nameKey: "navigation.documents", path: "/documents", icon: FileText },
 ];
 
 const debugItems = [
-	{ name: "Embeddings", path: "/embeddings", icon: VectorSquareIcon },
-	{ name: "Database", path: "/database", icon: Database },
-	{ name: "Logs", path: "/logs", icon: Bug },
+	{
+		nameKey: "navigation.embeddings",
+		path: "/embeddings",
+		icon: VectorSquareIcon,
+	},
+	{ nameKey: "navigation.database", path: "/database", icon: Database },
+	{ nameKey: "navigation.logs", path: "/logs", icon: Bug },
 ];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
 	const location = useLocation();
 	const { theme, setTheme, actualTheme } = useTheme();
+	const { language, changeLanguage } = useLanguage();
+	const { t } = useTranslation();
 
 	const allPaths = [...navigation, ...debugItems];
 	const checkIsExistNavigation = allPaths.some(
@@ -102,7 +118,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 												</Link>
 											</TooltipTrigger>
 											<TooltipContent side="bottom">
-												<p>{item.name}</p>
+												<p>{t(item.nameKey)}</p>
 											</TooltipContent>
 										</Tooltip>
 									);
@@ -131,7 +147,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 											</DropdownMenuTrigger>
 										</TooltipTrigger>
 										<TooltipContent side="bottom">
-											<p>Debug</p>
+											<p>{t("navigation.debug")}</p>
 										</TooltipContent>
 									</Tooltip>
 									<DropdownMenuContent align="start">
@@ -144,7 +160,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 														className="flex items-center gap-2 cursor-pointer"
 													>
 														<IconComponent size={14} />
-														<span>{item.name}</span>
+														<span>{t(item.nameKey)}</span>
 													</Link>
 												</DropdownMenuItem>
 											);
@@ -154,48 +170,78 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 							</TooltipProvider>
 						</div>
 
-						{/* Process Monitor, Theme Toggle and Copilot */}
+						{/* Process Monitor, Settings and Copilot */}
 						<div className="flex items-center gap-2">
 							<CopilotTrigger />
 							<ProcessMonitor />
 							<TooltipProvider>
+								{/* Settings Menu */}
 								<DropdownMenu>
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<DropdownMenuTrigger asChild>
 												<button className="text-muted-foreground hover:text-foreground hover:bg-muted/50 p-2 text-sm font-medium flex items-center rounded-md transition-all duration-200 ease-in-out">
-													{getThemeIcon()}
+													<Settings size={16} />
 												</button>
 											</DropdownMenuTrigger>
 										</TooltipTrigger>
 										<TooltipContent side="bottom">
-											<p>
-												Theme:{" "}
-												{theme === "system" ? `System (${actualTheme})` : theme}
-											</p>
+											<p>{t("common.settings")}</p>
 										</TooltipContent>
 									</Tooltip>
-									<DropdownMenuContent align="end">
+									<DropdownMenuContent align="end" className="w-56">
+										{/* Language Section */}
+										<DropdownMenuLabel className="flex items-center gap-2">
+											<Languages size={14} />
+											<span>{t("language.label")}</span>
+										</DropdownMenuLabel>
+										<DropdownMenuItem
+											onClick={() => changeLanguage("en")}
+											className="flex items-center gap-2 cursor-pointer"
+										>
+											<span>🇬🇧</span>
+											<span>{t("language.english")}</span>
+											{language === "en" && <span className="ml-auto">✓</span>}
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => changeLanguage("vn")}
+											className="flex items-center gap-2 cursor-pointer"
+										>
+											<span>🇻🇳</span>
+											<span>{t("language.vietnamese")}</span>
+											{language === "vn" && <span className="ml-auto">✓</span>}
+										</DropdownMenuItem>
+
+										<DropdownMenuSeparator />
+
+										{/* Theme Section */}
+										<DropdownMenuLabel className="flex items-center gap-2">
+											{getThemeIcon()}
+											<span>{t("theme.label")}</span>
+										</DropdownMenuLabel>
 										<DropdownMenuItem
 											onClick={() => setTheme("light")}
 											className="flex items-center gap-2 cursor-pointer"
 										>
 											<Sun size={14} />
-											<span>Light</span>
+											<span>{t("theme.light")}</span>
+											{theme === "light" && <span className="ml-auto">✓</span>}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onClick={() => setTheme("dark")}
 											className="flex items-center gap-2 cursor-pointer"
 										>
 											<Moon size={14} />
-											<span>Dark</span>
+											<span>{t("theme.dark")}</span>
+											{theme === "dark" && <span className="ml-auto">✓</span>}
 										</DropdownMenuItem>
 										<DropdownMenuItem
 											onClick={() => setTheme("system")}
 											className="flex items-center gap-2 cursor-pointer"
 										>
 											<Monitor size={14} />
-											<span>System</span>
+											<span>{t("theme.system")}</span>
+											{theme === "system" && <span className="ml-auto">✓</span>}
 										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>

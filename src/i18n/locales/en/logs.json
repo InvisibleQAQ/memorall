@@ -1,0 +1,54 @@
+{
+	"title": "Debug Logs",
+	"view": {
+		"card": "Card view",
+		"text": "Text view"
+	},
+	"actions": {
+		"refresh": "Refresh logs",
+		"export": "Export logs",
+		"clearAll": "Clear all logs",
+		"clearConfirm": "Are you sure you want to clear all logs? This action cannot be undone."
+	},
+	"stats": {
+		"total": "Total: {{count}}",
+		"errors": "Errors: {{count}}",
+		"warnings": "Warnings: {{count}}",
+		"info": "Info: {{count}}"
+	},
+	"search": {
+		"placeholder": "Search logs..."
+	},
+	"filters": {
+		"allLevels": "All Levels",
+		"allSources": "All Sources"
+	},
+	"level": {
+		"all": "All",
+		"debug": "Debug",
+		"info": "Info",
+		"warning": "Warning",
+		"error": "Error"
+	},
+	"sources": {
+		"background": "Background",
+		"content": "Content",
+		"popup": "Popup",
+		"options": "Options",
+		"offscreen": "Offscreen"
+	},
+	"columns": {
+		"time": "Time",
+		"level": "Level",
+		"message": "Message",
+		"source": "Source"
+	},
+	"status": {
+		"loading": "Loading logs...",
+		"empty": "No logs found"
+	},
+	"entry": {
+		"context": "Context:",
+		"showData": "Show data"
+	}
+}

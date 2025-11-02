@@ -17,10 +17,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Home, Brain, CheckCircle2 } from "lucide-react";
 import { useCurrentModel } from "@/hooks/use-current-model";
+import { useTranslation } from "react-i18next";
 
 // No local quick-connect card; configuration handled in AdvancedSection
 
 export const LLMPage: React.FC = () => {
+	const { t } = useTranslation("llm");
 	const state = useLLMState();
 	const actions = useLLMActions({
 		...state,
@@ -51,11 +53,9 @@ export const LLMPage: React.FC = () => {
 				<CardHeader className="p-3 pb-0">
 					<CardTitle className="flex items-center gap-2">
 						<Brain size={20} />
-						Current Model
+						{t("currentModel.title")}
 					</CardTitle>
-					<CardDescription>
-						Currently active model for AI operations
-					</CardDescription>
+					<CardDescription>{t("currentModel.description")}</CardDescription>
 				</CardHeader>
 				<CardContent className="p-3">
 					{current && current.modelId && current.modelId.trim() !== "" ? (
@@ -66,14 +66,14 @@ export const LLMPage: React.FC = () => {
 									{current.modelId}
 								</div>
 								<div className="text-sm text-muted-foreground">
-									Provider: {current.provider}
+									{t("currentModel.provider", { provider: current.provider })}
 								</div>
 							</div>
 							<Badge
 								variant="secondary"
 								className="bg-primary/10 text-primary border-primary/20"
 							>
-								Active
+								{t("currentModel.status.active")}
 							</Badge>
 						</div>
 					) : current && current.provider ? (
@@ -81,17 +81,19 @@ export const LLMPage: React.FC = () => {
 							<div className="w-5 h-5 rounded-full bg-orange-400 animate-pulse" />
 							<div className="flex-1">
 								<div className="font-semibold text-foreground">
-									Provider configured: {current.provider}
+									{t("currentModel.providerConfigured", {
+										provider: current.provider,
+									})}
 								</div>
 								<div className="text-sm text-muted-foreground">
-									No model loaded yet - select a model below
+									{t("currentModel.noModelLoaded")}
 								</div>
 							</div>
 							<Badge
 								variant="outline"
 								className="text-orange-600 border-orange-300 dark:text-orange-400 dark:border-orange-700"
 							>
-								Configured
+								{t("currentModel.status.configured")}
 							</Badge>
 						</div>
 					) : (
@@ -99,14 +101,14 @@ export const LLMPage: React.FC = () => {
 							<div className="w-5 h-5 rounded-full bg-muted" />
 							<div className="flex-1">
 								<div className="font-semibold text-muted-foreground">
-									No model selected
+									{t("currentModel.noModelSelected")}
 								</div>
 								<div className="text-sm text-muted-foreground">
-									Select a model from the options below
+									{t("currentModel.selectModel")}
 								</div>
 							</div>
 							<Badge variant="outline" className="text-muted-foreground">
-								Inactive
+								{t("currentModel.status.inactive")}
 							</Badge>
 						</div>
 					)}
@@ -117,12 +119,9 @@ export const LLMPage: React.FC = () => {
 				<CardHeader className="p-3">
 					<CardTitle className="flex items-center gap-2">
 						<Home size={20} />
-						My Models
+						{t("yourModels.title")}
 					</CardTitle>
-					<CardDescription>
-						Your local model space - download recommended models or manage
-						existing ones.
-					</CardDescription>
+					<CardDescription>{t("yourModels.description")}</CardDescription>
 				</CardHeader>
 				<CardContent className="p-3">
 					<YourModels onModelLoaded={actions.handleModelLoaded} />

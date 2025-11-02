@@ -1,0 +1,26 @@
+{
+	"title": "Database",
+	"tables": {
+		"title": "Tables",
+		"name": "Table Name",
+		"rows": "Rows",
+		"columns": "Columns"
+	},
+	"query": {
+		"title": "Query",
+		"execute": "Execute",
+		"clear": "Clear",
+		"result": "Query Result",
+		"error": "Query Error"
+	},
+	"export": {
+		"button": "Export",
+		"success": "Database exported successfully",
+		"error": "Failed to export database"
+	},
+	"import": {
+		"button": "Import",
+		"success": "Database imported successfully",
+		"error": "Failed to import database"
+	}
+}

@@ -1,0 +1,45 @@
+{
+	"title": "Language Models",
+	"currentModel": {
+		"title": "Current Model",
+		"description": "Currently active model for AI operations",
+		"provider": "Provider: {{provider}}",
+		"status": {
+			"active": "Active",
+			"configured": "Configured",
+			"inactive": "Inactive"
+		},
+		"providerConfigured": "Provider configured: {{provider}}",
+		"noModelLoaded": "No model loaded yet - select a model below",
+		"noModelSelected": "No model selected",
+		"selectModel": "Select a model from the options below"
+	},
+	"yourModels": {
+		"title": "My Models",
+		"description": "Your local model space - download recommended models or manage existing ones.",
+		"quickDownload": "Quick Download",
+		"loadingModels": "Loading {{provider}} models..."
+	},
+	"model": {
+		"name": "Model Name",
+		"status": "Status",
+		"size": "Size",
+		"type": "Type",
+		"load": "Load Model",
+		"unload": "Unload Model",
+		"delete": "Delete Model",
+		"download": "Download Model",
+		"loaded": "Loaded",
+		"notLoaded": "Not Loaded",
+		"loading": "Loading...",
+		"downloading": "Downloading..."
+	},
+	"add": {
+		"button": "Add Model",
+		"title": "Add New Model",
+		"url": "Model URL",
+		"custom": "Custom Model"
+	},
+	"empty": "No models available",
+	"error": "Failed to load model"
+}

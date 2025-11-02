@@ -1,0 +1,30 @@
+{
+	"title": "Document Library",
+	"upload": {
+		"button": "Upload",
+		"dragDrop": "Drag and drop files here or click to browse",
+		"success": "File uploaded successfully",
+		"error": "Failed to upload file"
+	},
+	"file": {
+		"name": "File name",
+		"type": "Type",
+		"size": "Size",
+		"date": "Date",
+		"actions": "Actions",
+		"delete": "Delete file",
+		"download": "Download",
+		"view": "View",
+		"convertToKnowledge": "Convert to Knowledge Graph"
+	},
+	"folder": {
+		"create": "New Folder",
+		"name": "Folder name",
+		"empty": "This folder is empty"
+	},
+	"search": {
+		"placeholder": "Search documents..."
+	},
+	"empty": "No documents found",
+	"processing": "Processing document..."
+}

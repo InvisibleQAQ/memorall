@@ -1,0 +1,69 @@
+{
+	"navigation": {
+		"chat": "Trò chuyện",
+		"models": "Mô hình",
+		"knowledgeGraph": "Đồ thị tri thức",
+		"documents": "Tài liệu",
+		"debug": "Gỡ lỗi",
+		"embeddings": "Nhúng",
+		"database": "Cơ sở dữ liệu",
+		"logs": "Nhật ký"
+	},
+	"theme": {
+		"label": "Giao diện",
+		"light": "Sáng",
+		"dark": "Tối",
+		"system": "Hệ thống"
+	},
+	"language": {
+		"label": "Ngôn ngữ",
+		"english": "English",
+		"vietnamese": "Tiếng Việt"
+	},
+	"buttons": {
+		"save": "Lưu",
+		"cancel": "Hủy",
+		"delete": "Xóa",
+		"edit": "Chỉnh sửa",
+		"add": "Thêm",
+		"close": "Đóng",
+		"confirm": "Xác nhận",
+		"back": "Quay lại",
+		"next": "Tiếp theo",
+		"submit": "Gửi",
+		"retry": "Thử lại",
+		"refresh": "Làm mới",
+		"search": "Tìm kiếm",
+		"filter": "Lọc",
+		"clear": "Xóa",
+		"upload": "Tải lên",
+		"download": "Tải xuống",
+		"export": "Xuất",
+		"import": "Nhập"
+	},
+	"status": {
+		"loading": "Đang tải...",
+		"saving": "Đang lưu...",
+		"saved": "Đã lưu thành công",
+		"error": "Đã xảy ra lỗi",
+		"success": "Thành công",
+		"failed": "Thất bại",
+		"processing": "Đang xử lý...",
+		"completed": "Hoàn thành",
+		"pending": "Đang chờ"
+	},
+	"common": {
+		"name": "Tên",
+		"description": "Mô tả",
+		"type": "Loại",
+		"date": "Ngày",
+		"time": "Thời gian",
+		"status": "Trạng thái",
+		"actions": "Hành động",
+		"details": "Chi tiết",
+		"settings": "Cài đặt",
+		"search": "Tìm kiếm",
+		"noResults": "Không tìm thấy kết quả",
+		"total": "Tổng"
+	}
+}

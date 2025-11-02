@@ -1,0 +1,43 @@
+{
+	"title": "Trò chuyện",
+	"loading": "Đang khởi tạo dịch vụ...",
+	"noModels": {
+		"title": "Chưa tải mô hình",
+		"description": "Bạn cần tải mô hình trước khi bắt đầu trò chuyện. Chọn từ các mô hình đã tải hoặc tải xuống mô hình mới.",
+		"downloadMore": "Tải thêm mô hình"
+	},
+	"input": {
+		"placeholder": "Nhập tin nhắn của bạn...",
+		"send": "Gửi",
+		"clearTitle": "Xóa cuộc trò chuyện",
+		"clearButton": "Xóa"
+	},
+	"mode": {
+		"normal": "Trò chuyện",
+		"knowledge": "Tri thức",
+		"selectMode": "Chọn chế độ trò chuyện"
+	},
+	"topic": {
+		"select": "Chọn chủ đề",
+		"all": "Tất cả chủ đề",
+		"loading": "Đang tải chủ đề..."
+	},
+	"actions": {
+		"deleteChat": "Xóa cuộc trò chuyện",
+		"moreActions": "Thêm hành động",
+		"insertSeparator": "Chèn dấu phân cách"
+	},
+	"messages": {
+		"thinking": "Đang suy nghĩ...",
+		"error": "Không thể gửi tin nhắn",
+		"stop": "Dừng",
+		"retry": "Thử lại",
+		"empty": "Chưa có tin nhắn nào. Bắt đầu cuộc trò chuyện!"
+	},
+	"model": {
+		"notLoaded": "Chưa tải mô hình",
+		"loading": "Đang tải mô hình...",
+		"noModels": "Không có mô hình nào",
+		"goToModels": "Đến Mô hình"
+	}
+}

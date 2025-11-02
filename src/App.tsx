@@ -13,6 +13,7 @@ import {
 	CursorProvider,
 } from "@/components/ui/shadcn-io/animated-cursor";
 import { logError, logInfo } from "@/utils/logger";
+import "@/i18n/config"; // Initialize i18n
 import { ThemeProvider } from "@/components/molecules/ThemeContext";
 import { PasskeyPromptDialog } from "@/components/molecules/PasskeyPromptDialog";
 import {

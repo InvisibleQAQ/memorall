@@ -1,0 +1,30 @@
+{
+	"title": "Thư viện tài liệu",
+	"upload": {
+		"button": "Tải lên",
+		"dragDrop": "Kéo thả tệp vào đây hoặc nhấp để chọn",
+		"success": "Tải tệp thành công",
+		"error": "Không thể tải tệp"
+	},
+	"file": {
+		"name": "Tên tệp",
+		"type": "Loại",
+		"size": "Kích thước",
+		"date": "Ngày",
+		"actions": "Hành động",
+		"delete": "Xóa tệp",
+		"download": "Tải xuống",
+		"view": "Xem",
+		"convertToKnowledge": "Chuyển đổi sang Đồ thị tri thức"
+	},
+	"folder": {
+		"create": "Thư mục mới",
+		"name": "Tên thư mục",
+		"empty": "Thư mục này trống"
+	},
+	"search": {
+		"placeholder": "Tìm kiếm tài liệu..."
+	},
+	"empty": "Không tìm thấy tài liệu",
+	"processing": "Đang xử lý tài liệu..."
+}

@@ -1,6 +1,7 @@
 // Content script for Memorall extension
 // Uses modular embedded components structure
 
+import "@/i18n/config"; // Initialize i18n for content script
 import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
 import {
 	extractSelection,

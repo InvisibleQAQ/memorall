@@ -1,0 +1,48 @@
+{
+	"title": "Knowledge Graph",
+	"topic": {
+		"label": "Topic",
+		"selectPlaceholder": "Select topic",
+		"defaultNoTopic": "Default (No Topic)"
+	},
+	"search": {
+		"placeholder": "Search nodes...",
+		"noMatches": "No matches",
+		"noNodes": "No nodes",
+		"nodeCount": "{{filtered}} / {{total}} nodes"
+	},
+	"status": {
+		"loading": "Loading..."
+	},
+	"visualization": {
+		"zoomIn": "Zoom In",
+		"zoomOut": "Zoom Out",
+		"resetView": "Reset View",
+		"fullscreen": "Fullscreen"
+	},
+	"node": {
+		"summary": "Summary",
+		"edges": "Edges",
+		"type": "Type",
+		"delete": "Delete node",
+		"noSummary": "No summary available",
+		"noEdges": "No connected edges"
+	},
+	"edge": {
+		"incoming": "Incoming",
+		"outgoing": "Outgoing"
+	},
+	"stats": {
+		"nodes": "Nodes",
+		"edges": "Edges"
+	},
+	"legend": {
+		"nodeTypes": "Node Types"
+	},
+	"empty": {
+		"title": "No knowledge graph available",
+		"description": "Convert some content to generate knowledge graph nodes"
+	},
+	"loading": "Loading knowledge graph...",
+	"error": "Error loading graph"
+}

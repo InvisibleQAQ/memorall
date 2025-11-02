@@ -719,9 +719,9 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 				return themeColors.stroke;
 			})
 			.attr("stroke-width", (d: D3Node) => {
-				if (selectedNode?.id === d.id) return 4;
-				if (hoveredNode?.id === d.id) return 3;
-				return 2.5;
+				if (selectedNode?.id === d.id) return 2;
+				if (hoveredNode?.id === d.id) return 2.5;
+				return 1.5;
 			});
 
 		svg

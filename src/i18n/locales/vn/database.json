@@ -1,0 +1,26 @@
+{
+	"title": "Cơ sở dữ liệu",
+	"tables": {
+		"title": "Bảng",
+		"name": "Tên bảng",
+		"rows": "Hàng",
+		"columns": "Cột"
+	},
+	"query": {
+		"title": "Truy vấn",
+		"execute": "Thực thi",
+		"clear": "Xóa",
+		"result": "Kết quả truy vấn",
+		"error": "Lỗi truy vấn"
+	},
+	"export": {
+		"button": "Xuất",
+		"success": "Xuất cơ sở dữ liệu thành công",
+		"error": "Không thể xuất cơ sở dữ liệu"
+	},
+	"import": {
+		"button": "Nhập",
+		"success": "Nhập cơ sở dữ liệu thành công",
+		"error": "Không thể nhập cơ sở dữ liệu"
+	}
+}

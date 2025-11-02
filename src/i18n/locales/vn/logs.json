@@ -1,0 +1,54 @@
+{
+	"title": "Nhật ký gỡ lỗi",
+	"view": {
+		"card": "Xem thẻ",
+		"text": "Xem văn bản"
+	},
+	"actions": {
+		"refresh": "Làm mới nhật ký",
+		"export": "Xuất nhật ký",
+		"clearAll": "Xóa tất cả nhật ký",
+		"clearConfirm": "Bạn có chắc chắn muốn xóa tất cả nhật ký? Hành động này không thể hoàn tác."
+	},
+	"stats": {
+		"total": "Tổng: {{count}}",
+		"errors": "Lỗi: {{count}}",
+		"warnings": "Cảnh báo: {{count}}",
+		"info": "Thông tin: {{count}}"
+	},
+	"search": {
+		"placeholder": "Tìm kiếm nhật ký..."
+	},
+	"filters": {
+		"allLevels": "Tất cả mức độ",
+		"allSources": "Tất cả nguồn"
+	},
+	"level": {
+		"all": "Tất cả",
+		"debug": "Gỡ lỗi",
+		"info": "Thông tin",
+		"warning": "Cảnh báo",
+		"error": "Lỗi"
+	},
+	"sources": {
+		"background": "Nền",
+		"content": "Nội dung",
+		"popup": "Cửa sổ",
+		"options": "Tùy chọn",
+		"offscreen": "Nền ẩn"
+	},
+	"columns": {
+		"time": "Thời gian",
+		"level": "Mức độ",
+		"message": "Tin nhắn",
+		"source": "Nguồn"
+	},
+	"status": {
+		"loading": "Đang tải nhật ký...",
+		"empty": "Không có nhật ký"
+	},
+	"entry": {
+		"context": "Ngữ cảnh:",
+		"showData": "Hiển thị dữ liệu"
+	}
+}

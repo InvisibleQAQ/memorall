@@ -1,0 +1,48 @@
+{
+	"title": "Đồ thị tri thức",
+	"topic": {
+		"label": "Chủ đề",
+		"selectPlaceholder": "Chọn chủ đề",
+		"defaultNoTopic": "Mặc định (Không chủ đề)"
+	},
+	"search": {
+		"placeholder": "Tìm kiếm nút...",
+		"noMatches": "Không tìm thấy",
+		"noNodes": "Không có nút",
+		"nodeCount": "{{filtered}} / {{total}} nút"
+	},
+	"status": {
+		"loading": "Đang tải..."
+	},
+	"visualization": {
+		"zoomIn": "Phóng to",
+		"zoomOut": "Thu nhỏ",
+		"resetView": "Đặt lại",
+		"fullscreen": "Toàn màn hình"
+	},
+	"node": {
+		"summary": "Tóm tắt",
+		"edges": "Cạnh",
+		"type": "Loại",
+		"delete": "Xóa nút",
+		"noSummary": "Không có tóm tắt",
+		"noEdges": "Không có cạnh kết nối"
+	},
+	"edge": {
+		"incoming": "Đến",
+		"outgoing": "Đi"
+	},
+	"stats": {
+		"nodes": "Nút",
+		"edges": "Cạnh"
+	},
+	"legend": {
+		"nodeTypes": "Loại nút"
+	},
+	"empty": {
+		"title": "Không có đồ thị tri thức",
+		"description": "Chuyển đổi một số nội dung để tạo nút đồ thị tri thức"
+	},
+	"loading": "Đang tải đồ thị tri thức...",
+	"error": "Lỗi khi tải đồ thị"
+}

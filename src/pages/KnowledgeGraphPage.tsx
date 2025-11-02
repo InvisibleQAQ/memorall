@@ -15,6 +15,7 @@ import type { Node, Edge } from "@/services/database/db";
 import { serviceManager } from "@/services";
 import { logError, logInfo } from "@/utils/logger";
 import { eq, sql, or } from "drizzle-orm";
+import { useTranslation } from "react-i18next";
 
 interface Topic {
 	id: string; // UI dropdown ID (prefixed with "topic_" or "default")
@@ -24,6 +25,7 @@ interface Topic {
 interface KnowledgeGraphPageProps {}
 
 export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
+	const { t } = useTranslation("knowledge");
 	const [nodes, setNodes] = useState<Node[]>([]);
 	const [edges, setEdges] = useState<Edge[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 				const allTopics = await db.select().from(schema.topics);
 
 				const topicList: Topic[] = [
-					{ id: "default", label: "Default (No Topic)" },
+					{ id: "default", label: t("topic.defaultNoTopic") },
 				];
 
 				// Add each topic with its name
@@ -150,11 +152,11 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 					{/* Topic Selector */}
 					<div>
 						<label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-							Topic
+							{t("topic.label")}
 						</label>
 						<Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
 							<SelectTrigger className="w-full">
-								<SelectValue placeholder="Select topic" />
+								<SelectValue placeholder={t("topic.selectPlaceholder")} />
 							</SelectTrigger>
 							<SelectContent>
 								{topics.map((topic) => (
@@ -171,14 +173,17 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 						<div className="relative">
 							<Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
 							<Input
-								placeholder="Search nodes..."
+								placeholder={t("search.placeholder")}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								className="pl-10"
 							/>
 						</div>
 						<div className="text-xs text-muted-foreground mt-2">
-							{filteredNodes.length} / {nodes.length} nodes
+							{t("search.nodeCount", {
+								filtered: filteredNodes.length,
+								total: nodes.length,
+							})}
 						</div>
 					</div>
 				</div>
@@ -186,11 +191,11 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 				<ScrollArea className="h-full">
 					{loading ? (
 						<div className="p-3 text-center text-muted-foreground text-sm">
-							Loading...
+							{t("status.loading")}
 						</div>
 					) : filteredNodes.length === 0 ? (
 						<div className="p-3 text-center text-muted-foreground text-sm">
-							{searchQuery ? "No matches" : "No nodes"}
+							{searchQuery ? t("search.noMatches") : t("search.noNodes")}
 						</div>
 					) : (
 						<div className="divide-y divide-border">
@@ -225,19 +230,15 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 					<div className="h-full flex items-center justify-center text-muted-foreground">
 						<div className="text-center">
 							<Network className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50 animate-pulse" />
-							<p className="text-lg font-medium">Loading knowledge graph...</p>
+							<p className="text-lg font-medium">{t("loading")}</p>
 						</div>
 					</div>
 				) : nodes.length === 0 ? (
 					<div className="h-full flex items-center justify-center text-muted-foreground">
 						<div className="text-center">
 							<Network className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-							<p className="text-lg font-medium">
-								No knowledge graph available
-							</p>
-							<p className="text-sm">
-								Convert some content to generate knowledge graph nodes
-							</p>
+							<p className="text-lg font-medium">{t("empty.title")}</p>
+							<p className="text-sm">{t("empty.description")}</p>
 						</div>
 					</div>
 				) : (

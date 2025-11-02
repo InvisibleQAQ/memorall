@@ -1,0 +1,45 @@
+{
+	"title": "Mô hình ngôn ngữ",
+	"currentModel": {
+		"title": "Mô hình hiện tại",
+		"description": "Mô hình đang hoạt động cho các tác vụ AI",
+		"provider": "Nhà cung cấp: {{provider}}",
+		"status": {
+			"active": "Đang hoạt động",
+			"configured": "Đã cấu hình",
+			"inactive": "Không hoạt động"
+		},
+		"providerConfigured": "Nhà cung cấp đã cấu hình: {{provider}}",
+		"noModelLoaded": "Chưa tải mô hình - chọn một mô hình bên dưới",
+		"noModelSelected": "Chưa chọn mô hình",
+		"selectModel": "Chọn một mô hình từ các tùy chọn bên dưới"
+	},
+	"yourModels": {
+		"title": "Mô hình của tôi",
+		"description": "Không gian mô hình cục bộ của bạn - tải xuống mô hình được đề xuất hoặc quản lý mô hình hiện có.",
+		"quickDownload": "Tải xuống nhanh",
+		"loadingModels": "Đang tải mô hình {{provider}}..."
+	},
+	"model": {
+		"name": "Tên mô hình",
+		"status": "Trạng thái",
+		"size": "Kích thước",
+		"type": "Loại",
+		"load": "Tải mô hình",
+		"unload": "Gỡ mô hình",
+		"delete": "Xóa mô hình",
+		"download": "Tải xuống mô hình",
+		"loaded": "Đã tải",
+		"notLoaded": "Chưa tải",
+		"loading": "Đang tải...",
+		"downloading": "Đang tải xuống..."
+	},
+	"add": {
+		"button": "Thêm mô hình",
+		"title": "Thêm mô hình mới",
+		"url": "URL mô hình",
+		"custom": "Mô hình tùy chỉnh"
+	},
+	"empty": "Không có mô hình nào",
+	"error": "Không thể tải mô hình"
+}
