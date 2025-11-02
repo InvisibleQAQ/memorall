@@ -118,8 +118,6 @@ function cleanHTMLElement(
 
 // Extract HTML structure from viewport (visible area only)
 export function extractViewportHTMLStructure(): string {
-	const structureElements: string[] = [];
-
 	// Get all elements in the viewport
 	const allElements = document.body.querySelectorAll("*");
 	const viewportElements = new Set<Element>();
@@ -278,12 +276,10 @@ export function extractViewportContent(): string {
 	const elements: string[] = [];
 	const seenTexts = new Set<string>(); // Avoid duplicate text
 
-	// Query for meaningful text-containing elements
-	const textElements = document.querySelectorAll(
-		"p, h1, h2, h3, h4, h5, h6, li, td, th, article, section, div[role='main'], main, aside, blockquote, pre, code",
-	);
+	// Get ALL elements that might contain text - cast as wide a net as possible
+	const allElements = document.querySelectorAll("*");
 
-	textElements.forEach((el) => {
+	allElements.forEach((el) => {
 		try {
 			// Check if element is in viewport
 			const rect = el.getBoundingClientRect();
@@ -304,16 +300,11 @@ export function extractViewportContent(): string {
 
 			if (!isVisible) return;
 
-			// Get direct text content (not including child elements to avoid duplication)
-			const text = Array.from(el.childNodes)
-				.filter((node) => node.nodeType === Node.TEXT_NODE)
-				.map((node) => node.textContent?.trim())
-				.filter(Boolean)
-				.join(" ")
-				.trim();
+			// Get ALL text content from the element - simple and effective
+			const text = el.textContent?.trim();
 
-			// Add meaningful text (longer than 10 chars, not duplicate)
-			if (text && text.length > 10 && !seenTexts.has(text)) {
+			// Add any meaningful text (longer than 5 chars, not duplicate)
+			if (text && text.length > 5 && !seenTexts.has(text)) {
 				seenTexts.add(text);
 				elements.push(text);
 			}
@@ -322,7 +313,7 @@ export function extractViewportContent(): string {
 		}
 	});
 
-	// Join with line breaks - NO LIMIT
+	// Join with line breaks - get as much text as possible
 	return elements.join("\n\n");
 }
 

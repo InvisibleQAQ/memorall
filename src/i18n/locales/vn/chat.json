@@ -19,7 +19,7 @@
 	},
 	"topic": {
 		"select": "Chọn chủ đề",
-		"all": "Tất cả chủ đề",
+		"default": "Mặc định",
 		"loading": "Đang tải chủ đề..."
 	},
 	"actions": {

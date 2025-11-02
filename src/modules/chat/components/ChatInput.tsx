@@ -76,14 +76,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 		}
 	};
 
-	const getModeLabel = (mode: ChatMode) => {
-		switch (mode) {
-			case "normal":
-				return t("mode.normal");
-			case "knowledge":
-				return t("mode.knowledge");
-		}
-	};
 	return (
 		<div className="px-4 py-2 w-full flex-shrink-0">
 			<div className="max-w-3xl mx-auto">
@@ -163,11 +155,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="start">
 												<DropdownMenuItem
-													onClick={() => setSelectedTopic("__all__")}
+													onClick={() => setSelectedTopic("default")}
 													className="flex items-center gap-2"
 												>
 													<Tags size={14} />
-													<span>{t("topic.all")}</span>
+													<span>{t("topic.default")}</span>
 												</DropdownMenuItem>
 												{topics.map((topic) => (
 													<DropdownMenuItem

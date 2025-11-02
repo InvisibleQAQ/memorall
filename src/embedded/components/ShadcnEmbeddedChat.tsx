@@ -16,11 +16,6 @@ import {
 	ConversationContent,
 	Message,
 	MessageContent,
-	PromptInput,
-	PromptInputSubmit,
-	PromptInputTextarea,
-	PromptInputToolbar,
-	PromptInputTools,
 	Reasoning,
 	ReasoningContent,
 	ReasoningTrigger,
@@ -29,6 +24,7 @@ import {
 	SourcesContent,
 	SourcesTrigger,
 } from "./MessageControl";
+
 import {
 	ShadcnEmbeddedContextSections,
 	CONTEXT_SECTIONS_TEXTS,
@@ -36,22 +32,21 @@ import {
 import { MESSAGE_CONTROL_TEXTS } from "./MessageControl";
 import { loadLanguageFromStorage } from "../language";
 import { EmbeddedMessageRenderer } from "./EmbeddedMessageRenderer";
+import { EmbeddedChatInput } from "./EmbeddedChatInput";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { customStyles } from "./styles/customStyles";
 
-// Translation map for embedded chat
+// Chat mode type
+type ChatMode = "general" | "knowledge";
+
+// Translation map for embedded chat (simplified - input texts moved to EmbeddedChatInput)
 const EMBEDDED_CHAT_TEXTS = {
 	en: {
-		loadingTopics: "Loading topics...",
 		defaultTopic: "Default",
 		recallKnowledge: "Recall Knowledge",
 		recallDescription:
 			"Ask me anything about your saved knowledge and I'll help you recall relevant information.",
 		context: "Context",
-		noTopics: "No topics",
-		noModelAvailable: "No model available...",
-		typeMessage: "Type your message...",
-		clearChat: "Clear chat",
 		closeChat: "Close chat?",
 		closeConfirmation:
 			"You have unsaved messages or input. Are you sure you want to close?",
@@ -64,16 +59,11 @@ const EMBEDDED_CHAT_TEXTS = {
 			"Sorry, I encountered an error while processing your request. Please try again.",
 	},
 	vn: {
-		loadingTopics: "Đang tải chủ đề...",
 		defaultTopic: "Mặc định",
 		recallKnowledge: "Gợi nhớ kiến thức",
 		recallDescription:
 			"Hỏi tôi bất cứ điều gì về kiến thức đã lưu và tôi sẽ giúp bạn gợi nhớ thông tin liên quan.",
 		context: "Ngữ cảnh",
-		noTopics: "Không có chủ đề",
-		noModelAvailable: "Không có mô hình khả dụng...",
-		typeMessage: "Nhập tin nhắn của bạn...",
-		clearChat: "Xóa cuộc trò chuyện",
 		closeChat: "Đóng cuộc trò chuyện?",
 		closeConfirmation:
 			"Bạn có tin nhắn hoặc đầu vào chưa lưu. Bạn có chắc chắn muốn đóng không?",
@@ -85,41 +75,6 @@ const EMBEDDED_CHAT_TEXTS = {
 		errorMessage:
 			"Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.",
 	},
-};
-
-// Topic Selector Component
-const TopicSelector: React.FC<{
-	selectedTopic: string;
-	onTopicChange: (topicId: string) => void;
-	topics: Array<{ id: string; name: string }>;
-	isLoading: boolean;
-	texts: typeof EMBEDDED_CHAT_TEXTS.en;
-}> = ({ selectedTopic, onTopicChange, topics, isLoading, texts }) => {
-	if (isLoading) {
-		return (
-			<div className="flex items-center gap-2 text-xs text-muted-foreground">
-				<Loader size={12} />
-				<span>{texts.loadingTopics}</span>
-			</div>
-		);
-	}
-
-	return (
-		<select
-			value={selectedTopic}
-			onChange={(e) => onTopicChange(e.target.value)}
-			className="text-xs p-1 rounded border bg-background text-foreground border-border min-w-24 flex-1"
-			onKeyDown={(e) => e.stopPropagation()}
-			onKeyUp={(e) => e.stopPropagation()}
-			onKeyPress={(e) => e.stopPropagation()}
-		>
-			{topics.map((topic) => (
-				<option key={topic.id} value={topic.id}>
-					{topic.name}
-				</option>
-			))}
-		</select>
-	);
 };
 
 interface EmbeddedChatProps extends ChatModalProps {
@@ -141,15 +96,17 @@ const ShadcnEmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	const [selectedProvider, setSelectedProvider] = useState<string>("");
 	const [modelAvailable, setModelAvailable] = useState(false);
 	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
-	const [selectedTopic, setSelectedTopic] = useState<string>("default");
+	const [selectedTopic, setSelectedTopic] = useState<string>("");
 	const [topicsLoading, setTopicsLoading] = useState(true);
 	const [, setStreamingMessageId] = useState<string | null>(null);
 	const [isTyping, setIsTyping] = useState(false);
+	const [chatMode, setChatMode] = useState<ChatMode>("knowledge"); // Default to knowledge mode for embedded
 
 	// Get translation texts based on current language
 	const texts = EMBEDDED_CHAT_TEXTS[language];
 	const messageControlTexts = MESSAGE_CONTROL_TEXTS[language];
 	const contextSectionTexts = CONTEXT_SECTIONS_TEXTS[language];
+
 	const [abortController, setAbortController] =
 		useState<AbortController | null>(null);
 	const [selectedContexts, setSelectedContexts] = useState<
@@ -277,15 +234,8 @@ const ShadcnEmbeddedChat: React.FC<EmbeddedChatProps> = ({
 				) {
 					const topicList = jobResult.result.topics;
 					if (Array.isArray(topicList)) {
-						// Add default option at the top
-						const defaultTopic = {
-							id: "default",
-							name: texts.defaultTopic,
-						};
-						const topicsWithDefault = [defaultTopic, ...topicList];
-
 						setTopics(
-							topicsWithDefault.map((topic) => ({
+							topicList.map((topic) => ({
 								id: topic.id,
 								name: topic.name,
 							})),
@@ -444,14 +394,14 @@ const ShadcnEmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					},
 				];
 
+				const topicId = selectedTopic === "" ? undefined : selectedTopic;
+				const serviceMode = chatMode === "knowledge" ? "knowledge" : "normal";
+
 				await embeddedChatService.chatStream({
 					messages: messagesForAPI,
 					model: selectedModel,
-					mode: "knowledge",
-					topicId:
-						hasTopics && selectedTopic && selectedTopic !== "default"
-							? selectedTopic
-							: undefined,
+					mode: serviceMode,
+					topicId,
 					signal: controller.signal,
 					onProgress: (content: string, isComplete: boolean) => {
 						setMessages((prev) =>
@@ -530,7 +480,7 @@ const ShadcnEmbeddedChat: React.FC<EmbeddedChatProps> = ({
 				setTimeout(() => scrollToBottom(), 100);
 			}
 		},
-		[inputValue, isTyping, modelAvailable, messages, mode, scrollToBottom],
+		[inputValue, isTyping, modelAvailable, messages, chatMode, scrollToBottom],
 	);
 
 	return (
@@ -680,68 +630,25 @@ const ShadcnEmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					/>
 				</div>
 
-				{/* Input Area - compact design for right panel */}
-				<div className="border-t p-3 flex-shrink-0">
-					<PromptInput onSubmit={handleSubmit}>
-						<PromptInputTextarea
-							value={inputValue}
-							onChange={(e) => setInputValue(e.target.value)}
-							placeholder={
-								!modelAvailable ? texts.noModelAvailable : texts.typeMessage
-							}
-							disabled={isTyping || !modelAvailable}
-						/>
-						<PromptInputToolbar>
-							<PromptInputTools>
-								{messages.length > 0 && (
-									<button
-										onClick={handleDeleteChat}
-										disabled={isTyping}
-										className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none transition-colors"
-										title="Clear chat"
-										onKeyDown={(e) => e.stopPropagation()}
-										onKeyUp={(e) => e.stopPropagation()}
-										onKeyPress={(e) => e.stopPropagation()}
-									>
-										<svg
-											className="w-4 h-4"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth={2}
-												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-											/>
-										</svg>
-									</button>
-								)}
-								{hasTopics && (
-									<TopicSelector
-										selectedTopic={selectedTopic}
-										onTopicChange={setSelectedTopic}
-										topics={topics}
-										isLoading={topicsLoading}
-										texts={texts}
-									/>
-								)}
-								{!hasTopics && (
-									<span className="text-xs text-muted-foreground px-3 py-1.5">
-										{texts.noTopics}
-									</span>
-								)}
-							</PromptInputTools>
-							<PromptInputSubmit
-								disabled={!inputValue.trim() || isTyping || !modelAvailable}
-								status={isTyping ? "streaming" : "ready"}
-								onStop={handleStop}
-								texts={messageControlTexts}
-							/>
-						</PromptInputToolbar>
-					</PromptInput>
-				</div>
+				{/* Input Area - using separate component */}
+				<EmbeddedChatInput
+					inputValue={inputValue}
+					setInputValue={setInputValue}
+					onSubmit={handleSubmit}
+					isTyping={isTyping}
+					modelAvailable={modelAvailable}
+					chatMode={chatMode}
+					setChatMode={setChatMode}
+					selectedTopic={selectedTopic}
+					setSelectedTopic={setSelectedTopic}
+					topics={topics}
+					topicsLoading={topicsLoading}
+					hasTopics={hasTopics}
+					messages={messages}
+					onDeleteChat={handleDeleteChat}
+					onStop={handleStop}
+					language={language}
+				/>
 
 				{/* Confirmation Modal */}
 				{showConfirmClose && (

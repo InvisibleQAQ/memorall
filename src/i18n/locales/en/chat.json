@@ -19,7 +19,7 @@
 	},
 	"topic": {
 		"select": "Select topic",
-		"all": "All Topics",
+		"default": "Default",
 		"loading": "Loading topics..."
 	},
 	"actions": {

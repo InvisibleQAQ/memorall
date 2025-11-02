@@ -454,7 +454,7 @@ const MessageActions: React.FC<{
 	};
 
 	return (
-		<div className="flex items-center gap-2 mt-2">
+		<div className="flex items-center gap-1">
 			<button
 				onClick={handleCopy}
 				className="h-8 px-3 text-sm rounded hover:bg-accent transition-colors flex items-center gap-2 group/copy"
