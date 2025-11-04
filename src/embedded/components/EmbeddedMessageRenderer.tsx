@@ -116,6 +116,11 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 				label: "📸 Full Page Screenshot",
 				type: "screenshot",
 			},
+			{
+				regex: /<selected_image>([\s\S]*?)<\/selected_image>/,
+				label: "🖼️ Selected Region",
+				type: "screenshot",
+			},
 		];
 
 		sectionPatterns.forEach(({ regex, label, type }) => {

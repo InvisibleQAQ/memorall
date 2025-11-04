@@ -17,12 +17,14 @@ const CONTEXT_MENU_TEXTS = {
 	en: {
 		savePage: "💾 Save page",
 		recall: "🧠 Recall",
+		recallImage: "🖼️ Recall image",
 		openPlatform: "🚀 Open platform",
 		openDocuments: "📄 Open documents",
 	},
 	vn: {
 		savePage: "💾 Lưu trang",
 		recall: "🧠 Gợi nhớ",
+		recallImage: "🖼️ Gợi nhớ hình ảnh",
 		openPlatform: "🚀 Mở nền tảng",
 		openDocuments: "📄 Mở tài liệu",
 	},
@@ -33,6 +35,7 @@ const SAVE_PAGE_CONTEXT_MENU_ID = "save-page";
 
 // Recall section
 const RECALL_CONTEXT_MENU_ID = "recall";
+const RECALL_IMAGE_CONTEXT_MENU_ID = "recall-image";
 
 // Open section
 const OPEN_PLATFORM_CONTEXT_MENU_ID = "open-platform";
@@ -78,6 +81,10 @@ async function updateContextMenuText(): Promise<void> {
 
 		await chrome.contextMenus.update(RECALL_CONTEXT_MENU_ID, {
 			title: texts.recall,
+		});
+
+		await chrome.contextMenus.update(RECALL_IMAGE_CONTEXT_MENU_ID, {
+			title: texts.recallImage,
 		});
 
 		await chrome.contextMenus.update(OPEN_PLATFORM_CONTEXT_MENU_ID, {
@@ -254,6 +261,12 @@ chrome.runtime.onInstalled.addListener(async () => {
 		});
 
 		chrome.contextMenus.create({
+			id: RECALL_IMAGE_CONTEXT_MENU_ID,
+			title: texts.recallImage,
+			contexts: ["page"],
+		});
+
+		chrome.contextMenus.create({
 			id: "recall-divider",
 			type: "separator",
 		});
@@ -334,6 +347,37 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 			logInfo("📨 Content script response to SHOW_CHAT_MODAL:", chatResponse);
 		} catch (error) {
 			logError("❌ Failed to show chat modal:", error);
+		}
+		return;
+	}
+
+	// Handle recall image context menu item
+	if (info.menuItemId === RECALL_IMAGE_CONTEXT_MENU_ID) {
+		if (!tab?.id) return;
+
+		try {
+			// Check if we can access the tab
+			if (
+				!tab.url ||
+				tab.url.startsWith("chrome://") ||
+				tab.url.startsWith("chrome-extension://")
+			) {
+				logError("❌ Cannot access this page type");
+				return;
+			}
+
+			// Send message to content script to show image selection overlay
+			const imageResponse = await chrome.tabs.sendMessage(tab.id, {
+				type: CONTENT_BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR,
+				tabId: tab.id,
+				url: tab.url,
+			});
+			logInfo(
+				"📨 Content script response to SHOW_IMAGE_SELECTOR:",
+				imageResponse,
+			);
+		} catch (error) {
+			logError("❌ Failed to show image selector:", error);
 		}
 		return;
 	}

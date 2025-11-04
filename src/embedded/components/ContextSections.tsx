@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { nanoid } from "nanoid";
 import type { ChatMessage } from "../types";
 import { Loader } from "./Icons";
-import html2canvas from "html2canvas";
+import { captureScreenshotWithFallback } from "../utils/screenshot-helpers";
 
 // Translation map for context sections
 export const CONTEXT_SECTIONS_TEXTS = {
@@ -21,29 +21,6 @@ export const CONTEXT_SECTIONS_TEXTS = {
 		showContextSection: "Hiển thị phần ngữ cảnh",
 		sendWithContext: "Gửi với ngữ cảnh",
 	},
-};
-
-const hasUnsupportedColors = (element: Element): boolean => {
-	try {
-		if (!(element instanceof HTMLElement)) return false;
-
-		const computedStyle = window.getComputedStyle(element);
-		for (let i = 0; i < computedStyle.length; i++) {
-			const value = computedStyle.getPropertyValue(computedStyle[i]);
-			if (
-				value &&
-				(value.includes("oklch(") ||
-					value.includes("oklab(") ||
-					value.includes("lch(") ||
-					value.includes("lab("))
-			) {
-				return true;
-			}
-		}
-		return false;
-	} catch (e) {
-		return false;
-	}
 };
 
 export const ShadcnEmbeddedContextSections: React.FC<{
@@ -77,6 +54,18 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 
 	// Track screenshot capture status
 	const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+
+	// Auto-select selected_image context when present
+	React.useEffect(() => {
+		if (contextOptions) {
+			const selectedImage = contextOptions.find(
+				(ctx) => ctx.type === "selected_image",
+			);
+			if (selectedImage && selectedContexts.length === 0) {
+				setSelectedContexts([selectedImage]);
+			}
+		}
+	}, [contextOptions]);
 
 	// Reset availableContexts when selectedContexts is cleared (e.g., delete chat or after sending)
 	React.useEffect(() => {
@@ -112,21 +101,17 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 						if (contextItem.type === "viewport_screenshot") {
 							console.log("Capturing viewport screenshot...");
 							// Capture only visible viewport - use current scroll position
-							const canvas = await html2canvas(document.documentElement, {
-								allowTaint: true,
-								useCORS: true,
-								x: window.scrollX,
-								y: window.scrollY,
-								width: window.innerWidth,
-								height: window.innerHeight,
-								scrollX: 0,
-								scrollY: 0,
-								logging: false,
-								ignoreElements: (element) => {
-									// Skip elements with unsupported color functions
-									return hasUnsupportedColors(element);
+							const canvas = await captureScreenshotWithFallback(
+								document.documentElement,
+								{
+									x: window.scrollX,
+									y: window.scrollY,
+									width: window.innerWidth,
+									height: window.innerHeight,
+									scrollX: 0,
+									scrollY: 0,
 								},
-							});
+							);
 							const base64Image = canvas.toDataURL("image/png");
 
 							// Update the context item with captured screenshot
@@ -162,21 +147,17 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 									fullHeight - yOffset,
 								);
 
-								const canvas = await html2canvas(document.documentElement, {
-									allowTaint: true,
-									useCORS: true,
-									x: 0,
-									y: yOffset,
-									width: fullWidth,
-									height: captureHeight,
-									scrollX: 0,
-									scrollY: 0,
-									logging: false,
-									ignoreElements: (element) => {
-										// Skip elements with unsupported color functions
-										return hasUnsupportedColors(element);
+								const canvas = await captureScreenshotWithFallback(
+									document.documentElement,
+									{
+										x: 0,
+										y: yOffset,
+										width: fullWidth,
+										height: captureHeight,
+										scrollX: 0,
+										scrollY: 0,
 									},
-								});
+								);
 
 								const base64Image = canvas.toDataURL("image/png");
 								screenshots.push(base64Image);
@@ -278,6 +259,15 @@ Screenshot of the visible portion of the page is attached as an image.
 						contextParts.push(`<screenshot>
 Screenshot of the full page is attached as ${chunks.length} image${chunks.length > 1 ? "s" : ""} (split into chunks for readability).
 </screenshot>`);
+						break;
+					case "selected_image":
+						contentArray.push({
+							type: "image_url",
+							image_url: { url: ctx.content, detail: "high" },
+						});
+						contextParts.push(`<selected_image>
+A selected region from the page is attached as an image.
+</selected_image>`);
 						break;
 					default:
 						contextParts.push(`<content type="${ctx.type}">

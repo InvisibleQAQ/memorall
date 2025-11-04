@@ -6,6 +6,7 @@ export * from "./messaging";
 // Component creators
 export { createEmbeddedTopicSelector } from "./components/TopicSelector";
 export { createShadcnEmbeddedChatModal } from "./components/ShadcnEmbeddedChat";
+export { createImageSelectorOverlay } from "./components/ImageSelectorOverlay";
 
 // Re-export default components
 export { default as TopicSelector } from "./components/TopicSelector";

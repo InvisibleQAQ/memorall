@@ -13,6 +13,7 @@ import {
 	extractViewportContent,
 	extractViewportHTMLStructure,
 	extractFullPageHTMLStructure,
+	createImageSelectorOverlay,
 } from "./embedded";
 import { createShadcnEmbeddedChatModal } from "./embedded/components/ShadcnEmbeddedChat";
 import type {
@@ -54,6 +55,10 @@ chrome.runtime.onMessage.addListener(
 
 				case CONTENT_BACKGROUND_EVENTS.SHOW_CHAT_MODAL:
 					handleShowChatModal(message, sendResponse);
+					return true;
+
+				case CONTENT_BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR:
+					handleShowImageSelector(message, sendResponse);
 					return true;
 
 				default:
@@ -346,6 +351,72 @@ async function handleShowChatModal(
 			success: false,
 			error:
 				error instanceof Error ? error.message : "Failed to show chat modal",
+		});
+	}
+}
+
+// Handle SHOW_IMAGE_SELECTOR message - display image selection overlay
+function handleShowImageSelector(
+	message: BackgroundMessage,
+	sendResponse: (response: MessageResponse) => void,
+): void {
+	try {
+		// Remove any existing selector
+		const existingSelector = document.getElementById(
+			"memorall-image-selector-container",
+		);
+		if (existingSelector) {
+			existingSelector.remove();
+		}
+
+		// Create image selector with callbacks
+		createImageSelectorOverlay(
+			async (selectedImageData) => {
+				// When image is selected, open chat modal with the selected image
+				console.log("Image selected, opening chat with selected region");
+
+				// Remove any existing chat modal
+				const existingModal = document.getElementById(
+					"memorall-embedded-chat-modal",
+				);
+				if (existingModal) {
+					existingModal.remove();
+				}
+
+				// Create context options with the selected image
+				const contextOptions = [
+					{
+						type: "selected_image",
+						label: "Selected region",
+						content: selectedImageData,
+					},
+				];
+
+				// Create chat modal with the selected image pre-loaded
+				createShadcnEmbeddedChatModal({
+					mode: "general",
+					pageUrl: window.location.href,
+					pageTitle: document.title,
+					contextOptions,
+					onClose: () => {
+						// Cleanup handled by the component itself
+					},
+				});
+			},
+			() => {
+				// On cancel, just cleanup
+				console.log("Image selection cancelled");
+			},
+		);
+
+		sendResponse({ success: true });
+	} catch (error) {
+		sendResponse({
+			success: false,
+			error:
+				error instanceof Error
+					? error.message
+					: "Failed to show image selector",
 		});
 	}
 }
