@@ -265,6 +265,14 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 		setError("");
 
 		try {
+			// Check if current model is using openrouter provider
+			const currentModel = await serviceManager.llmService.getCurrentModel();
+			if (currentModel && currentModel.provider === "openrouter") {
+				// Clear current model if it's using this provider
+				await serviceManager.llmService.clearCurrentModel();
+				logInfo("Cleared current model as it was using openrouter provider");
+			}
+
 			await serviceManager.databaseService.use(({ db, schema }) => {
 				return db
 					.delete(schema.encryption)
@@ -275,6 +283,19 @@ export const OpenRouterTab: React.FC<OpenRouterTabProps> = ({
 			await secureSession.set("openrouter_ready", "");
 			await secureSession.set("openrouter_passkey", "");
 			await secureSession.set("openrouter_combined_key", "");
+
+			// Remove LLM service
+			if (serviceManager.llmService.has("openrouter")) {
+				serviceManager.llmService.remove("openrouter");
+				logInfo("Removed openrouter LLM service");
+			}
+
+			// Also remove from offscreen thread via background job
+			await backgroundJob.execute(
+				"remove-auth-provider",
+				{ provider: "openrouter" },
+				{ stream: false },
+			);
 
 			await checkOpenRouterState();
 			logInfo("OpenRouter configuration deleted successfully");

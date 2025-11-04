@@ -24,6 +24,7 @@ import {
 } from "@/utils/aes";
 import secureSession from "@/utils/secure-session";
 import { logError, logInfo } from "@/utils/logger";
+import { backgroundJob } from "@/services/background-jobs/background-job";
 
 interface OpenAITabProps {
 	onModelLoaded?: (modelId: string, provider: "openai") => void;
@@ -248,6 +249,14 @@ export const OpenAITab: React.FC<OpenAITabProps> = ({ onModelLoaded }) => {
 		setError("");
 
 		try {
+			// Check if current model is using openai provider
+			const currentModel = await serviceManager.llmService.getCurrentModel();
+			if (currentModel && currentModel.provider === "openai") {
+				// Clear current model if it's using this provider
+				await serviceManager.llmService.clearCurrentModel();
+				logInfo("Cleared current model as it was using openai provider");
+			}
+
 			await serviceManager.databaseService.use(({ db, schema }) => {
 				return db
 					.delete(schema.encryption)
@@ -258,6 +267,19 @@ export const OpenAITab: React.FC<OpenAITabProps> = ({ onModelLoaded }) => {
 			await secureSession.set("openai_ready", "");
 			await secureSession.set("openai_passkey", "");
 			await secureSession.set("openai_combined_key", "");
+
+			// Remove LLM service
+			if (serviceManager.llmService.has("openai")) {
+				serviceManager.llmService.remove("openai");
+				logInfo("Removed openai LLM service");
+			}
+
+			// Also remove from offscreen thread via background job
+			await backgroundJob.execute(
+				"remove-auth-provider",
+				{ provider: "openai" },
+				{ stream: false },
+			);
 
 			await checkOpenAIState();
 			logInfo("OpenAI configuration deleted successfully");

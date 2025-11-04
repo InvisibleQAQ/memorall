@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Loader2, Zap } from "lucide-react";
 import { OpenAITab } from "@/modules/llm/components/OpenAITab";
 import { OpenRouterTab } from "@/modules/llm/components/OpenRouterTab";
@@ -99,6 +99,13 @@ export const YourModels: React.FC<YourModelsProps> = ({
 			onModelLoaded,
 		});
 
+	// Auto-select provider if current model exists
+	useEffect(() => {
+		if (current?.provider && current.provider !== quickProvider) {
+			setQuickProvider(current.provider);
+		}
+	}, [current?.provider]);
+
 	return (
 		<div className="space-y-6">
 			{/* Progress Section */}
@@ -112,7 +119,7 @@ export const YourModels: React.FC<YourModelsProps> = ({
 			<DownloadedModelsSection
 				downloadedOnly={downloadedOnly}
 				current={current}
-				title={title}
+				title={title || ""}
 				modelsLoading={modelsLoading}
 				loading={loading}
 				fetchDownloadedModels={fetchDownloadedModels}

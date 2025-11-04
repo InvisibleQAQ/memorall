@@ -26,6 +26,7 @@ const JOB_NAMES = {
 	createLLMService: "create-llm-service",
 	chatCompletion: "chat-completion",
 	restoreAuthProvider: "restore-auth-provider",
+	removeAuthProvider: "remove-auth-provider",
 } as const;
 
 export interface GetCurrentModelPayload {
@@ -82,6 +83,10 @@ export interface RestoreAuthProviderPayload {
 	passkey: string;
 }
 
+export interface RemoveAuthProviderPayload {
+	provider: "openai" | "openrouter";
+}
+
 export interface GetCurrentModelResult extends Record<string, unknown> {
 	modelInfo: unknown;
 }
@@ -132,6 +137,11 @@ export interface RestoreAuthProviderResult extends Record<string, unknown> {
 	provider: string;
 }
 
+export interface RemoveAuthProviderResult extends Record<string, unknown> {
+	removed: boolean;
+	provider: string;
+}
+
 export type LLMModelsJob = BaseJob & {
 	jobType: (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 	payload:
@@ -145,6 +155,7 @@ export type LLMModelsJob = BaseJob & {
 		| CreateLLMServicePayload
 		| ChatCompletionPayload
 		| RestoreAuthProviderPayload
+		| RemoveAuthProviderPayload
 		| GetMaxResponseTokensPayload;
 };
 
@@ -175,6 +186,8 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 				return await this.handleChatCompletion(jobId, job, dependencies);
 			case JOB_NAMES.restoreAuthProvider:
 				return await this.handleRestoreAuthProvider(jobId, job, dependencies);
+			case JOB_NAMES.removeAuthProvider:
+				return await this.handleRemoveAuthProvider(jobId, job, dependencies);
 			case JOB_NAMES.getMaxResponseTokens:
 				return await this.handleGetMaxResponseTokens(jobId, job, dependencies);
 			default:
@@ -797,6 +810,53 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 			provider: payload.provider,
 		};
 	}
+
+	private async handleRemoveAuthProvider(
+		jobId: string,
+		job: BaseJob,
+		dependencies: ProcessDependencies,
+	): Promise<ItemHandlerResult> {
+		const { logger, updateJobProgress } = dependencies;
+		const payload = job.payload as RemoveAuthProviderPayload;
+
+		await logger.info(
+			`Starting remove-auth-provider job for: ${payload.provider}`,
+			{ jobId },
+		);
+
+		await updateJobProgress(jobId, {
+			stage: `Removing ${payload.provider} authentication`,
+			progress: 30,
+		});
+
+		const llmService = serviceManager.getLLMService();
+
+		if (llmService) {
+			// Remove the LLM service
+			if (llmService.has(payload.provider)) {
+				llmService.remove(payload.provider);
+				await logger.info(
+					`Removed ${payload.provider} LLM service from offscreen`,
+					{ jobId },
+				);
+			}
+		}
+
+		await updateJobProgress(jobId, {
+			stage: `${payload.provider} authentication removed`,
+			progress: 90,
+		});
+
+		await logger.info(`Remove-auth-provider job completed`, {
+			jobId,
+			provider: payload.provider,
+		});
+
+		return {
+			removed: true,
+			provider: payload.provider,
+		};
+	}
 }
 
 // Self-register the handler
@@ -818,6 +878,7 @@ declare global {
 		"create-llm-service": CreateLLMServicePayload;
 		"chat-completion": ChatCompletionPayload;
 		"restore-auth-provider": RestoreAuthProviderPayload;
+		"remove-auth-provider": RemoveAuthProviderPayload;
 		"get-max-response-tokens": GetMaxResponseTokensPayload;
 	}
 
@@ -832,6 +893,7 @@ declare global {
 		"create-llm-service": CreateLLMServiceResult;
 		"chat-completion": ChatCompletionResult;
 		"restore-auth-provider": RestoreAuthProviderResult;
+		"remove-auth-provider": RemoveAuthProviderResult;
 		"get-max-response-tokens": GetMaxResponseTokensResult;
 	}
 }
