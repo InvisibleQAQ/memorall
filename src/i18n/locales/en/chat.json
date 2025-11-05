@@ -19,6 +19,7 @@
 	},
 	"topic": {
 		"select": "Select topic",
+		"all": "Default",
 		"default": "Default",
 		"loading": "Loading topics..."
 	},

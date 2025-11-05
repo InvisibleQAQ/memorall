@@ -1,6 +1,7 @@
 {
 	"title": "Activity Timeline",
 	"description": "View and analyze your captured activities",
+	"analyzeSession": "Analyze Session with AI",
 	"sessions": {
 		"title": "Sessions",
 		"noSessions": "No Activity Sessions",
@@ -56,6 +57,7 @@
 		"generating": "Generating explanation...",
 		"noExplanation": "No explanation available",
 		"generate": "Generate",
+		"analyzeWithChat": "Analyze in Chat",
 		"viewTechnicalDetails": "View Technical Details",
 		"viewRawData": "View Raw JSON Data",
 		"fields": {
@@ -124,5 +126,10 @@
 	"status": {
 		"loading": "Loading activities...",
 		"noActivities": "No activities to display"
+	},
+	"chatPanel": {
+		"title": "Activity Analysis Chat",
+		"noModel": "No AI model loaded",
+		"configureModel": "Please configure a model in the Models page"
 	}
 }

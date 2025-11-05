@@ -3,7 +3,7 @@
  * Shows detailed information and AI explanation for an activity
  */
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import {
 	Dialog,
@@ -13,8 +13,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Sparkles, Info } from "lucide-react";
+import { Sparkles, Info, MessageSquare } from "lucide-react";
 import type { Activity } from "@/types/activity-tracking";
 import { ActivityDetails } from "./ActivityDetails";
 import {
@@ -22,43 +21,19 @@ import {
 	getActivityTypeLabel,
 	getActivityTypeModalColor,
 } from "../utils";
-import { logError } from "@/utils/logger";
 
 interface ActivityDetailModalProps {
 	activity: Activity | null;
 	onClose: () => void;
-	onGenerateExplanation: (activity: Activity) => Promise<string>;
+	onAnalyzeWithAI?: (activity: Activity) => void;
 }
 
 export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
 	activity,
 	onClose,
-	onGenerateExplanation,
+	onAnalyzeWithAI,
 }) => {
 	const { t } = useTranslation("activity");
-	const [aiExplanation, setAiExplanation] = useState<string>("");
-	const [isGeneratingExplanation, setIsGeneratingExplanation] = useState(false);
-
-	// Auto-generate explanation when activity changes
-	useEffect(() => {
-		if (activity) {
-			setAiExplanation("");
-			generateExplanation(activity);
-		}
-	}, [activity?.id]);
-
-	const generateExplanation = async (activityToExplain: Activity) => {
-		setIsGeneratingExplanation(true);
-		try {
-			const explanation = await onGenerateExplanation(activityToExplain);
-			setAiExplanation(explanation);
-		} catch (error) {
-			logError("Failed to generate AI explanation:", error);
-			setAiExplanation("Failed to generate explanation. Please try again.");
-		} finally {
-			setIsGeneratingExplanation(false);
-		}
-	};
 
 	return (
 		<Dialog open={!!activity} onOpenChange={(open) => !open && onClose()}>
@@ -87,29 +62,16 @@ export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
 									{t("details.aiExplanation")}
 								</h3>
 							</div>
-							<div className="p-4 bg-muted/50 rounded-lg border">
-								{isGeneratingExplanation ? (
-									<div className="flex items-center gap-2 text-muted-foreground">
-										<div className="animate-spin">⚙️</div>
-										<span>{t("details.generating")}</span>
-									</div>
-								) : aiExplanation ? (
-									<p className="text-sm leading-relaxed">{aiExplanation}</p>
-								) : (
-									<div className="flex items-center gap-2">
-										<span className="text-sm text-muted-foreground">
-											{t("details.noExplanation")}
-										</span>
-										<Button
-											size="sm"
-											variant="outline"
-											onClick={() => generateExplanation(activity)}
-										>
-											{t("details.generate")}
-										</Button>
-									</div>
-								)}
-							</div>
+							{onAnalyzeWithAI && (
+								<Button
+									onClick={() => onAnalyzeWithAI(activity)}
+									variant="secondary"
+									className="w-full gap-2"
+								>
+									<MessageSquare size={18} />
+									{t("details.analyzeWithChat")}
+								</Button>
+							)}
 						</div>
 
 						{/* Detailed Fields - Collapsed by default */}

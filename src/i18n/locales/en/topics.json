@@ -96,5 +96,6 @@
 	"common": {
 		"required": "*",
 		"close": "Close"
-	}
+	},
+	"all": "Default"
 }

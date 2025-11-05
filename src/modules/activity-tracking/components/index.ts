@@ -9,3 +9,4 @@ export { ActivityTimeline } from "./ActivityTimeline";
 export { ActivityCard } from "./ActivityCard";
 export { ActivityDetails } from "./ActivityDetails";
 export { ActivityDetailModal } from "./ActivityDetailModal";
+export { ActivityChatPanel } from "./ActivityChatPanel";

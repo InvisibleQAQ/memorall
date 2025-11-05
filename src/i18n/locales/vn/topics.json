@@ -96,5 +96,6 @@
 	"common": {
 		"required": "*",
 		"close": "Đóng"
-	}
+	},
+	"all": "Default"
 }

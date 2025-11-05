@@ -20,6 +20,7 @@
 	"topic": {
 		"select": "Chọn chủ đề",
 		"default": "Mặc định",
+		"all": "Mặc định",
 		"loading": "Đang tải chủ đề..."
 	},
 	"actions": {

@@ -225,31 +225,53 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 			</div>
 
 			{/* Main graph area */}
-			<div className="flex-1">
-				{loading ? (
-					<div className="h-full flex items-center justify-center text-muted-foreground">
-						<div className="text-center">
-							<Network className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50 animate-pulse" />
-							<p className="text-lg font-medium">{t("loading")}</p>
+			<div className="flex-1 flex flex-col">
+				{/* Topic selector for small screens (popup mode) */}
+				<div className="sm:hidden p-3 border-b border-border bg-card">
+					<label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+						{t("topic.label")}
+					</label>
+					<Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
+						<SelectTrigger className="w-full">
+							<SelectValue placeholder={t("topic.selectPlaceholder")} />
+						</SelectTrigger>
+						<SelectContent>
+							{topics.map((topic) => (
+								<SelectItem key={topic.id} value={topic.id}>
+									{topic.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+
+				{/* Graph content */}
+				<div className="flex-1">
+					{loading ? (
+						<div className="h-full flex items-center justify-center text-muted-foreground">
+							<div className="text-center">
+								<Network className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50 animate-pulse" />
+								<p className="text-lg font-medium">{t("loading")}</p>
+							</div>
 						</div>
-					</div>
-				) : nodes.length === 0 ? (
-					<div className="h-full flex items-center justify-center text-muted-foreground">
-						<div className="text-center">
-							<Network className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-							<p className="text-lg font-medium">{t("empty.title")}</p>
-							<p className="text-sm">{t("empty.description")}</p>
+					) : nodes.length === 0 ? (
+						<div className="h-full flex items-center justify-center text-muted-foreground">
+							<div className="text-center">
+								<Network className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+								<p className="text-lg font-medium">{t("empty.title")}</p>
+								<p className="text-sm">{t("empty.description")}</p>
+							</div>
 						</div>
-					</div>
-				) : (
-					<D3KnowledgeGraph
-						graphData={{ nodes, edges }}
-						selectedNodeId={selectedNodeId || undefined}
-						width={800}
-						height={600}
-						onNodeDeleted={handleNodeDeleted}
-					/>
-				)}
+					) : (
+						<D3KnowledgeGraph
+							graphData={{ nodes, edges }}
+							selectedNodeId={selectedNodeId || undefined}
+							width={800}
+							height={600}
+							onNodeDeleted={handleNodeDeleted}
+						/>
+					)}
+				</div>
 			</div>
 		</div>
 	);

@@ -105,7 +105,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
 			<div
 				className={`
 					overflow-hidden transition-all duration-300 ease-in-out
-					${!isCollapsed ? "max-h-[10000px] opacity-100" : "max-h-0 opacity-0"}
+					${!isCollapsed ? "max-h-auto opacity-100" : "max-h-0 opacity-0"}
 				`}
 			>
 				<div className="space-y-4">

@@ -1,6 +1,7 @@
 {
 	"title": "Dòng thời gian hoạt động",
 	"description": "Xem và phân tích các hoạt động đã ghi lại",
+	"analyzeSession": "Phân tích phiên với AI",
 	"sessions": {
 		"title": "Phiên làm việc",
 		"noSessions": "Không có phiên hoạt động",
@@ -56,6 +57,7 @@
 		"generating": "Đang tạo giải thích...",
 		"noExplanation": "Không có giải thích",
 		"generate": "Tạo",
+		"analyzeWithChat": "Phân tích trong Chat",
 		"viewTechnicalDetails": "Xem chi tiết kỹ thuật",
 		"viewRawData": "Xem dữ liệu JSON gốc",
 		"fields": {
@@ -124,5 +126,10 @@
 	"status": {
 		"loading": "Đang tải hoạt động...",
 		"noActivities": "Không có hoạt động để hiển thị"
+	},
+	"chatPanel": {
+		"title": "Chat Phân Tích Hoạt Động",
+		"noModel": "Chưa tải mô hình AI",
+		"configureModel": "Vui lòng cấu hình mô hình trong trang Models"
 	}
 }
