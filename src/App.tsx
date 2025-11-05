@@ -33,6 +33,7 @@ import { LogsPage } from "@/pages/LogsPage";
 import { AppLoadingScreen } from "@/components/atoms/AppLoadingScreen";
 import { KnowledgeGraphPage } from "@/pages/KnowledgeGraphPage";
 import { DocumentLibraryPage } from "@/pages/DocumentLibraryPage";
+import { ActivityTimelinePage } from "@/pages/ActivityTimelinePage";
 
 const App: React.FC = () => {
 	const [servicesStatus, setServicesStatus] = useState<
@@ -64,6 +65,22 @@ const App: React.FC = () => {
 				} catch (_) {}
 			};
 		}, [navigate]);
+
+		// Also handle session storage navigation
+		useEffect(() => {
+			const checkSessionNavigation = async () => {
+				try {
+					const result = await chrome.storage?.session?.get?.("navigateTo");
+					if (result?.navigateTo === "activities") {
+						navigate("/activities");
+						// Clear the flag
+						await chrome.storage?.session?.remove?.("navigateTo");
+					}
+				} catch (_) {}
+			};
+			checkSessionNavigation();
+		}, [navigate]);
+
 		return null;
 	};
 
@@ -277,6 +294,7 @@ const App: React.FC = () => {
 									element={<KnowledgeGraphPage />}
 								/>
 								<Route path="/documents" element={<DocumentLibraryPage />} />
+								<Route path="/activities" element={<ActivityTimelinePage />} />
 								<Route path="/logs" element={<LogsPage />} />
 							</Routes>
 						</Layout>

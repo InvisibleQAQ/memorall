@@ -18,6 +18,7 @@ import enEmbedding from "./locales/en/embedding.json";
 import enLogs from "./locales/en/logs.json";
 import enDebug from "./locales/en/debug.json";
 import enTopics from "./locales/en/topics.json";
+import enActivity from "./locales/en/activity.json";
 
 import vnCommon from "./locales/vn/common.json";
 import vnChat from "./locales/vn/chat.json";
@@ -29,6 +30,7 @@ import vnEmbedding from "./locales/vn/embedding.json";
 import vnLogs from "./locales/vn/logs.json";
 import vnDebug from "./locales/vn/debug.json";
 import vnTopics from "./locales/vn/topics.json";
+import vnActivity from "./locales/vn/activity.json";
 
 // Translation resources
 const resources = {
@@ -43,6 +45,7 @@ const resources = {
 		logs: enLogs,
 		debug: enDebug,
 		topics: enTopics,
+		activity: enActivity,
 	},
 	vn: {
 		common: vnCommon,
@@ -55,6 +58,7 @@ const resources = {
 		logs: vnLogs,
 		debug: vnDebug,
 		topics: vnTopics,
+		activity: vnActivity,
 	},
 } as const;
 

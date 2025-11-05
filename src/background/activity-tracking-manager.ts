@@ -1,0 +1,634 @@
+/**
+ * Background Activity Tracking Manager
+ * Coordinates activity tracking across tabs, network requests, and user interactions
+ */
+
+import { logInfo, logError, logWarn } from "@/utils/logger";
+import { backgroundJob } from "@/services/background-jobs/background-job";
+import type {
+	PageVisitData,
+	NetworkRequestData,
+	NavigationData,
+	ActivitySession,
+} from "@/types/activity-tracking";
+
+// Track active page visits
+const activePageVisits = new Map<
+	number,
+	{ data: PageVisitData; startTime: number }
+>();
+
+// Track tab information
+const tabInfo = new Map<
+	number,
+	{ url: string; title: string; windowId: number }
+>();
+
+// Track request bodies temporarily (requestId -> body data)
+const requestBodies = new Map<
+	string,
+	{ body?: string; size?: number; truncated?: boolean }
+>();
+
+// Maximum request body size to log (10KB)
+const MAX_REQUEST_BODY_SIZE = 10 * 1024;
+
+class ActivityTrackingManager {
+	private currentSessionId: string | null = null;
+
+	private networkListener:
+		| ((details: chrome.webRequest.WebRequestDetails) => void)
+		| null = null;
+
+	private networkBeforeRequestListener:
+		| ((
+				details: chrome.webRequest.WebRequestDetails & {
+					requestBody?: {
+						error?: string;
+						formData?: { [key: string]: string[] };
+						raw?: Array<{ bytes?: ArrayBuffer; file?: string }>;
+					};
+				},
+		  ) => void)
+		| null = null;
+
+	private tabActivatedListener:
+		| ((activeInfo: { tabId: number; windowId: number }) => void)
+		| null = null;
+
+	private tabUpdatedListener:
+		| ((
+				tabId: number,
+				changeInfo: { url?: string; status?: string; title?: string },
+				tab: chrome.tabs.Tab,
+		  ) => void)
+		| null = null;
+
+	private tabRemovedListener:
+		| ((
+				tabId: number,
+				removeInfo: { windowId: number; isWindowClosing: boolean },
+		  ) => void)
+		| null = null;
+
+	private navigationListener:
+		| ((
+				details: chrome.webNavigation.WebNavigationTransitionCallbackDetails,
+		  ) => void)
+		| null = null;
+
+	/**
+	 * Start tracking
+	 */
+	async startTracking(): Promise<void> {
+		try {
+			// Start session via background job
+			logInfo("[ACTIVITY_MANAGER] Executing activity-start-session job...");
+			const jobResult = await backgroundJob.execute(
+				"activity-start-session",
+				{},
+				{ stream: false },
+			);
+			logInfo("[ACTIVITY_MANAGER] Job created, waiting for result...", {
+				jobId: jobResult.jobId,
+			});
+
+			const jobResponse = await jobResult.promise;
+			logInfo("[ACTIVITY_MANAGER] Job completed, response:", {
+				status: jobResponse.status,
+				hasResult: !!jobResponse.result,
+			});
+
+			if (!jobResponse.result) {
+				logError("[ACTIVITY_MANAGER] Job response:", jobResponse);
+				throw new Error("Failed to start session: no result returned");
+			}
+
+			const session = jobResponse.result.session;
+			this.currentSessionId = session.id;
+			logInfo("Started activity tracking session:", session.id);
+
+			// Setup listeners
+			this.setupNetworkListener();
+			this.setupTabListeners();
+			this.setupNavigationListener();
+
+			// Notify all tabs to start tracking
+			const tabs = await chrome.tabs.query({});
+			for (const tab of tabs) {
+				if (tab.id && this.canAccessTab(tab.url)) {
+					try {
+						await chrome.tabs.sendMessage(tab.id, {
+							type: "START_ACTIVITY_TRACKING",
+						});
+					} catch (error) {
+						// Tab might not have content script injected
+						logWarn(`Could not start tracking on tab ${tab.id}`);
+					}
+				}
+			}
+
+			// Track currently active tab
+			const activeTabs = await chrome.tabs.query({ active: true });
+			for (const tab of activeTabs) {
+				if (tab.id) {
+					await this.trackPageVisit(tab.id, tab.url || "", tab.title || "");
+				}
+			}
+
+			logInfo("Activity tracking fully initialized");
+		} catch (error) {
+			logError("Failed to start activity tracking:", error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Stop tracking
+	 */
+	async stopTracking(): Promise<void> {
+		try {
+			// End all active page visits
+			for (const [tabId, visitData] of activePageVisits.entries()) {
+				await this.endPageVisit(tabId);
+			}
+
+			// Stop session via background job
+			await backgroundJob.execute(
+				"activity-stop-session",
+				{},
+				{ stream: false },
+			);
+			this.currentSessionId = null;
+
+			// Remove listeners
+			this.removeListeners();
+
+			// Notify all tabs to stop tracking
+			const tabs = await chrome.tabs.query({});
+			for (const tab of tabs) {
+				if (tab.id && this.canAccessTab(tab.url)) {
+					try {
+						await chrome.tabs.sendMessage(tab.id, {
+							type: "STOP_ACTIVITY_TRACKING",
+						});
+					} catch (error) {
+						// Ignore errors
+					}
+				}
+			}
+
+			logInfo("Activity tracking stopped");
+		} catch (error) {
+			logError("Failed to stop activity tracking:", error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Setup network request listener
+	 */
+	private setupNetworkListener(): void {
+		if (this.networkListener) return;
+
+		// Capture request bodies on onBeforeRequest
+		this.networkBeforeRequestListener = (
+			details: chrome.webRequest.WebRequestDetails & {
+				requestBody?: {
+					error?: string;
+					formData?: { [key: string]: string[] };
+					raw?: Array<{ bytes?: ArrayBuffer; file?: string }>;
+				};
+			},
+		) => {
+			this.handleRequestBody(details);
+		};
+
+		chrome.webRequest.onBeforeRequest.addListener(
+			this.networkBeforeRequestListener as any,
+			{ urls: ["<all_urls>"] },
+			["requestBody"],
+		);
+
+		// Track completed requests
+		this.networkListener = (details: chrome.webRequest.WebRequestDetails) => {
+			this.handleNetworkRequest(details);
+		};
+
+		chrome.webRequest.onCompleted.addListener(
+			this.networkListener,
+			{ urls: ["<all_urls>"] },
+			["responseHeaders"],
+		);
+	}
+
+	/**
+	 * Setup tab listeners
+	 */
+	private setupTabListeners(): void {
+		// Tab activated (switched to)
+		if (!this.tabActivatedListener) {
+			this.tabActivatedListener = (activeInfo: {
+				tabId: number;
+				windowId: number;
+			}) => {
+				this.handleTabActivated(activeInfo);
+			};
+			chrome.tabs.onActivated.addListener(this.tabActivatedListener);
+		}
+
+		// Tab updated (navigation, title change, etc.)
+		if (!this.tabUpdatedListener) {
+			this.tabUpdatedListener = (
+				tabId: number,
+				changeInfo: { url?: string; status?: string; title?: string },
+				tab: chrome.tabs.Tab,
+			) => {
+				this.handleTabUpdated(tabId, changeInfo, tab);
+			};
+			chrome.tabs.onUpdated.addListener(this.tabUpdatedListener);
+		}
+
+		// Tab removed (closed)
+		if (!this.tabRemovedListener) {
+			this.tabRemovedListener = (
+				tabId: number,
+				removeInfo: { windowId: number; isWindowClosing: boolean },
+			) => {
+				this.handleTabRemoved(tabId);
+			};
+			chrome.tabs.onRemoved.addListener(this.tabRemovedListener);
+		}
+	}
+
+	/**
+	 * Setup navigation listener
+	 */
+	private setupNavigationListener(): void {
+		if (this.navigationListener) return;
+
+		this.navigationListener = (
+			details: chrome.webNavigation.WebNavigationTransitionCallbackDetails,
+		) => {
+			this.handleNavigation(details);
+		};
+
+		chrome.webNavigation.onCommitted.addListener(this.navigationListener);
+	}
+
+	/**
+	 * Remove all listeners
+	 */
+	private removeListeners(): void {
+		if (this.networkBeforeRequestListener) {
+			chrome.webRequest.onBeforeRequest.removeListener(
+				this.networkBeforeRequestListener as any,
+			);
+			this.networkBeforeRequestListener = null;
+		}
+
+		if (this.networkListener) {
+			chrome.webRequest.onCompleted.removeListener(this.networkListener);
+			this.networkListener = null;
+		}
+
+		// Clear request bodies cache
+		requestBodies.clear();
+
+		if (this.tabActivatedListener) {
+			chrome.tabs.onActivated.removeListener(this.tabActivatedListener);
+			this.tabActivatedListener = null;
+		}
+
+		if (this.tabUpdatedListener) {
+			chrome.tabs.onUpdated.removeListener(this.tabUpdatedListener);
+			this.tabUpdatedListener = null;
+		}
+
+		if (this.tabRemovedListener) {
+			chrome.tabs.onRemoved.removeListener(this.tabRemovedListener);
+			this.tabRemovedListener = null;
+		}
+
+		if (this.navigationListener) {
+			chrome.webNavigation.onCommitted.removeListener(this.navigationListener);
+			this.navigationListener = null;
+		}
+	}
+
+	/**
+	 * Handle request body capture
+	 */
+	private handleRequestBody(
+		details: chrome.webRequest.WebRequestDetails & {
+			requestBody?: {
+				error?: string;
+				formData?: { [key: string]: string[] };
+				raw?: Array<{ bytes?: ArrayBuffer; file?: string }>;
+			};
+		},
+	): void {
+		try {
+			if (!details.requestBody) {
+				return;
+			}
+
+			let bodyStr: string | undefined;
+			let originalSize = 0;
+			let truncated = false;
+
+			// Handle FormData
+			if (details.requestBody.formData) {
+				const formData = details.requestBody.formData;
+				const formDataStr = JSON.stringify(formData);
+				originalSize = formDataStr.length;
+
+				if (originalSize > MAX_REQUEST_BODY_SIZE) {
+					bodyStr = formDataStr.substring(0, MAX_REQUEST_BODY_SIZE);
+					truncated = true;
+				} else {
+					bodyStr = formDataStr;
+				}
+			}
+			// Handle raw data
+			else if (details.requestBody.raw) {
+				const rawParts: string[] = [];
+				let totalSize = 0;
+
+				for (const part of details.requestBody.raw) {
+					if (part.bytes) {
+						const decoder = new TextDecoder();
+						const text = decoder.decode(new Uint8Array(part.bytes));
+						totalSize += text.length;
+						rawParts.push(text);
+					}
+				}
+
+				originalSize = totalSize;
+				const combinedBody = rawParts.join("");
+
+				if (totalSize > MAX_REQUEST_BODY_SIZE) {
+					bodyStr = combinedBody.substring(0, MAX_REQUEST_BODY_SIZE);
+					truncated = true;
+				} else {
+					bodyStr = combinedBody;
+				}
+			}
+
+			// Store the body data temporarily
+			if (bodyStr !== undefined) {
+				requestBodies.set(details.requestId, {
+					body: bodyStr,
+					size: originalSize,
+					truncated,
+				});
+
+				// Clean up after 30 seconds to prevent memory leaks
+				setTimeout(() => {
+					requestBodies.delete(details.requestId);
+				}, 30000);
+			}
+		} catch (error) {
+			// Silently fail - body capture is optional
+		}
+	}
+
+	/**
+	 * Handle network request
+	 */
+	private async handleNetworkRequest(
+		details: chrome.webRequest.WebRequestDetails,
+	): Promise<void> {
+		try {
+			const tab = tabInfo.get(details.tabId);
+
+			// Get captured request body if available
+			const bodyData = requestBodies.get(details.requestId);
+
+			const data: NetworkRequestData = {
+				type: "network_request",
+				url: details.url,
+				method: details.method,
+				requestType: details.type,
+				statusCode: (details as any).statusCode,
+				requestBody: bodyData?.body,
+				requestBodySize: bodyData?.size,
+				requestBodyTruncated: bodyData?.truncated,
+				pageUrl: tab?.url || details.initiator || "",
+				pageTitle: tab?.title,
+				tabId: details.tabId,
+				requestId: details.requestId,
+				initiator: details.initiator,
+			};
+
+			// Clean up body data after using it
+			if (bodyData) {
+				requestBodies.delete(details.requestId);
+			}
+
+			await backgroundJob.execute(
+				"activity-record",
+				{ activityData: data },
+				{ stream: false },
+			);
+		} catch (error) {
+			// Silently fail - too many network requests to log every error
+		}
+	}
+
+	/**
+	 * Handle tab activated
+	 */
+	private async handleTabActivated(activeInfo: {
+		tabId: number;
+		windowId: number;
+	}): Promise<void> {
+		try {
+			const tab = await chrome.tabs.get(activeInfo.tabId);
+
+			if (tab.url && tab.title) {
+				// End previous page visit if any
+				for (const [tabId, _] of activePageVisits.entries()) {
+					if (tabId !== activeInfo.tabId) {
+						await this.endPageVisit(tabId);
+					}
+				}
+
+				// Start new page visit
+				await this.trackPageVisit(activeInfo.tabId, tab.url, tab.title);
+			}
+		} catch (error) {
+			logWarn("Failed to handle tab activated:", error);
+		}
+	}
+
+	/**
+	 * Handle tab updated
+	 */
+	private async handleTabUpdated(
+		tabId: number,
+		changeInfo: { url?: string; status?: string; title?: string },
+		tab: chrome.tabs.Tab,
+	): Promise<void> {
+		try {
+			// Update tab info
+			if (tab.url && tab.title) {
+				tabInfo.set(tabId, {
+					url: tab.url,
+					title: tab.title,
+					windowId: tab.windowId,
+				});
+			}
+
+			// If URL changed, end previous visit and start new one
+			if (changeInfo.url && tab.active) {
+				await this.endPageVisit(tabId);
+				await this.trackPageVisit(tabId, changeInfo.url, tab.title || "");
+			}
+		} catch (error) {
+			logWarn("Failed to handle tab updated:", error);
+		}
+	}
+
+	/**
+	 * Handle tab removed
+	 */
+	private async handleTabRemoved(tabId: number): Promise<void> {
+		try {
+			await this.endPageVisit(tabId);
+			tabInfo.delete(tabId);
+		} catch (error) {
+			logWarn("Failed to handle tab removed:", error);
+		}
+	}
+
+	/**
+	 * Handle navigation
+	 */
+	private async handleNavigation(
+		details: chrome.webNavigation.WebNavigationTransitionCallbackDetails,
+	): Promise<void> {
+		try {
+			// Only track main frame navigations
+			if (details.frameId !== 0) return;
+
+			const tab = tabInfo.get(details.tabId);
+			const fromUrl = tab?.url || "";
+
+			const data: NavigationData = {
+				type: "navigation",
+				fromUrl,
+				toUrl: details.url,
+				tabId: details.tabId,
+				transitionType: details.transitionType,
+				transitionQualifiers: details.transitionQualifiers,
+			};
+
+			await backgroundJob.execute(
+				"activity-record",
+				{ activityData: data },
+				{ stream: false },
+			);
+		} catch (error) {
+			logWarn("Failed to handle navigation:", error);
+		}
+	}
+
+	/**
+	 * Track page visit
+	 */
+	private async trackPageVisit(
+		tabId: number,
+		url: string,
+		title: string,
+	): Promise<void> {
+		if (!this.canAccessTab(url)) return;
+
+		const tab = await chrome.tabs.get(tabId);
+
+		const data: PageVisitData = {
+			type: "page_visit",
+			url,
+			title,
+			tabId,
+			windowId: tab.windowId,
+			startTime: Date.now(),
+		};
+
+		activePageVisits.set(tabId, { data, startTime: Date.now() });
+		tabInfo.set(tabId, { url, title, windowId: tab.windowId });
+	}
+
+	/**
+	 * End page visit
+	 */
+	private async endPageVisit(tabId: number): Promise<void> {
+		const visit = activePageVisits.get(tabId);
+		if (!visit) return;
+
+		const endTime = Date.now();
+		const duration = endTime - visit.startTime;
+
+		const data: PageVisitData = {
+			...visit.data,
+			endTime,
+			duration,
+		};
+
+		try {
+			await backgroundJob.execute(
+				"activity-record",
+				{ activityData: data },
+				{ stream: false },
+			);
+		} catch (error) {
+			logWarn("Failed to record page visit:", error);
+		}
+
+		activePageVisits.delete(tabId);
+	}
+
+	/**
+	 * Handle activity captured from content script
+	 */
+	async handleActivityFromContent(
+		activityType: string,
+		data: any,
+		tabId: number,
+	): Promise<void> {
+		try {
+			// Set tabId if not already set
+			if (data.tabId === -1) {
+				data.tabId = tabId;
+			}
+
+			await backgroundJob.execute(
+				"activity-record",
+				{ activityData: data },
+				{ stream: false },
+			);
+		} catch (error) {
+			logWarn(`Failed to record ${activityType} activity:`, error);
+		}
+	}
+
+	/**
+	 * Check if we can access the tab
+	 */
+	private canAccessTab(url?: string): boolean {
+		if (!url) return false;
+		return (
+			!url.startsWith("chrome://") && !url.startsWith("chrome-extension://")
+		);
+	}
+
+	/**
+	 * Check if tracking is active
+	 */
+	isTracking(): boolean {
+		return this.currentSessionId !== null;
+	}
+}
+
+// Export singleton instance
+export const activityTrackingManager = new ActivityTrackingManager();

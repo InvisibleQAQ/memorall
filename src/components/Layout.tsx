@@ -14,6 +14,7 @@ import {
 	FileText,
 	Languages,
 	Settings,
+	Activity,
 } from "lucide-react";
 import {
 	Tooltip,
@@ -59,6 +60,7 @@ const debugItems = [
 		icon: VectorSquareIcon,
 	},
 	{ nameKey: "navigation.database", path: "/database", icon: Database },
+	{ nameKey: "navigation.activities", path: "/activities", icon: Activity },
 	{ nameKey: "navigation.logs", path: "/logs", icon: Bug },
 ];
 

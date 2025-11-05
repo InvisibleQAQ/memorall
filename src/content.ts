@@ -3,6 +3,7 @@
 
 import "@/i18n/config"; // Initialize i18n for content script
 import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
+import "./embedded/activity-tracker"; // Initialize activity tracker
 import {
 	extractSelection,
 	extractPageContent,
@@ -66,7 +67,6 @@ chrome.runtime.onMessage.addListener(
 					return true;
 			}
 		} catch (error) {
-			console.error(`Failed to handle message ${message.type}:`, error);
 			sendResponse({
 				success: false,
 				error: error instanceof Error ? error.message : "Unknown error",
@@ -148,16 +148,11 @@ async function handleRememberContent(
 		try {
 			response = await sendMessageToBackground(payload);
 		} catch (err) {
-			console.error(
-				"❌ Failed sending SELECTION_EXTRACTED to background:",
-				err,
-			);
 			response = { success: false, error: "No response from background" };
 		}
 
 		sendResponse(response);
 	} catch (error) {
-		console.error("❌ Selection extraction failed:", error);
 		sendResponse({
 			success: false,
 			error:
@@ -259,7 +254,7 @@ async function handleShowChatModal(
 				});
 			}
 		} catch (e) {
-			console.error("Failed to extract viewport content:", e);
+			// Ignore
 		}
 
 		// 3. Viewport HTML structure
@@ -273,7 +268,7 @@ async function handleShowChatModal(
 				});
 			}
 		} catch (e) {
-			console.error("Failed to extract viewport HTML structure:", e);
+			// Ignore
 		}
 
 		// 4. Full page content
@@ -291,10 +286,10 @@ async function handleShowChatModal(
 					content: fullContent,
 				});
 			} else {
-				console.warn("Full page content is empty");
+				// Ignore
 			}
 		} catch (e) {
-			console.error("Failed to extract full page content:", e);
+			// Ignore
 			// Fallback: use basic text extraction
 			const fallbackText = document.body.innerText || "";
 			if (fallbackText.trim()) {
@@ -317,7 +312,7 @@ async function handleShowChatModal(
 				});
 			}
 		} catch (e) {
-			console.error("Failed to extract full page HTML structure:", e);
+			// Ignore
 		}
 
 		// 6. Viewport screenshot - placeholder, will be captured on demand
@@ -372,9 +367,6 @@ function handleShowImageSelector(
 		// Create image selector with callbacks
 		createImageSelectorOverlay(
 			async (selectedImageData) => {
-				// When image is selected, open chat modal with the selected image
-				console.log("Image selected, opening chat with selected region");
-
 				// Remove any existing chat modal
 				const existingModal = document.getElementById(
 					"memorall-embedded-chat-modal",
@@ -405,7 +397,6 @@ function handleShowImageSelector(
 			},
 			() => {
 				// On cancel, just cleanup
-				console.log("Image selection cancelled");
 			},
 		);
 

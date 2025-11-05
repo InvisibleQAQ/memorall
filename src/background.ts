@@ -8,6 +8,7 @@ import { sharedStorageService } from "./services/shared-storage";
 import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
 import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "./constants/language";
 import type { Language } from "./constants/language";
+import { activityTrackingManager } from "./background/activity-tracking-manager";
 
 // Language management
 let currentLanguage: Language = DEFAULT_LANGUAGE;
@@ -18,6 +19,9 @@ const CONTEXT_MENU_TEXTS = {
 		savePage: "💾 Save page",
 		recall: "🧠 Recall",
 		recallImage: "🖼️ Recall image",
+		startCapture: "🎯 Start capturing activities",
+		stopCapture: "⏹️ Stop capturing activities",
+		viewActivities: "📊 View captured activities",
 		openPlatform: "🚀 Open platform",
 		openDocuments: "📄 Open documents",
 	},
@@ -25,6 +29,9 @@ const CONTEXT_MENU_TEXTS = {
 		savePage: "💾 Lưu trang",
 		recall: "🧠 Gợi nhớ",
 		recallImage: "🖼️ Gợi nhớ hình ảnh",
+		startCapture: "🎯 Bắt đầu ghi lại hoạt động",
+		stopCapture: "⏹️ Dừng ghi lại hoạt động",
+		viewActivities: "📊 Xem hoạt động đã ghi",
 		openPlatform: "🚀 Mở nền tảng",
 		openDocuments: "📄 Mở tài liệu",
 	},
@@ -36,6 +43,11 @@ const SAVE_PAGE_CONTEXT_MENU_ID = "save-page";
 // Recall section
 const RECALL_CONTEXT_MENU_ID = "recall";
 const RECALL_IMAGE_CONTEXT_MENU_ID = "recall-image";
+
+// Activity tracking section
+const START_CAPTURE_CONTEXT_MENU_ID = "start-capture";
+const STOP_CAPTURE_CONTEXT_MENU_ID = "stop-capture";
+const VIEW_ACTIVITIES_CONTEXT_MENU_ID = "view-activities";
 
 // Open section
 const OPEN_PLATFORM_CONTEXT_MENU_ID = "open-platform";
@@ -85,6 +97,19 @@ async function updateContextMenuText(): Promise<void> {
 
 		await chrome.contextMenus.update(RECALL_IMAGE_CONTEXT_MENU_ID, {
 			title: texts.recallImage,
+		});
+
+		// Update activity tracking menu items
+		await chrome.contextMenus.update(START_CAPTURE_CONTEXT_MENU_ID, {
+			title: texts.startCapture,
+		});
+
+		await chrome.contextMenus.update(STOP_CAPTURE_CONTEXT_MENU_ID, {
+			title: texts.stopCapture,
+		});
+
+		await chrome.contextMenus.update(VIEW_ACTIVITIES_CONTEXT_MENU_ID, {
+			title: texts.viewActivities,
 		});
 
 		await chrome.contextMenus.update(OPEN_PLATFORM_CONTEXT_MENU_ID, {
@@ -271,6 +296,31 @@ chrome.runtime.onInstalled.addListener(async () => {
 			type: "separator",
 		});
 
+		// === ACTIVITY TRACKING SECTION ===
+		chrome.contextMenus.create({
+			id: START_CAPTURE_CONTEXT_MENU_ID,
+			title: texts.startCapture,
+			contexts: ["page"],
+		});
+
+		chrome.contextMenus.create({
+			id: STOP_CAPTURE_CONTEXT_MENU_ID,
+			title: texts.stopCapture,
+			contexts: ["page"],
+			visible: false, // Hidden until capture starts
+		});
+
+		chrome.contextMenus.create({
+			id: VIEW_ACTIVITIES_CONTEXT_MENU_ID,
+			title: texts.viewActivities,
+			contexts: ["page"],
+		});
+
+		chrome.contextMenus.create({
+			id: "activity-divider",
+			type: "separator",
+		});
+
 		// === OPEN SECTION ===
 		chrome.contextMenus.create({
 			id: OPEN_PLATFORM_CONTEXT_MENU_ID,
@@ -382,6 +432,82 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 		return;
 	}
 
+	// Handle start capture context menu item
+	if (info.menuItemId === START_CAPTURE_CONTEXT_MENU_ID) {
+		try {
+			logInfo("🎯 Start capturing activities clicked");
+			await activityTrackingManager.startTracking();
+
+			// Toggle menu items visibility
+			await chrome.contextMenus.update(START_CAPTURE_CONTEXT_MENU_ID, {
+				visible: false,
+			});
+			await chrome.contextMenus.update(STOP_CAPTURE_CONTEXT_MENU_ID, {
+				visible: true,
+			});
+
+			createNotification(
+				"Activity Tracking",
+				"Started capturing your activities. Click 'Stop capturing' when done.",
+			);
+		} catch (error) {
+			logError("❌ Failed to start activity tracking:", error);
+			createNotification(
+				"Activity Tracking",
+				"Failed to start activity tracking. Please try again.",
+			);
+		}
+		return;
+	}
+
+	// Handle stop capture context menu item
+	if (info.menuItemId === STOP_CAPTURE_CONTEXT_MENU_ID) {
+		try {
+			logInfo("⏹️ Stop capturing activities clicked");
+			await activityTrackingManager.stopTracking();
+
+			// Toggle menu items visibility
+			await chrome.contextMenus.update(START_CAPTURE_CONTEXT_MENU_ID, {
+				visible: true,
+			});
+			await chrome.contextMenus.update(STOP_CAPTURE_CONTEXT_MENU_ID, {
+				visible: false,
+			});
+
+			createNotification(
+				"Activity Tracking",
+				"Stopped capturing activities. Click 'View captured activities' to see results.",
+			);
+		} catch (error) {
+			logError("❌ Failed to stop activity tracking:", error);
+			createNotification(
+				"Activity Tracking",
+				"Failed to stop activity tracking.",
+			);
+		}
+		return;
+	}
+
+	// Handle view activities context menu item
+	if (info.menuItemId === VIEW_ACTIVITIES_CONTEXT_MENU_ID) {
+		try {
+			logInfo("📊 View captured activities clicked");
+
+			// TODO: Open timeline UI page
+			// For now, just open the extension page
+			// In the future, we'll navigate to a dedicated timeline page
+			chrome.storage?.session?.set?.({ navigateTo: "activities" });
+			await chrome.runtime.openOptionsPage?.();
+		} catch (error) {
+			logError("❌ Failed to open activities view:", error);
+			createNotification(
+				"Activity Tracking",
+				"Failed to open activities view.",
+			);
+		}
+		return;
+	}
+
 	// Handle save page context menu item
 	if (info.menuItemId === SAVE_PAGE_CONTEXT_MENU_ID) {
 		if (!tab?.id) return;
@@ -470,7 +596,32 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Handle messages from content scripts and UI
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	if (message.type === "GET_TOPICS_FOR_SELECTOR") {
+	if (message.type === "ACTIVITY_CAPTURED") {
+		// Handle activity data from content script
+		(async () => {
+			try {
+				const tabId = sender.tab?.id;
+				if (!tabId) {
+					sendResponse({ success: false, error: "No tab ID" });
+					return;
+				}
+
+				await activityTrackingManager.handleActivityFromContent(
+					message.activityType,
+					message.data,
+					tabId,
+				);
+				sendResponse({ success: true });
+			} catch (error) {
+				logError("❌ Failed to handle activity from content:", error);
+				sendResponse({
+					success: false,
+					error: error instanceof Error ? error.message : "Unknown error",
+				});
+			}
+		})();
+		return true;
+	} else if (message.type === "GET_TOPICS_FOR_SELECTOR") {
 		// Handle async topic loading for content script
 		(async () => {
 			try {

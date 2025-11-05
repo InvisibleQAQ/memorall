@@ -35,6 +35,8 @@ import * as encryptionSchema from "./entities/encryptions";
 import * as configurationSchema from "./entities/configurations";
 import * as topicSchema from "./entities/topics";
 import * as topicFilesSchema from "./entities/topic-files";
+import * as activitySessionsSchema from "./entities/activity-sessions";
+import * as activitiesSchema from "./entities/activities";
 
 import { runMigrations } from "./migrations";
 
@@ -56,6 +58,9 @@ export const schema = {
 	// Topic entities
 	topics: topicSchema.topic,
 	topicFiles: topicFilesSchema.topicFiles,
+	// Activity tracking entities
+	activitySessions: activitySessionsSchema.activitySessions,
+	activities: activitiesSchema.activities,
 };
 
 // Export types
@@ -112,6 +117,16 @@ export type {
 	TopicFile,
 	NewTopicFile,
 } from "./entities/topic-files";
+
+export type {
+	ActivitySession,
+	NewActivitySession,
+} from "./entities/activity-sessions";
+
+export type {
+	Activity,
+	NewActivity,
+} from "./entities/activities";
 
 // Database instances - support both main and proxy modes
 let pgliteInstance: PGliteLike | PGlite | null = null;

@@ -5,6 +5,10 @@ import {
 	up as addTopicFilesUp,
 	down as addTopicFilesDown,
 } from "./002_add_topic_files";
+import {
+	up as addActivityTrackingUp,
+	down as addActivityTrackingDown,
+} from "./003_add_activity_tracking";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -30,6 +34,14 @@ export const migrations: Migration[] = [
 		description: "Add topic_files table for linking files to topics",
 		up: addTopicFilesUp,
 		down: addTopicFilesDown,
+	},
+	{
+		id: "add_activity_tracking",
+		version: 3,
+		description:
+			"Add activity_sessions and activities tables for activity tracking",
+		up: addActivityTrackingUp,
+		down: addActivityTrackingDown,
 	},
 	// Example of how to add future migrations:
 	// {

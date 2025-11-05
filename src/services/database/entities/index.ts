@@ -13,3 +13,7 @@ export * from "./topics";
 export * from "./topic-files";
 export * from "./encryptions";
 export * from "./configurations";
+
+// Activity tracking entities
+export * from "./activity-sessions";
+export * from "./activities";
