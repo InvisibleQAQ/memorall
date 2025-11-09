@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 import { serviceManager } from "@/services";
 import { eq, inArray, desc, or } from "drizzle-orm";
 import { logError } from "@/utils/logger";
-import { getEffectiveSourceStatus } from "@/services/database/entities/sources";
+import { getEffectiveSourceStatus } from "@/services/database/types";
 
 export interface SourceStatus {
 	isGenerating: boolean;

@@ -7,7 +7,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Topic } from "@/services/database/entities/topics";
+import type { Topic } from "@/services/database/types";
 
 interface TopicBadgeProps {
 	/** Topic to display */

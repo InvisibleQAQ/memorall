@@ -1,6 +1,6 @@
 import type { BaseEmbedding } from "@/services/embedding/interfaces/base-embedding";
-import type { DatabaseService } from "@/services/database/database-service";
-import type { Node, Edge } from "@/services/database/db";
+import type { IDatabaseService } from "@/services/database";
+import type { Node, Edge } from "@/services/database/types";
 
 export interface VectorSearchResult<T> {
 	item: T;
@@ -29,7 +29,7 @@ export interface FactSearchParams {
  * Performs vector similarity search for nodes using embeddings
  */
 export async function vectorSearchNodes(
-	databaseService: DatabaseService,
+	databaseService: IDatabaseService,
 	embeddingService: BaseEmbedding,
 	searchTerms: string[],
 	limit: number,
@@ -108,7 +108,7 @@ export async function vectorSearchNodes(
  * Performs vector similarity search for edges using embeddings
  */
 export async function vectorSearchEdges(
-	databaseService: DatabaseService,
+	databaseService: IDatabaseService,
 	embeddingService: BaseEmbedding,
 	searchTerms: string[],
 	limit: number,

@@ -45,7 +45,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { topicService } from "@/modules/topics/services/topic-service";
-import type { Topic } from "@/services/database/entities/topics";
+import type { Topic } from "@/services/database/types";
 import { logError, logInfo } from "@/utils/logger";
 import { EditTopicDialog } from "./EditTopicDialog";
 import { CreateTopicDialog } from "./CreateTopicDialog";

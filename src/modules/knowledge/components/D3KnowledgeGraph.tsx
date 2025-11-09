@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { serviceManager } from "@/services";
-import type { Node, Edge } from "@/services/database/db";
+import type { Node, Edge } from "@/services/database/types";
 import { logError, logInfo } from "@/utils/logger";
 import { inArray, eq, and } from "drizzle-orm";
 import { useTheme } from "@/components/molecules/ThemeContext";

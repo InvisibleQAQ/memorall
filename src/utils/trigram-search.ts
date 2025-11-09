@@ -1,5 +1,5 @@
-import type { DatabaseService } from "@/services/database/database-service";
-import type { Node, Edge } from "@/services/database/db";
+import type { IDatabaseService } from "@/services/database";
+import type { Node, Edge } from "@/services/database/types";
 
 export interface TrigramSearchResult<T> {
 	item: Partial<T>;
@@ -21,7 +21,7 @@ function prepareSearchText(searchTerms: string[]): string {
  * Performs trigram similarity search on nodes using database SQL function
  */
 export async function trigramSearchNodes(
-	databaseService: DatabaseService,
+	databaseService: IDatabaseService,
 	searchTerms: string[],
 	limit: number,
 	params: TrigramSearchParams = {},
@@ -94,7 +94,7 @@ export async function trigramSearchNodes(
  * Performs trigram similarity search on edges using database SQL function
  */
 export async function trigramSearchEdges(
-	databaseService: DatabaseService,
+	databaseService: IDatabaseService,
 	searchTerms: string[],
 	limit: number,
 	params: TrigramSearchParams = {},

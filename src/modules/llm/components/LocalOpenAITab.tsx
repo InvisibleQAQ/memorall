@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { Loader2, Shield, CheckCircle, Trash2 } from "lucide-react";
 import { LOCAL_SERVER_LLM_CONFIG_KEYS } from "@/config/local-server-llm";
 import { logWarn } from "@/utils/logger";
-import type { NewConfiguration } from "@/services/database";
+import type { NewConfiguration } from "@/services/database/types";
 
 interface LocalOpenAITabProps {
 	providerKind: "lmstudio" | "ollama";

@@ -1,90 +1,9 @@
-/**
- * ServiceManager - Central orchestrator for all extension services
- *
- * ## 🏗️ Service Architecture Overview
- *
- * The extension uses a dual-mode service architecture to handle different execution contexts:
- *
- * ### 🔄 Service Modes
- *
- * **Main Mode (Offscreen Document)**:
- * - Full service implementations with complete functionality
- * - Real database instance, actual AI model loading
- * - Heavy computation and resource-intensive operations
- * - Acts as the "server" for proxy services
- *
- * **Proxy Mode (UI/Popup)**:
- * - Lightweight proxy implementations
- * - Forward requests to main services via RPC
- * - Minimal resource usage for responsive UI
- * - No direct model/database access
- *
- * ### 📍 Context-Specific Service Usage
- *
- * **🖥️ Offscreen Document (`public/offscreen.html`)**:
- * ```typescript
- * // Uses MAIN mode - full service implementations
- * await serviceManager.initialize({ proxy: false });
- *
- * // Services have direct access to:
- * - Real PGlite database instance
- * - Loaded AI models (embeddings, LLM)
- * - Full processing capabilities
- * ```
- *
- * **🎨 UI/Popup (`popup.html`, `standalone.html`)**:
- * ```typescript
- * // Uses PROXY mode - lightweight proxies
- * await serviceManager.initialize({ proxy: true });
- *
- * // Services forward requests to offscreen:
- * - DatabaseService → sends RPC to main database
- * - EmbeddingService → forwards to offscreen models
- * - LLMService → proxies to main thread
- * ```
- *
- * **📜 Background Script (`src/background.ts`)**:
- * ```typescript
- * // NO SERVICE ACCESS - Background script does not use ServiceManager
- * // Only handles:
- * - Context menu registration
- * - Content script communication
- * - Job enqueueing via background-jobs
- * ```
- *
- * **📄 Content Scripts**:
- * ```typescript
- * // NO SERVICE ACCESS - Content scripts do not use ServiceManager
- * // Only handles:
- * - Page data extraction
- * - DOM manipulation
- * - Communication with background script only
- * ```
- *
- * ### 🔗 Service Communication Flow
- *
- * ```
- * UI (Proxy Services) ─RPC─> Offscreen (Main Services) ─> Database/AI Models
- *                                    ↑
- * Background Script ─jobs─> Background Jobs Queue
- *                                    ↑
- * Content Scripts ─data─> Background Script
- * ```
- *
- * ### 💡 Benefits of This Architecture
- *
- * - **Performance**: Heavy operations isolated to offscreen document
- * - **Responsiveness**: UI remains fast with lightweight proxy services
- * - **Resource Management**: Single source of truth for models/database
- * - **Clean Separation**: Each context has well-defined responsibilities
- * - **Type Safety**: Same interfaces for both main and proxy implementations
- */
-
 import { logError, logInfo, logWarn } from "@/utils/logger";
 import type { IEmbeddingService } from "@/services/embedding";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
 import { FlowsService } from "./flows";
-import { DatabaseMode, DatabaseService } from "./database";
+import { DatabaseMode } from "./database/constants";
+import type { IDatabaseService } from "./database/interfaces/database-service.interface";
 
 export interface InitializationProgress {
 	step: string;
@@ -108,7 +27,7 @@ export class ServiceManager {
 	// Child services - initialized based on mode
 	public embeddingService!: IEmbeddingService;
 	public llmService!: ILLMService;
-	public databaseService!: DatabaseService;
+	public databaseService!: IDatabaseService;
 	public flowsService!: FlowsService;
 
 	// Progress tracking
@@ -191,15 +110,17 @@ export class ServiceManager {
 		this.updateProgress(`Initializing services (${mode})`, 5);
 
 		try {
-			this.databaseService = DatabaseService.getInstance();
-
 			if (options.proxy) {
 				logInfo("🔧 Creating lite service implementations (popup thread)");
-				await this.initializeDatabase({ mode: DatabaseMode.PROXY });
 
-				// Dynamic imports ensure heavy implementations (LocalEmbedding, WllamaLLM)
-				// and their dependencies (@huggingface/transformers, etc.) are NEVER loaded
-				// in the popup thread, keeping the UI fast and responsive
+				// Dynamic imports prevent ALL heavy modules from loading in popup:
+				// - DatabaseServiceProxy: NO @electric-sql/pglite, NO drizzle-orm/pg-core schemas
+				// - EmbeddingServiceProxy: NO @huggingface/transformers, NO onnxruntime-web
+				// - LLMServiceProxy: NO WebLLM, NO Wllama
+				// This keeps popup thread lightweight and responsive
+				const { DatabaseServiceProxy } = await import(
+					"@/services/database/database-service-proxy"
+				);
 				const { EmbeddingServiceProxy } = await import(
 					"@/services/embedding/embedding-service-proxy"
 				);
@@ -207,22 +128,31 @@ export class ServiceManager {
 					"@/services/llm/llm-service-proxy"
 				);
 
+				this.databaseService = new DatabaseServiceProxy();
+				await this.initializeDatabase({ mode: DatabaseMode.PROXY });
+
 				this.embeddingService = new EmbeddingServiceProxy();
 				this.llmService = new LLMServiceProxy();
 				this.flowsService = new FlowsService();
 			} else {
 				logInfo("🔧 Creating full service implementations (offscreen thread)");
-				await this.initializeDatabase({ mode: DatabaseMode.MAIN });
 
-				// Dynamic imports isolate heavy implementations to offscreen thread only
-				// This ensures LocalEmbedding (@huggingface/transformers) and local LLMs
-				// are loaded only where they're actually used for processing
+				// Dynamic imports load full implementations ONLY in offscreen thread:
+				// - DatabaseServiceMain: Full PGlite + Drizzle with schemas
+				// - EmbeddingServiceMain: @huggingface/transformers + onnxruntime-web
+				// - LLMServiceMain: WebLLM + Wllama + full model loading
+				const { DatabaseServiceMain } = await import(
+					"@/services/database/database-service-main"
+				);
 				const { EmbeddingServiceMain } = await import(
 					"@/services/embedding/embedding-service-main"
 				);
 				const { LLMServiceMain } = await import(
 					"@/services/llm/llm-service-main"
 				);
+
+				this.databaseService = new DatabaseServiceMain();
+				await this.initializeDatabase({ mode: DatabaseMode.MAIN });
 
 				this.embeddingService = new EmbeddingServiceMain();
 				this.llmService = new LLMServiceMain();
@@ -453,7 +383,7 @@ export class ServiceManager {
 
 // Service registry for type-safe service access
 interface ServiceRegistry {
-	database: DatabaseService;
+	database: IDatabaseService;
 	embedding: IEmbeddingService;
 	llm: ILLMService;
 	flows: FlowsService;

@@ -1,5 +1,5 @@
 import { eq, like, desc } from "drizzle-orm";
-import type { Topic, NewTopic } from "@/services/database/entities/topics";
+import type { Topic, NewTopic } from "@/services/database/types";
 import { logInfo, logError } from "@/utils/logger";
 import { serviceManager } from "@/services";
 

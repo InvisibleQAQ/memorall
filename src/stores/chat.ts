@@ -3,7 +3,7 @@ import {
 	type Message,
 	type Conversation,
 	type NewConversation,
-} from "@/services/database/db";
+} from "@/services/database/types";
 import { serviceManager } from "@/services";
 import { eq, desc, asc } from "drizzle-orm";
 import { logError } from "@/utils/logger";

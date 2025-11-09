@@ -1,4 +1,4 @@
-import type { Message } from "@/services/database";
+import type { Message } from "@/services/database/types";
 
 export interface MessageGroup {
 	id: string;

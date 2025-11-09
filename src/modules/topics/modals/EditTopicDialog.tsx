@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { topicService } from "@/modules/topics/services/topic-service";
-import type { Topic } from "@/services/database/entities/topics";
+import type { Topic } from "@/services/database/types";
 import { logError, logInfo } from "@/utils/logger";
 
 interface EditTopicDialogProps {

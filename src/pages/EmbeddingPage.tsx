@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { serviceManager } from "@/services";
 import { logError, logInfo } from "@/utils/logger";
-import { schema } from "@/services/database/db";
+import { schema } from "@/services/database/schema";
 
 // Utility function to get vector columns from a table schema
 const getVectorColumns = (table: any): string[] => {

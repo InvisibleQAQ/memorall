@@ -22,7 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { topicService } from "@/modules/topics/services/topic-service";
-import type { Topic } from "@/services/database/entities/topics";
+import type { Topic } from "@/services/database/types";
 import { logError, logInfo } from "@/utils/logger";
 
 interface TopicSelectorDialogProps {

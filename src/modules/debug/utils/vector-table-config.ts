@@ -1,4 +1,4 @@
-import { schema } from "@/services/database/db";
+import { schema } from "@/services/database/schema";
 import { logInfo } from "@/utils/logger";
 
 // Utility function to get vector columns from a table schema

@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { topicService } from "@/modules/topics/services/topic-service";
-import type { Topic } from "@/services/database/entities/topics";
+import type { Topic } from "@/services/database/types";
 import { logError } from "@/utils/logger";
 
 interface TopicPickerDialogProps {

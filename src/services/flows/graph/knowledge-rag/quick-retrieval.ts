@@ -2,7 +2,7 @@ import type { AllServices } from "@/services/flows/interfaces/tool";
 import { logInfo, logError } from "@/utils/logger";
 import { and, or, inArray } from "drizzle-orm";
 import { vectorSearchEdges, vectorSearchNodes } from "@/utils/vector-search";
-import type { DatabaseService } from "@/services/database";
+import type { IDatabaseService } from "@/services/database";
 import { getScopedGraphWhere } from "@/utils/scoped-graph-query";
 import type { BaseEmbedding } from "@/services/embedding";
 
@@ -27,7 +27,7 @@ export class QuickRetrievalContextFlow {
 	}
 
 	private async performSemanticSearch(
-		databaseService: DatabaseService,
+		databaseService: IDatabaseService,
 		embeddingService: BaseEmbedding,
 		query: string,
 		limit: number,
@@ -82,7 +82,7 @@ export class QuickRetrievalContextFlow {
 	}
 
 	private async expandGraphLevel(
-		databaseService: DatabaseService,
+		databaseService: IDatabaseService,
 		nodeIds: string[],
 		maxNodes: number,
 		maxEdges: number,
@@ -174,7 +174,7 @@ export class QuickRetrievalContextFlow {
 	}
 
 	private async growKnowledgeGraph(
-		databaseService: DatabaseService,
+		databaseService: IDatabaseService,
 		initialNodes: KnowledgeRAGState["relevantNodes"],
 		initialEdges: KnowledgeRAGState["relevantEdges"],
 		config: GraphGrowthConfig,

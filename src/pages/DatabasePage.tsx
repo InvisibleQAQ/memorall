@@ -35,7 +35,7 @@ import {
 } from "drizzle-orm";
 import { serviceManager } from "@/services";
 import { logError, logInfo } from "@/utils/logger";
-import { schema } from "@/services/database/db";
+import { schema } from "@/services/database/schema";
 
 // Automatically build entity types from schema keys
 type EntityType = keyof typeof schema;

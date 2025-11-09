@@ -1,28 +1,21 @@
+import type { InferSelectModel } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
+import { logInfo, logError, logWarn } from "@/utils/logger";
+import type { Node, NewNode } from "@/services/database/entities/nodes";
+import type { Edge, NewEdge } from "@/services/database/entities/edges";
+import type { IEmbeddingService } from "@/services/embedding/interfaces/embedding-service.interface";
+import { schema } from "@/services/database/schema";
+
+import type { AllServices } from "../../interfaces/tool";
 import type {
 	KnowledgeGraphState,
 	ResolvedEntity,
 	EnrichedFact,
 } from "./state";
-import type { AllServices } from "../../interfaces/tool";
-import { logInfo, logError, logWarn } from "@/utils/logger";
-import type { NewSource } from "@/services/database/entities/sources";
-import type { Node, NewNode } from "@/services/database/entities/nodes";
-import type { Edge, NewEdge } from "@/services/database/entities/edges";
-import type { IEmbeddingService } from "@/services/embedding/interfaces/embedding-service.interface";
-import { getDB, schema } from "@/services/database/db";
-import type { InferSelectModel } from "drizzle-orm";
-import { eq, or } from "drizzle-orm";
 
 // Inferred database types
-type DatabaseInstance = ReturnType<typeof getDB>;
 type SchemaType = typeof schema;
 type SourceSelectType = InferSelectModel<typeof schema.sources>;
-
-// Database transaction context type
-type DatabaseContext = {
-	db: DatabaseInstance;
-	schema: SchemaType;
-};
 
 // Database operation result types
 type DatabaseSaveResult = {
@@ -101,12 +94,7 @@ export class DatabaseSaveFlow {
 			logInfo(
 				`[SAVE_TO_DATABASE] Creating ${state.resolvedEntities?.filter((e) => !e.isExisting).length || 0} nodes...`,
 			);
-			const createdNodes = await databaseService.use(async ({ db, schema }) => {
-				return await this.createNodes(state, createdSource, embeddingService, {
-					db,
-					schema,
-				});
-			});
+			const createdNodes = await this.createNodes(state, createdSource);
 			logInfo(
 				`[SAVE_TO_DATABASE] ${createdNodes.length} nodes created successfully`,
 			);
@@ -118,13 +106,7 @@ export class DatabaseSaveFlow {
 					: (state.resolvedFacts || []).filter((f) => !f.isExisting).length;
 			logInfo(`[SAVE_TO_DATABASE] Creating ${factsToProcess} edges...`);
 			const createdEdges = await databaseService.use(async ({ db, schema }) => {
-				return await this.createEdges(
-					state,
-					createdNodes,
-					createdSource,
-					embeddingService,
-					{ db, schema },
-				);
+				return await this.createEdges(state, createdNodes, createdSource);
 			});
 			logInfo(
 				`[SAVE_TO_DATABASE] ${createdEdges.length} edges created successfully`,
@@ -183,246 +165,217 @@ export class DatabaseSaveFlow {
 	private async createNodes(
 		state: KnowledgeGraphState,
 		createdSource: SourceSelectType,
-		embeddingService: IEmbeddingService | undefined,
-		{ db, schema }: DatabaseContext,
 	): Promise<Node[]> {
 		const createdNodes: Node[] = [];
 		const newEntities = state.resolvedEntities.filter((e) => !e.isExisting);
 		const skippedNodes: ResolvedEntity[] = [];
 
-		for (const entity of newEntities) {
-			try {
-				const nodeData: NewNode = {
-					nodeType: entity.nodeType,
-					name: entity.finalName,
-					summary: entity.summary,
-					attributes: entity.attributes || {},
-					graph: state.graphId,
-				};
+		return await this.services.database.use(async ({ db, schema }) => {
+			for (const entity of newEntities) {
+				try {
+					const nodeData: NewNode = {
+						nodeType: entity.nodeType,
+						name: entity.finalName,
+						summary: entity.summary,
+						attributes: entity.attributes || {},
+						graph: state.graphId,
+					};
 
-				// Generate embedding for node name
-				const nameEmbedding = await safeTextToVector(
-					embeddingService,
-					entity.finalName,
-					`NODE_EMBEDDING:${entity.finalName.substring(0, 50)}`,
-				);
-				if (nameEmbedding) {
-					nodeData.nameEmbedding = nameEmbedding;
+					// Generate embedding for node name
+					const nameEmbedding = await safeTextToVector(
+						this.services.embedding,
+						entity.finalName,
+						`NODE_EMBEDDING:${entity.finalName.substring(0, 50)}`,
+					);
+					if (nameEmbedding) {
+						nodeData.nameEmbedding = nameEmbedding;
+					}
+
+					const [createdNode] = await db
+						.insert(schema.nodes)
+						.values(nodeData)
+						.returning();
+
+					logInfo(
+						`[SAVE_TO_DATABASE] Created node with ID: ${createdNode.id} for entity: ${entity.finalName}`,
+					);
+					createdNodes.push(createdNode);
+
+					// Create source-node relationship
+					await db.insert(schema.sourceNodes).values({
+						sourceId: createdSource.id,
+						nodeId: createdNode.id,
+						relation: "MENTIONED_IN",
+						graph: state.graphId,
+					});
+				} catch (error) {
+					skippedNodes.push(entity);
+					logError(
+						`[SAVE_TO_DATABASE] Failed to create node for entity: ${entity.finalName}`,
+						error,
+					);
 				}
-
-				const [createdNode] = await db
-					.insert(schema.nodes)
-					.values(nodeData)
-					.returning();
-
-				logInfo(
-					`[SAVE_TO_DATABASE] Created node with ID: ${createdNode.id} for entity: ${entity.finalName}`,
-				);
-				createdNodes.push(createdNode);
-
-				// Create source-node relationship
-				await db.insert(schema.sourceNodes).values({
-					sourceId: createdSource.id,
-					nodeId: createdNode.id,
-					relation: "MENTIONED_IN",
-					graph: state.graphId,
-				});
-			} catch (error) {
-				skippedNodes.push(entity);
-				logError(
-					`[SAVE_TO_DATABASE] Failed to create node for entity: ${entity.finalName}`,
-					error,
-				);
 			}
-		}
 
-		// Log warning for skipped nodes
-		if (skippedNodes.length > 0) {
-			logWarn("[SAVE_TO_DATABASE] Skipped nodes that could not be stored:", {
-				count: skippedNodes.length,
-				skippedNodes: skippedNodes.map((entity) => ({
-					name: entity.finalName,
-					type: entity.nodeType,
-					uuid: entity.uuid,
-				})),
-			});
-		}
+			// Log warning for skipped nodes
+			if (skippedNodes.length > 0) {
+				logWarn("[SAVE_TO_DATABASE] Skipped nodes that could not be stored:", {
+					count: skippedNodes.length,
+					skippedNodes: skippedNodes.map((entity) => ({
+						name: entity.finalName,
+						type: entity.nodeType,
+						uuid: entity.uuid,
+					})),
+				});
+			}
 
-		return createdNodes;
+			return createdNodes;
+		});
 	}
 
 	private async createEdges(
 		state: KnowledgeGraphState,
 		createdNodes: Node[],
 		createdSource: SourceSelectType,
-		embeddingService: IEmbeddingService | undefined,
-		{ db, schema }: DatabaseContext,
 	): Promise<Edge[]> {
-		const createdEdges: Edge[] = [];
+		return await this.services.database.use(async ({ db, schema }) => {
+			const createdEdges: Edge[] = [];
 
-		// Handle both enrichedFacts (with temporal extraction) and resolvedFacts (without temporal extraction)
-		const factsToProcess =
-			state.enrichedFacts?.length > 0
-				? state.enrichedFacts.filter((f) => !f.isExisting)
-				: (state.resolvedFacts || [])
-						.filter((f) => !f.isExisting)
-						.map((fact) => ({
-							...fact,
-							temporal: { validAt: undefined, invalidAt: undefined },
-						}));
+			// Handle both enrichedFacts (with temporal extraction) and resolvedFacts (without temporal extraction)
+			const factsToProcess =
+				state.enrichedFacts?.length > 0
+					? state.enrichedFacts.filter((f) => !f.isExisting)
+					: (state.resolvedFacts || [])
+							.filter((f) => !f.isExisting)
+							.map((fact) => ({
+								...fact,
+								temporal: { validAt: undefined, invalidAt: undefined },
+							}));
 
-		logInfo(`[SAVE_TO_DATABASE] Processing facts:`, {
-			enrichedFactsCount: state.enrichedFacts?.length || 0,
-			resolvedFactsCount: state.resolvedFacts?.length || 0,
-			factsToProcessCount: factsToProcess.length,
-			usingEnrichedFacts: state.enrichedFacts?.length > 0,
-		});
+			logInfo(`[SAVE_TO_DATABASE] Processing facts:`, {
+				enrichedFactsCount: state.enrichedFacts?.length || 0,
+				resolvedFactsCount: state.resolvedFacts?.length || 0,
+				factsToProcessCount: factsToProcess.length,
+				usingEnrichedFacts: state.enrichedFacts?.length > 0,
+			});
 
-		const skippedEdges: (EnrichedFact | (typeof factsToProcess)[0])[] = [];
+			const skippedEdges: (EnrichedFact | (typeof factsToProcess)[0])[] = [];
 
-		// Create a lookup map for better performance including both created nodes AND existing nodes
-		const nodeNameToId = new Map<string, string>();
+			// Create a lookup map for better performance including both created nodes AND existing nodes
+			const nodeNameToId = new Map<string, string>();
 
-		// Add newly created nodes
-		for (const node of createdNodes) {
-			if (node.name && node.id) {
-				const nodeIdString = String(node.id);
-				nodeNameToId.set(node.name, nodeIdString);
+			// Add newly created nodes
+			for (const node of createdNodes) {
+				if (node.name && node.id) {
+					const nodeIdString = String(node.id);
+					nodeNameToId.set(node.name, nodeIdString);
+				}
 			}
-		}
 
-		// Add existing nodes from state.existingNodes
-		for (const node of state.existingNodes || []) {
-			if (node.name && node.id) {
-				const nodeIdString = String(node.id);
-				nodeNameToId.set(node.name, nodeIdString);
+			// Add existing nodes from state.existingNodes
+			for (const node of state.existingNodes || []) {
+				if (node.name && node.id) {
+					const nodeIdString = String(node.id);
+					nodeNameToId.set(node.name, nodeIdString);
+				}
 			}
-		}
 
-		logInfo(
-			`[SAVE_TO_DATABASE] Built nodeNameToId map with ${nodeNameToId.size} entries:`,
-			{
-				entries: Array.from(nodeNameToId.entries()),
-			},
-		);
+			logInfo(
+				`[SAVE_TO_DATABASE] Built nodeNameToId map with ${nodeNameToId.size} entries:`,
+				{
+					entries: Array.from(nodeNameToId.entries()),
+				},
+			);
 
-		for (const fact of factsToProcess) {
-			try {
-				// Map entity UUIDs to actual node IDs
-				const sourceEntity = state.resolvedEntities.find(
-					(e) => e.uuid === fact.sourceEntityId,
-				);
-				const destEntity = state.resolvedEntities.find(
-					(e) => e.uuid === fact.destinationEntityId,
-				);
-
-				if (!sourceEntity || !destEntity) {
-					skippedEdges.push(fact);
-					logError(
-						`[SAVE_TO_DATABASE] Could not find entities for fact: ${fact.sourceEntityId} -> ${fact.destinationEntityId}`,
-						{
-							sourceEntityId: fact.sourceEntityId,
-							destinationEntityId: fact.destinationEntityId,
-							availableEntityUuids: state.resolvedEntities.map((e) => ({
-								uuid: e.uuid,
-								name: e.finalName,
-							})),
-							factRelationType: fact.relationType,
-							factText: fact.factText,
-						},
-					);
-					continue;
-				}
-
-				logInfo(
-					`[SAVE_TO_DATABASE] Processing fact: ${sourceEntity.finalName} -> ${destEntity.finalName} (${fact.relationType})`,
-					{
-						sourceEntityUuid: sourceEntity.uuid,
-						destEntityUuid: destEntity.uuid,
-						sourceEntityName: sourceEntity.finalName,
-						destEntityName: destEntity.finalName,
-					},
-				);
-
-				// Get actual node IDs with consistent string conversion
-				const allNodes = [...createdNodes, ...(state.existingNodes || [])];
-				const sourceNodeId = this.getNodeId(
-					sourceEntity,
-					nodeNameToId,
-					allNodes,
-				);
-				const destNodeId = this.getNodeId(destEntity, nodeNameToId, allNodes);
-
-				logInfo(`[SAVE_TO_DATABASE] Node ID resolution results:`, {
-					sourceEntity: {
-						name: sourceEntity.finalName,
-						uuid: sourceEntity.uuid,
-						isExisting: sourceEntity.isExisting,
-						existingId: sourceEntity.existingId,
-						resolvedNodeId: sourceNodeId,
-					},
-					destEntity: {
-						name: destEntity.finalName,
-						uuid: destEntity.uuid,
-						isExisting: destEntity.isExisting,
-						existingId: destEntity.existingId,
-						resolvedNodeId: destNodeId,
-					},
-				});
-
-				if (!sourceNodeId || !destNodeId) {
-					skippedEdges.push(fact);
-					logError(
-						`[SAVE_TO_DATABASE] Could not resolve node IDs for entities: ${sourceEntity.finalName} -> ${destEntity.finalName}`,
-						{
-							sourceEntity: sourceEntity.finalName,
-							destEntity: destEntity.finalName,
-							sourceNodeId,
-							destNodeId,
-							sourceEntityIsExisting: sourceEntity.isExisting,
-							destEntityIsExisting: destEntity.isExisting,
-							sourceEntityExistingId: sourceEntity.existingId,
-							destEntityExistingId: destEntity.existingId,
-						},
-					);
-					continue;
-				}
-
-				// Validate that we have valid UUID strings
-				const uuidRegex =
-					/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-				if (!uuidRegex.test(sourceNodeId) || !uuidRegex.test(destNodeId)) {
-					skippedEdges.push(fact);
-					logError(
-						`[SAVE_TO_DATABASE] Invalid UUID format for node IDs: source=${sourceNodeId}, dest=${destNodeId}`,
-						{
-							sourceEntity: sourceEntity.finalName,
-							destEntity: destEntity.finalName,
-							sourceNodeId,
-							destNodeId,
-						},
-					);
-					continue;
-				}
-
-				// Validate that both node IDs exist in the database
+			for (const fact of factsToProcess) {
 				try {
-					const nodeExistenceCheck = await db
-						.select({ id: schema.nodes.id })
-						.from(schema.nodes)
-						.where(
-							or(
-								eq(schema.nodes.id, sourceNodeId),
-								eq(schema.nodes.id, destNodeId),
-							),
-						);
+					// Map entity UUIDs to actual node IDs
+					const sourceEntity = state.resolvedEntities.find(
+						(e) => e.uuid === fact.sourceEntityId,
+					);
+					const destEntity = state.resolvedEntities.find(
+						(e) => e.uuid === fact.destinationEntityId,
+					);
 
-					const existingIds = new Set(nodeExistenceCheck.map((n) => n.id));
-
-					if (!existingIds.has(sourceNodeId)) {
+					if (!sourceEntity || !destEntity) {
 						skippedEdges.push(fact);
 						logError(
-							`[SAVE_TO_DATABASE] Source node ID does not exist: ${sourceNodeId}`,
+							`[SAVE_TO_DATABASE] Could not find entities for fact: ${fact.sourceEntityId} -> ${fact.destinationEntityId}`,
+							{
+								sourceEntityId: fact.sourceEntityId,
+								destinationEntityId: fact.destinationEntityId,
+								availableEntityUuids: state.resolvedEntities.map((e) => ({
+									uuid: e.uuid,
+									name: e.finalName,
+								})),
+								factRelationType: fact.relationType,
+								factText: fact.factText,
+							},
+						);
+						continue;
+					}
+
+					logInfo(
+						`[SAVE_TO_DATABASE] Processing fact: ${sourceEntity.finalName} -> ${destEntity.finalName} (${fact.relationType})`,
+						{
+							sourceEntityUuid: sourceEntity.uuid,
+							destEntityUuid: destEntity.uuid,
+							sourceEntityName: sourceEntity.finalName,
+							destEntityName: destEntity.finalName,
+						},
+					);
+
+					// Get actual node IDs with consistent string conversion
+					const allNodes = [...createdNodes, ...(state.existingNodes || [])];
+					const sourceNodeId = this.getNodeId(
+						sourceEntity,
+						nodeNameToId,
+						allNodes,
+					);
+					const destNodeId = this.getNodeId(destEntity, nodeNameToId, allNodes);
+
+					logInfo(`[SAVE_TO_DATABASE] Node ID resolution results:`, {
+						sourceEntity: {
+							name: sourceEntity.finalName,
+							uuid: sourceEntity.uuid,
+							isExisting: sourceEntity.isExisting,
+							existingId: sourceEntity.existingId,
+							resolvedNodeId: sourceNodeId,
+						},
+						destEntity: {
+							name: destEntity.finalName,
+							uuid: destEntity.uuid,
+							isExisting: destEntity.isExisting,
+							existingId: destEntity.existingId,
+							resolvedNodeId: destNodeId,
+						},
+					});
+
+					if (!sourceNodeId || !destNodeId) {
+						skippedEdges.push(fact);
+						logError(
+							`[SAVE_TO_DATABASE] Could not resolve node IDs for entities: ${sourceEntity.finalName} -> ${destEntity.finalName}`,
+							{
+								sourceEntity: sourceEntity.finalName,
+								destEntity: destEntity.finalName,
+								sourceNodeId,
+								destNodeId,
+								sourceEntityIsExisting: sourceEntity.isExisting,
+								destEntityIsExisting: destEntity.isExisting,
+								sourceEntityExistingId: sourceEntity.existingId,
+								destEntityExistingId: destEntity.existingId,
+							},
+						);
+						continue;
+					}
+
+					// Validate that we have valid UUID strings
+					const uuidRegex =
+						/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+					if (!uuidRegex.test(sourceNodeId) || !uuidRegex.test(destNodeId)) {
+						skippedEdges.push(fact);
+						logError(
+							`[SAVE_TO_DATABASE] Invalid UUID format for node IDs: source=${sourceNodeId}, dest=${destNodeId}`,
 							{
 								sourceEntity: sourceEntity.finalName,
 								destEntity: destEntity.finalName,
@@ -433,140 +386,169 @@ export class DatabaseSaveFlow {
 						continue;
 					}
 
-					if (!existingIds.has(destNodeId)) {
+					// Validate that both node IDs exist in the database
+					try {
+						const nodeExistenceCheck = await db
+							.select({ id: schema.nodes.id })
+							.from(schema.nodes)
+							.where(
+								or(
+									eq(schema.nodes.id, sourceNodeId),
+									eq(schema.nodes.id, destNodeId),
+								),
+							);
+
+						const existingIds = new Set(nodeExistenceCheck.map((n) => n.id));
+
+						if (!existingIds.has(sourceNodeId)) {
+							skippedEdges.push(fact);
+							logError(
+								`[SAVE_TO_DATABASE] Source node ID does not exist: ${sourceNodeId}`,
+								{
+									sourceEntity: sourceEntity.finalName,
+									destEntity: destEntity.finalName,
+									sourceNodeId,
+									destNodeId,
+								},
+							);
+							continue;
+						}
+
+						if (!existingIds.has(destNodeId)) {
+							skippedEdges.push(fact);
+							logError(
+								`[SAVE_TO_DATABASE] Destination node ID does not exist: ${destNodeId}`,
+								{
+									sourceEntity: sourceEntity.finalName,
+									destEntity: destEntity.finalName,
+									sourceNodeId,
+									destNodeId,
+								},
+							);
+							continue;
+						}
+					} catch (nodeCheckError) {
 						skippedEdges.push(fact);
 						logError(
-							`[SAVE_TO_DATABASE] Destination node ID does not exist: ${destNodeId}`,
-							{
-								sourceEntity: sourceEntity.finalName,
-								destEntity: destEntity.finalName,
-								sourceNodeId,
-								destNodeId,
-							},
+							`[SAVE_TO_DATABASE] Failed to validate node existence for edge: ${sourceNodeId} -> ${destNodeId}`,
+							nodeCheckError,
 						);
 						continue;
 					}
-				} catch (nodeCheckError) {
-					skippedEdges.push(fact);
-					logError(
-						`[SAVE_TO_DATABASE] Failed to validate node existence for edge: ${sourceNodeId} -> ${destNodeId}`,
-						nodeCheckError,
-					);
-					continue;
-				}
 
-				const edgeData: NewEdge = {
-					sourceId: sourceNodeId,
-					destinationId: destNodeId,
-					edgeType: fact.relationType,
-					factText: fact.factText,
-					validAt: fact.temporal?.validAt
-						? new Date(fact.temporal.validAt)
-						: undefined,
-					invalidAt: fact.temporal?.invalidAt
-						? new Date(fact.temporal.invalidAt)
-						: undefined,
-					recordedAt: new Date(),
-					attributes: fact.attributes || {},
-					graph: state.graphId,
-				};
-
-				// Generate embeddings for fact
-				const factEmbedding = await safeTextToVector(
-					embeddingService,
-					fact.factText,
-					`FACT_EMBEDDING:${fact.factText.substring(0, 50)}`,
-				);
-				const typeEmbedding = await safeTextToVector(
-					embeddingService,
-					fact.relationType,
-					`TYPE_EMBEDDING:${fact.relationType}`,
-				);
-
-				if (factEmbedding) {
-					edgeData.factEmbedding = factEmbedding;
-				}
-				if (typeEmbedding) {
-					edgeData.typeEmbedding = typeEmbedding;
-				}
-
-				let createdEdge: Edge;
-				try {
-					const [edge] = await db
-						.insert(schema.edges)
-						.values(edgeData)
-						.returning();
-					createdEdge = edge;
-				} catch (edgeError) {
-					skippedEdges.push(fact);
-
-					// Extract more detailed error information
-					let errorDetails = {
-						error:
-							edgeError instanceof Error
-								? edgeError.message
-								: String(edgeError),
-						sourceNodeId,
-						destNodeId,
-						edgeData: {
-							sourceId: edgeData.sourceId,
-							destinationId: edgeData.destinationId,
-							edgeType: edgeData.edgeType,
-							factText: edgeData.factText,
-							graph: edgeData.graph,
-						},
-						edgeError,
+					const edgeData: NewEdge = {
+						sourceId: sourceNodeId,
+						destinationId: destNodeId,
+						edgeType: fact.relationType,
+						factText: fact.factText,
+						validAt: fact.temporal?.validAt
+							? new Date(fact.temporal.validAt)
+							: undefined,
+						invalidAt: fact.temporal?.invalidAt
+							? new Date(fact.temporal.invalidAt)
+							: undefined,
+						recordedAt: new Date(),
+						attributes: fact.attributes || {},
+						graph: state.graphId,
 					};
 
+					// Generate embeddings for fact
+					const factEmbedding = await safeTextToVector(
+						this.services.embedding,
+						fact.factText,
+						`FACT_EMBEDDING:${fact.factText.substring(0, 50)}`,
+					);
+					const typeEmbedding = await safeTextToVector(
+						this.services.embedding,
+						fact.relationType,
+						`TYPE_EMBEDDING:${fact.relationType}`,
+					);
+
+					if (factEmbedding) {
+						edgeData.factEmbedding = factEmbedding;
+					}
+					if (typeEmbedding) {
+						edgeData.typeEmbedding = typeEmbedding;
+					}
+
+					let createdEdge: Edge;
+					try {
+						const [edge] = await db
+							.insert(schema.edges)
+							.values(edgeData)
+							.returning();
+						createdEdge = edge;
+					} catch (edgeError) {
+						skippedEdges.push(fact);
+
+						// Extract more detailed error information
+						let errorDetails = {
+							error:
+								edgeError instanceof Error
+									? edgeError.message
+									: String(edgeError),
+							sourceNodeId,
+							destNodeId,
+							edgeData: {
+								sourceId: edgeData.sourceId,
+								destinationId: edgeData.destinationId,
+								edgeType: edgeData.edgeType,
+								factText: edgeData.factText,
+								graph: edgeData.graph,
+							},
+							edgeError,
+						};
+
+						logError(
+							`[SAVE_TO_DATABASE] Failed to create edge for fact: ${fact.sourceEntityId} -> ${fact.destinationEntityId}`,
+							errorDetails,
+						);
+						continue; // Continue with next edge instead of failing the entire operation
+					}
+
+					createdEdges.push(createdEdge);
+
+					// Create source-edge relationship
+					try {
+						await db.insert(schema.sourceEdges).values({
+							sourceId: createdSource.id,
+							edgeId: createdEdge.id,
+							relation: "EXTRACTED_FROM",
+							linkWeight: 1.0,
+							graph: state.graphId,
+						});
+					} catch (sourceEdgeError) {
+						logError(
+							`[SAVE_TO_DATABASE] Failed to create source-edge relationship for edge ${createdEdge.id}`,
+							sourceEdgeError,
+						);
+						// Don't skip the edge since it was already created successfully
+					}
+				} catch (error) {
+					skippedEdges.push(fact);
 					logError(
-						`[SAVE_TO_DATABASE] Failed to create edge for fact: ${fact.sourceEntityId} -> ${fact.destinationEntityId}`,
-						errorDetails,
+						`[SAVE_TO_DATABASE] Unexpected error while processing fact: ${fact.sourceEntityId} -> ${fact.destinationEntityId}`,
+						error,
 					);
 					continue; // Continue with next edge instead of failing the entire operation
 				}
-
-				createdEdges.push(createdEdge);
-
-				// Create source-edge relationship
-				try {
-					await db.insert(schema.sourceEdges).values({
-						sourceId: createdSource.id,
-						edgeId: createdEdge.id,
-						relation: "EXTRACTED_FROM",
-						linkWeight: 1.0,
-						graph: state.graphId,
-					});
-				} catch (sourceEdgeError) {
-					logError(
-						`[SAVE_TO_DATABASE] Failed to create source-edge relationship for edge ${createdEdge.id}`,
-						sourceEdgeError,
-					);
-					// Don't skip the edge since it was already created successfully
-				}
-			} catch (error) {
-				skippedEdges.push(fact);
-				logError(
-					`[SAVE_TO_DATABASE] Unexpected error while processing fact: ${fact.sourceEntityId} -> ${fact.destinationEntityId}`,
-					error,
-				);
-				continue; // Continue with next edge instead of failing the entire operation
 			}
-		}
 
-		// Log warning for skipped edges
-		if (skippedEdges.length > 0) {
-			logWarn("[SAVE_TO_DATABASE] Skipped edges that could not be stored:", {
-				count: skippedEdges.length,
-				skippedEdges: skippedEdges.map((fact) => ({
-					relationType: fact.relationType,
-					factText: fact.factText,
-					sourceEntityId: fact.sourceEntityId,
-					destinationEntityId: fact.destinationEntityId,
-				})),
-			});
-		}
+			// Log warning for skipped edges
+			if (skippedEdges.length > 0) {
+				logWarn("[SAVE_TO_DATABASE] Skipped edges that could not be stored:", {
+					count: skippedEdges.length,
+					skippedEdges: skippedEdges.map((fact) => ({
+						relationType: fact.relationType,
+						factText: fact.factText,
+						sourceEntityId: fact.sourceEntityId,
+						destinationEntityId: fact.destinationEntityId,
+					})),
+				});
+			}
 
-		return createdEdges;
+			return createdEdges;
+		});
 	}
 
 	private getNodeId(

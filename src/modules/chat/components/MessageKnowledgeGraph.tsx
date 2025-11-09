@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { D3KnowledgeGraph } from "@/modules/knowledge/components/D3KnowledgeGraph";
-import type { Node, Edge } from "@/services/database/db";
+import type { Node, Edge } from "@/services/database/types";
 
 // Match the exact types from KnowledgeRAGState
 interface MessageKnowledgeGraphProps {

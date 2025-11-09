@@ -19,7 +19,7 @@ import {
 	Tags,
 } from "lucide-react";
 import type { DocumentFile } from "@/types/document-library";
-import type { Topic } from "@/services/database/entities/topics";
+import type { Topic } from "@/services/database/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

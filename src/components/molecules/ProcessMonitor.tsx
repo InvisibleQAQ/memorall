@@ -28,8 +28,8 @@ import {
 } from "@/stores/process-monitor";
 import { serviceManager } from "@/services";
 import { eq, desc } from "drizzle-orm";
-import { getEffectiveSourceStatus } from "@/services/database/entities/sources";
-import type { Source } from "@/services/database/entities/sources";
+import { getEffectiveSourceStatus } from "@/services/database/types";
+import type { Source } from "@/services/database/types";
 import { logError } from "@/utils/logger";
 import { cn } from "@/lib/utils";
 

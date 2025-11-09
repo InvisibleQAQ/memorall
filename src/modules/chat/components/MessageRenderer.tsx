@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/shadcn-io/ai/task";
 import { MermaidRenderer } from "@/components/atoms/MermaidRenderer";
 import { MessageKnowledgeGraph } from "./MessageKnowledgeGraph";
-import type { Message as DBMessage } from "@/services/database";
+import type { Message as DBMessage } from "@/services/database/types";
 import dayjs from "dayjs";
 
 const USE_STREAMDOWN = false;

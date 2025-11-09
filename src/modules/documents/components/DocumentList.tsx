@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { TopicBadgeList } from "@/modules/topics/components";
-import type { Topic } from "@/services/database/entities/topics";
+import type { Topic } from "@/services/database/types";
 import type { SourceStatus } from "../hooks/useSourceStatus";
 import { useProcessMonitor } from "@/stores/process-monitor";
 

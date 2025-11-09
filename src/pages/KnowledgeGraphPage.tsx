@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Search, Network } from "lucide-react";
 import { D3KnowledgeGraph } from "@/modules/knowledge/components/D3KnowledgeGraph";
-import type { Node, Edge } from "@/services/database/db";
+import type { Node, Edge } from "@/services/database/types";
 import { serviceManager } from "@/services";
 import { logError, logInfo } from "@/utils/logger";
 import { eq, sql, or } from "drizzle-orm";

@@ -9,7 +9,7 @@ import { backgroundJob } from "@/services/background-jobs/background-job";
 import { documentStorageService } from "../services/document-storage";
 import { topicService } from "@/modules/topics/services/topic-service";
 import type { DocumentFile } from "@/types/document-library";
-import type { Topic } from "@/services/database/entities/topics";
+import type { Topic } from "@/services/database/types";
 import {
 	parseExcelFile,
 	workbookToMarkdown,
