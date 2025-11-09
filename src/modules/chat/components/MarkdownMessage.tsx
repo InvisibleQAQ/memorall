@@ -40,204 +40,210 @@ interface CitationProps {
 	label: string;
 }
 
-const Citation: React.FC<CitationProps> = ({ type, uuid, label }) => {
-	const [open, setOpen] = useState(false);
-	const [data, setData] = useState<{
-		name?: string;
-		summary?: string;
-		nodeType?: string;
-		edgeType?: string;
-		factText?: string;
-		sourceNode?: string;
-		destNode?: string;
-	} | null>(null);
-	const [loading, setLoading] = useState(false);
+const Citation: React.FC<CitationProps> = React.memo(
+	({ type, uuid, label }) => {
+		const [open, setOpen] = useState(false);
+		const [data, setData] = useState<{
+			name?: string;
+			summary?: string;
+			nodeType?: string;
+			edgeType?: string;
+			factText?: string;
+			sourceNode?: string;
+			destNode?: string;
+		} | null>(null);
+		const [loading, setLoading] = useState(false);
 
-	const loadData = async () => {
-		if (data || loading) return;
+		const loadData = React.useCallback(async () => {
+			if (data || loading) return;
 
-		setLoading(true);
-		try {
-			await serviceManager.databaseService.use(async ({ db, schema }) => {
-				if (type === "node") {
-					const result = await db
-						.select({
-							name: schema.nodes.name,
-							summary: schema.nodes.summary,
-							nodeType: schema.nodes.nodeType,
-						})
-						.from(schema.nodes)
-						.where(eq(schema.nodes.id, uuid))
-						.limit(1);
+			setLoading(true);
+			try {
+				await serviceManager.databaseService.use(async ({ db, schema }) => {
+					if (type === "node") {
+						const result = await db
+							.select({
+								name: schema.nodes.name,
+								summary: schema.nodes.summary,
+								nodeType: schema.nodes.nodeType,
+							})
+							.from(schema.nodes)
+							.where(eq(schema.nodes.id, uuid))
+							.limit(1);
 
-					if (result[0]) {
-						setData({
-							name: result[0].name,
-							summary: result[0].summary || "",
-							nodeType: result[0].nodeType,
-						});
-					}
-				} else {
-					// Edge
-					const result = await db
-						.select({
-							edgeType: schema.edges.edgeType,
-							factText: schema.edges.factText,
-							sourceId: schema.edges.sourceId,
-							destinationId: schema.edges.destinationId,
-						})
-						.from(schema.edges)
-						.where(eq(schema.edges.id, uuid))
-						.limit(1);
-
-					if (result[0]) {
-						// Get source and destination node names
-						const [sourceNode, destNode] = await Promise.all([
-							db
-								.select({ name: schema.nodes.name })
-								.from(schema.nodes)
-								.where(eq(schema.nodes.id, result[0].sourceId))
-								.limit(1),
-							db
-								.select({ name: schema.nodes.name })
-								.from(schema.nodes)
-								.where(eq(schema.nodes.id, result[0].destinationId))
-								.limit(1),
-						]);
-
-						setData({
-							edgeType: result[0].edgeType,
-							factText: result[0].factText || "",
-							sourceNode: sourceNode[0]?.name,
-							destNode: destNode[0]?.name,
-						});
-					}
-				}
-			});
-		} catch (error) {
-			console.error("Failed to load citation data:", error);
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	return (
-		<Popover open={open} onOpenChange={setOpen}>
-			<PopoverTrigger asChild>
-				<button
-					className={cn(
-						"inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium",
-						"transition-all duration-200",
-						"hover:scale-105",
-						type === "node"
-							? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
-							: "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50",
-					)}
-					onClick={() => {
-						if (!data && !loading) {
-							loadData();
+						if (result[0]) {
+							setData({
+								name: result[0].name,
+								summary: result[0].summary || "",
+								nodeType: result[0].nodeType,
+							});
 						}
-					}}
-				>
-					{type === "node" ? (
-						<Network className="w-3 h-3" />
-					) : (
-						<Link2 className="w-3 h-3" />
-					)}
-					<span>{label}</span>
-				</button>
-			</PopoverTrigger>
-			<PopoverContent className="w-80" align="start">
-				<div className="space-y-3">
-					<div className="flex items-center gap-2">
-						{type === "node" ? (
-							<Network className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-						) : (
-							<Link2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-						)}
-						<h4 className="font-semibold text-sm">
-							{type === "node" ? "Knowledge Node" : "Knowledge Edge"}
-						</h4>
-					</div>
+					} else {
+						const result = await db
+							.select({
+								edgeType: schema.edges.edgeType,
+								factText: schema.edges.factText,
+								sourceId: schema.edges.sourceId,
+								destinationId: schema.edges.destinationId,
+							})
+							.from(schema.edges)
+							.where(eq(schema.edges.id, uuid))
+							.limit(1);
 
-					{loading ? (
-						<div className="flex items-center gap-2 text-sm text-muted-foreground">
-							<Sparkles className="w-4 h-4 animate-spin" />
-							<span>Loading...</span>
-						</div>
-					) : data ? (
-						<div className="space-y-2">
+						if (result[0]) {
+							const [sourceNode, destNode] = await Promise.all([
+								db
+									.select({ name: schema.nodes.name })
+									.from(schema.nodes)
+									.where(eq(schema.nodes.id, result[0].sourceId))
+									.limit(1),
+								db
+									.select({ name: schema.nodes.name })
+									.from(schema.nodes)
+									.where(eq(schema.nodes.id, result[0].destinationId))
+									.limit(1),
+							]);
+
+							setData({
+								edgeType: result[0].edgeType,
+								factText: result[0].factText || "",
+								sourceNode: sourceNode[0]?.name,
+								destNode: destNode[0]?.name,
+							});
+						}
+					}
+				});
+			} catch (error) {
+				console.error("Failed to load citation data:", error);
+			} finally {
+				setLoading(false);
+			}
+		}, [data, loading, type, uuid]);
+
+		return (
+			<Popover open={open} onOpenChange={setOpen}>
+				<PopoverTrigger asChild>
+					<button
+						className={cn(
+							"inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium",
+							"transition-all duration-200",
+							"hover:scale-105",
+							type === "node"
+								? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
+								: "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50",
+						)}
+						onClick={() => {
+							if (!data && !loading) {
+								loadData();
+							}
+						}}
+					>
+						{type === "node" ? (
+							<Network className="w-3 h-3" />
+						) : (
+							<Link2 className="w-3 h-3" />
+						)}
+						<span>{label}</span>
+					</button>
+				</PopoverTrigger>
+				<PopoverContent className="w-80" align="start">
+					<div className="space-y-3">
+						<div className="flex items-center gap-2">
 							{type === "node" ? (
-								<>
-									<div>
-										<div className="text-xs text-muted-foreground">Name</div>
-										<div className="text-sm font-medium">{data.name}</div>
-									</div>
-									{data.nodeType && (
-										<div>
-											<div className="text-xs text-muted-foreground">Type</div>
-											<div className="text-sm">{data.nodeType}</div>
-										</div>
-									)}
-									{data.summary && (
-										<div>
-											<div className="text-xs text-muted-foreground">
-												Summary
-											</div>
-											<div className="text-sm text-muted-foreground line-clamp-3">
-												{data.summary}
-											</div>
-										</div>
-									)}
-								</>
+								<Network className="w-4 h-4 text-blue-600 dark:text-blue-400" />
 							) : (
-								<>
-									{data.sourceNode && data.destNode && (
-										<div>
-											<div className="text-xs text-muted-foreground">
-												Connection
-											</div>
-											<div className="text-sm">
-												<span className="font-medium">{data.sourceNode}</span>
-												<span className="text-muted-foreground mx-1">→</span>
-												<span className="font-medium">{data.destNode}</span>
-											</div>
-										</div>
-									)}
-									{data.edgeType && (
-										<div>
-											<div className="text-xs text-muted-foreground">
-												Relationship
-											</div>
-											<div className="text-sm font-medium">{data.edgeType}</div>
-										</div>
-									)}
-									{data.factText && (
-										<div>
-											<div className="text-xs text-muted-foreground">Fact</div>
-											<div className="text-sm text-muted-foreground">
-												{data.factText}
-											</div>
-										</div>
-									)}
-								</>
+								<Link2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
 							)}
-							<div className="pt-2 border-t">
-								<div className="text-xs text-muted-foreground font-mono truncate">
-									ID: {uuid}
+							<h4 className="font-semibold text-sm">
+								{type === "node" ? "Knowledge Node" : "Knowledge Edge"}
+							</h4>
+						</div>
+
+						{loading ? (
+							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+								<Sparkles className="w-4 h-4 animate-spin" />
+								<span>Loading...</span>
+							</div>
+						) : data ? (
+							<div className="space-y-2">
+								{type === "node" ? (
+									<>
+										<div>
+											<div className="text-xs text-muted-foreground">Name</div>
+											<div className="text-sm font-medium">{data.name}</div>
+										</div>
+										{data.nodeType && (
+											<div>
+												<div className="text-xs text-muted-foreground">
+													Type
+												</div>
+												<div className="text-sm">{data.nodeType}</div>
+											</div>
+										)}
+										{data.summary && (
+											<div>
+												<div className="text-xs text-muted-foreground">
+													Summary
+												</div>
+												<div className="text-sm text-muted-foreground line-clamp-3">
+													{data.summary}
+												</div>
+											</div>
+										)}
+									</>
+								) : (
+									<>
+										{data.sourceNode && data.destNode && (
+											<div>
+												<div className="text-xs text-muted-foreground">
+													Connection
+												</div>
+												<div className="text-sm">
+													<span className="font-medium">{data.sourceNode}</span>
+													<span className="text-muted-foreground mx-1">→</span>
+													<span className="font-medium">{data.destNode}</span>
+												</div>
+											</div>
+										)}
+										{data.edgeType && (
+											<div>
+												<div className="text-xs text-muted-foreground">
+													Relationship
+												</div>
+												<div className="text-sm font-medium">
+													{data.edgeType}
+												</div>
+											</div>
+										)}
+										{data.factText && (
+											<div>
+												<div className="text-xs text-muted-foreground">
+													Fact
+												</div>
+												<div className="text-sm text-muted-foreground">
+													{data.factText}
+												</div>
+											</div>
+										)}
+									</>
+								)}
+								<div className="pt-2 border-t">
+									<div className="text-xs text-muted-foreground font-mono truncate">
+										ID: {uuid}
+									</div>
 								</div>
 							</div>
-						</div>
-					) : (
-						<div className="text-sm text-muted-foreground">
-							Click to load details
-						</div>
-					)}
-				</div>
-			</PopoverContent>
-		</Popover>
-	);
-};
+						) : (
+							<div className="text-sm text-muted-foreground">
+								Click to load details
+							</div>
+						)}
+					</div>
+				</PopoverContent>
+			</Popover>
+		);
+	},
+);
 
 // Parse and extract <think> tags from content
 interface ParsedContent {
@@ -414,65 +420,63 @@ const MarkdownMessageComponent: React.FC<MarkdownMessageProps> = ({
 	const { actualTheme } = useTheme();
 	const isDark = actualTheme === "dark";
 
-	// Parse thinking tags from content
 	const { thinking, content, hasIncompleteThinking } = useMemo(() => {
 		if (!children)
 			return { thinking: [], content: "", hasIncompleteThinking: false };
 		return parseThinkTags(children, isStreaming);
 	}, [children, isStreaming]);
 
-	// Create theme-aware markdown components with useMemo to avoid recreating on every render
+	const codeRenderer = useMemo(() => {
+		return ({ children, className, ...props }: any) => {
+			const match = /language-(\w+)/.exec(className || "");
+			const language = match ? match[1] : "";
+			const isInline = !match;
+
+			if (isInline) {
+				return (
+					<code
+						className="rounded bg-gray-200 dark:bg-gray-700 px-0.5 text-xs font-mono"
+						{...props}
+					>
+						{children}
+					</code>
+				);
+			}
+
+			if (language === "mermaid") {
+				const chartContent = String(children).replace(/\n$/, "");
+				return <MermaidRenderer chart={chartContent} />;
+			}
+
+			return (
+				<SyntaxHighlighter
+					style={isDark ? oneDark : oneLight}
+					language={language}
+					PreTag="div"
+					className="rounded-md text-sm"
+					customStyle={{
+						margin: 0,
+						padding: "1rem",
+						backgroundColor: isDark ? "hsl(220 13% 18%)" : "hsl(210 40% 98%)",
+					}}
+					{...props}
+				>
+					{String(children).replace(/\n$/, "")}
+				</SyntaxHighlighter>
+			);
+		};
+	}, [isDark]);
+
 	const themeAwareComponents = useMemo(() => {
-		// If animating, use lightweight components
 		if (isStreaming && SEPARATE_RENDER_STREAM) {
 			return animatingComponents;
 		}
 
-		// Full components with syntax highlighting and mermaid
 		return {
 			...markdownComponents,
-			code: ({ children, className, ...props }: any) => {
-				const match = /language-(\w+)/.exec(className || "");
-				const language = match ? match[1] : "";
-				const isInline = !match;
-
-				if (isInline) {
-					return (
-						<code
-							className="rounded bg-gray-200 dark:bg-gray-700 px-0.5 text-xs font-mono"
-							{...props}
-						>
-							{children}
-						</code>
-					);
-				}
-
-				// Handle mermaid diagrams
-				if (language === "mermaid") {
-					const chartContent = String(children).replace(/\n$/, "");
-					return <MermaidRenderer chart={chartContent} />;
-				}
-
-				// Use syntax highlighter for code blocks with theme-aware styling
-				return (
-					<SyntaxHighlighter
-						style={isDark ? oneDark : oneLight}
-						language={language}
-						PreTag="div"
-						className="rounded-md text-sm"
-						customStyle={{
-							margin: 0,
-							padding: "1rem",
-							backgroundColor: isDark ? "hsl(220 13% 18%)" : "hsl(210 40% 98%)",
-						}}
-						{...props}
-					>
-						{String(children).replace(/\n$/, "")}
-					</SyntaxHighlighter>
-				);
-			},
+			code: codeRenderer,
 		};
-	}, [isDark, isStreaming]);
+	}, [codeRenderer, isStreaming]);
 
 	return (
 		<div

@@ -82,12 +82,7 @@
 
 import { logError, logInfo, logWarn } from "@/utils/logger";
 import type { IEmbeddingService } from "@/services/embedding";
-import {
-	EmbeddingServiceMain,
-	EmbeddingServiceProxy,
-} from "@/services/embedding";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
-import { LLMServiceProxy, LLMServiceMain } from "@/services/llm";
 import { FlowsService } from "./flows";
 import { DatabaseMode, DatabaseService } from "./database";
 
@@ -196,18 +191,39 @@ export class ServiceManager {
 		this.updateProgress(`Initializing services (${mode})`, 5);
 
 		try {
-			// Create service instances based on mode
+			this.databaseService = DatabaseService.getInstance();
+
 			if (options.proxy) {
-				logInfo("🔧 Creating lite service implementations");
-				this.databaseService = DatabaseService.getInstance();
+				logInfo("🔧 Creating lite service implementations (popup thread)");
 				await this.initializeDatabase({ mode: DatabaseMode.PROXY });
+
+				// Dynamic imports ensure heavy implementations (LocalEmbedding, WllamaLLM)
+				// and their dependencies (@huggingface/transformers, etc.) are NEVER loaded
+				// in the popup thread, keeping the UI fast and responsive
+				const { EmbeddingServiceProxy } = await import(
+					"@/services/embedding/embedding-service-proxy"
+				);
+				const { LLMServiceProxy } = await import(
+					"@/services/llm/llm-service-proxy"
+				);
+
 				this.embeddingService = new EmbeddingServiceProxy();
 				this.llmService = new LLMServiceProxy();
 				this.flowsService = new FlowsService();
 			} else {
-				logInfo("🔧 Creating full service implementations");
-				this.databaseService = DatabaseService.getInstance();
+				logInfo("🔧 Creating full service implementations (offscreen thread)");
 				await this.initializeDatabase({ mode: DatabaseMode.MAIN });
+
+				// Dynamic imports isolate heavy implementations to offscreen thread only
+				// This ensures LocalEmbedding (@huggingface/transformers) and local LLMs
+				// are loaded only where they're actually used for processing
+				const { EmbeddingServiceMain } = await import(
+					"@/services/embedding/embedding-service-main"
+				);
+				const { LLMServiceMain } = await import(
+					"@/services/llm/llm-service-main"
+				);
+
 				this.embeddingService = new EmbeddingServiceMain();
 				this.llmService = new LLMServiceMain();
 				this.flowsService = new FlowsService();

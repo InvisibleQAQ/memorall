@@ -1,4 +1,4 @@
-import React, { useRef, lazy, Suspense } from "react";
+import React, { useRef, lazy, Suspense, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	Loader2,
@@ -12,6 +12,7 @@ import {
 	Database,
 	Brain,
 	Zap,
+	type LucideIcon,
 } from "lucide-react";
 import { Message, MessageContent } from "@/components/ui/shadcn-io/ai/message";
 import {
@@ -88,74 +89,80 @@ interface ActionItem {
 
 // Type guard for knowledge graph metadata
 function isKnowledgeGraphMetadata(
-	metadata: Record<string, unknown> | undefined
+	metadata: Record<string, unknown> | undefined,
 ): metadata is KnowledgeGraphMetadata {
 	if (!metadata) return false;
 
-	const hasNodes = Array.isArray(metadata.nodes) &&
-		metadata.nodes.every((node: unknown): node is KnowledgeGraphMetadata['nodes'][number] =>
-			typeof node === 'object' &&
-			node !== null &&
-			'id' in node &&
-			'nodeType' in node &&
-			'name' in node &&
-			typeof node.id === 'string' &&
-			typeof node.nodeType === 'string' &&
-			typeof node.name === 'string'
+	const hasNodes =
+		Array.isArray(metadata.nodes) &&
+		metadata.nodes.every(
+			(node: unknown): node is KnowledgeGraphMetadata["nodes"][number] =>
+				typeof node === "object" &&
+				node !== null &&
+				"id" in node &&
+				"nodeType" in node &&
+				"name" in node &&
+				typeof node.id === "string" &&
+				typeof node.nodeType === "string" &&
+				typeof node.name === "string",
 		);
 
-	const hasEdges = Array.isArray(metadata.edges) &&
-		metadata.edges.every((edge: unknown): edge is KnowledgeGraphMetadata['edges'][number] =>
-			typeof edge === 'object' &&
-			edge !== null &&
-			'id' in edge &&
-			'sourceId' in edge &&
-			'destinationId' in edge &&
-			'edgeType' in edge &&
-			typeof edge.id === 'string' &&
-			typeof edge.sourceId === 'string' &&
-			typeof edge.destinationId === 'string' &&
-			typeof edge.edgeType === 'string'
+	const hasEdges =
+		Array.isArray(metadata.edges) &&
+		metadata.edges.every(
+			(edge: unknown): edge is KnowledgeGraphMetadata["edges"][number] =>
+				typeof edge === "object" &&
+				edge !== null &&
+				"id" in edge &&
+				"sourceId" in edge &&
+				"destinationId" in edge &&
+				"edgeType" in edge &&
+				typeof edge.id === "string" &&
+				typeof edge.sourceId === "string" &&
+				typeof edge.destinationId === "string" &&
+				typeof edge.edgeType === "string",
 		);
 
 	return hasNodes && hasEdges;
 }
 
-const ICON_MAPPINGS = [
-	{ keywords: ['search', 'query', 'retrieval', 'retrieve'], icon: Search },
-	{ keywords: ['generat', 'create'], icon: Sparkles },
-	{ keywords: ['write', 'edit', 'update'], icon: PenLine },
-	{ keywords: ['graph', 'network'], icon: Network },
-	{ keywords: ['analys', 'think'], icon: Brain },
-	{ keywords: ['context', 'knowledge', 'data'], icon: Database },
-	{ keywords: ['process', 'execute', 'run'], icon: Zap },
+const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
+	{ keywords: ["search", "query", "retrieval", "retrieve"], icon: Search },
+	{ keywords: ["generat", "create"], icon: Sparkles },
+	{ keywords: ["write", "edit", "update"], icon: PenLine },
+	{ keywords: ["graph", "network"], icon: Network },
+	{ keywords: ["analys", "think"], icon: Brain },
+	{ keywords: ["context", "knowledge", "data"], icon: Database },
+	{ keywords: ["process", "execute", "run"], icon: Zap },
 ];
 
-const getActionIcon = (name: string) => {
+const getActionIcon = (name: string): LucideIcon => {
 	const lower = name.toLowerCase();
-	const Icon = ICON_MAPPINGS.find(({ keywords }) =>
-		keywords.some(keyword => lower.includes(keyword))
-	)?.icon || FileText;
-
-	return <Icon className="w-4 h-4" />;
+	return (
+		ICON_MAPPINGS.find(({ keywords }) =>
+			keywords.some((keyword) => lower.includes(keyword)),
+		)?.icon || FileText
+	);
 };
 
-const useTranslateActionName = () => {
-	const { t } = useTranslation("chat");
+const translateActionName = (
+	t: ReturnType<typeof useTranslation>["t"],
+	actionName: string,
+): string => {
+	const translationKey = `actions.${actionName}`;
+	const translated = t(translationKey);
 
-	return (actionName: string): string => {
-		const translationKey = `actions.${actionName}`;
-		const translated = t(translationKey);
+	if (translated !== translationKey) {
+		return translated;
+	}
 
-		if (translated !== translationKey) {
-			return translated;
-		}
-
-		return actionName.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
-	};
+	return actionName.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 };
 
-type ActionRenderer = (item: ActionItem, isOpen: boolean) => React.ReactNode | null;
+type ActionRenderer = (
+	item: ActionItem,
+	isOpen: boolean,
+) => React.ReactNode | null;
 
 const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	knowledge_graph: (item, isOpen) => {
@@ -194,10 +201,12 @@ interface ActionContentProps {
 	isOpen: boolean;
 }
 
-const ActionContent: React.FC<ActionContentProps> = ({ item, isOpen }) => {
-	const renderer = ACTION_RENDERERS[item.name] || defaultActionRenderer;
-	return <>{renderer(item, isOpen)}</>;
-};
+const ActionContent: React.FC<ActionContentProps> = React.memo(
+	({ item, isOpen }) => {
+		const renderer = ACTION_RENDERERS[item.name] || defaultActionRenderer;
+		return <>{renderer(item, isOpen)}</>;
+	},
+);
 
 interface TaskItemRendererProps {
 	item: ActionItem;
@@ -206,12 +215,14 @@ interface TaskItemRendererProps {
 
 const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 	({ item, index }) => {
-		const translateActionName = useTranslateActionName();
+		const { t } = useTranslation("chat");
 		const [isOpen, setIsOpen] = React.useState(false);
 
-		const icon = getActionIcon(item.name);
-
-		console.log('TaskItemRenderer>>>>>>>>>>>>>>>>>')
+		const Icon = useMemo(() => getActionIcon(item.name), [item.name]);
+		const title = useMemo(
+			() => translateActionName(t, item.name),
+			[t, item.name],
+		);
 
 		return (
 			<Task
@@ -220,15 +231,15 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 				defaultOpen={false}
 				onOpenChange={setIsOpen}
 			>
-				<TaskTrigger title={translateActionName(item.name)}>
+				<TaskTrigger title={title}>
 					<div className="flex items-center gap-2 w-full">
 						<ChevronDown
 							className={`size-4 transition-transform duration-200 ${
 								isOpen ? "rotate-0" : "-rotate-90"
 							}`}
 						/>
-						{icon}
-						<span className="flex-1">{translateActionName(item.name)}</span>
+						<Icon className="w-4 h-4" />
+						<span className="flex-1">{title}</span>
 					</div>
 				</TaskTrigger>
 				<TaskContent>
@@ -248,59 +259,65 @@ interface MessageRendererProps {
 	isStreaming: boolean;
 }
 
-export const MessageRenderer: React.FC<MessageRendererProps> = ({
-	message,
-	isLastMessage,
-	isStreaming,
-}) => {
-	if (message.type === "separator") {
-		return (
-			<div key={message.id} className="my-4 flex items-center">
-				<div className="flex-1 border-t border-gray-300"></div>
-				<div className="mx-4 text-xs text-gray-500 font-medium">
-					{dayjs(message.createdAt).format("MMM D, YYYY h:mm A")}
-				</div>
-				<div className="flex-1 border-t border-gray-300"></div>
-			</div>
+export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
+	({ message, isLastMessage, isStreaming }) => {
+		const formattedDate = useMemo(
+			() => dayjs(message.createdAt).format("MMM D, YYYY h:mm A"),
+			[message.createdAt],
 		);
-	}
 
-	const actions: ActionItem[] =
-		message.metadata &&
-		typeof message.metadata === "object" &&
-		"actions" in message.metadata &&
-		message.metadata?.actions &&
-		Array.isArray(message.metadata.actions)
-			? message.metadata.actions
-			: [];
+		const actions = useMemo<ActionItem[]>(() => {
+			if (!message.metadata || typeof message.metadata !== "object") return [];
+			if (!("actions" in message.metadata)) return [];
+			if (!Array.isArray(message.metadata.actions)) return [];
+			return message.metadata.actions;
+		}, [message.metadata]);
 
-	return (
-		<div key={message.id} className="flex flex-col gap-4">
-			{actions?.map((item, index) => (
-				<TaskItemRenderer
-					key={`${item.name}_${index}`}
-					item={item}
-					index={index}
-				/>
-			)) || []}
-			<Message key={message.id} from={message.role}>
-				<MessageContent>
-					{!message.content && isLastMessage && isStreaming ? (
-						<Loader2 className="w-4 h-4 animate-spin" />
-					) : (
-						<Suspense fallback={<Loader2 className="w-4 h-4 animate-spin" />}>
-							<>
-								<ContentComponent isStreaming={false}>
+		if (message.type === "separator") {
+			return (
+				<div key={message.id} className="my-4 flex items-center">
+					<div className="flex-1 border-t border-gray-300"></div>
+					<div className="mx-4 text-xs text-gray-500 font-medium">
+						{formattedDate}
+					</div>
+					<div className="flex-1 border-t border-gray-300"></div>
+				</div>
+			);
+		}
+
+		return (
+			<div key={message.id} className="flex flex-col gap-4">
+				{actions.map((item, index) => (
+					<TaskItemRenderer
+						key={`${item.name}_${index}`}
+						item={item}
+						index={index}
+					/>
+				))}
+				<Message key={message.id} from={message.role}>
+					<MessageContent>
+						{!message.content && isLastMessage && isStreaming ? (
+							<Loader2 className="w-4 h-4 animate-spin" />
+						) : (
+							<Suspense fallback={<Loader2 className="w-4 h-4 animate-spin" />}>
+								<ContentComponent isStreaming={isStreaming}>
 									{message.content}
 								</ContentComponent>
-								{isStreaming ? (
-									<Loader2 className="w-4 h-4 animate-spin" />
-								) : undefined}
-							</>
-						</Suspense>
-					)}
-				</MessageContent>
-			</Message>
-		</div>
-	);
-};
+								{isStreaming && <Loader2 className="w-4 h-4 animate-spin" />}
+							</Suspense>
+						)}
+					</MessageContent>
+				</Message>
+			</div>
+		);
+	},
+	(prev, next) => {
+		return (
+			prev.message.id === next.message.id &&
+			prev.message.content === next.message.content &&
+			prev.message.metadata === next.message.metadata &&
+			prev.isLastMessage === next.isLastMessage &&
+			prev.isStreaming === next.isStreaming
+		);
+	},
+);
