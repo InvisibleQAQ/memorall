@@ -182,7 +182,18 @@ export const useChat = (model: string) => {
 				});
 				throw new Error(result.error || "Chat failed");
 			} else {
-				// Success - finalize with current content and actions
+				// Success - update in-progress message with final content before saving
+				// This ensures smooth transition from streaming to final
+				setInProgressMessage((prev) =>
+					prev
+						? { ...prev, content: result.content, actions: result.actions }
+						: null,
+				);
+
+				// Small delay to let React render the updated content
+				await new Promise((resolve) => setTimeout(resolve, 150));
+
+				// Finalize with final content and actions
 				await finalizeMessage(assistantMessage.id, {
 					content: result.content,
 					metadata: { actions: result.actions },

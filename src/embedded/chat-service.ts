@@ -1,6 +1,9 @@
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type { ChatMessage } from "./types";
-import type { ChatResult } from "@/services/background-jobs/handlers/process-chat";
+import type {
+	ChatResult,
+	ChatPayload,
+} from "@/services/background-jobs/handlers/process-chat";
 
 export interface ChatServiceOptions {
 	messages: ChatMessage[];
@@ -94,7 +97,7 @@ export class EmbeddedChatService {
 			}
 
 			// Build simplified payload - let background service parse query from messages
-			const payload: any = {
+			const payload: ChatPayload = {
 				messages: jobMessages,
 				model,
 				mode,
@@ -137,6 +140,20 @@ export class EmbeddedChatService {
 								finalActions.push(action);
 							}
 						});
+						onAction?.(finalActions);
+					} else if (chatResult.type === "final") {
+						// Handle final content update (e.g., after citation step)
+						// This replaces the accumulated content with the final version
+						finalContent = chatResult.content;
+						if (chatResult.metadata?.actions) {
+							chatResult.metadata.actions.forEach((action) => {
+								if (!finalActions.find((a) => a.id === action.id)) {
+									finalActions.push(action);
+								}
+							});
+						}
+						// Notify with the final cited content
+						onProgress?.(finalContent, false);
 						onAction?.(finalActions);
 					}
 				}

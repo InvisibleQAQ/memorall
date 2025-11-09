@@ -1,41 +1,16 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
-import { KnowledgeRAGAnnotation, type KnowledgeRAGState } from "./state";
+import {
+	KnowledgeRAGAnnotation,
+	type KnowledgeRAGConfig,
+	type KnowledgeRAGState,
+} from "./state";
 import { GraphBase } from "@/services/flows/interfaces/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
-import type { ChatCompletionResponse, ChatMessage } from "@/types/openai";
+import type { ChatMessage } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
-import { eq, or, like, desc, inArray, and, sql } from "drizzle-orm";
-import type { Node, Edge } from "@/services/database/db";
-import {
-	trigramSearchNodes,
-	trigramSearchEdges,
-	combineSearchResultsWithTrigram,
-} from "@/utils/trigram-search";
-import {
-	vectorSearchNodes,
-	vectorSearchEdges,
-	type VectorSearchResult,
-} from "@/utils/vector-search";
-import type { DatabaseService } from "@/services/database/database-service";
-import type { BaseEmbedding } from "@/services/embedding";
 import { flowRegistry } from "../../flow-registry";
-import type { PgColumn } from "drizzle-orm/pg-core";
-
-const QUERY_ANALYSIS_PROMPT = `
-You are an expert at analyzing user queries for knowledge graph retrieval.
-
-Analyze the user query and extract:
-1. Key entities mentioned (people, places, concepts, organizations)
-2. Query intent: "factual" (seeking facts), "relationship" (asking about connections), "summary" (wanting overview), "exploration" (browsing/discovery)
-
-User Query: {query}
-
-Respond in this exact JSON format:
-{
-  "entities": ["entity1", "entity2"],
-  "intent": "factual|relationship|summary|exploration"
-}
-`;
+import { RetrievalContextFlow } from "./retrieval";
+import { QuickRetrievalContextFlow } from "./quick-retrieval";
 
 const RESPONSE_GENERATION_PROMPT = `
 You are a knowledgeable assistant that can answer questions using a knowledge graph.
@@ -47,499 +22,103 @@ Available Knowledge Context:
 
 Using the provided knowledge context, provide a comprehensive and accurate answer to the user's query.
 If the knowledge graph doesn't contain enough information to fully answer the question, mention what information is available and what might be missing.
-Cite specific facts and relationships from the knowledge graph in your response.
+Structure your answer in clear sections when appropriate.
 `;
 
-export interface KnowledgeRAGConfig {
-	quickMode?: boolean;
-	maxGrowthLevels?: number;
-	searchLimit?: number;
-}
+const CITATION_PROMPT = `
+You are tasked with identifying which knowledge sources were used in each line of an answer.
 
-// Graph growth configuration
-interface GraphGrowthConfig {
-	maxLevels: number;
-	nodesPerLevel: number;
-	edgesPerLevel: number;
-}
+Answer with Line Numbers:
+{answer}
+
+Knowledge Sources Available:
+{sources}
+
+Instructions:
+1. For each line that uses knowledge sources, identify which nodes and edges were used
+2. Return ONLY line numbers with their citations in this exact format:
+   Line X: [Label](#citations:node/{uuid}), [Label](#citation:edge/{uuid})
+3. Use actual UUIDs from the knowledge sources list
+4. Only include lines that need citations - skip lines that don't use knowledge sources
+5. CRITICAL: For nodes, the link MUST start with "#": [Label](#citations:node/{uuid})
+6. CRITICAL: For edges, the link MUST start with "#": [Label](#citation:edge/{uuid})
+7. IMPORTANT: The "#" symbol at the start of the link is REQUIRED - DO NOT omit it
+8. IMPORTANT: DO NOT add citations to table rows (lines starting with "|") - tables should remain citation-free
+9. IMPORTANT: DO NOT add citations to table separator lines (lines with "---" or "|---|")
+10. IMPORTANT: For tables, add citations on the line AFTER the table ends (after the last row)
+11. Do not include any explanation or the original text - ONLY line numbers and citations
+
+Example format (notice the "#" at the start of each link):
+Line 1: [React](#citations:node/abc-123)
+Line 3: [uses](#citation:edge/def-456), [JavaScript](#citations:node/ghi-789)
+
+Example for tables:
+Line 15: [Table Data](#citations:node/abc-123), [Source](#citation:edge/def-456)
+(Where line 15 is the line AFTER the table ends, not the table rows themselves)
+
+REMINDER:
+- Every citation link MUST start with "#" - this is mandatory!
+- Skip all table lines (any line containing "|" for table formatting)
+- Cite tables on the line immediately after the table ends
+`;
 
 export class KnowledgeRAGFlow extends GraphBase<
 	| "analyze_query"
 	| "retrieve_knowledge"
 	| "quick_retrieve"
 	| "build_context"
-	| "generate_response",
+	| "generate_response"
+	| "citation",
 	KnowledgeRAGState,
 	AllServices
 > {
-	private config: KnowledgeRAGConfig;
+	private quickMode: boolean;
+	private retrieveContext: RetrievalContextFlow;
+	private quickRetrieveContext: QuickRetrievalContextFlow;
 
 	constructor(services: AllServices, config: KnowledgeRAGConfig = {}) {
 		super(services);
-		this.config = {
-			quickMode: true,
-			maxGrowthLevels: 3,
-			searchLimit: 50,
-			...config,
-		};
+		this.quickMode = config.quickMode || false;
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
+		this.retrieveContext = new RetrievalContextFlow(services);
+		this.quickRetrieveContext = new QuickRetrievalContextFlow(services, config);
 
 		// Add common nodes
 		this.workflow.addNode("build_context", this.buildContextNode);
 		this.workflow.addNode("generate_response", this.generateResponseNode);
+		this.workflow.addNode("citation", this.citationNode);
 
 		// Add nodes and edges based on configuration
-		if (this.config.quickMode) {
+		if (this.quickMode) {
 			// Quick mode: skip query analysis and go straight to semantic search
-			this.workflow.addNode("quick_retrieve", this.quickRetrieveNode);
+			this.workflow.addNode(
+				"quick_retrieve",
+				this.quickRetrieveContext.quickRetrieveNode,
+			);
 			this.workflow.addEdge(START, "quick_retrieve");
 			this.workflow.addEdge("quick_retrieve", "build_context");
 		} else {
 			// Standard mode: use LLM analysis
-			this.workflow.addNode("analyze_query", this.analyzeQueryNode);
-			this.workflow.addNode("retrieve_knowledge", this.retrieveKnowledgeNode);
+			this.workflow.addNode(
+				"analyze_query",
+				this.retrieveContext.analyzeQueryNode,
+			);
+			this.workflow.addNode(
+				"retrieve_knowledge",
+				this.retrieveContext.retrieveKnowledgeNode,
+			);
 			this.workflow.addEdge(START, "analyze_query");
 			this.workflow.addEdge("analyze_query", "retrieve_knowledge");
 			this.workflow.addEdge("retrieve_knowledge", "build_context");
 		}
 
 		this.workflow.addEdge("build_context", "generate_response");
-		this.workflow.addEdge("generate_response", END);
+		this.workflow.addEdge("generate_response", "citation");
+		this.workflow.addEdge("citation", END);
 
 		// Compile the workflow
 		this.compile();
 	}
-
-	private getScopedGraphWhere(
-		state: Pick<KnowledgeRAGState, "graphId">,
-		column: PgColumn,
-	) {
-		if (state.graphId || !state.graphId?.trim()) {
-			return eq(column, state.graphId);
-		}
-
-		return or(eq(column, ""), sql`${column} IS NULL`);
-	}
-
-	analyzeQueryNode = async (
-		state: KnowledgeRAGState,
-	): Promise<Partial<KnowledgeRAGState>> => {
-		const llm = this.services.llm;
-
-		if (!llm.isReady()) {
-			throw new Error("LLM service is not ready");
-		}
-
-		try {
-			logInfo("[KNOWLEDGE_RAG] Analyzing query:", state.query);
-
-			// WebLLM requires last message to be from user or tool role
-			const messages: ChatMessage[] = [
-				{ role: "system", content: QUERY_ANALYSIS_PROMPT },
-				{ role: "user", content: state.query },
-			];
-
-			const llmResponse = (await llm.chatCompletions({
-				messages,
-				temperature: 0.1,
-				stream: false,
-			})) as ChatCompletionResponse;
-
-			const responseContent = llmResponse.choices[0].message.content || "";
-
-			// Parse JSON response
-			let analysisResult: { entities: string[]; intent: string } | undefined;
-			try {
-				const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
-				if (jsonMatch) {
-					analysisResult = JSON.parse(jsonMatch[0]);
-				} else {
-					throw new Error("No JSON found in response");
-				}
-			} catch (parseError) {
-				logError(
-					"[KNOWLEDGE_RAG] Failed to parse analysis response:",
-					parseError,
-				);
-				// Fallback to simple entity extraction
-				analysisResult = {
-					entities: state.query.split(" ").filter((word) => word.length > 3),
-					intent: "factual",
-				};
-			}
-
-			return {
-				extractedEntities: analysisResult?.entities || [],
-				queryIntent: (analysisResult?.intent ||
-					"factual") as KnowledgeRAGState["queryIntent"],
-				next: "retrieve_knowledge",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "query_analysis",
-						description: `Extracted ${analysisResult?.entities?.map((e) => `"${e}"`).join(", ")} entities with "${analysisResult?.intent}" intent`,
-						metadata: {
-							entities: analysisResult?.entities,
-							intent: analysisResult?.intent,
-						},
-					},
-				],
-			};
-		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Query analysis failed:", error);
-			throw error;
-		}
-	};
-
-	retrieveKnowledgeNode = async (
-		state: KnowledgeRAGState,
-	): Promise<Partial<KnowledgeRAGState>> => {
-		const database = this.services.database;
-		const embedding = this.services.embedding;
-
-		try {
-			let relevantNodes: KnowledgeRAGState["relevantNodes"] = [];
-			let relevantEdges: KnowledgeRAGState["relevantEdges"] = [];
-
-			const TOTAL_NODE_LIMIT = 15;
-			const TOTAL_EDGE_LIMIT = 20;
-			const WEIGHTS = {
-				sqlPercentage: 60,
-				trigramPercentage: 40,
-				vectorPercentage: 0,
-			};
-
-			// 1. SQL search for nodes
-			const sqlNodes = await database.use(async ({ db, schema }) => {
-				if (state.extractedEntities.length === 0) return [];
-
-				const entitySearchConditions = state.extractedEntities.map((entity) =>
-					or(
-						like(schema.nodes.name, `%${entity}%`),
-						like(schema.nodes.summary, `%${entity}%`),
-					),
-				);
-
-				// Add topic filter if provided
-				const whereConditions = and(
-					or(...entitySearchConditions),
-					this.getScopedGraphWhere(state, schema.nodes.graph),
-				);
-
-				return await db
-					.select({
-						id: schema.nodes.id,
-						nodeType: schema.nodes.nodeType,
-						name: schema.nodes.name,
-						summary: schema.nodes.summary,
-						attributes: schema.nodes.attributes,
-						nameEmbedding: schema.nodes.nameEmbedding,
-						createdAt: schema.nodes.createdAt,
-						updatedAt: schema.nodes.updatedAt,
-					})
-					.from(schema.nodes)
-					.where(whereConditions)
-					.orderBy(desc(schema.nodes.createdAt))
-					.limit(Math.floor((TOTAL_NODE_LIMIT * WEIGHTS.sqlPercentage) / 100));
-			});
-
-			// 2. SQL search for edges
-			const sqlEdges = await database.use(async ({ db, schema }) => {
-				if (state.extractedEntities.length === 0) return [];
-
-				const factSearchConditions = state.extractedEntities.map((entity) =>
-					like(schema.edges.factText, `%${entity}%`),
-				);
-
-				// Add topic filter if provided
-				const whereConditions = and(
-					or(...factSearchConditions),
-					this.getScopedGraphWhere(state, schema.edges.graph),
-				);
-
-				return await db
-					.select({
-						id: schema.edges.id,
-						sourceId: schema.edges.sourceId,
-						destinationId: schema.edges.destinationId,
-						edgeType: schema.edges.edgeType,
-						factText: schema.edges.factText,
-						validAt: schema.edges.validAt,
-						invalidAt: schema.edges.invalidAt,
-						recordedAt: schema.edges.recordedAt,
-						attributes: schema.edges.attributes,
-						isCurrent: schema.edges.isCurrent,
-						provenanceWeightCache: schema.edges.provenanceWeightCache,
-						provenanceCountCache: schema.edges.provenanceCountCache,
-						factEmbedding: schema.edges.factEmbedding,
-						typeEmbedding: schema.edges.typeEmbedding,
-						graph: schema.edges.graph,
-						createdAt: schema.edges.createdAt,
-						updatedAt: schema.edges.updatedAt,
-					})
-					.from(schema.edges)
-					.where(whereConditions)
-					.orderBy(desc(schema.edges.createdAt))
-					.limit(Math.floor((TOTAL_EDGE_LIMIT * WEIGHTS.sqlPercentage) / 100));
-			});
-
-			// 3. Trigram search for nodes
-			let trigramNodeResults: Awaited<ReturnType<typeof trigramSearchNodes>> =
-				[];
-			if (state.extractedEntities.length > 0) {
-				try {
-					trigramNodeResults = await trigramSearchNodes(
-						database,
-						state.extractedEntities,
-						Math.floor((TOTAL_NODE_LIMIT * WEIGHTS.trigramPercentage) / 100),
-						{ threshold: 0.1 },
-						state.graphId,
-					);
-				} catch (error) {
-					logError("[KNOWLEDGE_RAG] Trigram search for nodes failed:", error);
-				}
-			}
-
-			// 4. Trigram search for edges
-			let trigramEdgeResults: Awaited<ReturnType<typeof trigramSearchEdges>> =
-				[];
-			if (state.extractedEntities.length > 0) {
-				try {
-					trigramEdgeResults = await trigramSearchEdges(
-						database,
-						state.extractedEntities,
-						Math.floor((TOTAL_EDGE_LIMIT * WEIGHTS.trigramPercentage) / 100),
-						{ threshold: 0.1 },
-						state.graphId,
-					);
-				} catch (error) {
-					logError("[KNOWLEDGE_RAG] Trigram search for edges failed:", error);
-				}
-			}
-
-			// 5. Fallback to vector search if both SQL and trigram fail or have insufficient results
-			let vectorNodes: VectorSearchResult<Node>[] = [];
-			let vectorEdges: VectorSearchResult<Edge>[] = [];
-			const combinedNodeResults = sqlNodes.length + trigramNodeResults.length;
-			const combinedEdgeResults = sqlEdges.length + trigramEdgeResults.length;
-
-			if (
-				(combinedNodeResults < TOTAL_NODE_LIMIT * 0.5 ||
-					combinedEdgeResults < TOTAL_EDGE_LIMIT * 0.5) &&
-				embedding
-			) {
-				try {
-					const defaultEmbedding = await embedding.get("default");
-					if (defaultEmbedding && defaultEmbedding.isReady()) {
-						// Vector search for nodes
-						if (combinedNodeResults < TOTAL_NODE_LIMIT * 0.5) {
-							const nodeLimit = Math.min(
-								TOTAL_NODE_LIMIT - combinedNodeResults,
-								Math.floor(TOTAL_NODE_LIMIT * 0.4),
-							);
-							vectorNodes = await vectorSearchNodes(
-								database,
-								defaultEmbedding,
-								state.extractedEntities,
-								nodeLimit,
-								state.graphId,
-							);
-						}
-
-						// Vector search for edges
-						if (combinedEdgeResults < TOTAL_EDGE_LIMIT * 0.5) {
-							const edgeLimit = Math.min(
-								TOTAL_EDGE_LIMIT - combinedEdgeResults,
-								Math.floor(TOTAL_EDGE_LIMIT * 0.4),
-							);
-							vectorEdges = await vectorSearchEdges(
-								database,
-								defaultEmbedding,
-								state.extractedEntities,
-								edgeLimit,
-								state.graphId,
-							);
-						}
-					}
-				} catch (embeddingError) {
-					logError(
-						"[KNOWLEDGE_RAG] Vector search fallback failed:",
-						embeddingError,
-					);
-				}
-			}
-
-			// 6. Combine results using trigram combiner
-			const combinedNodes = combineSearchResultsWithTrigram(
-				sqlNodes,
-				vectorNodes.map((node) => ({
-					item: node as unknown as (typeof sqlNodes)[0],
-					similarity:
-						"similarity" in node && typeof node.similarity === "number"
-							? node.similarity
-							: 0,
-				})),
-				trigramNodeResults,
-				WEIGHTS,
-				TOTAL_NODE_LIMIT,
-				(node) => node.id!,
-			);
-
-			const combinedEdges = combineSearchResultsWithTrigram(
-				sqlEdges,
-				vectorEdges.map((edge) => ({
-					item: edge as unknown as (typeof sqlEdges)[0],
-					similarity:
-						"similarity" in edge && typeof edge.similarity === "number"
-							? edge.similarity
-							: 0,
-				})),
-				trigramEdgeResults,
-				WEIGHTS,
-				TOTAL_EDGE_LIMIT,
-				(edge) => edge.id!,
-			);
-
-			// 4. Process and score nodes
-			relevantNodes = combinedNodes.map((node) => {
-				let relevanceScore = 0;
-
-				// Text-based relevance
-				// Text-based relevance
-				state.extractedEntities.forEach((entity) => {
-					const entityLower = entity.toLowerCase();
-					if (`${node.name}`.toLowerCase().includes(entityLower)) {
-						relevanceScore += 3;
-					}
-					if (`${node.summary}`.toLowerCase().includes(entityLower)) {
-						relevanceScore += 2;
-					}
-				});
-
-				return {
-					id: `${node.id}`,
-					nodeType: node.nodeType ? `${node.nodeType}` : "",
-					name: node.name ? `${node.name}` : "",
-					summary: node.summary ? `${node.summary}` : "",
-					attributes: (node.attributes as Record<string, unknown>) || {},
-					relevanceScore,
-				};
-			});
-
-			// 5. Get missing nodes for complete fact context
-			const edgeNodeIds = [
-				...new Set([
-					...combinedEdges.map((edge) => edge.sourceId),
-					...combinedEdges.map((edge) => edge.destinationId),
-				]),
-			];
-
-			const missingNodeIds = edgeNodeIds.filter(
-				(id) => !relevantNodes.find((node) => node.id === id),
-			);
-
-			if (missingNodeIds.length > 0) {
-				const missingNodes = await database.use(async ({ db, schema }) => {
-					return await db
-						.select({
-							id: schema.nodes.id,
-							nodeType: schema.nodes.nodeType,
-							name: schema.nodes.name,
-							summary: schema.nodes.summary,
-							attributes: schema.nodes.attributes,
-						})
-						.from(schema.nodes)
-						.where(
-							or(...missingNodeIds.map((id) => eq(schema.nodes.id, `${id}`))),
-						);
-				});
-
-				const additionalNodes = missingNodes.map((node) => ({
-					id: node.id,
-					nodeType: node.nodeType,
-					name: node.name,
-					summary: node.summary || "",
-					attributes: (node.attributes as Record<string, unknown>) || {},
-					relevanceScore: 1,
-				}));
-
-				relevantNodes = [...relevantNodes, ...additionalNodes];
-			}
-
-			// 6. Process edges
-			relevantEdges = combinedEdges.map((edge) => {
-				let relevanceScore = 0;
-
-				// Score based on fact text relevance
-				state.extractedEntities.forEach((entity) => {
-					if (edge.factText?.toLowerCase().includes(entity.toLowerCase())) {
-						relevanceScore += 2;
-					}
-				});
-
-				// Boost score if both source and destination are relevant nodes
-				const allNodeIds = relevantNodes.map((node) => node.id);
-				const sourceRelevant = allNodeIds.includes(`${edge.sourceId}`);
-				const destRelevant = allNodeIds.includes(`${edge.destinationId}`);
-				if (sourceRelevant && destRelevant) {
-					relevanceScore += 3;
-				} else if (sourceRelevant || destRelevant) {
-					relevanceScore += 1;
-				}
-
-				return {
-					id: `${edge.id}`,
-					sourceId: edge.sourceId ? `${edge.sourceId}` : "",
-					destinationId: edge.destinationId ? `${edge.destinationId}` : "",
-					edgeType: edge.edgeType ? `${edge.edgeType}` : "",
-					factText: edge.factText ? `${edge.factText}` : "",
-					attributes: (edge.attributes as Record<string, unknown>) || {},
-					relevanceScore,
-				};
-			});
-
-			// Sort by relevance
-			relevantNodes.sort((a, b) => b.relevanceScore - a.relevanceScore);
-			relevantEdges.sort((a, b) => b.relevanceScore - a.relevanceScore);
-
-			logInfo("[KNOWLEDGE_RAG] Retrieved knowledge:", {
-				nodes: relevantNodes.length,
-				edges: relevantEdges.length,
-				sqlNodes: sqlNodes.length,
-				trigramNodes: trigramNodeResults.length,
-				vectorNodes: vectorNodes.length,
-				sqlEdges: sqlEdges.length,
-				trigramEdges: trigramEdgeResults.length,
-				vectorEdges: vectorEdges.length,
-			});
-
-			return {
-				relevantNodes,
-				relevantEdges,
-				next: "build_context",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "knowledge_retrieval",
-						description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} relationships (${sqlNodes.length}+${trigramNodeResults.length}+${vectorNodes.length} nodes, ${sqlEdges.length}+${trigramEdgeResults.length}+${vectorEdges.length} edges)`,
-						metadata: {
-							nodeCount: relevantNodes.length,
-							edgeCount: relevantEdges.length,
-							sqlNodeCount: sqlNodes.length,
-							trigramNodeCount: trigramNodeResults.length,
-							vectorNodeCount: vectorNodes.length,
-							sqlEdgeCount: sqlEdges.length,
-							trigramEdgeCount: trigramEdgeResults.length,
-							vectorEdgeCount: vectorEdges.length,
-						},
-					},
-				],
-			};
-		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Knowledge retrieval failed:", error);
-			throw error;
-		}
-	};
 
 	buildContextNode = async (
 		state: KnowledgeRAGState,
@@ -567,13 +146,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 				})
 				.join("\n");
 
-			// 3. Generate Mermaid diagram
-			const mermaidDiagram = this.generateMermaidDiagram(
-				state.relevantNodes,
-				state.relevantEdges,
-			);
-
-			// 4. Build natural language context
+			// 3. Build natural language context
 			const knowledgeContext = `
 ${definitions.trim() ? `<definitions>${definitions}</definitions>` : ""}
 ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
@@ -587,19 +160,15 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 
 			return {
 				knowledgeContext,
-				mermaidDiagram,
 				next: "generate_response",
 				actions: [
 					{
 						id: crypto.randomUUID(),
-						name: "context_graph",
-						description: mermaidDiagram.trim()
-							? `\`\`\`mermaid\n${mermaidDiagram}\n\`\`\``
-							: "No graph found.",
+						name: "knowledge_graph",
+						description: `Retrieved ${state.relevantNodes.length} nodes and ${state.relevantEdges.length} edges`,
 						metadata: {
-							definitionsCount: state.relevantNodes.length,
-							factsCount: state.relevantEdges.length,
-							hasMermaid: true,
+							nodes: state.relevantNodes,
+							edges: state.relevantEdges,
 						},
 					},
 					{
@@ -615,42 +184,6 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 			throw error;
 		}
 	};
-
-	// Helper function to generate Mermaid diagram
-	private generateMermaidDiagram(
-		nodes: KnowledgeRAGState["relevantNodes"],
-		edges: KnowledgeRAGState["relevantEdges"],
-	): string {
-		const nodeMap = new Map(
-			nodes.map((node) => [node.id, node.name.replace(/[^a-zA-Z0-9]/g, "_")]),
-		);
-
-		let mermaid = "graph TD\n";
-
-		// Add nodes with labels
-		nodes.forEach((node) => {
-			const nodeId = nodeMap.get(node.id);
-			const nodeLabel =
-				node.name.length > 20 ? node.name.substring(0, 20) + "..." : node.name;
-			mermaid += `    ${nodeId}["${nodeLabel}"]\n`;
-		});
-
-		// Add edges
-		edges.forEach((edge) => {
-			const sourceId = nodeMap.get(edge.sourceId);
-			const destId = nodeMap.get(edge.destinationId);
-
-			if (sourceId && destId) {
-				const edgeLabel =
-					edge.edgeType.length > 15
-						? edge.edgeType.substring(0, 15) + "..."
-						: edge.edgeType;
-				mermaid += `    ${sourceId} -->|${edgeLabel}| ${destId}\n`;
-			}
-		});
-
-		return mermaid;
-	}
 
 	generateResponseNode = async (
 		state: KnowledgeRAGState,
@@ -694,6 +227,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 
 			return {
 				finalMessage: responseContent,
+				next: "citation",
 				actions: [
 					{
 						id: crypto.randomUUID(),
@@ -709,298 +243,125 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 		}
 	};
 
-	quickRetrieveNode = async (
+	citationNode = async (
 		state: KnowledgeRAGState,
 	): Promise<Partial<KnowledgeRAGState>> => {
+		const llm = this.services.llm;
+
+		if (!llm.isReady()) {
+			throw new Error("LLM service is not ready");
+		}
+
 		try {
-			logInfo(
-				`[KNOWLEDGE_RAG] Quick mode: Starting semantic search and graph growth for graphId: ${state.graphId}`,
-			);
+			logInfo("[KNOWLEDGE_RAG] Adding citations to response");
 
-			const databaseService = this.services.database;
-			const embeddingService = this.services.embedding;
+			// Split answer into lines and number them
+			const answerLines = state.finalMessage.split("\n");
+			const numberedAnswer = answerLines
+				.map((line, index) => `Line ${index + 1}: ${line}`)
+				.join("\n");
 
-			if (!databaseService) {
-				throw new Error("Database service not available");
-			}
+			// Build sources list using actual UUIDs
+			const sourcesList = [
+				"Nodes:",
+				...state.relevantNodes.map(
+					(node) => `- ${node.name} (UUID: ${node.id})`,
+				),
+				"",
+				"Edges:",
+				...state.relevantEdges.map(
+					(edge) => `- ${edge.edgeType}: ${edge.factText} (UUID: ${edge.id})`,
+				),
+			].join("\n");
 
-			if (!embeddingService) {
-				throw new Error("Embedding service not available");
-			}
+			// Build system message with citation instructions
+			const systemMessage: ChatMessage = {
+				role: "system",
+				content: CITATION_PROMPT.replace("{answer}", numberedAnswer).replace(
+					"{sources}",
+					sourcesList,
+				),
+			};
 
-			// Get default embedding
-			const defaultEmbedding = await embeddingService.get("default");
-			if (!defaultEmbedding || !defaultEmbedding.isReady()) {
-				throw new Error("Default embedding not ready");
-			}
-
-			// Step 1: Semantic search for initial nodes and edges
-			const initialResults = await this.performSemanticSearch(
-				databaseService,
-				defaultEmbedding,
-				state.query,
-				this.config.searchLimit || 50,
-				state.graphId,
-			);
-
-			// Step 2: Grow the graph from initial results
-			const grownResults = await this.growKnowledgeGraph(
-				databaseService,
-				initialResults.nodes,
-				initialResults.edges,
+			// Use minimal messages for citation task
+			const messages: ChatMessage[] = [
+				systemMessage,
 				{
-					maxLevels: this.config.maxGrowthLevels || 3,
-					nodesPerLevel: 20,
-					edgesPerLevel: 30,
+					role: "user",
+					content:
+						"Identify citations for each line that uses knowledge sources.",
 				},
-				state.graphId,
-			);
+			];
 
-			logInfo("[KNOWLEDGE_RAG] Quick mode results:", {
-				initialNodes: initialResults.nodes.length,
-				initialEdges: initialResults.edges.length,
-				grownNodes: grownResults.nodes.length,
-				grownEdges: grownResults.edges.length,
-				growthLevels: this.config.maxGrowthLevels,
+			// NO STREAMING - just get the citations directly
+			const llmResponse = await llm.chatCompletions({
+				messages,
+				temperature: 0.1,
+				stream: false,
 			});
 
+			const citationResponse =
+				"choices" in llmResponse
+					? llmResponse.choices[0].message.content || ""
+					: "";
+
+			// Parse line-based citations
+			// Format: "Line X: [Label](#citations:node/uuid), [Label](#citation:edge/uuid)"
+			const lineCitations = new Map<number, string>();
+			const linePattern = /Line\s+(\d+):\s*(.+?)(?=\n|$)/gi;
+			let match;
+
+			while ((match = linePattern.exec(citationResponse)) !== null) {
+				const lineNum = parseInt(match[1], 10);
+				const citations = match[2].trim();
+				lineCitations.set(lineNum, citations);
+			}
+
+			// Merge citations back into original answer
+			const citedLines = answerLines.map((line, index) => {
+				const lineNum = index + 1;
+				const citations = lineCitations.get(lineNum);
+				if (citations) {
+					// Add citations at the end of the line
+					return `${line} ${citations}`;
+				}
+				return line;
+			});
+
+			const citedResponse = citedLines.join("\n");
+
 			return {
-				relevantNodes: grownResults.nodes,
-				relevantEdges: grownResults.edges,
-				extractedEntities: [], // Not used in quick mode
-				queryIntent: "factual", // Default intent for quick mode
-				next: "build_context",
+				finalMessage: citedResponse,
 				actions: [
 					{
 						id: crypto.randomUUID(),
-						name: "quick_knowledge_retrieval",
-						description: `Found ${grownResults.nodes.length} nodes and ${grownResults.edges.length} relationships using semantic search and ${this.config.maxGrowthLevels} levels of graph growth`,
+						name: "citation",
+						description: "Added citations to response",
 						metadata: {
-							mode: "quick",
-							initialNodeCount: initialResults.nodes.length,
-							initialEdgeCount: initialResults.edges.length,
-							grownNodeCount: grownResults.nodes.length,
-							grownEdgeCount: grownResults.edges.length,
-							growthLevels: this.config.maxGrowthLevels,
+							citationCount: (
+								citedResponse.match(/\]\(citation[s]?:(node|edge)\//g) || []
+							).length,
+							citedLines: lineCitations.size,
 						},
 					},
 				],
 			};
 		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Quick retrieve failed:", error);
-			throw error;
+			logError("[KNOWLEDGE_RAG] Citation failed:", error);
+			// Return original response if citation fails
+			return {
+				finalMessage: state.finalMessage,
+				actions: [
+					{
+						id: crypto.randomUUID(),
+						name: "citation_fallback",
+						description: "Citation failed, returning original response",
+						metadata: { error: String(error) },
+					},
+				],
+			};
 		}
 	};
-
-	private async performSemanticSearch(
-		databaseService: DatabaseService,
-		embeddingService: BaseEmbedding,
-		query: string,
-		limit: number,
-		graphId?: string,
-	): Promise<{
-		nodes: KnowledgeRAGState["relevantNodes"];
-		edges: KnowledgeRAGState["relevantEdges"];
-	}> {
-		// Search for semantically relevant nodes
-		const nodeResults = await vectorSearchNodes(
-			databaseService,
-			embeddingService,
-			[query],
-			Math.floor(limit * 0.6), // 60% for nodes
-			graphId, // Use topicId as graphFilter parameter
-		);
-
-		// Search for semantically relevant edges
-		const edgeResults = await vectorSearchEdges(
-			databaseService,
-			embeddingService,
-			[query],
-			Math.floor(limit * 0.4), // 40% for edges
-			graphId, // Use topicId as graphFilter parameter
-		);
-
-		// Convert to state format
-		const nodes: KnowledgeRAGState["relevantNodes"] = nodeResults.map(
-			(result) => ({
-				id: String(result.item.id),
-				nodeType: result.item.nodeType || "",
-				name: result.item.name || "",
-				summary: result.item.summary || "",
-				attributes: (result.item.attributes || {}) as Record<string, unknown>,
-				relevanceScore: result.similarity,
-			}),
-		);
-
-		const edges: KnowledgeRAGState["relevantEdges"] = edgeResults.map(
-			(result) => ({
-				id: String(result.item.id),
-				sourceId: String(result.item.sourceId),
-				destinationId: String(result.item.destinationId),
-				edgeType: result.item.edgeType || "",
-				factText: result.item.factText || "",
-				attributes: (result.item.attributes || {}) as Record<string, unknown>,
-				relevanceScore: result.similarity,
-			}),
-		);
-
-		return { nodes, edges };
-	}
-
-	private async growKnowledgeGraph(
-		databaseService: DatabaseService,
-		initialNodes: KnowledgeRAGState["relevantNodes"],
-		initialEdges: KnowledgeRAGState["relevantEdges"],
-		config: GraphGrowthConfig,
-		graphId?: string,
-	): Promise<{
-		nodes: KnowledgeRAGState["relevantNodes"];
-		edges: KnowledgeRAGState["relevantEdges"];
-	}> {
-		const allNodes = new Map<string, KnowledgeRAGState["relevantNodes"][0]>();
-		const allEdges = new Map<string, KnowledgeRAGState["relevantEdges"][0]>();
-
-		// Add initial results
-		initialNodes.forEach((node) => allNodes.set(node.id, node));
-		initialEdges.forEach((edge) => allEdges.set(edge.id, edge));
-
-		let currentLevelNodeIds = new Set(initialNodes.map((n) => n.id));
-
-		// Grow the graph level by level
-		for (let level = 0; level < config.maxLevels; level++) {
-			logInfo(
-				`[KNOWLEDGE_RAG] Growing graph level ${level + 1}/${config.maxLevels}`,
-			);
-
-			if (currentLevelNodeIds.size === 0) break;
-
-			const { newNodes, newEdges, nextLevelNodeIds } =
-				await this.expandGraphLevel(
-					databaseService,
-					Array.from(currentLevelNodeIds),
-					config.nodesPerLevel,
-					config.edgesPerLevel,
-					graphId,
-				);
-
-			// Add new nodes and edges
-			newNodes.forEach((node) => {
-				if (!allNodes.has(node.id)) {
-					allNodes.set(node.id, {
-						...node,
-						relevanceScore: Math.max(0.1, 0.8 - level * 0.2),
-					});
-				}
-			});
-
-			newEdges.forEach((edge) => {
-				if (!allEdges.has(edge.id)) {
-					allEdges.set(edge.id, {
-						...edge,
-						relevanceScore: Math.max(0.1, 0.8 - level * 0.2),
-					});
-				}
-			});
-
-			currentLevelNodeIds = nextLevelNodeIds;
-		}
-
-		return {
-			nodes: Array.from(allNodes.values()).sort(
-				(a, b) => b.relevanceScore - a.relevanceScore,
-			),
-			edges: Array.from(allEdges.values()).sort(
-				(a, b) => b.relevanceScore - a.relevanceScore,
-			),
-		};
-	}
-
-	private async expandGraphLevel(
-		databaseService: DatabaseService,
-		nodeIds: string[],
-		maxNodes: number,
-		maxEdges: number,
-		graphId?: string,
-	): Promise<{
-		newNodes: KnowledgeRAGState["relevantNodes"];
-		newEdges: KnowledgeRAGState["relevantEdges"];
-		nextLevelNodeIds: Set<string>;
-	}> {
-		if (nodeIds.length === 0) {
-			return { newNodes: [], newEdges: [], nextLevelNodeIds: new Set() };
-		}
-
-		const result = await databaseService.use(async ({ db, schema }) => {
-			// Find all edges connected to current nodes
-			const connectedEdges = await db
-				.select()
-				.from(schema.edges)
-				.where(
-					and(
-						or(
-							inArray(schema.edges.sourceId, nodeIds),
-							inArray(schema.edges.destinationId, nodeIds),
-						),
-						this.getScopedGraphWhere({ graphId }, schema.edges.graph),
-					),
-				)
-				.limit(maxEdges);
-
-			// Get all unique node IDs from the edges (excluding current nodes)
-			const newNodeIds = new Set<string>();
-			connectedEdges.forEach((edge) => {
-				const sourceId = String(edge.sourceId);
-				const destId = String(edge.destinationId);
-
-				if (!nodeIds.includes(sourceId)) {
-					newNodeIds.add(sourceId);
-				}
-				if (!nodeIds.includes(destId)) {
-					newNodeIds.add(destId);
-				}
-			});
-
-			// Fetch the new nodes (limit to maxNodes)
-			const newNodesArray = Array.from(newNodeIds).slice(0, maxNodes);
-			const connectedNodes =
-				newNodesArray.length > 0
-					? await db
-							.select()
-							.from(schema.nodes)
-							.where(inArray(schema.nodes.id, newNodesArray))
-					: [];
-
-			return { connectedEdges, connectedNodes, newNodeIds };
-		});
-
-		// Convert to state format
-		const newNodes: KnowledgeRAGState["relevantNodes"] =
-			result.connectedNodes.map((node) => ({
-				id: String(node.id),
-				nodeType: node.nodeType,
-				name: node.name,
-				summary: node.summary || "",
-				attributes: (node.attributes || {}) as Record<string, unknown>,
-				relevanceScore: 0.5, // Default for grown nodes
-			}));
-
-		const newEdges: KnowledgeRAGState["relevantEdges"] =
-			result.connectedEdges.map((edge) => ({
-				id: String(edge.id),
-				sourceId: String(edge.sourceId),
-				destinationId: String(edge.destinationId),
-				edgeType: edge.edgeType,
-				factText: edge.factText || "",
-				attributes: (edge.attributes || {}) as Record<string, unknown>,
-				relevanceScore: 0.5, // Default for grown edges
-			}));
-
-		return {
-			newNodes,
-			newEdges,
-			nextLevelNodeIds: result.newNodeIds,
-		};
-	}
 }
 
 // Self-register the flow

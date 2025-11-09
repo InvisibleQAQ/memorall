@@ -4,12 +4,10 @@
  */
 
 import fs, { initializeFs } from "@/utils/fs";
-import { nanoid } from "nanoid";
 import { logInfo, logError } from "@/utils/logger";
 import type {
 	DocumentFile,
 	DocumentFolder,
-	DocumentLibraryItem,
 	DocumentTreeNode,
 	DocumentType,
 } from "@/types/document-library";
@@ -23,13 +21,38 @@ class DocumentStorageService {
 	private changeListeners: Set<() => void> = new Set();
 	private messageListenerRegistered = false;
 
-	private constructor() {}
+	// Internal cache with invalidation
+	private treeCache: DocumentTreeNode[] | null = null;
+	private treeCacheValid = false;
+
+	private constructor() {
+		// Register message listener immediately when service is created
+		// This ensures we can receive notifications from other contexts right away
+		this.registerMessageListener();
+	}
 
 	static getInstance(): DocumentStorageService {
 		if (!DocumentStorageService.instance) {
 			DocumentStorageService.instance = new DocumentStorageService();
 		}
 		return DocumentStorageService.instance;
+	}
+
+	/**
+	 * Register the cross-context message listener
+	 * Called automatically in constructor to ensure it's always ready
+	 */
+	private registerMessageListener(): void {
+		if (this.messageListenerRegistered) return;
+
+		try {
+			chrome.runtime.onMessage.addListener(this.handleFilesystemChangeMessage);
+			this.messageListenerRegistered = true;
+			logInfo("📚 Document storage message listener registered");
+		} catch (error) {
+			// In non-extension contexts, this will fail - that's okay
+			logError("Failed to register message listener:", error);
+		}
 	}
 
 	/**
@@ -57,34 +80,82 @@ class DocumentStorageService {
 	 * No relay needed in MV3 - the message reaches all contexts directly!
 	 */
 	private notifyFilesystemChanged(): void {
+		// CRITICAL: Invalidate cache FIRST before notifying anyone
+		this.invalidateCache();
+
 		try {
-			// Broadcast to ALL extension contexts (MV3 auto-broadcast)
+			// Immediately notify local listeners
+			this.changeListeners.forEach((callback) => {
+				try {
+					callback();
+				} catch (error) {
+					logError("Error in local filesystem change listener:", error);
+				}
+			});
+
+			// Then broadcast to ALL other extension contexts (MV3 auto-broadcast)
 			chrome.runtime
 				.sendMessage({
 					type: CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
 				})
-				.catch((err) => {
+				.catch((err: Error) => {
 					// Ignore "no receiver" errors (expected when no other contexts are open)
-					if (!err.message?.includes("Receiving end does not exist")) {
+					if (
+						!err.message?.includes("Receiving end does not exist") &&
+						!err.message?.includes("Could not establish connection")
+					) {
 						logError("Failed to send filesystem change notification:", err);
 					}
 				});
 		} catch (error) {
-			// In non-extension context, this might fail silently
+			// In non-extension context, this might fail - notify local listeners anyway
 			logError("Failed to notify filesystem change:", error);
+
+			// Still notify local listeners even if broadcasting fails
+			this.changeListeners.forEach((callback) => {
+				try {
+					callback();
+				} catch (callbackError) {
+					logError("Error in local filesystem change listener:", callbackError);
+				}
+			});
 		}
 	}
 
 	/**
-	 * Handle filesystem change messages from other contexts
+	 * Invalidate internal cache
+	 * Called when filesystem changes in ANY context
 	 */
-	private handleFilesystemChangeMessage = (message: any): void => {
-		if (message.type === CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED) {
+	private invalidateCache(): void {
+		this.treeCacheValid = false;
+		this.treeCache = null;
+	}
+
+	/**
+	 * Handle filesystem change messages from other contexts
+	 * IMPORTANT: Must not return a value or return undefined for synchronous handling
+	 * Returning true would indicate async response, but we handle everything sync
+	 */
+	private handleFilesystemChangeMessage = (
+		message: unknown,
+		_sender: chrome.runtime.MessageSender,
+		_sendResponse: (response?: unknown) => void,
+	): void => {
+		// Type guard for message structure
+		if (
+			message &&
+			typeof message === "object" &&
+			"type" in message &&
+			message.type === CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED
+		) {
 			logInfo(
 				"📢 Received filesystem change notification from another context",
 			);
 
-			// Notify all registered listeners
+			// CRITICAL: Invalidate cache when receiving notification
+			this.invalidateCache();
+
+			// Notify all registered listeners synchronously
 			this.changeListeners.forEach((callback) => {
 				try {
 					callback();
@@ -93,6 +164,7 @@ class DocumentStorageService {
 				}
 			});
 		}
+		// Don't return anything - synchronous handling
 	};
 
 	/**
@@ -108,15 +180,6 @@ class DocumentStorageService {
 			// Ensure documents directory exists
 			await this.ensureDirectory(DOCUMENTS_ROOT);
 
-			// Register message listener for changes from other contexts (only once)
-			if (!this.messageListenerRegistered) {
-				chrome.runtime.onMessage.addListener(
-					this.handleFilesystemChangeMessage,
-				);
-				this.messageListenerRegistered = true;
-				logInfo("📚 Document storage message listener registered");
-			}
-
 			this.initialized = true;
 			logInfo("📚 Document storage initialized");
 		} catch (error) {
@@ -129,22 +192,29 @@ class DocumentStorageService {
 	 * Ensure a directory exists
 	 */
 	private async ensureDirectory(path: string): Promise<void> {
-		try {
-			await fs.promises.stat(path);
-			// Directory exists, no need to create
-		} catch {
-			// Directory doesn't exist, create it
+		// Split path into segments and create each level
+		const segments = path.split("/").filter(Boolean);
+		let currentPath = "";
+
+		for (const segment of segments) {
+			currentPath += `/${segment}`;
 			try {
-				await fs.promises.mkdir(path, { recursive: true });
-			} catch (error) {
-				// Ignore EEXIST error (directory was created by another operation)
-				if (
-					error &&
-					typeof error === "object" &&
-					"code" in error &&
-					error.code !== "EEXIST"
-				) {
-					throw error;
+				await fs.promises.stat(currentPath);
+				// Directory exists, continue to next level
+			} catch {
+				// Directory doesn't exist, create it
+				try {
+					await fs.promises.mkdir(currentPath);
+				} catch (error) {
+					// Ignore EEXIST error (directory was created by another operation)
+					if (
+						error &&
+						typeof error === "object" &&
+						"code" in error &&
+						error.code !== "EEXIST"
+					) {
+						throw error;
+					}
 				}
 			}
 		}
@@ -347,10 +417,27 @@ class DocumentStorageService {
 
 	/**
 	 * Get tree structure by scanning filesystem
+	 * Uses internal cache to avoid re-scanning when data hasn't changed
+	 * Cache is automatically invalidated when filesystem changes in ANY context
 	 */
 	async getTree(): Promise<DocumentTreeNode[]> {
 		await this.initialize();
-		return await this.scanDirectory(DOCUMENTS_ROOT, "/");
+
+		// Return cached data if valid
+		if (this.treeCacheValid && this.treeCache) {
+			logInfo("📦 Returning cached tree data");
+			return this.treeCache;
+		}
+
+		// Cache invalid or empty, fetch fresh data
+		logInfo("🔄 Fetching fresh tree data");
+		const freshTree = await this.scanDirectory(DOCUMENTS_ROOT, "/");
+
+		// Update cache
+		this.treeCache = freshTree;
+		this.treeCacheValid = true;
+
+		return freshTree;
 	}
 
 	/**

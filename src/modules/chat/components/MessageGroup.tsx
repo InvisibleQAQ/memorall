@@ -38,7 +38,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
 					message={message}
 					index={index}
 					isLastMessage={false}
-					isLoading={false}
+					isStreaming={false}
 				/>
 			) : undefined,
 		);
@@ -49,7 +49,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
 			<MessageRenderer
 				key={inProgressMessage.id}
 				message={{
-					metadata: {},
+					metadata: { actions: inProgressMessage.actions },
 					createdAt: new Date(),
 					updatedAt: new Date(),
 					...inProgressMessage,
@@ -57,14 +57,14 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
 					id: inProgressMessage.id,
 					conversationId: "",
 					type: "",
-					role: "",
+					role: "assistant",
 					complexContent: null,
 					topicId: null,
 					embedding: null,
 				}}
 				index={0}
 				isLastMessage={true}
-				isLoading={true}
+				isStreaming={true}
 			/>
 		) : undefined;
 	}, [inProgressMessage]);
@@ -101,21 +101,16 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
 				</div>
 			)}
 
-			{/* Messages - animated show/hide */}
-			<div
-				className={`
-					overflow-hidden transition-all duration-300 ease-in-out
-					${!isCollapsed ? "max-h-auto opacity-100" : "max-h-0 opacity-0"}
-				`}
-			>
-				<div className="space-y-4">
+			{/* Messages - conditionally render to avoid unnecessary processing */}
+			{!isCollapsed && (
+				<div className="space-y-2">
 					{/* Completed messages */}
 					{messageComponents}
 
 					{/* In-progress message - only when provided */}
 					{inProgressMessageComponent}
 				</div>
-			</div>
+			)}
 
 			{/* Separator - always show if it exists */}
 			{group.separator && (

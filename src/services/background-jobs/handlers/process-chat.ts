@@ -7,6 +7,7 @@ import type {
 	ChatCompletionChunk,
 } from "@/types/openai";
 import { handlerRegistry } from "./handler-registry";
+import type { KnowledgeRAGState } from "@/services/flows/graph/knowledge-rag/state";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
@@ -36,7 +37,7 @@ export type ChatResult =
 					id: string;
 					name: string;
 					description: string;
-					metadata: Record<string, any>;
+					metadata: Record<string, unknown>;
 				}>;
 			};
 	  }
@@ -157,7 +158,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			id: string;
 			name: string;
 			description: string;
-			metadata: Record<string, any>;
+			metadata: Record<string, unknown>;
 		}> = [];
 
 		// Create stream buffer for content
@@ -217,6 +218,8 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					? extractTextContent(lastUserMessage.content)
 					: "";
 
+				let finalState: Partial<KnowledgeRAGState> | null = null;
+
 				const stream = await graph.stream(
 					{
 						messages: messages, // Keep full multimodal messages for LLM
@@ -271,6 +274,9 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				);
 
 				for await (const partial of stream) {
+					// Capture the final state for citation content
+					finalState = partial;
+
 					const keys = Object.keys(partial);
 					keys.forEach((key) => {
 						const partialValue = partial[key];
@@ -296,8 +302,45 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					});
 				}
 
-				// Flush any remaining buffered content
+				// Flush any remaining buffered content from streaming
 				streamBuffer.flush();
+
+				// After citation step, get the final content with citations
+				// The citation node updates finalMessage with citations
+				// LangGraph returns state like: { citation: { finalMessage: "...", actions: [...] } }
+				// We need to check all possible keys to find finalMessage
+				if (finalState) {
+					// Try to find finalMessage in any of the state keys
+					let finalMessage: string | undefined;
+					for (const key of Object.keys(finalState)) {
+						const stateValue = finalState[key as keyof typeof finalState];
+						if (
+							stateValue &&
+							typeof stateValue === "object" &&
+							"finalMessage" in stateValue
+						) {
+							finalMessage = (stateValue as { finalMessage: string })
+								.finalMessage;
+							break;
+						}
+					}
+
+					// If found and different from current content, update
+					if (finalMessage && finalMessage !== currentContent) {
+						currentContent = finalMessage;
+
+						// Send a final update to replace the streamed content with cited version
+						await dependencies.updateJobProgress(jobId, {
+							stage: "Adding citations...",
+							progress: 95,
+							result: {
+								type: "final",
+								content: finalMessage,
+								metadata: { actions },
+							} as ChatResult,
+						});
+					}
+				}
 			} else {
 				// Normal mode - direct LLM call (following use-chat.ts pattern exactly)
 				const request: ChatCompletionRequest = {

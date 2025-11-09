@@ -21,7 +21,10 @@
     "storage",
     "contextMenus",
     "notifications",
-    "offscreen"
+    "offscreen",
+    "webRequest",
+    "webNavigation",
+    "tabs"
   ],
   "host_permissions": [
     "https://huggingface.co/*",

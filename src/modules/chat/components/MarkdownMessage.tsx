@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -16,13 +16,228 @@ import {
 	TaskTrigger,
 	TaskItem,
 } from "@/components/ui/shadcn-io/ai/task";
-import { Brain, ChevronDownIcon } from "lucide-react";
+import { Brain, ChevronDownIcon, Network, Link2, Sparkles } from "lucide-react";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/molecules/ThemeContext";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
+import { serviceManager } from "@/services";
+import { eq } from "drizzle-orm";
 
 // Performance optimization: Define plugins and components outside component
 const remarkPlugins = [remarkGfm, remarkMath];
 const rehypePlugins = [rehypeKatex];
+const SEPARATE_RENDER_STREAM = false;
+
+// Citation component with popover
+interface CitationProps {
+	type: "node" | "edge";
+	uuid: string;
+	label: string;
+}
+
+const Citation: React.FC<CitationProps> = ({ type, uuid, label }) => {
+	const [open, setOpen] = useState(false);
+	const [data, setData] = useState<{
+		name?: string;
+		summary?: string;
+		nodeType?: string;
+		edgeType?: string;
+		factText?: string;
+		sourceNode?: string;
+		destNode?: string;
+	} | null>(null);
+	const [loading, setLoading] = useState(false);
+
+	const loadData = async () => {
+		if (data || loading) return;
+
+		setLoading(true);
+		try {
+			await serviceManager.databaseService.use(async ({ db, schema }) => {
+				if (type === "node") {
+					const result = await db
+						.select({
+							name: schema.nodes.name,
+							summary: schema.nodes.summary,
+							nodeType: schema.nodes.nodeType,
+						})
+						.from(schema.nodes)
+						.where(eq(schema.nodes.id, uuid))
+						.limit(1);
+
+					if (result[0]) {
+						setData({
+							name: result[0].name,
+							summary: result[0].summary || "",
+							nodeType: result[0].nodeType,
+						});
+					}
+				} else {
+					// Edge
+					const result = await db
+						.select({
+							edgeType: schema.edges.edgeType,
+							factText: schema.edges.factText,
+							sourceId: schema.edges.sourceId,
+							destinationId: schema.edges.destinationId,
+						})
+						.from(schema.edges)
+						.where(eq(schema.edges.id, uuid))
+						.limit(1);
+
+					if (result[0]) {
+						// Get source and destination node names
+						const [sourceNode, destNode] = await Promise.all([
+							db
+								.select({ name: schema.nodes.name })
+								.from(schema.nodes)
+								.where(eq(schema.nodes.id, result[0].sourceId))
+								.limit(1),
+							db
+								.select({ name: schema.nodes.name })
+								.from(schema.nodes)
+								.where(eq(schema.nodes.id, result[0].destinationId))
+								.limit(1),
+						]);
+
+						setData({
+							edgeType: result[0].edgeType,
+							factText: result[0].factText || "",
+							sourceNode: sourceNode[0]?.name,
+							destNode: destNode[0]?.name,
+						});
+					}
+				}
+			});
+		} catch (error) {
+			console.error("Failed to load citation data:", error);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<button
+					className={cn(
+						"inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium",
+						"transition-all duration-200",
+						"hover:scale-105",
+						type === "node"
+							? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
+							: "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50",
+					)}
+					onClick={() => {
+						if (!data && !loading) {
+							loadData();
+						}
+					}}
+				>
+					{type === "node" ? (
+						<Network className="w-3 h-3" />
+					) : (
+						<Link2 className="w-3 h-3" />
+					)}
+					<span>{label}</span>
+				</button>
+			</PopoverTrigger>
+			<PopoverContent className="w-80" align="start">
+				<div className="space-y-3">
+					<div className="flex items-center gap-2">
+						{type === "node" ? (
+							<Network className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+						) : (
+							<Link2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+						)}
+						<h4 className="font-semibold text-sm">
+							{type === "node" ? "Knowledge Node" : "Knowledge Edge"}
+						</h4>
+					</div>
+
+					{loading ? (
+						<div className="flex items-center gap-2 text-sm text-muted-foreground">
+							<Sparkles className="w-4 h-4 animate-spin" />
+							<span>Loading...</span>
+						</div>
+					) : data ? (
+						<div className="space-y-2">
+							{type === "node" ? (
+								<>
+									<div>
+										<div className="text-xs text-muted-foreground">Name</div>
+										<div className="text-sm font-medium">{data.name}</div>
+									</div>
+									{data.nodeType && (
+										<div>
+											<div className="text-xs text-muted-foreground">Type</div>
+											<div className="text-sm">{data.nodeType}</div>
+										</div>
+									)}
+									{data.summary && (
+										<div>
+											<div className="text-xs text-muted-foreground">
+												Summary
+											</div>
+											<div className="text-sm text-muted-foreground line-clamp-3">
+												{data.summary}
+											</div>
+										</div>
+									)}
+								</>
+							) : (
+								<>
+									{data.sourceNode && data.destNode && (
+										<div>
+											<div className="text-xs text-muted-foreground">
+												Connection
+											</div>
+											<div className="text-sm">
+												<span className="font-medium">{data.sourceNode}</span>
+												<span className="text-muted-foreground mx-1">→</span>
+												<span className="font-medium">{data.destNode}</span>
+											</div>
+										</div>
+									)}
+									{data.edgeType && (
+										<div>
+											<div className="text-xs text-muted-foreground">
+												Relationship
+											</div>
+											<div className="text-sm font-medium">{data.edgeType}</div>
+										</div>
+									)}
+									{data.factText && (
+										<div>
+											<div className="text-xs text-muted-foreground">Fact</div>
+											<div className="text-sm text-muted-foreground">
+												{data.factText}
+											</div>
+										</div>
+									)}
+								</>
+							)}
+							<div className="pt-2 border-t">
+								<div className="text-xs text-muted-foreground font-mono truncate">
+									ID: {uuid}
+								</div>
+							</div>
+						</div>
+					) : (
+						<div className="text-sm text-muted-foreground">
+							Click to load details
+						</div>
+					)}
+				</div>
+			</PopoverContent>
+		</Popover>
+	);
+};
 
 // Parse and extract <think> tags from content
 interface ParsedContent {
@@ -114,6 +329,45 @@ const markdownComponents = {
 	hr: ({ ...props }) => (
 		<hr className="border-gray-700 dark:border-gray-300" {...props} />
 	),
+	// Custom link renderer to handle citations
+	a: ({
+		href,
+		children,
+		...props
+	}: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+		children?: React.ReactNode;
+	}) => {
+		// Check if this is a citation link
+		// Format: #citations:node/{uuid} or #citation:edge/{uuid}
+		if (
+			href &&
+			(href.startsWith("#citations:node/") ||
+				href.startsWith("#citation:edge/"))
+		) {
+			const isNode = href.startsWith("#citations:node/");
+			const uuid = isNode
+				? href.replace("#citations:node/", "")
+				: href.replace("#citation:edge/", "");
+			const label = String(children || "");
+
+			return (
+				<Citation type={isNode ? "node" : "edge"} uuid={uuid} label={label} />
+			);
+		}
+
+		// Regular link
+		return (
+			<a
+				href={href}
+				className="text-blue-600 dark:text-blue-400 hover:underline"
+				target="_blank"
+				rel="noopener noreferrer"
+				{...props}
+			>
+				{children}
+			</a>
+		);
+	},
 };
 
 // Lightweight components for animating state - no syntax highlighting or mermaid
@@ -141,55 +395,36 @@ const animatingComponents = {
 			</pre>
 		);
 	},
+	// Citations are shown even while animating
+	a: markdownComponents.a,
 };
 
 interface MarkdownMessageProps {
 	className?: string;
-	isAnimating?: boolean;
+	isStreaming?: boolean;
 	children?: string;
 }
-
-// Hook to detect theme
-const useTheme = () => {
-	const [isDark, setIsDark] = React.useState(false);
-
-	useEffect(() => {
-		const checkTheme = () => {
-			setIsDark(document.documentElement.classList.contains("dark"));
-		};
-
-		checkTheme();
-		const observer = new MutationObserver(checkTheme);
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ["class"],
-		});
-
-		return () => observer.disconnect();
-	}, []);
-
-	return isDark;
-};
 
 const MarkdownMessageComponent: React.FC<MarkdownMessageProps> = ({
 	className,
 	children,
-	isAnimating = false,
+	isStreaming = false,
 }) => {
 	const { t } = useTranslation("chat");
-	const isDark = useTheme();
+	const { actualTheme } = useTheme();
+	const isDark = actualTheme === "dark";
 
 	// Parse thinking tags from content
 	const { thinking, content, hasIncompleteThinking } = useMemo(() => {
 		if (!children)
 			return { thinking: [], content: "", hasIncompleteThinking: false };
-		return parseThinkTags(children, isAnimating);
-	}, [children, isAnimating]);
+		return parseThinkTags(children, isStreaming);
+	}, [children, isStreaming]);
 
 	// Create theme-aware markdown components with useMemo to avoid recreating on every render
 	const themeAwareComponents = useMemo(() => {
 		// If animating, use lightweight components
-		if (isAnimating) {
+		if (isStreaming && SEPARATE_RENDER_STREAM) {
 			return animatingComponents;
 		}
 
@@ -237,7 +472,7 @@ const MarkdownMessageComponent: React.FC<MarkdownMessageProps> = ({
 				);
 			},
 		};
-	}, [isDark, isAnimating]);
+	}, [isDark, isStreaming]);
 
 	return (
 		<div
@@ -253,7 +488,7 @@ const MarkdownMessageComponent: React.FC<MarkdownMessageProps> = ({
 					{thinking.map((thinkContent, index) => {
 						// First item is incomplete if hasIncompleteThinking is true
 						const isIncomplete = hasIncompleteThinking && index === 0;
-						const isThinking = isAnimating && isIncomplete;
+						const isThinking = isStreaming && isIncomplete;
 
 						return (
 							<Task key={index} defaultOpen={isIncomplete}>
@@ -306,12 +541,12 @@ export const MarkdownMessage = React.memo(
 	MarkdownMessageComponent,
 	(prevProps, nextProps) => {
 		// If animating state changes, always re-render
-		if (prevProps.isAnimating !== nextProps.isAnimating) {
+		if (prevProps.isStreaming !== nextProps.isStreaming) {
 			return false;
 		}
 
 		// If animating is true and children are the same, skip re-render
-		if (prevProps.isAnimating && prevProps.children === nextProps.children) {
+		if (prevProps.isStreaming && prevProps.children === nextProps.children) {
 			return true;
 		}
 

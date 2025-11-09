@@ -1,6 +1,18 @@
 import React, { useRef, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
+import {
+	Loader2,
+	Network,
+	FileText,
+	GitBranch,
+	Search,
+	Sparkles,
+	ChevronDown,
+	PenLine,
+	Database,
+	Brain,
+	Zap,
+} from "lucide-react";
 import { Message, MessageContent } from "@/components/ui/shadcn-io/ai/message";
 import {
 	Task,
@@ -9,21 +21,21 @@ import {
 	TaskTrigger,
 } from "@/components/ui/shadcn-io/ai/task";
 import { MermaidRenderer } from "@/components/atoms/MermaidRenderer";
+import { MessageKnowledgeGraph } from "./MessageKnowledgeGraph";
 import type { Message as DBMessage } from "@/services/database";
 import dayjs from "dayjs";
 
 const USE_STREAMDOWN = false;
 const Streamdown = lazy(() => import("./MessageStreamDown"));
 const MarkdownMessage = lazy(() => import("./MarkdownMessage"));
+const ContentComponent = USE_STREAMDOWN ? Streamdown : MarkdownMessage;
 
-// Direct Mermaid component for task descriptions - only renders when visible
 const TaskMermaidDiagram: React.FC<{ chart: string; isOpen: boolean }> = ({
 	chart,
 	isOpen,
 }) => {
 	const hasRendered = useRef(false);
 
-	// Only render once when opened
 	if (!isOpen) {
 		return null;
 	}
@@ -35,50 +47,158 @@ const TaskMermaidDiagram: React.FC<{ chart: string; isOpen: boolean }> = ({
 	return <MermaidRenderer chart={chart} />;
 };
 
-// Helper function to detect if content is only a mermaid code block
 const isMermaidOnly = (content: string): boolean => {
 	const trimmed = content.trim();
 	const mermaidRegex = /^```mermaid\s*\n([\s\S]*?)\n```$/;
-	const result = mermaidRegex.test(trimmed);
-	return result;
+	return mermaidRegex.test(trimmed);
 };
 
-// Helper function to extract mermaid content from code block
 const extractMermaidContent = (content: string): string => {
 	const trimmed = content.trim();
 	const mermaidRegex = /^```mermaid\s*\n([\s\S]*?)\n```$/;
 	const match = trimmed.match(mermaidRegex);
-	const extracted = match ? match[1].trim() : "";
-	return extracted;
+	return match ? match[1].trim() : "";
 };
 
-// Type definitions
+interface KnowledgeGraphMetadata extends Record<string, unknown> {
+	nodes: Array<{
+		id: string;
+		nodeType: string;
+		name: string;
+		summary: string;
+		attributes: Record<string, unknown>;
+		relevanceScore: number;
+	}>;
+	edges: Array<{
+		id: string;
+		sourceId: string;
+		destinationId: string;
+		edgeType: string;
+		factText: string;
+		attributes: Record<string, unknown>;
+		relevanceScore: number;
+	}>;
+}
+
 interface ActionItem {
 	name: string;
 	description: string;
 	metadata?: Record<string, unknown>;
 }
 
-// Helper function to translate action names
+// Type guard for knowledge graph metadata
+function isKnowledgeGraphMetadata(
+	metadata: Record<string, unknown> | undefined
+): metadata is KnowledgeGraphMetadata {
+	if (!metadata) return false;
+
+	const hasNodes = Array.isArray(metadata.nodes) &&
+		metadata.nodes.every((node: unknown): node is KnowledgeGraphMetadata['nodes'][number] =>
+			typeof node === 'object' &&
+			node !== null &&
+			'id' in node &&
+			'nodeType' in node &&
+			'name' in node &&
+			typeof node.id === 'string' &&
+			typeof node.nodeType === 'string' &&
+			typeof node.name === 'string'
+		);
+
+	const hasEdges = Array.isArray(metadata.edges) &&
+		metadata.edges.every((edge: unknown): edge is KnowledgeGraphMetadata['edges'][number] =>
+			typeof edge === 'object' &&
+			edge !== null &&
+			'id' in edge &&
+			'sourceId' in edge &&
+			'destinationId' in edge &&
+			'edgeType' in edge &&
+			typeof edge.id === 'string' &&
+			typeof edge.sourceId === 'string' &&
+			typeof edge.destinationId === 'string' &&
+			typeof edge.edgeType === 'string'
+		);
+
+	return hasNodes && hasEdges;
+}
+
+const ICON_MAPPINGS = [
+	{ keywords: ['search', 'query', 'retrieval', 'retrieve'], icon: Search },
+	{ keywords: ['generat', 'create'], icon: Sparkles },
+	{ keywords: ['write', 'edit', 'update'], icon: PenLine },
+	{ keywords: ['graph', 'network'], icon: Network },
+	{ keywords: ['analys', 'think'], icon: Brain },
+	{ keywords: ['context', 'knowledge', 'data'], icon: Database },
+	{ keywords: ['process', 'execute', 'run'], icon: Zap },
+];
+
+const getActionIcon = (name: string) => {
+	const lower = name.toLowerCase();
+	const Icon = ICON_MAPPINGS.find(({ keywords }) =>
+		keywords.some(keyword => lower.includes(keyword))
+	)?.icon || FileText;
+
+	return <Icon className="w-4 h-4" />;
+};
+
 const useTranslateActionName = () => {
 	const { t } = useTranslation("chat");
 
 	return (actionName: string): string => {
-		// Try to get translation from actions namespace
 		const translationKey = `actions.${actionName}`;
 		const translated = t(translationKey);
 
-		// If translation exists and is different from the key, use it
 		if (translated !== translationKey) {
 			return translated;
 		}
 
-		// Fallback: replace underscores with spaces and capitalize first letter
 		return actionName.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 	};
 };
 
-// TaskItemRenderer component to properly manage state per task
+type ActionRenderer = (item: ActionItem, isOpen: boolean) => React.ReactNode | null;
+
+const ACTION_RENDERERS: Record<string, ActionRenderer> = {
+	knowledge_graph: (item, isOpen) => {
+		if (!isOpen || !isKnowledgeGraphMetadata(item.metadata)) return null;
+		return (
+			<MessageKnowledgeGraph
+				nodes={item.metadata.nodes}
+				edges={item.metadata.edges}
+			/>
+		);
+	},
+};
+
+const defaultActionRenderer: ActionRenderer = (item, isOpen) => {
+	if (!isOpen) return null;
+
+	const trimmedDesc = item.description?.trim() || "";
+	if (isMermaidOnly(trimmedDesc)) {
+		return (
+			<TaskMermaidDiagram
+				chart={extractMermaidContent(trimmedDesc)}
+				isOpen={isOpen}
+			/>
+		);
+	}
+
+	return (
+		<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
+			{item.description}
+		</div>
+	);
+};
+
+interface ActionContentProps {
+	item: ActionItem;
+	isOpen: boolean;
+}
+
+const ActionContent: React.FC<ActionContentProps> = ({ item, isOpen }) => {
+	const renderer = ACTION_RENDERERS[item.name] || defaultActionRenderer;
+	return <>{renderer(item, isOpen)}</>;
+};
+
 interface TaskItemRendererProps {
 	item: ActionItem;
 	index: number;
@@ -89,8 +209,9 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 		const translateActionName = useTranslateActionName();
 		const [isOpen, setIsOpen] = React.useState(false);
 
-		const trimmedDesc = item.description ? item.description.trim() : "";
-		const isMermaid = isMermaidOnly(trimmedDesc);
+		const icon = getActionIcon(item.name);
+
+		console.log('TaskItemRenderer>>>>>>>>>>>>>>>>>')
 
 		return (
 			<Task
@@ -99,21 +220,20 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 				defaultOpen={false}
 				onOpenChange={setIsOpen}
 			>
-				<TaskTrigger title={translateActionName(item.name)} />
+				<TaskTrigger title={translateActionName(item.name)}>
+					<div className="flex items-center gap-2 w-full">
+						<ChevronDown
+							className={`size-4 transition-transform duration-200 ${
+								isOpen ? "rotate-0" : "-rotate-90"
+							}`}
+						/>
+						{icon}
+						<span className="flex-1">{translateActionName(item.name)}</span>
+					</div>
+				</TaskTrigger>
 				<TaskContent>
 					<TaskItem>
-						{isOpen ? (
-							isMermaid ? (
-								<TaskMermaidDiagram
-									chart={extractMermaidContent(item.description)}
-									isOpen={isOpen}
-								/>
-							) : (
-								<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
-									{item.description}
-								</div>
-							)
-						) : undefined}
+						<ActionContent item={item} isOpen={isOpen} />
 					</TaskItem>
 				</TaskContent>
 			</Task>
@@ -125,16 +245,14 @@ interface MessageRendererProps {
 	message: DBMessage;
 	index: number;
 	isLastMessage: boolean;
-	isLoading: boolean;
+	isStreaming: boolean;
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = ({
 	message,
-	index,
 	isLastMessage,
-	isLoading,
+	isStreaming,
 }) => {
-	// Check if this is a separator message
 	if (message.type === "separator") {
 		return (
 			<div key={message.id} className="my-4 flex items-center">
@@ -156,54 +274,31 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({
 			? message.metadata.actions
 			: [];
 
-	if (
-		!message.content &&
-		isLastMessage &&
-		isLoading &&
-		message.role === "assistant"
-	) {
-		return (
-			<div key={message.id} className="flex flex-col gap-4">
-				{actions.length > 0 &&
-					actions.map((item, index) => (
-						<TaskItemRenderer
-							key={`${item.name}_${index}`}
-							item={item}
-							index={index}
-						/>
-					))}
-				<Message from="assistant">
-					<MessageContent>
-						<Loader2 className="w-4 h-4 animate-spin" />
-					</MessageContent>
-				</Message>
-			</div>
-		);
-	}
-
-	const ContentComponent = USE_STREAMDOWN ? Streamdown : MarkdownMessage;
-
 	return (
 		<div key={message.id} className="flex flex-col gap-4">
-			{actions.length > 0 &&
-				actions.map((item, index) => (
-					<TaskItemRenderer
-						key={`${item.name}_${index}`}
-						item={item}
-						index={index}
-					/>
-				))}
+			{actions?.map((item, index) => (
+				<TaskItemRenderer
+					key={`${item.name}_${index}`}
+					item={item}
+					index={index}
+				/>
+			)) || []}
 			<Message key={message.id} from={message.role}>
 				<MessageContent>
-					<Suspense fallback={<div>...</div>}>
-						<ContentComponent
-							isAnimating={
-								isLastMessage && isLoading && message.role === "assistant"
-							}
-						>
-							{message.content}
-						</ContentComponent>
-					</Suspense>
+					{!message.content && isLastMessage && isStreaming ? (
+						<Loader2 className="w-4 h-4 animate-spin" />
+					) : (
+						<Suspense fallback={<Loader2 className="w-4 h-4 animate-spin" />}>
+							<>
+								<ContentComponent isStreaming={false}>
+									{message.content}
+								</ContentComponent>
+								{isStreaming ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : undefined}
+							</>
+						</Suspense>
+					)}
 				</MessageContent>
 			</Message>
 		</div>

@@ -162,6 +162,20 @@ export class ChatService {
 							}
 						});
 						callbacks?.onAction?.(actions);
+					} else if (chatResult.type === "final") {
+						// Handle final content update (e.g., after citation step)
+						// This replaces the accumulated content with the final version
+						currentContent = chatResult.content;
+						if (chatResult.metadata?.actions) {
+							chatResult.metadata.actions.forEach((action) => {
+								if (!actions.find((a) => a.id === action.id)) {
+									actions.push(action);
+								}
+							});
+						}
+						// Notify with the final cited content
+						callbacks?.onContent?.(currentContent);
+						callbacks?.onAction?.(actions);
 					}
 				}
 			}

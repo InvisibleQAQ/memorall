@@ -58,7 +58,7 @@ export interface StopSessionResult extends Record<string, unknown> {
 }
 
 export interface RecordActivityResult extends Record<string, unknown> {
-	activity: Activity;
+	activity?: Activity;
 }
 
 export interface GetSessionsResult extends Record<string, unknown> {
@@ -169,7 +169,7 @@ class ActivityTrackingHandler implements ProcessHandler<BaseJob> {
 			payload.activityData,
 		);
 
-		return { activity };
+		return { activity: activity || undefined };
 	}
 
 	private async handleGetSessions(

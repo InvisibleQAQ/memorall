@@ -6,7 +6,10 @@
       "Bash(npx tsc:*)",
       "WebSearch",
       "Bash(where:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(yarn add i18next react-i18next i18next-browser-languagedetector)",
+      "Bash(yarn tsc:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

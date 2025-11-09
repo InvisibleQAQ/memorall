@@ -5,6 +5,19 @@ import {
 	BaseAnnotation,
 } from "@/services/flows/interfaces/graph.base";
 
+export interface KnowledgeRAGConfig {
+	quickMode?: boolean;
+	maxGrowthLevels?: number;
+	searchLimit?: number;
+}
+
+// Graph growth configuration
+export interface GraphGrowthConfig {
+	maxLevels: number;
+	nodesPerLevel: number;
+	edgesPerLevel: number;
+}
+
 export interface KnowledgeRAGState extends BaseStateBase {
 	// Input
 	messages: ChatMessage[];
@@ -37,7 +50,6 @@ export interface KnowledgeRAGState extends BaseStateBase {
 
 	// Context Building
 	knowledgeContext: string;
-	mermaidDiagram: string;
 
 	// Steps for tracking progress
 	steps: Array<{
@@ -56,7 +68,8 @@ export interface KnowledgeRAGState extends BaseStateBase {
 		| "analyze_query"
 		| "retrieve_knowledge"
 		| "build_context"
-		| "generate_response";
+		| "generate_response"
+		| "citation";
 }
 
 export const KnowledgeRAGAnnotation = {
@@ -90,10 +103,6 @@ export const KnowledgeRAGAnnotation = {
 		default: () => [],
 	}),
 	knowledgeContext: Annotation<string>({
-		value: (x, y) => y ?? x ?? "",
-		default: () => "",
-	}),
-	mermaidDiagram: Annotation<string>({
 		value: (x, y) => y ?? x ?? "",
 		default: () => "",
 	}),
