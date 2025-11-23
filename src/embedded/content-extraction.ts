@@ -2,7 +2,7 @@ import { Readability } from "@mozilla/readability";
 import {
 	isPDFUrl,
 	readPDFFromUrl,
-} from "../modules/documents/handlers/pdf-extraction";
+} from "@/modules/documents/handlers/pdf-extraction";
 import type {
 	SelectionData,
 	PageMetadata,
@@ -281,6 +281,11 @@ export function extractViewportContent(): string {
 
 	allElements.forEach((el) => {
 		try {
+			// Skip non-content elements
+			const tagName = el.tagName.toLowerCase();
+			const skipTags = ["script", "style", "noscript", "meta", "link", "svg", "iframe"];
+			if (skipTags.includes(tagName)) return;
+
 			// Check if element is in viewport
 			const rect = el.getBoundingClientRect();
 			const isInViewport =
@@ -291,6 +296,10 @@ export function extractViewportContent(): string {
 
 			if (!isInViewport) return;
 
+			// Check if element has visible dimensions
+			const hasVisibleSize = rect.width > 0 && rect.height > 0;
+			if (!hasVisibleSize) return;
+
 			// Check if element is visible
 			const style = window.getComputedStyle(el);
 			const isVisible =
@@ -300,7 +309,12 @@ export function extractViewportContent(): string {
 
 			if (!isVisible) return;
 
-			// Get ALL text content from the element - simple and effective
+			// Only extract text from leaf elements (no child elements)
+			// This avoids duplicate text from parent containers
+			const hasChildElements = el.children.length > 0;
+			if (hasChildElements) return;
+
+			// Get text content from this leaf element only
 			const text = el.textContent?.trim();
 
 			// Add any meaningful text (longer than 5 chars, not duplicate)

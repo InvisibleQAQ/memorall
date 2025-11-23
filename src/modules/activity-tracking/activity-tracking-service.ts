@@ -204,7 +204,10 @@ class ActivityTrackingService {
 		await this.ensureInitialized();
 
 		if (!this.currentSession || this.currentSession.status !== "active") {
-			throw new Error("No active session. Start a session first.");
+			logWarn("No active session when recording activity, skipping", {
+				activityType: data.type,
+			});
+			return null;
 		}
 
 		// Check if this activity type is enabled
@@ -250,7 +253,11 @@ class ActivityTrackingService {
 			click: "trackClicks",
 			scroll: "trackScrolls",
 			form_submit: "trackFormSubmits",
-			text_reading: "trackTextReading",
+			text_reading: "trackTextReading", // Deprecated
+			content_reading: "trackContentReading", // New content reading tracker
+			youtube_video: "trackYouTubeVideos",
+			video_watching: "trackVideoWatching",
+			video_call: "trackVideoCalls",
 		};
 
 		const configKey = typeToConfigMap[type];
@@ -517,6 +524,10 @@ class ActivityTrackingService {
 				navigation: 0,
 				form_submit: 0,
 				text_reading: 0,
+				content_reading: 0,
+				youtube_video: 0,
+				video_watching: 0,
+				video_call: 0,
 			},
 			uniquePages: 0,
 			totalDuration: 0,

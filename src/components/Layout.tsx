@@ -51,6 +51,7 @@ const navigation = [
 		icon: Network,
 	},
 	{ nameKey: "navigation.documents", path: "/documents", icon: FileText },
+	{ nameKey: "navigation.activities", path: "/activities", icon: Activity },
 ];
 
 const debugItems = [
@@ -60,7 +61,6 @@ const debugItems = [
 		icon: VectorSquareIcon,
 	},
 	{ nameKey: "navigation.database", path: "/database", icon: Database },
-	{ nameKey: "navigation.activities", path: "/activities", icon: Activity },
 	{ nameKey: "navigation.logs", path: "/logs", icon: Bug },
 ];
 

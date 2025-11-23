@@ -7,9 +7,7 @@ import { logInfo, logError, logWarn } from "@/utils/logger";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type {
 	PageVisitData,
-	NetworkRequestData,
 	NavigationData,
-	ActivitySession,
 } from "@/types/activity-tracking";
 
 // Track active page visits
@@ -24,33 +22,8 @@ const tabInfo = new Map<
 	{ url: string; title: string; windowId: number }
 >();
 
-// Track request bodies temporarily (requestId -> body data)
-const requestBodies = new Map<
-	string,
-	{ body?: string; size?: number; truncated?: boolean }
->();
-
-// Maximum request body size to log (10KB)
-const MAX_REQUEST_BODY_SIZE = 10 * 1024;
-
 class ActivityTrackingManager {
 	private currentSessionId: string | null = null;
-
-	private networkListener:
-		| ((details: chrome.webRequest.WebRequestDetails) => void)
-		| null = null;
-
-	private networkBeforeRequestListener:
-		| ((
-				details: chrome.webRequest.WebRequestDetails & {
-					requestBody?: {
-						error?: string;
-						formData?: { [key: string]: string[] };
-						raw?: Array<{ bytes?: ArrayBuffer; file?: string }>;
-					};
-				},
-		  ) => void)
-		| null = null;
 
 	private tabActivatedListener:
 		| ((activeInfo: { tabId: number; windowId: number }) => void)
@@ -109,7 +82,6 @@ class ActivityTrackingManager {
 			logInfo("Started activity tracking session:", session.id);
 
 			// Setup listeners
-			this.setupNetworkListener();
 			this.setupTabListeners();
 			this.setupNavigationListener();
 
@@ -186,43 +158,6 @@ class ActivityTrackingManager {
 	}
 
 	/**
-	 * Setup network request listener
-	 */
-	private setupNetworkListener(): void {
-		if (this.networkListener) return;
-
-		// Capture request bodies on onBeforeRequest
-		this.networkBeforeRequestListener = (
-			details: chrome.webRequest.WebRequestDetails & {
-				requestBody?: {
-					error?: string;
-					formData?: { [key: string]: string[] };
-					raw?: Array<{ bytes?: ArrayBuffer; file?: string }>;
-				};
-			},
-		) => {
-			this.handleRequestBody(details);
-		};
-
-		chrome.webRequest.onBeforeRequest.addListener(
-			this.networkBeforeRequestListener as any,
-			{ urls: ["<all_urls>"] },
-			["requestBody"],
-		);
-
-		// Track completed requests
-		this.networkListener = (details: chrome.webRequest.WebRequestDetails) => {
-			this.handleNetworkRequest(details);
-		};
-
-		chrome.webRequest.onCompleted.addListener(
-			this.networkListener,
-			{ urls: ["<all_urls>"] },
-			["responseHeaders"],
-		);
-	}
-
-	/**
 	 * Setup tab listeners
 	 */
 	private setupTabListeners(): void {
@@ -280,21 +215,6 @@ class ActivityTrackingManager {
 	 * Remove all listeners
 	 */
 	private removeListeners(): void {
-		if (this.networkBeforeRequestListener) {
-			chrome.webRequest.onBeforeRequest.removeListener(
-				this.networkBeforeRequestListener as any,
-			);
-			this.networkBeforeRequestListener = null;
-		}
-
-		if (this.networkListener) {
-			chrome.webRequest.onCompleted.removeListener(this.networkListener);
-			this.networkListener = null;
-		}
-
-		// Clear request bodies cache
-		requestBodies.clear();
-
 		if (this.tabActivatedListener) {
 			chrome.tabs.onActivated.removeListener(this.tabActivatedListener);
 			this.tabActivatedListener = null;
@@ -313,126 +233,6 @@ class ActivityTrackingManager {
 		if (this.navigationListener) {
 			chrome.webNavigation.onCommitted.removeListener(this.navigationListener);
 			this.navigationListener = null;
-		}
-	}
-
-	/**
-	 * Handle request body capture
-	 */
-	private handleRequestBody(
-		details: chrome.webRequest.WebRequestDetails & {
-			requestBody?: {
-				error?: string;
-				formData?: { [key: string]: string[] };
-				raw?: Array<{ bytes?: ArrayBuffer; file?: string }>;
-			};
-		},
-	): void {
-		try {
-			if (!details.requestBody) {
-				return;
-			}
-
-			let bodyStr: string | undefined;
-			let originalSize = 0;
-			let truncated = false;
-
-			// Handle FormData
-			if (details.requestBody.formData) {
-				const formData = details.requestBody.formData;
-				const formDataStr = JSON.stringify(formData);
-				originalSize = formDataStr.length;
-
-				if (originalSize > MAX_REQUEST_BODY_SIZE) {
-					bodyStr = formDataStr.substring(0, MAX_REQUEST_BODY_SIZE);
-					truncated = true;
-				} else {
-					bodyStr = formDataStr;
-				}
-			}
-			// Handle raw data
-			else if (details.requestBody.raw) {
-				const rawParts: string[] = [];
-				let totalSize = 0;
-
-				for (const part of details.requestBody.raw) {
-					if (part.bytes) {
-						const decoder = new TextDecoder();
-						const text = decoder.decode(new Uint8Array(part.bytes));
-						totalSize += text.length;
-						rawParts.push(text);
-					}
-				}
-
-				originalSize = totalSize;
-				const combinedBody = rawParts.join("");
-
-				if (totalSize > MAX_REQUEST_BODY_SIZE) {
-					bodyStr = combinedBody.substring(0, MAX_REQUEST_BODY_SIZE);
-					truncated = true;
-				} else {
-					bodyStr = combinedBody;
-				}
-			}
-
-			// Store the body data temporarily
-			if (bodyStr !== undefined) {
-				requestBodies.set(details.requestId, {
-					body: bodyStr,
-					size: originalSize,
-					truncated,
-				});
-
-				// Clean up after 30 seconds to prevent memory leaks
-				setTimeout(() => {
-					requestBodies.delete(details.requestId);
-				}, 30000);
-			}
-		} catch (error) {
-			// Silently fail - body capture is optional
-		}
-	}
-
-	/**
-	 * Handle network request
-	 */
-	private async handleNetworkRequest(
-		details: chrome.webRequest.WebRequestDetails,
-	): Promise<void> {
-		try {
-			const tab = tabInfo.get(details.tabId);
-
-			// Get captured request body if available
-			const bodyData = requestBodies.get(details.requestId);
-
-			const data: NetworkRequestData = {
-				type: "network_request",
-				url: details.url,
-				method: details.method,
-				requestType: details.type,
-				statusCode: (details as any).statusCode,
-				requestBody: bodyData?.body,
-				requestBodySize: bodyData?.size,
-				requestBodyTruncated: bodyData?.truncated,
-				pageUrl: tab?.url || details.initiator || "",
-				pageTitle: tab?.title,
-				tabId: details.tabId,
-				requestId: details.requestId,
-				initiator: details.initiator,
-			};
-
-			// Clean up body data after using it
-			if (bodyData) {
-				requestBodies.delete(details.requestId);
-			}
-
-			await backgroundJob.execute(
-				"activity-record",
-				{ activityData: data },
-				{ stream: false },
-			);
-		} catch (error) {
-			// Silently fail - too many network requests to log every error
 		}
 	}
 
