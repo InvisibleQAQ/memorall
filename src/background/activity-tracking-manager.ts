@@ -336,6 +336,7 @@ class ActivityTrackingManager {
 
 	/**
 	 * Track page visit
+	 * IMMEDIATELY saves the page visit event to database
 	 */
 	private async trackPageVisit(
 		tabId: number,
@@ -345,6 +346,7 @@ class ActivityTrackingManager {
 		if (!this.canAccessTab(url)) return;
 
 		const tab = await chrome.tabs.get(tabId);
+		const startTime = Date.now();
 
 		const data: PageVisitData = {
 			type: "page_visit",
@@ -352,11 +354,24 @@ class ActivityTrackingManager {
 			title,
 			tabId,
 			windowId: tab.windowId,
-			startTime: Date.now(),
+			startTime,
 		};
 
-		activePageVisits.set(tabId, { data, startTime: Date.now() });
+		// Store in memory for tracking duration
+		activePageVisits.set(tabId, { data, startTime });
 		tabInfo.set(tabId, { url, title, windowId: tab.windowId });
+
+		// IMMEDIATELY save the page visit event to database
+		try {
+			await backgroundJob.execute(
+				"activity-record",
+				{ activityData: data },
+				{ stream: false },
+			);
+			logInfo(`📄 Page visit recorded immediately: ${title} (${url})`);
+		} catch (error) {
+			logWarn("Failed to record initial page visit:", error);
+		}
 	}
 
 	/**

@@ -6,6 +6,7 @@
 import {
 	countWords,
 	extractVisibleContent,
+	invalidateVisibilityCache,
 } from "./visible-content-extractor";
 
 export interface ReadingMetrics {
@@ -22,10 +23,7 @@ export class ReadingAnalyzer {
 	private accumulatedVisibleContent: Set<string> = new Set(); // Unique text segments
 	private lastScrollY: number = 0;
 	private lastVisibleContent: string = "";
-	private lastUpdateTime: number = 0;
 	private readonly WORDS_PER_SECOND = 200 / 60; // 200 WPM = 3.33 WPS
-	private readonly UPDATE_THROTTLE_MS = 3000; // OPTIMIZED: 3s for responsive detection (cached operations are fast)
-	private readonly SCROLL_THRESHOLD_PX = 300; // OPTIMIZED: 300px for sensitive reading detection
 	private pendingUpdateHandle: number | null = null; // Track pending updates
 
 	// SMART SCROLL-STOP DETECTION
@@ -46,7 +44,6 @@ export class ReadingAnalyzer {
 	constructor() {
 		this.startTime = Date.now();
 		this.lastScrollY = window.scrollY;
-		this.lastUpdateTime = Date.now();
 		this.lastScrollTime = Date.now();
 
 		// Capture initial visible content (async to avoid blocking)
@@ -83,6 +80,7 @@ export class ReadingAnalyzer {
 	/**
 	 * Record scroll event
 	 * SMART: Detect when user STOPS scrolling to capture content
+	 * PERFORMANCE: No content extraction during active scrolling
 	 */
 	recordScroll(scrollY: number): void {
 		const scrollDiff = Math.abs(scrollY - this.lastScrollY);
@@ -107,17 +105,8 @@ export class ReadingAnalyzer {
 				this.idleCaptureTimer = null;
 			}
 
-			// Update visible content if scrolled significantly (throttled)
-			if (
-				scrollDiff > this.SCROLL_THRESHOLD_PX &&
-				now - this.lastUpdateTime > this.UPDATE_THROTTLE_MS &&
-				this.pendingUpdateHandle === null
-			) {
-				this.lastUpdateTime = now;
-				this.scheduleUpdate(() => {
-					this.updateVisibleContent();
-				});
-			}
+			// PERFORMANCE FIX: Removed content extraction during scrolling
+			// Only extract on scroll-stop to avoid expensive DOM operations
 
 			// Set timer to detect when scrolling stops
 			this.scrollStopTimer = setTimeout(() => {
@@ -132,6 +121,9 @@ export class ReadingAnalyzer {
 	 */
 	private onScrollStop(): void {
 		this.isScrolling = false;
+
+		// PERFORMANCE: Invalidate cache once when scroll stops (not during scrolling)
+		invalidateVisibilityCache();
 
 		// Update visible content immediately (user stopped to read)
 		this.updateVisibleContent();

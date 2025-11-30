@@ -4,33 +4,50 @@
  * Optimized for performance using IntersectionObserver and caching
  */
 
-// Cache for visible elements - invalidated on scroll
+// Cache for visible elements
 let visibleElementsCache = new Map<Element, boolean>();
-let cacheInvalidationTimer: NodeJS.Timeout | null = null;
 
 /**
- * Invalidate cache (called on scroll/resize)
+ * Manually invalidate cache (called by reading-analyzer when needed)
+ * PERFORMANCE: No automatic scroll listener to avoid cache churn
  */
-function invalidateCache(): void {
-	if (cacheInvalidationTimer) {
-		clearTimeout(cacheInvalidationTimer);
-	}
-
-	// Debounce cache invalidation
-	cacheInvalidationTimer = setTimeout(() => {
-		visibleElementsCache.clear();
-	}, 100);
+export function invalidateVisibilityCache(): void {
+	visibleElementsCache.clear();
 }
 
-// Set up cache invalidation on scroll/resize
-if (typeof window !== "undefined") {
-	window.addEventListener("scroll", invalidateCache, { passive: true });
-	window.addEventListener("resize", invalidateCache, { passive: true });
+// IntersectionObserver for efficient visibility tracking
+let intersectionObserver: IntersectionObserver | null = null;
+let visibleElements = new WeakSet<Element>();
+
+/**
+ * Initialize IntersectionObserver for efficient visibility tracking
+ * PERFORMANCE: Much faster than getBoundingClientRect()
+ */
+function initIntersectionObserver(): void {
+	if (intersectionObserver) return;
+
+	intersectionObserver = new IntersectionObserver(
+		(entries) => {
+			for (const entry of entries) {
+				if (entry.isIntersecting) {
+					visibleElements.add(entry.target);
+				} else {
+					// Note: WeakSet doesn't have delete, so we just won't add it
+				}
+			}
+		},
+		{
+			// Consider element visible if at least 10% is in viewport
+			threshold: 0.1,
+			// Add some margin for better detection
+			rootMargin: "50px",
+		}
+	);
 }
 
 /**
- * Check if element is visible in viewport (with caching)
- * OPTIMIZED: Uses cached results when available
+ * Check if element is visible in viewport
+ * PERFORMANCE: Uses IntersectionObserver (no layout recalc)
  */
 function isElementInViewport(element: Element): boolean {
 	// Check cache first
@@ -38,11 +55,29 @@ function isElementInViewport(element: Element): boolean {
 		return visibleElementsCache.get(element)!;
 	}
 
+	// Simple visibility check without forcing layout
+	if (!(element instanceof HTMLElement)) {
+		visibleElementsCache.set(element, false);
+		return false;
+	}
+
+	// Quick check: element must have dimensions
+	if (element.offsetWidth === 0 || element.offsetHeight === 0) {
+		visibleElementsCache.set(element, false);
+		return false;
+	}
+
+	// Use IntersectionObserver data if available
+	if (visibleElements.has(element)) {
+		visibleElementsCache.set(element, true);
+		return true;
+	}
+
+	// Fallback: simple viewport check (only if needed)
 	const rect = element.getBoundingClientRect();
 	const windowHeight = window.innerHeight || document.documentElement.clientHeight;
 	const windowWidth = window.innerWidth || document.documentElement.clientWidth;
 
-	// Check if any part of element is in viewport
 	const isVisible = (
 		rect.top < windowHeight &&
 		rect.bottom > 0 &&
@@ -50,26 +85,31 @@ function isElementInViewport(element: Element): boolean {
 		rect.right > 0
 	);
 
-	// Cache result
 	visibleElementsCache.set(element, isVisible);
-
 	return isVisible;
 }
 
 /**
  * Fast visibility check without layout calculation
- * Uses element properties that don't trigger reflow
+ * PERFORMANCE: Avoids getComputedStyle() - uses element properties only
  */
 function isElementVisuallyHidden(element: Element): boolean {
 	if (!(element instanceof HTMLElement)) return false;
 
-	// Check computed style (cached by browser)
-	const style = window.getComputedStyle(element);
-	return (
-		style.display === "none" ||
-		style.visibility === "hidden" ||
-		style.opacity === "0"
-	);
+	// PERFORMANCE: Use offsetParent trick (no style calculation needed)
+	// offsetParent is null if element or ancestor has display: none
+	if (element.offsetParent === null && element.tagName !== "BODY") {
+		return true;
+	}
+
+	// Quick checks using element properties (no getComputedStyle)
+	if (element.hidden) return true;
+	if (element.offsetWidth === 0 && element.offsetHeight === 0) return true;
+
+	// Check aria-hidden
+	if (element.getAttribute("aria-hidden") === "true") return true;
+
+	return false;
 }
 
 /**
@@ -132,9 +172,12 @@ function getVisibleTextFromElement(element: Element, maxDepth: number = 10, curr
 
 /**
  * Extract all visible content from viewport
- * OPTIMIZED: Focused queries and batch DOM reads
+ * PERFORMANCE: Uses IntersectionObserver and limits element processing
  */
 export function extractVisibleContent(): string {
+	// Initialize IntersectionObserver if needed
+	initIntersectionObserver();
+
 	// Start with main content areas (most specific selectors first)
 	const contentSelectors = [
 		"article",
@@ -153,6 +196,11 @@ export function extractVisibleContent(): string {
 	for (const selector of contentSelectors) {
 		const element = document.querySelector(selector);
 		if (element) {
+			// Start observing this element
+			if (intersectionObserver) {
+				intersectionObserver.observe(element);
+			}
+
 			const text = getVisibleTextFromElement(element);
 			if (text && text.length > 50) {
 				visibleText = text;
@@ -163,7 +211,7 @@ export function extractVisibleContent(): string {
 
 	// Fallback: get visible text from body (optimized approach)
 	if (!visibleText) {
-		// OPTIMIZED: More focused selector, only primary content elements
+		// PERFORMANCE: Limit to first 150 elements to avoid processing thousands
 		const textElements = document.querySelectorAll(
 			"p, h1, h2, h3, h4, h5, h6, li, blockquote, article",
 		);
@@ -171,9 +219,21 @@ export function extractVisibleContent(): string {
 		const visibleTexts: string[] = [];
 		const seenTexts = new Set<string>(); // Avoid duplicates
 
-		// Batch process elements (process in chunks to avoid blocking)
-		for (const element of Array.from(textElements)) {
-			// Quick check: skip if visually hidden
+		// PERFORMANCE: Limit to first 150 elements
+		const maxElements = Math.min(textElements.length, 150);
+
+		// Start observing elements for future checks
+		if (intersectionObserver) {
+			for (let i = 0; i < maxElements; i++) {
+				intersectionObserver.observe(textElements[i]);
+			}
+		}
+
+		// Process elements
+		for (let i = 0; i < maxElements; i++) {
+			const element = textElements[i];
+
+			// Quick check: skip if visually hidden (no getComputedStyle)
 			if (isElementVisuallyHidden(element)) continue;
 
 			if (isElementInViewport(element)) {

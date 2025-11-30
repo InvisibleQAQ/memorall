@@ -248,8 +248,11 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 	): Promise<Partial<KnowledgeRAGState>> => {
 		const llm = this.services.llm;
 
-		if (!llm.isReady()) {
-			throw new Error("LLM service is not ready");
+		if ((!state.relevantNodes?.length && !state.relevantEdges?.length) || !llm.isReady()) {
+			return {
+				finalMessage: state.finalMessage,
+				actions: [],
+			};
 		}
 
 		try {
