@@ -13,6 +13,10 @@ import {
 	Navigation as NavigationIcon,
 	FileCheck,
 	BookOpen,
+	Book,
+	Youtube,
+	Video,
+	VideoIcon,
 } from "lucide-react";
 import type { ActivityType } from "@/types/activity-tracking";
 
@@ -45,6 +49,10 @@ export const getActivityTypeIcon = (type: ActivityType): React.ReactNode => {
 		navigation: <NavigationIcon {...iconProps} />,
 		form_submit: <FileCheck {...iconProps} />,
 		text_reading: <BookOpen {...iconProps} />,
+		content_reading: <Book {...iconProps} />,
+		youtube_video: <Youtube {...iconProps} />,
+		video_watching: <Video {...iconProps} />,
+		video_call: <VideoIcon {...iconProps} />,
 	};
 	return icons[type] || <Globe {...iconProps} />;
 };
@@ -54,18 +62,22 @@ export const getActivityTypeLabel = (
 	t?: (key: string) => string,
 ): string => {
 	if (t) {
-		return t(`activity:activityTypes.${type}`);
+		return t(`activityTypes.${type}`);
 	}
 	// Fallback for when t is not provided
 	const labels: Record<ActivityType, string> = {
 		page_visit: "Page Visit",
 		network_request: "Network Request",
-		user_input: "User Input",
+		user_input: "Input",
 		click: "Click",
 		scroll: "Scroll",
 		navigation: "Navigation",
 		form_submit: "Form Submit",
 		text_reading: "Text Reading",
+		content_reading: "Reading",
+		youtube_video: "YouTube Video",
+		video_watching: "Video",
+		video_call: "Video Call",
 	};
 	return labels[type] || type;
 };
@@ -88,6 +100,14 @@ export const getActivityTypeColor = (type: ActivityType): string => {
 			"bg-pink-500/30 text-pink-600 dark:text-pink-400 border-2 border-pink-500 shadow-lg shadow-pink-500/20",
 		text_reading:
 			"bg-amber-500/30 text-amber-600 dark:text-amber-400 border-2 border-amber-500 shadow-lg shadow-amber-500/20",
+		content_reading:
+			"bg-blue-500/30 text-blue-600 dark:text-blue-400 border-2 border-blue-500 shadow-lg shadow-blue-500/20",
+		youtube_video:
+			"bg-red-500/30 text-red-600 dark:text-red-400 border-2 border-red-500 shadow-lg shadow-red-500/20",
+		video_watching:
+			"bg-violet-500/30 text-violet-600 dark:text-violet-400 border-2 border-violet-500 shadow-lg shadow-violet-500/20",
+		video_call:
+			"bg-purple-500/30 text-purple-600 dark:text-purple-400 border-2 border-purple-500 shadow-lg shadow-purple-500/20",
 	};
 	return colors[type] || "bg-muted/50 border-2 border-muted";
 };
@@ -102,6 +122,10 @@ export const getActivityTypeModalColor = (type: ActivityType): string => {
 		navigation: "bg-indigo-500/20 text-indigo-600",
 		form_submit: "bg-pink-500/20 text-pink-600",
 		text_reading: "bg-amber-500/20 text-amber-600",
+		content_reading: "bg-blue-500/20 text-blue-600",
+		youtube_video: "bg-red-500/20 text-red-600",
+		video_watching: "bg-violet-500/20 text-violet-600",
+		video_call: "bg-purple-500/20 text-purple-600",
 	};
 	return colors[type] || "bg-muted";
 };

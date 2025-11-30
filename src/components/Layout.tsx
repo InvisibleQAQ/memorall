@@ -15,6 +15,7 @@ import {
 	Languages,
 	Settings,
 	Activity,
+	BrainCircuit,
 } from "lucide-react";
 import {
 	Tooltip,
@@ -51,7 +52,7 @@ const navigation = [
 		icon: Network,
 	},
 	{ nameKey: "navigation.documents", path: "/documents", icon: FileText },
-	{ nameKey: "navigation.activities", path: "/activities", icon: Activity },
+	{ nameKey: "navigation.activities", path: "/activities", icon: BrainCircuit },
 ];
 
 const debugItems = [

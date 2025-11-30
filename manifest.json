@@ -22,7 +22,6 @@
     "contextMenus",
     "notifications",
     "offscreen",
-    "webRequest",
     "webNavigation",
     "tabs"
   ],

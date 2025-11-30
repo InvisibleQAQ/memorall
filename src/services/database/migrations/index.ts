@@ -9,6 +9,10 @@ import {
 	up as addActivityTrackingUp,
 	down as addActivityTrackingDown,
 } from "./003_add_activity_tracking";
+import {
+	up as addDisplayMetaUp,
+	down as addDisplayMetaDown,
+} from "./004_add_display_meta";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -42,6 +46,14 @@ export const migrations: Migration[] = [
 			"Add activity_sessions and activities tables for activity tracking",
 		up: addActivityTrackingUp,
 		down: addActivityTrackingDown,
+	},
+	{
+		id: "add_display_meta",
+		version: 4,
+		description:
+			"Add display_meta column to activities table for user-friendly rendering",
+		up: addDisplayMetaUp,
+		down: addDisplayMetaDown,
 	},
 	// Example of how to add future migrations:
 	// {

@@ -1,11 +1,11 @@
 {
-	"title": "Dòng thời gian hoạt động",
-	"description": "Xem và phân tích các hoạt động đã ghi lại",
+	"title": "Dòng thời gian của tôi",
+	"description": "Xem lại những gì bạn đã duyệt và làm",
 	"analyzeSession": "Phân tích phiên với AI",
 	"sessions": {
-		"title": "Phiên làm việc",
-		"noSessions": "Không có phiên hoạt động",
-		"noSessionsDescription": "Bắt đầu ghi lại hoạt động của bạn bằng cách nhấp chuột phải vào bất kỳ trang nào và chọn \"Bắt đầu ghi lại hoạt động\".",
+		"title": "Phiên AI",
+		"noSessions": "Chưa có phiên nào",
+		"noSessionsDescription": "Bắt đầu phiên AI bằng cách nhấp chuột phải vào bất kỳ trang nào và chọn \"Bắt đầu phiên AI\".",
 		"deleteConfirm": "Bạn có chắc chắn muốn xóa phiên này và tất cả các hoạt động của nó?",
 		"activities": "hoạt động",
 		"duration": "Thời lượng",
@@ -39,7 +39,11 @@
 		"scroll": "Cuộn trang",
 		"navigation": "Điều hướng",
 		"form_submit": "Gửi biểu mẫu",
-		"text_reading": "Đọc văn bản"
+		"text_reading": "Đọc văn bản",
+		"content_reading": "Đọc nội dung",
+		"youtube_video": "Video YouTube",
+		"video_watching": "Xem video",
+		"video_call": "Cuộc gọi video"
 	},
 	"activityTypesPlural": {
 		"page_visit": "Truy cập trang",
@@ -49,7 +53,11 @@
 		"scroll": "Cuộn trang",
 		"navigation": "Điều hướng",
 		"form_submit": "Gửi biểu mẫu",
-		"text_reading": "Đọc văn bản"
+		"text_reading": "Đọc văn bản",
+		"content_reading": "Phiên đọc",
+		"youtube_video": "Video YouTube",
+		"video_watching": "Video",
+		"video_call": "Cuộc gọi video"
 	},
 	"details": {
 		"title": "Thông tin chi tiết về hoạt động này",

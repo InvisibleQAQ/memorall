@@ -19,9 +19,9 @@ const CONTEXT_MENU_TEXTS = {
 		savePage: "💾 Save page",
 		recall: "🧠 Recall",
 		recallImage: "🖼️ Recall image",
-		startCapture: "🎯 Start capturing activities",
-		stopCapture: "⏹️ Stop capturing activities",
-		viewActivities: "📊 View captured activities",
+		startCapture: "✨ Start AI session",
+		stopCapture: "⏸️ End AI session",
+		viewActivities: "📖 View my memory timeline",
 		openPlatform: "🚀 Open platform",
 		openDocuments: "📄 Open documents",
 	},
@@ -29,9 +29,9 @@ const CONTEXT_MENU_TEXTS = {
 		savePage: "💾 Lưu trang",
 		recall: "🧠 Gợi nhớ",
 		recallImage: "🖼️ Gợi nhớ hình ảnh",
-		startCapture: "🎯 Bắt đầu ghi lại hoạt động",
-		stopCapture: "⏹️ Dừng ghi lại hoạt động",
-		viewActivities: "📊 Xem hoạt động đã ghi",
+		startCapture: "✨ Bắt đầu phiên AI",
+		stopCapture: "⏸️ Kết thúc phiên AI",
+		viewActivities: "📖 Xem dòng thời gian của tôi",
 		openPlatform: "🚀 Mở nền tảng",
 		openDocuments: "📄 Mở tài liệu",
 	},
@@ -447,14 +447,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 			});
 
 			createNotification(
-				"Activity Tracking",
-				"Started capturing your activities. Click 'Stop capturing' when done.",
+				"AI Session Started",
+				"AI is now helping you remember your browsing. Click 'End AI session' when done.",
 			);
 		} catch (error) {
 			logError("❌ Failed to start activity tracking:", error);
 			createNotification(
-				"Activity Tracking",
-				"Failed to start activity tracking. Please try again.",
+				"AI Session",
+				"Failed to start AI session. Please try again.",
 			);
 		}
 		return;
@@ -475,14 +475,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 			});
 
 			createNotification(
-				"Activity Tracking",
-				"Stopped capturing activities. Click 'View captured activities' to see results.",
+				"AI Session Ended",
+				"Session saved to your memory timeline. Click 'View my memory timeline' to review.",
 			);
 		} catch (error) {
 			logError("❌ Failed to stop activity tracking:", error);
 			createNotification(
-				"Activity Tracking",
-				"Failed to stop activity tracking.",
+				"AI Session",
+				"Failed to end AI session.",
 			);
 		}
 		return;
@@ -501,8 +501,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 		} catch (error) {
 			logError("❌ Failed to open activities view:", error);
 			createNotification(
-				"Activity Tracking",
-				"Failed to open activities view.",
+				"Memory Timeline",
+				"Failed to open memory timeline.",
 			);
 		}
 		return;

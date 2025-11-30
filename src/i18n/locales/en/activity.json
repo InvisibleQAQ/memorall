@@ -1,11 +1,11 @@
 {
-	"title": "Activity Timeline",
-	"description": "View and analyze your captured activities",
+	"title": "Memory Timeline",
+	"description": "Review what you've browsed and done",
 	"analyzeSession": "Analyze Session with AI",
 	"sessions": {
-		"title": "Sessions",
-		"noSessions": "No Activity Sessions",
-		"noSessionsDescription": "Start capturing your activities by right-clicking on any page and selecting \"Start capturing activities\".",
+		"title": "AI Sessions",
+		"noSessions": "No Sessions Yet",
+		"noSessionsDescription": "Start an AI session by right-clicking on any page and selecting \"Start AI session\".",
 		"deleteConfirm": "Are you sure you want to delete this session and all its activities?",
 		"activities": "activities",
 		"duration": "Duration",
@@ -34,22 +34,30 @@
 	"activityTypes": {
 		"page_visit": "Page Visit",
 		"network_request": "Network Request",
-		"user_input": "User Input",
+		"user_input": "Input",
 		"click": "Click",
 		"scroll": "Scroll",
 		"navigation": "Navigation",
 		"form_submit": "Form Submit",
-		"text_reading": "Text Reading"
+		"text_reading": "Text Reading",
+		"content_reading": "Reading",
+		"youtube_video": "YouTube Video",
+		"video_watching": "Video",
+		"video_call": "Video Call"
 	},
 	"activityTypesPlural": {
 		"page_visit": "Page Visits",
 		"network_request": "Network Requests",
-		"user_input": "User Inputs",
+		"user_input": "Inputs",
 		"click": "Clicks",
 		"scroll": "Scrolls",
 		"navigation": "Navigation",
 		"form_submit": "Form Submits",
-		"text_reading": "Text Reading"
+		"text_reading": "Text Reading",
+		"content_reading": "Reading Sessions",
+		"youtube_video": "YouTube Videos",
+		"video_watching": "Videos",
+		"video_call": "Video Calls"
 	},
 	"details": {
 		"title": "Detailed information about this activity",

@@ -128,6 +128,14 @@ export class KnowledgeRAGFlow extends GraphBase<
 				"[KNOWLEDGE_RAG] Building knowledge context in natural language format",
 			);
 
+			if (!state.relevantNodes?.length || !state.relevantEdges?.length) {
+				return {
+					knowledgeContext: "",
+					next: "generate_response",
+					actions: [],
+				}
+			}
+
 			// 1. Build definitions section - entity names and summaries
 			const definitions = state.relevantNodes
 				.map((node) => `${node.name}: ${node.summary}.`)

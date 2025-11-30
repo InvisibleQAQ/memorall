@@ -21,12 +21,40 @@ import {
 	getActivityTypeLabel,
 	getActivityTypeModalColor,
 } from "../utils";
+import {
+	ReadingEventRenderer,
+	YouTubeEventRenderer,
+	VideoCallEventRenderer,
+	PageVisitEventRenderer,
+	InteractionEventRenderer,
+} from "./activity-renderers";
 
 interface ActivityDetailModalProps {
 	activity: Activity | null;
 	onClose: () => void;
 	onAnalyzeWithAI?: (activity: Activity) => void;
 }
+
+// Render user-friendly activity content
+const renderActivityContent = (activity: Activity): React.ReactNode => {
+	const data = activity.data as any;
+
+	switch (data.type) {
+		case "content_reading":
+			return <ReadingEventRenderer activity={activity} expanded={true} />;
+		case "youtube_video":
+			return <YouTubeEventRenderer activity={activity} expanded={true} />;
+		case "video_call":
+			return <VideoCallEventRenderer activity={activity} expanded={true} />;
+		case "page_visit":
+			return <PageVisitEventRenderer activity={activity} expanded={true} />;
+		case "user_input":
+		case "click":
+			return <InteractionEventRenderer activity={activity} expanded={true} />;
+		default:
+			return null;
+	}
+};
 
 export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
 	activity,
@@ -54,6 +82,13 @@ export const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({
 
 				{activity && (
 					<div className="space-y-6 max-w-full overflow-hidden">
+						{/* User-Friendly Content Preview */}
+						{renderActivityContent(activity) && (
+							<div className="bg-card border rounded-lg p-6">
+								{renderActivityContent(activity)}
+							</div>
+						)}
+
 						{/* AI Explanation Section */}
 						<div className="space-y-3">
 							<div className="flex items-center gap-2">
