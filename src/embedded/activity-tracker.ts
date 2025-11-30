@@ -10,6 +10,10 @@ import type {
 	FormSubmitData,
 	TextReadingData,
 	ElementInfo,
+	ContentReadingData,
+	YouTubeVideoData,
+	VideoWatchingData,
+	VideoCallData,
 } from "@/types/activity-tracking";
 import { ContentReadingTracker } from "./trackers/content-reading-tracker";
 import { YouTubeTracker } from "./trackers/youtube-tracker";
@@ -148,11 +152,35 @@ function getElementInfo(element: Element): ElementInfo {
 	}
 
 	if (element instanceof HTMLElement) {
-		if ((element as any).name) info.name = (element as any).name;
-		if ((element as any).type) info.type = (element as any).type;
-		if ((element as any).placeholder) {
-			info.placeholder = (element as any).placeholder;
+		// Type-safe property access for form elements
+		if (
+			element instanceof HTMLInputElement ||
+			element instanceof HTMLButtonElement ||
+			element instanceof HTMLSelectElement ||
+			element instanceof HTMLTextAreaElement
+		) {
+			if (element.name) info.name = element.name;
 		}
+
+		if (
+			element instanceof HTMLInputElement ||
+			element instanceof HTMLButtonElement
+		) {
+			if (element.type) info.type = element.type;
+		}
+
+		if (
+			element instanceof HTMLInputElement ||
+			element instanceof HTMLTextAreaElement
+		) {
+			if (element.placeholder) {
+				info.placeholder = element.placeholder;
+			}
+			if (element.autocomplete) {
+				info.autocomplete = element.autocomplete;
+			}
+		}
+
 		if (element.getAttribute("aria-label")) {
 			info.ariaLabel = element.getAttribute("aria-label") || undefined;
 		}
@@ -169,9 +197,6 @@ function getElementInfo(element: Element): ElementInfo {
 		if (element.title) info.title = element.title;
 		if (element.getAttribute("role")) {
 			info.role = element.getAttribute("role") || undefined;
-		}
-		if ((element as any).autocomplete) {
-			info.autocomplete = (element as any).autocomplete;
 		}
 	}
 
@@ -264,6 +289,29 @@ function isSensitiveInput(element: Element): boolean {
  */
 function redactContent(content: string): string {
 	return `[REDACTED: ${content.length} characters]`;
+}
+
+/**
+ * Map HTML input type to our tracked input types
+ */
+function mapInputType(
+	element: HTMLInputElement | HTMLTextAreaElement
+): "text" | "password" | "email" | "search" | "number" | "other" {
+	if (element instanceof HTMLTextAreaElement) {
+		return "text";
+	}
+
+	const type = element.type.toLowerCase();
+	switch (type) {
+		case "text":
+		case "password":
+		case "email":
+		case "search":
+		case "number":
+			return type;
+		default:
+			return "other";
+	}
 }
 
 class ActivityTracker {
@@ -424,10 +472,7 @@ class ActivityTracker {
 		const data: UserInputData = {
 			type: "user_input",
 			content,
-			inputType:
-				element instanceof HTMLInputElement
-					? (element.type as any) || "text"
-					: "text",
+			inputType: mapInputType(element),
 			elementInfo: getElementInfo(element),
 			pageUrl: window.location.href,
 			pageTitle: document.title,
@@ -535,7 +580,19 @@ class ActivityTracker {
 	/**
 	 * Send activity data to background script
 	 */
-	private sendToBackground(type: string, data: any): void {
+	private sendToBackground(
+		type: string,
+		data:
+			| UserInputData
+			| ClickData
+			| ScrollData
+			| FormSubmitData
+			| TextReadingData
+			| ContentReadingData
+			| YouTubeVideoData
+			| VideoWatchingData
+			| VideoCallData
+	): void {
 		try {
 			chrome.runtime.sendMessage({
 				type: "ACTIVITY_CAPTURED",
@@ -565,6 +622,7 @@ class ActivityTracker {
 
 				// SMART: Register scroll-stop callback for intelligent capture
 				this.contentReadingTracker.setScrollStopCallback(() => {
+					console.log("[ActivityTracker] User stopped scrolling");
 					this.onUserStoppedScrolling();
 				});
 

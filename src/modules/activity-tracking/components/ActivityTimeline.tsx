@@ -13,7 +13,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlayCircle, CheckCircle } from "lucide-react";
 import type { Activity, ActivityType } from "@/types/activity-tracking";
 import { ActivityCard } from "./ActivityCard";
@@ -79,7 +78,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 				</div>
 			</CardHeader>
 			<CardContent className="p-6">
-				<ScrollArea className="h-[600px]">
+				<div className="h-[600px] overflow-y-auto">
 					<div className="relative pb-12">
 						{activities.length > 0 && (
 							<>
@@ -153,7 +152,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 							</>
 						)}
 					</div>
-				</ScrollArea>
+				</div>
 			</CardContent>
 		</Card>
 	);
