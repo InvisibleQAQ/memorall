@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import {
 	Square,
-	Minus,
-	Bot,
+	Plus,
 	Brain,
 	MessageCircle,
 	ChevronDown,
@@ -13,7 +12,6 @@ import {
 } from "lucide-react";
 import {
 	PromptInput,
-	PromptInputButton,
 	PromptInputSubmit,
 	PromptInputTextarea,
 	PromptInputToolbar,
@@ -188,7 +186,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 									className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
 									title={t("input.clearTitle")}
 								>
-									<Minus size={12} />
+									<Plus size={12} />
 									<span>{t("input.clearButton")}</span>
 								</Button>
 

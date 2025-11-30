@@ -10,7 +10,7 @@
 		"placeholder": "Type your message...",
 		"send": "Send",
 		"clearTitle": "Clear chat",
-		"clearButton": "Clear"
+		"clearButton": "New"
 	},
 	"mode": {
 		"normal": "Chat",
