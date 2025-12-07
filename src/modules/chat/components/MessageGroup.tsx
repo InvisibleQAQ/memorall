@@ -43,7 +43,8 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 		);
 
 		const messageComponents = useMemo(() => {
-			return group.messages.map((message, index) =>
+			return group.messages
+			.map((message, index) =>
 				message.content ? (
 					<MessageRenderer
 						key={message.id}

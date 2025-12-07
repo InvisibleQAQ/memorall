@@ -255,16 +255,33 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 								}
 
 								// Stream other chunk types immediately (role, finish_reason, etc)
+								// But clear delta.content if it was already buffered to avoid duplication
 								if (
 									chunk.choices[0]?.delta?.role ||
 									chunk.choices[0]?.finish_reason
 								) {
+									// Create a copy of the chunk without delta.content if content was buffered
+									const chunkToSend = content
+										? {
+												...chunk,
+												choices: [
+													{
+														...chunk.choices[0],
+														delta: {
+															...chunk.choices[0].delta,
+															content: undefined, // Clear content since it's being buffered
+														},
+													},
+												],
+										  }
+										: chunk;
+
 									await dependencies.updateJobProgress(jobId, {
 										stage: "Receiving response...",
 										progress: Math.min(80, 20 + currentContent.length / 10),
 										result: {
 											type: "chunk",
-											chunk,
+											chunk: chunkToSend,
 										} as ChatResult,
 									});
 								}
@@ -390,16 +407,33 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 							}
 
 							// Stream other chunk types immediately (role, finish_reason, etc)
+							// But clear delta.content if it was already buffered to avoid duplication
 							if (
 								chunk.choices[0]?.delta?.role ||
 								chunk.choices[0]?.finish_reason
 							) {
+								// Create a copy of the chunk without delta.content if content was buffered
+								const chunkToSend = content
+									? {
+											...chunk,
+											choices: [
+												{
+													...chunk.choices[0],
+													delta: {
+														...chunk.choices[0].delta,
+														content: undefined, // Clear content since it's being buffered
+													},
+												},
+											],
+									  }
+									: chunk;
+
 								await dependencies.updateJobProgress(jobId, {
 									stage: "Receiving response...",
 									progress: Math.min(80, 20 + currentContent.length / 10),
 									result: {
 										type: "chunk",
-										chunk,
+										chunk: chunkToSend,
 									} as ChatResult,
 								});
 							}
