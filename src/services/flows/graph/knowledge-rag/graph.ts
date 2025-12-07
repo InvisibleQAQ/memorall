@@ -133,7 +133,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					knowledgeContext: "",
 					next: "generate_response",
 					actions: [],
-				}
+				};
 			}
 
 			// 1. Build definitions section - entity names and summaries
@@ -256,7 +256,10 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 	): Promise<Partial<KnowledgeRAGState>> => {
 		const llm = this.services.llm;
 
-		if ((!state.relevantNodes?.length && !state.relevantEdges?.length) || !llm.isReady()) {
+		if (
+			(!state.relevantNodes?.length && !state.relevantEdges?.length) ||
+			!llm.isReady()
+		) {
 			return {
 				finalMessage: state.finalMessage,
 				actions: [],

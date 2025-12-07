@@ -31,7 +31,9 @@ export const PageVisitEventRenderer: React.FC<PageVisitEventRendererProps> = ({
 
 	// Get favicon
 	const domain = url ? new URL(url).hostname : "";
-	const faviconUrl = url ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : "";
+	const faviconUrl = url
+		? `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
+		: "";
 
 	// Format duration
 	const durationText = duration

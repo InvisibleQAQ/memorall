@@ -2,6 +2,7 @@ import type { LocalOpenAICompatibleLLM } from "../implementations/local-openai-l
 import type { OpenAILLM } from "../implementations/openai-llm";
 import type { WebLLMLLM } from "../implementations/webllm-llm";
 import type { WllamaLLM } from "../implementations/wllama-llm";
+import type { TransformerLLM } from "../implementations/transformer-llm";
 import type { BaseLLM } from "./base-llm";
 
 // Type-safe config mapping for LLMs
@@ -13,6 +14,10 @@ export interface WllamaConfig {
 export interface WebLLMConfig {
 	type: "webllm";
 	url?: string;
+}
+
+export interface TransformerConfig {
+	type: "transformer";
 }
 
 export interface OpenAIConfig {
@@ -46,12 +51,14 @@ export interface CustomConfig {
 export const DEFAULT_SERVICES = {
 	WLLAMA: "wllama",
 	WEBLLM: "webllm",
+	TRANSFORMER: "transformer",
 	OPENAI: "openai",
 } as const;
 
 export type ServiceProvider =
 	| "wllama"
 	| "webllm"
+	| "transformer"
 	| "openai"
 	| "lmstudio"
 	| "ollama"
@@ -71,6 +78,10 @@ export interface LLMRegistry {
 	webllm: {
 		config: WebLLMConfig;
 		llm: WebLLMLLM;
+	};
+	transformer: {
+		config: TransformerConfig;
+		llm: TransformerLLM;
 	};
 	openai: {
 		config: OpenAIConfig;

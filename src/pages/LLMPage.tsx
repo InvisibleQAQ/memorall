@@ -131,7 +131,7 @@ export const LLMPage: React.FC = () => {
 			<AdvancedSection
 				{...state}
 				onLoadModel={actions.loadModel}
-				onLoadWebLLMModel={actions.loadWebLLMModel}
+				onLoadAdvancedModel={actions.loadAdvancedModel}
 				onUnloadModel={actions.unloadModel}
 				onGenerate={actions.generate}
 				onFetchRepoFiles={actions.fetchRepoFiles}

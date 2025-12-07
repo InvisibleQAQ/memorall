@@ -33,8 +33,7 @@ export const VideoCallEventRenderer: React.FC<VideoCallEventRendererProps> = ({
 		webex: { icon: "🌐", color: "cyan" },
 	};
 
-	const config =
-		platformConfig[platform.toLowerCase()] || platformConfig.zoom;
+	const config = platformConfig[platform.toLowerCase()] || platformConfig.zoom;
 	const durationMin = Math.round(duration / 60);
 
 	return (
@@ -46,9 +45,7 @@ export const VideoCallEventRenderer: React.FC<VideoCallEventRendererProps> = ({
 				</div>
 				<div className="flex-1 min-w-0">
 					<h4 className="font-semibold text-base mb-1">Video Call</h4>
-					<p className="text-sm text-muted-foreground capitalize">
-						{platform}
-					</p>
+					<p className="text-sm text-muted-foreground capitalize">{platform}</p>
 				</div>
 			</div>
 

@@ -14,7 +14,7 @@ interface ProgressSectionProps {
 	advancedProvider: string;
 	filePath: string;
 	repo: string;
-	webllmModel: string;
+	model: string;
 	downloadProgress: ProgressData;
 }
 
@@ -23,7 +23,7 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
 	advancedProvider,
 	filePath,
 	repo,
-	webllmModel,
+	model,
 	downloadProgress,
 }) => {
 	const { t } = useTranslation("llm");
@@ -39,7 +39,7 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({
 								? filePath
 									? `${repo}/${filePath}`
 									: repo
-								: webllmModel || "WebLLM model",
+								: model,
 					})}
 				</span>
 				<span className="text-muted-foreground">

@@ -76,7 +76,10 @@ export class AuthService {
 			try {
 				await client.auth.signOut();
 			} catch (signOutError) {
-				logError("Failed to sign out unverified user after sign in:", signOutError);
+				logError(
+					"Failed to sign out unverified user after sign in:",
+					signOutError,
+				);
 			}
 			throw new Error("Please verify your email before signing in.");
 		}
@@ -113,7 +116,9 @@ export class AuthService {
 			throw error;
 		}
 
-		logInfo("User signed up successfully; verification email sent if required.");
+		logInfo(
+			"User signed up successfully; verification email sent if required.",
+		);
 
 		// After signup, do not keep the user logged in. Require explicit login after verification.
 		try {
@@ -170,7 +175,10 @@ export class AuthService {
 			try {
 				await client.auth.signOut();
 			} catch (signOutError) {
-				logError("Failed to sign out unverified user when getting session:", signOutError);
+				logError(
+					"Failed to sign out unverified user when getting session:",
+					signOutError,
+				);
 			}
 			return null;
 		}

@@ -45,9 +45,7 @@ export const ModelDownloadingScreen: React.FC<ModelDownloadingScreenProps> = ({
 				{/* Progress Section */}
 				<div className="space-y-3 p-4 border rounded-lg bg-muted/50">
 					<div className="flex items-center justify-between text-sm">
-						<span className="font-medium">
-							Loading {modelName || "model"}
-						</span>
+						<span className="font-medium">Loading {modelName || "model"}</span>
 						<span className="text-muted-foreground">
 							{downloadProgress.percent}%
 						</span>

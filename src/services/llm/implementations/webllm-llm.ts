@@ -1,5 +1,6 @@
 import type {
 	BaseLLM,
+	LLMInfo,
 	ModelInfo,
 	ModelsResponse,
 } from "../interfaces/base-llm";
@@ -265,14 +266,10 @@ export class WebLLMLLM implements BaseLLM {
 		await this.send("delete", request);
 	}
 
-	getInfo(): {
-		name: string;
-		type: "wllama" | "openai" | "custom";
-		ready: boolean;
-	} {
+	getInfo(): LLMInfo {
 		return {
 			name: this.name,
-			type: "wllama", // Keep compatibility with existing type
+			type: "webllm",
 			ready: this.ready,
 		};
 	}

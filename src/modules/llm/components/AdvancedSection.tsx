@@ -13,6 +13,7 @@ import { ProgressSection } from "./ProgressSection";
 import { ProviderTabs } from "./ProviderTabs";
 import { WllamaTab } from "./WllamaTab";
 import { WebLLMTab } from "./WebLLMTab";
+import { TransformerTab } from "./TransformerTab";
 import { OpenAITab } from "./OpenAITab";
 import { OpenRouterTab } from "./OpenRouterTab";
 import { LocalOpenAITab } from "./LocalOpenAITab";
@@ -42,6 +43,7 @@ interface AdvancedSectionProps {
 	advancedProvider:
 		| "wllama"
 		| "webllm"
+		| "transformer"
 		| "openai"
 		| "openrouter"
 		| "lmstudio"
@@ -50,13 +52,14 @@ interface AdvancedSectionProps {
 		provider:
 			| "wllama"
 			| "webllm"
+			| "transformer"
 			| "openai"
 			| "openrouter"
 			| "lmstudio"
 			| "ollama",
 	) => void;
-	webllmModel: string;
-	setWebllmModel: (model: string) => void;
+	model: string;
+	setModel: (model: string) => void;
 	webllmAvailableModels: string[];
 	customRepo: string;
 	setCustomRepo: (repo: string) => void;
@@ -79,7 +82,7 @@ interface AdvancedSectionProps {
 
 	// Action props
 	onLoadModel: () => Promise<void>;
-	onLoadWebLLMModel: () => Promise<void>;
+	onLoadAdvancedModel: () => Promise<void>;
 	onUnloadModel: () => Promise<void>;
 	onGenerate: () => Promise<void>;
 	onFetchRepoFiles: (repoInfo: string) => Promise<void>;
@@ -91,6 +94,7 @@ interface AdvancedSectionProps {
 		provider:
 			| "wllama"
 			| "webllm"
+			| "transformer"
 			| "openai"
 			| "openrouter"
 			| "lmstudio"
@@ -107,8 +111,8 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 	setAvailableFiles,
 	advancedProvider,
 	setAdvancedProvider,
-	webllmModel,
-	setWebllmModel,
+	model,
+	setModel,
 	webllmAvailableModels,
 	customRepo,
 	setCustomRepo,
@@ -123,7 +127,7 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 	ready,
 	downloadProgress,
 	onLoadModel,
-	onLoadWebLLMModel,
+	onLoadAdvancedModel,
 	onUnloadModel,
 	onGenerate,
 	onFetchRepoFiles,
@@ -148,7 +152,7 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 					advancedProvider={advancedProvider}
 					filePath={filePath}
 					repo={repo}
-					webllmModel={webllmModel}
+					model={model}
 					downloadProgress={downloadProgress}
 				/>
 
@@ -181,11 +185,15 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 
 				{advancedProvider === "webllm" && (
 					<WebLLMTab
-						webllmModel={webllmModel}
-						setWebllmModel={setWebllmModel}
+						model={model}
+						setModel={setModel}
 						webllmAvailableModels={webllmAvailableModels}
 						loading={loading}
 					/>
+				)}
+
+				{advancedProvider === "transformer" && (
+					<TransformerTab model={model} setModel={setModel} loading={loading} />
 				)}
 
 				{advancedProvider === "openai" && (
@@ -207,18 +215,20 @@ export const AdvancedSection: React.FC<AdvancedSectionProps> = ({
 					<LocalOpenAITab providerKind="ollama" onModelLoaded={onModelLoaded} />
 				)}
 
-				{(advancedProvider === "wllama" || advancedProvider === "webllm") && (
+				{(advancedProvider === "wllama" ||
+					advancedProvider === "webllm" ||
+					advancedProvider === "transformer") && (
 					<div className="flex gap-2">
 						<Button
 							onClick={
-								advancedProvider === "wllama" ? onLoadModel : onLoadWebLLMModel
+								advancedProvider === "wllama"
+									? onLoadModel
+									: onLoadAdvancedModel
 							}
 							disabled={
 								loading ||
 								ready ||
-								(advancedProvider === "wllama"
-									? !repo || !filePath
-									: !webllmModel)
+								(advancedProvider === "wllama" ? !repo || !filePath : !model)
 							}
 						>
 							{t("advanced.loadModel")}

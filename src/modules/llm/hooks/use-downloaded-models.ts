@@ -11,6 +11,11 @@ export function useDownloadedModels() {
 	// Helper: determine if a model entry represents a downloaded model
 	const isDownloadedModel = useCallback((m: ModelInfo) => {
 		const anyModel = m as unknown as { downloaded?: boolean };
+		// For transformer models, ONLY check the downloaded field
+		if (m.provider === "transformer") {
+			return anyModel.downloaded === true;
+		}
+		// For wllama/webllm, check downloaded field first, then fallback to loaded/filename/size
 		if (anyModel.downloaded) return true;
 		if (m.loaded) return true;
 		if (m.filename || typeof m.size === "number") return true;
@@ -45,6 +50,21 @@ export function useDownloadedModels() {
 					allModels = [...allModels, ...newModels];
 				} catch (err) {
 					logInfo("Failed to fetch WebLLM models:", err);
+				}
+			}
+
+			// Try to get models from Transformer service
+			if (serviceManager.llmService.has(DEFAULT_SERVICES.TRANSFORMER)) {
+				try {
+					const response = await serviceManager.llmService.modelsFor(
+						DEFAULT_SERVICES.TRANSFORMER,
+					);
+					const newModels = response.data.filter(
+						(model) => !allModels.some((existing) => existing.id === model.id),
+					);
+					allModels = [...allModels, ...newModels];
+				} catch (err) {
+					logInfo("Failed to fetch Transformer models:", err);
 				}
 			}
 

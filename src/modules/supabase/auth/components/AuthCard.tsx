@@ -40,12 +40,8 @@ export const AuthCard: React.FC = () => {
 		return (
 			<Card>
 				<CardHeader>
-					<CardTitle className="text-lg">
-						{t("card.accountTitle")}
-					</CardTitle>
-					<CardDescription>
-						{t("card.accountDescription")}
-					</CardDescription>
+					<CardTitle className="text-lg">{t("card.accountTitle")}</CardTitle>
+					<CardDescription>{t("card.accountDescription")}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3">
 					<div className="flex items-center gap-2 p-2 bg-muted rounded-md">
@@ -65,12 +61,8 @@ export const AuthCard: React.FC = () => {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle className="text-lg">
-					{t("card.signInTitle")}
-				</CardTitle>
-				<CardDescription>
-					{t("card.signInDescription")}
-				</CardDescription>
+				<CardTitle className="text-lg">{t("card.signInTitle")}</CardTitle>
+				<CardDescription>{t("card.signInDescription")}</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<Button onClick={() => navigate("/auth")} className="w-full">

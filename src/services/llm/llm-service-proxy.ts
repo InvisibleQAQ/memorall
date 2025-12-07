@@ -80,7 +80,8 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 				return llm;
 
 			case "wllama":
-			case "webllm": {
+			case "webllm":
+			case "transformer": {
 				try {
 					const executeResult = await backgroundJob.execute(
 						"create-llm-service",
@@ -317,6 +318,15 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 				await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
 			} catch (error) {
 				logWarn("Failed to create WebLLM service:", error);
+			}
+		}
+		if (!this.has(DEFAULT_SERVICES.TRANSFORMER)) {
+			try {
+				await this.create(DEFAULT_SERVICES.TRANSFORMER, {
+					type: "transformer",
+				});
+			} catch (error) {
+				logWarn("Failed to create Transformer service:", error);
 			}
 		}
 		await this.restoreLocalServices();

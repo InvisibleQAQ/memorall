@@ -283,7 +283,15 @@ export function extractViewportContent(): string {
 		try {
 			// Skip non-content elements
 			const tagName = el.tagName.toLowerCase();
-			const skipTags = ["script", "style", "noscript", "meta", "link", "svg", "iframe"];
+			const skipTags = [
+				"script",
+				"style",
+				"noscript",
+				"meta",
+				"link",
+				"svg",
+				"iframe",
+			];
 			if (skipTags.includes(tagName)) return;
 
 			// Check if element is in viewport

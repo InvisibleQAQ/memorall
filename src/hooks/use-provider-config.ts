@@ -60,6 +60,10 @@ const PROVIDER_CONFIGS: Record<ServiceProvider, ProviderConfig> = {
 		requiresAuth: false,
 		isLocal: true,
 	},
+	transformer: {
+		requiresAuth: false,
+		isLocal: true,
+	},
 };
 
 /**
@@ -87,7 +91,8 @@ export function useProviderConfig() {
 	);
 
 	// Quick provider selection
-	const [quickProvider, setQuickProvider] = useState<ServiceProvider>("openrouter");
+	const [quickProvider, setQuickProvider] =
+		useState<ServiceProvider>("openrouter");
 
 	// Overall ready state - true when all providers are checked and loaded
 	const [ready, setReady] = useState(false);

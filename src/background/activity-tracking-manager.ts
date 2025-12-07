@@ -5,10 +5,7 @@
 
 import { logInfo, logError, logWarn } from "@/utils/logger";
 import { backgroundJob } from "@/services/background-jobs/background-job";
-import type {
-	PageVisitData,
-	NavigationData,
-} from "@/types/activity-tracking";
+import type { PageVisitData, NavigationData } from "@/types/activity-tracking";
 
 // Track active page visits
 const activePageVisits = new Map<

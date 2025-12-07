@@ -1,5 +1,6 @@
 import type {
 	BaseLLM,
+	LLMInfo,
 	ModelInfo,
 	ModelsResponse,
 } from "../interfaces/base-llm";
@@ -404,11 +405,7 @@ export class OpenAILLM implements BaseLLM {
 		throw new Error("Cannot delete OpenAI-compatible models");
 	}
 
-	getInfo(): {
-		name: string;
-		type: "wllama" | "openai" | "custom";
-		ready: boolean;
-	} {
+	getInfo(): LLMInfo {
 		return {
 			name: this.name,
 			type: "openai",

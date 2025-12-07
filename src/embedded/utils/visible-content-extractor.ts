@@ -41,7 +41,7 @@ function initIntersectionObserver(): void {
 			threshold: 0.1,
 			// Add some margin for better detection
 			rootMargin: "50px",
-		}
+		},
 	);
 }
 
@@ -75,15 +75,15 @@ function isElementInViewport(element: Element): boolean {
 
 	// Fallback: simple viewport check (only if needed)
 	const rect = element.getBoundingClientRect();
-	const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+	const windowHeight =
+		window.innerHeight || document.documentElement.clientHeight;
 	const windowWidth = window.innerWidth || document.documentElement.clientWidth;
 
-	const isVisible = (
+	const isVisible =
 		rect.top < windowHeight &&
 		rect.bottom > 0 &&
 		rect.left < windowWidth &&
-		rect.right > 0
-	);
+		rect.right > 0;
 
 	visibleElementsCache.set(element, isVisible);
 	return isVisible;
@@ -116,7 +116,11 @@ function isElementVisuallyHidden(element: Element): boolean {
  * Get visible text from element (only the part in viewport)
  * OPTIMIZED: Early exits and reduced DOM traversal
  */
-function getVisibleTextFromElement(element: Element, maxDepth: number = 10, currentDepth: number = 0): string {
+function getVisibleTextFromElement(
+	element: Element,
+	maxDepth: number = 10,
+	currentDepth: number = 0,
+): string {
 	// Depth limit to prevent deep recursion
 	if (currentDepth > maxDepth) return "";
 
@@ -163,7 +167,12 @@ function getVisibleTextFromElement(element: Element, maxDepth: number = 10, curr
 				text += textContent + " ";
 			}
 		} else if (child.nodeType === Node.ELEMENT_NODE) {
-			text += getVisibleTextFromElement(child as Element, maxDepth, currentDepth + 1) + " ";
+			text +=
+				getVisibleTextFromElement(
+					child as Element,
+					maxDepth,
+					currentDepth + 1,
+				) + " ";
 		}
 	}
 

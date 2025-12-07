@@ -6,6 +6,15 @@ import type {
 	ChatCompletionResponse,
 } from "@/types/openai";
 
+// Centralized LLM type definition
+export type LLMType = "wllama" | "webllm" | "transformer" | "openai" | "custom";
+
+export interface LLMInfo {
+	name: string;
+	type: LLMType;
+	ready: boolean;
+}
+
 export interface ModelInfo {
 	id: string;
 	name?: string;
@@ -17,6 +26,7 @@ export interface ModelInfo {
 	root?: string;
 	parent?: string | null;
 	loaded: boolean;
+	downloaded?: boolean; // Model files are downloaded/cached locally
 	size?: number;
 	provider?: string; // Added provider field
 }
@@ -78,9 +88,5 @@ export interface BaseLLM {
 	): Promise<ModelInfo>;
 
 	// Get LLM info
-	getInfo(): {
-		name: string;
-		type: "wllama" | "openai" | "custom";
-		ready: boolean;
-	};
+	getInfo(): LLMInfo;
 }

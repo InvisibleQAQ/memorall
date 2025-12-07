@@ -480,10 +480,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 			);
 		} catch (error) {
 			logError("❌ Failed to stop activity tracking:", error);
-			createNotification(
-				"AI Session",
-				"Failed to end AI session.",
-			);
+			createNotification("AI Session", "Failed to end AI session.");
 		}
 		return;
 	}
@@ -500,10 +497,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 			await chrome.runtime.openOptionsPage?.();
 		} catch (error) {
 			logError("❌ Failed to open activities view:", error);
-			createNotification(
-				"Memory Timeline",
-				"Failed to open memory timeline.",
-			);
+			createNotification("Memory Timeline", "Failed to open memory timeline.");
 		}
 		return;
 	}

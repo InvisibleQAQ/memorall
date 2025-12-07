@@ -206,13 +206,13 @@ export async function hasAnyEmbeddings(
 		]);
 
 		return (
-			((nodeCheck as { rows: [{ has_embeddings: boolean }] }).rows[0]
+			(nodeCheck as { rows: [{ has_embeddings: boolean }] }).rows[0]
 				?.has_embeddings ||
-				(edgeCheck as { rows: [{ has_embeddings: boolean }] }).rows[0]
-					?.has_embeddings ||
-				(messageCheck as { rows: [{ has_embeddings: boolean }] }).rows[0]
-					?.has_embeddings ||
-				false)
+			(edgeCheck as { rows: [{ has_embeddings: boolean }] }).rows[0]
+				?.has_embeddings ||
+			(messageCheck as { rows: [{ has_embeddings: boolean }] }).rows[0]
+				?.has_embeddings ||
+			false
 		);
 	} catch (error) {
 		logError("Error checking for embeddings:", error);

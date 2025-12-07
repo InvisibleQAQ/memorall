@@ -87,7 +87,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 	const { theme, setTheme } = useTheme();
 	const embeddingSize = useCurrentEmbeddingSize();
 	const hasExistingData = useHasExistingData();
-	const setEmbeddingSize = useEmbeddingSettings((state) => state.setEmbeddingSize);
+	const setEmbeddingSize = useEmbeddingSettings(
+		(state) => state.setEmbeddingSize,
+	);
 	const { language, changeLanguage } = useLanguage();
 	const { t } = useTranslation();
 	const { user } = useAuth();
@@ -324,7 +326,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 										) : (
 											<div className="px-2 py-1.5 flex items-center gap-2">
 												<UserIcon size={14} className="text-muted-foreground" />
-												<span className="text-sm truncate flex-1">{user.email}</span>
+												<span className="text-sm truncate flex-1">
+													{user.email}
+												</span>
 											</div>
 										)}
 
@@ -365,7 +369,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 										{/* Embedding Size Section */}
 										<DropdownMenuLabel className="flex items-center gap-2">
 											<VectorSquareIcon size={14} />
-											<span>{t("embedding.label", { defaultValue: "Embedding Size" })}</span>
+											<span>
+												{t("embedding.label", {
+													defaultValue: "Embedding Size",
+												})}
+											</span>
 										</DropdownMenuLabel>
 										{getAvailableSizes().map((size) => {
 											const config = EMBEDDING_MODELS[size];
@@ -376,8 +384,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 													className="flex flex-col items-start gap-0.5 cursor-pointer"
 												>
 													<div className="flex items-center gap-2 w-full">
-														<span className="font-medium">{config.displayName}</span>
-														{embeddingSize === size && <span className="ml-auto">✓</span>}
+														<span className="font-medium">
+															{config.displayName}
+														</span>
+														{embeddingSize === size && (
+															<span className="ml-auto">✓</span>
+														)}
 													</div>
 													<span className="text-xs text-muted-foreground">
 														{config.description}

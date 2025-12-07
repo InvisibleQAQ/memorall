@@ -3,6 +3,7 @@ export { ProgressSection } from "./ProgressSection";
 export { ProviderTabs } from "./ProviderTabs";
 export { WllamaTab } from "./WllamaTab";
 export { WebLLMTab } from "./WebLLMTab";
+export { TransformerTab } from "./TransformerTab";
 export { OpenAITab } from "./OpenAITab";
 export { ChatSection } from "./ChatSection";
 export { LogsSection } from "./LogsSection";

@@ -183,15 +183,11 @@ export function getCurrentEmbeddingInfo(): {
  * 3. Sets default: medium for existing data (backward compat), small for new installations
  * 4. Saves the determined size to localStorage
  */
-export async function initializeEmbeddingSize(
-	databaseService?: {
-		use: <T>(
-			fn: (helpers: {
-				raw: (sql: string) => Promise<unknown>;
-			}) => Promise<T>,
-		) => Promise<T>;
-	},
-): Promise<EmbeddingSize> {
+export async function initializeEmbeddingSize(databaseService?: {
+	use: <T>(
+		fn: (helpers: { raw: (sql: string) => Promise<unknown> }) => Promise<T>,
+	) => Promise<T>;
+}): Promise<EmbeddingSize> {
 	// Check if already configured
 	const saved = getCurrentEmbeddingSize();
 	if (saved && saved !== DEFAULT_EMBEDDING_SIZE) {
@@ -211,12 +207,10 @@ export async function initializeEmbeddingSize(
 					"SELECT COUNT(*) as count FROM edges WHERE fact_embedding IS NOT NULL LIMIT 1",
 				);
 
-				const nodeCount =
-					((nodeCheck as { rows: [{ count: number }] }).rows[0]?.count ||
-						0) as number;
-				const edgeCount =
-					((edgeCheck as { rows: [{ count: number }] }).rows[0]?.count ||
-						0) as number;
+				const nodeCount = ((nodeCheck as { rows: [{ count: number }] }).rows[0]
+					?.count || 0) as number;
+				const edgeCount = ((edgeCheck as { rows: [{ count: number }] }).rows[0]
+					?.count || 0) as number;
 
 				return nodeCount > 0 || edgeCount > 0;
 			});

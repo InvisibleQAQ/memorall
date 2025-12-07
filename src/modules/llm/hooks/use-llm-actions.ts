@@ -35,7 +35,8 @@ interface UseLLMActionsProps {
 	ready: boolean;
 	loading: boolean;
 	prompt: string;
-	webllmModel: string;
+	model: string;
+	advancedProvider: string;
 	openaiApiKey: string;
 	openaiBaseUrl: string;
 	isOpenaiConfigured: boolean;
@@ -58,7 +59,8 @@ export const useLLMActions = ({
 	filePath,
 	ready,
 	prompt,
-	webllmModel,
+	model,
+	advancedProvider,
 	openaiBaseUrl,
 	isOpenaiConfigured,
 }: UseLLMActionsProps) => {
@@ -161,46 +163,61 @@ export const useLLMActions = ({
 		[setStatus, setLogs, setAvailableFiles, setFilePath],
 	);
 
-	const loadWebLLMModel = useCallback(async () => {
-		if (!webllmModel) {
-			setStatus("Please select a WebLLM model");
+	// Generic load model - works for webllm, transformer, and other future providers
+	const loadAdvancedModel = useCallback(async () => {
+		if (!model) {
+			setStatus(`Please select a ${advancedProvider} model`);
 			return;
 		}
+
+		// Get service name based on provider
+		const serviceMap: Record<string, string> = {
+			webllm: DEFAULT_SERVICES.WEBLLM,
+			transformer: DEFAULT_SERVICES.TRANSFORMER,
+		};
+
+		const serviceName = serviceMap[advancedProvider];
+		if (!serviceName) {
+			setStatus(
+				`Provider ${advancedProvider} not supported for advanced loading`,
+			);
+			return;
+		}
+
 		setLoading(true);
 		setStatus("Initializing...");
-		setLogs((l) => [...l, "[ui] initialize webllm start"]);
+		setLogs((l) => [...l, `[ui] initialize ${advancedProvider} start`]);
 		setDownloadProgress({ loaded: 0, total: 0, percent: 0, text: "" });
 
 		try {
 			await ensureServices();
-
-			const modelId = webllmModel;
-
-			setStatus("Loading WebLLM model...");
-			setLogs((l) => [...l, `[ui] serve ${webllmModel}`]);
+			setStatus(`Loading ${advancedProvider} model...`);
+			setLogs((l) => [...l, `[ui] serve ${model}`]);
 
 			await serviceManager.llmService.serveFor(
-				DEFAULT_SERVICES.WEBLLM,
-				modelId,
+				serviceName,
+				model,
 				(progress) => {
 					setDownloadProgress({ text: "", ...progress });
-					setStatus(`Loading... ${progress.percent}%`);
-					setLogs((l) => [
-						...l,
-						`[progress] ${progress.percent}% (${progress.loaded}/${progress.total})`,
-					]);
 				},
 			);
 
+			setLogs((l) => [...l, `[ui] ${advancedProvider} model loaded`]);
 			setReady(true);
-			setStatus("WebLLM model loaded");
-			setLogs((l) => [...l, "[ui] webllm model loaded"]);
+			setStatus(`${model} loaded`);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : "Unknown error";
-			if (msg.includes("already initialized")) {
+			logError(`Error loading ${advancedProvider} model:`, msg);
+			if (
+				msg.includes("already loaded") ||
+				msg.includes("already initialized")
+			) {
 				setReady(true);
-				setStatus("WebLLM model already loaded");
-				setLogs((l) => [...l, "[ui] webllm model was already loaded"]);
+				setStatus(`${model} loaded`);
+				setLogs((l) => [
+					...l,
+					`[ui] ${advancedProvider} model was already loaded`,
+				]);
 			} else {
 				setStatus(`Error: ${msg}`);
 				setLogs((l) => [...l, `[ui] error: ${msg}`]);
@@ -209,7 +226,8 @@ export const useLLMActions = ({
 			setLoading(false);
 		}
 	}, [
-		webllmModel,
+		model,
+		advancedProvider,
 		setStatus,
 		setLoading,
 		setLogs,
@@ -529,7 +547,7 @@ export const useLLMActions = ({
 		fetchWebLLMModels,
 		unloadModel,
 		fetchRepoFiles,
-		loadWebLLMModel,
+		loadAdvancedModel,
 		loadModel,
 		generate,
 		handleProviderChange,

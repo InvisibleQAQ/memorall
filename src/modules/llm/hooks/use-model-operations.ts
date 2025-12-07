@@ -3,6 +3,7 @@ import { type ModelInfo } from "@/services/llm";
 import { serviceManager } from "@/services";
 import { QUICK_WALLAMA_LLMS } from "@/constants/wllama";
 import { QUICK_WEBLLM_LLMS } from "@/constants/webllm";
+import { QUICK_TRANSFORMER_MODELS } from "@/constants/transformer";
 import { QUICK_OPENAI_LLMS } from "@/constants/openai";
 import { logError, logInfo } from "@/utils/logger";
 import type { DownloadProgress } from "./use-download-progress";
@@ -38,6 +39,7 @@ export function useModelOperations({
 			model:
 				| (typeof QUICK_WALLAMA_LLMS)[0]
 				| (typeof QUICK_WEBLLM_LLMS)[0]
+				| (typeof QUICK_TRANSFORMER_MODELS)[0]
 				| (typeof QUICK_OPENAI_LLMS)[0],
 			provider: ServiceProvider,
 		) => {
@@ -69,6 +71,14 @@ export function useModelOperations({
 						return {
 							serveModelId: webllmModel.model,
 							currentModelId: webllmModel.model,
+						};
+					},
+					transformer: () => {
+						const transformerModel =
+							model as (typeof QUICK_TRANSFORMER_MODELS)[0];
+						return {
+							serveModelId: transformerModel.model,
+							currentModelId: transformerModel.model,
 						};
 					},
 					default: () => {

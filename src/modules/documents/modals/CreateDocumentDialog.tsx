@@ -49,7 +49,9 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 	const handleCreate = () => {
 		// Validate document name
 		if (!documentName.trim()) {
-			setError(t("create.nameRequired", { defaultValue: "Document name is required" }));
+			setError(
+				t("create.nameRequired", { defaultValue: "Document name is required" }),
+			);
 			return;
 		}
 
@@ -66,7 +68,9 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 
 		const selectedEditor = editorRegistry.getEditor(selectedType);
 		if (!selectedEditor) {
-			setError(t("create.invalidType", { defaultValue: "Invalid document type" }));
+			setError(
+				t("create.invalidType", { defaultValue: "Invalid document type" }),
+			);
 			return;
 		}
 
@@ -86,7 +90,10 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 	};
 
 	return (
-		<Dialog open={modal.visible} onOpenChange={(open) => !open && handleCancel()}>
+		<Dialog
+			open={modal.visible}
+			onOpenChange={(open) => !open && handleCancel()}
+		>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
@@ -126,7 +133,10 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 						<Label htmlFor="document-type">
 							{t("create.typeLabel", { defaultValue: "Document Type" })}
 						</Label>
-						<Select value={selectedType} onValueChange={(value) => setSelectedType(value as DocumentType)}>
+						<Select
+							value={selectedType}
+							onValueChange={(value) => setSelectedType(value as DocumentType)}
+						>
 							<SelectTrigger id="document-type">
 								<SelectValue />
 							</SelectTrigger>
@@ -144,7 +154,8 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 					<div className="text-sm text-muted-foreground">
 						{t("create.filenamePreview", { defaultValue: "File name:" })}{" "}
 						<span className="font-medium">
-							{documentName.trim() || t("create.unnamed", { defaultValue: "Unnamed" })}
+							{documentName.trim() ||
+								t("create.unnamed", { defaultValue: "Unnamed" })}
 							{editorRegistry.getEditor(selectedType)?.defaultExtension}
 						</span>
 					</div>

@@ -289,21 +289,22 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							</span>
 						</Button>
 					)}
-					{(file.type === "text" || file.type === "markdown") && onConvertToKnowledge && (
-						<Button
-							variant="default"
-							size="sm"
-							onClick={() => onConvertToKnowledge(file)}
-							disabled={sourceStatus.isGenerating || isProcessing}
-						>
-							<BookmarkPlus className="h-4 w-4 mr-2" />
-							<span className="hidden sm:inline">
-								{sourceStatus.isGenerating || isProcessing
-									? t("viewer.converting")
-									: t("viewer.convertToKnowledge")}
-							</span>
-						</Button>
-					)}
+					{(file.type === "text" || file.type === "markdown") &&
+						onConvertToKnowledge && (
+							<Button
+								variant="default"
+								size="sm"
+								onClick={() => onConvertToKnowledge(file)}
+								disabled={sourceStatus.isGenerating || isProcessing}
+							>
+								<BookmarkPlus className="h-4 w-4 mr-2" />
+								<span className="hidden sm:inline">
+									{sourceStatus.isGenerating || isProcessing
+										? t("viewer.converting")
+										: t("viewer.convertToKnowledge")}
+								</span>
+							</Button>
+						)}
 					{file.type === "excel" && (
 						<Button
 							variant="default"
@@ -383,30 +384,33 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					</ScrollArea>
 				)}
 
-				{file.type === "markdown" && textContent !== null && (() => {
-					const EditorComponent = editorRegistry.getEditorComponent("markdown");
-					if (EditorComponent) {
+				{file.type === "markdown" &&
+					textContent !== null &&
+					(() => {
+						const EditorComponent =
+							editorRegistry.getEditorComponent("markdown");
+						if (EditorComponent) {
+							return (
+								<div className="flex-1 overflow-hidden">
+									<EditorComponent
+										file={file}
+										initialContent={textContent}
+										onSave={handleSaveContent}
+									/>
+								</div>
+							);
+						}
+						// Fallback to text preview if editor not available
 						return (
-							<div className="flex-1 overflow-hidden">
-								<EditorComponent
-									file={file}
-									initialContent={textContent}
-									onSave={handleSaveContent}
-								/>
-							</div>
+							<ScrollArea className="flex-1 p-4">
+								<div className="border rounded-lg p-4 bg-muted/20">
+									<pre className="text-sm whitespace-pre-wrap font-mono">
+										{textContent}
+									</pre>
+								</div>
+							</ScrollArea>
 						);
-					}
-					// Fallback to text preview if editor not available
-					return (
-						<ScrollArea className="flex-1 p-4">
-							<div className="border rounded-lg p-4 bg-muted/20">
-								<pre className="text-sm whitespace-pre-wrap font-mono">
-									{textContent}
-								</pre>
-							</div>
-						</ScrollArea>
-					);
-				})()}
+					})()}
 
 				{file.type === "excel" && excelData && (
 					<div className="flex-1 p-4 overflow-hidden">

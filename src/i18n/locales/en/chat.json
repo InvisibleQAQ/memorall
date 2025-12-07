@@ -6,7 +6,7 @@
 		"description": "You need to load a model before you can start chatting. Choose from your downloaded models below or download new ones.",
 		"downloadMore": "Download More Models",
 		"loading": "Loading...",
-		"appName": "Your Memorall",
+		"appName": "Memorall",
 		"appDescription": "Your knowledge evolves with you",
 		"welcome": "Welcome to Memorall",
 		"signInPrompt": "Sign in to sync your data and get started",

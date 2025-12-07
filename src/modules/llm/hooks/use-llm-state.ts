@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { RECOMMENDATION_WALLAMA_LLMS } from "@/constants/wllama";
+import { RECOMMENDATION_TRANSFORMER_MODELS } from "@/constants/transformer";
 
 export interface FileInfo {
 	name: string;
@@ -18,9 +19,16 @@ export const useLLMState = () => {
 	const [filePath, setFilePath] = useState("");
 	const [availableFiles, setAvailableFiles] = useState<FileInfo[]>([]);
 	const [advancedProvider, setAdvancedProvider] = useState<
-		"wllama" | "webllm" | "openai" | "openrouter" | "lmstudio" | "ollama"
-	>("wllama");
-	const [webllmModel, setWebllmModel] = useState("");
+		| "wllama"
+		| "webllm"
+		| "transformer"
+		| "openai"
+		| "openrouter"
+		| "lmstudio"
+		| "ollama"
+	>("transformer");
+	// Generic model state - used by all providers
+	const [model, setModel] = useState(RECOMMENDATION_TRANSFORMER_MODELS[0]);
 	const [webllmAvailableModels, setWebllmAvailableModels] = useState<string[]>(
 		[],
 	);
@@ -54,7 +62,7 @@ export const useLLMState = () => {
 		filePath,
 		availableFiles,
 		advancedProvider,
-		webllmModel,
+		model,
 		webllmAvailableModels,
 		customRepo,
 		useCustomRepo,
@@ -74,7 +82,7 @@ export const useLLMState = () => {
 		setFilePath,
 		setAvailableFiles,
 		setAdvancedProvider,
-		setWebllmModel,
+		setModel,
 		setWebllmAvailableModels,
 		setCustomRepo,
 		setUseCustomRepo,

@@ -22,6 +22,9 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
 				className="text-xs border rounded px-2 py-1 bg-background"
 				disabled={loading}
 			>
+				<option value="transformer">
+					{t("providers.transformer", { defaultValue: "Transformer (WebGPU)" })}
+				</option>
 				<option value="wllama">{t("providers.wllama")}</option>
 				<option value="webllm">{t("providers.webllm")}</option>
 				<option value="openai">{t("providers.openai")} (Cloud)</option>

@@ -1,5 +1,7 @@
 import type {
 	BaseLLM,
+	LLMInfo,
+	LLMType,
 	ModelInfo,
 	ModelsResponse,
 } from "../interfaces/base-llm";
@@ -249,10 +251,10 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 		throw new Error("Cannot delete local models via OpenAI-compatible API");
 	}
 
-	getInfo() {
+	getInfo(): LLMInfo {
 		return {
 			name: this.name,
-			type: this.providerType as "wllama" | "openai" | "custom",
+			type: this.providerType as LLMType,
 			ready: this.ready,
 		};
 	}

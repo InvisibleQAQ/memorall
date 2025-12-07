@@ -308,23 +308,32 @@ const App: React.FC = () => {
 							<Route path="/auth" element={<AuthPage />} />
 
 							{/* All other routes with layout */}
-							<Route path="*" element={
-								<Layout>
-									<Routes>
-										<Route path="/*" element={<ChatPage />} />
-										<Route path="/llm" element={<LLMPage />} />
-										<Route path="/embeddings" element={<EmbeddingPage />} />
-										<Route path="/database" element={<DatabasePage />} />
-										<Route
-											path="/knowledge-graph"
-											element={<KnowledgeGraphPage />}
-										/>
-										<Route path="/documents" element={<DocumentLibraryPage />} />
-										<Route path="/activities" element={<ActivityTimelinePage />} />
-										<Route path="/logs" element={<LogsPage />} />
-									</Routes>
-								</Layout>
-							} />
+							<Route
+								path="*"
+								element={
+									<Layout>
+										<Routes>
+											<Route path="/*" element={<ChatPage />} />
+											<Route path="/llm" element={<LLMPage />} />
+											<Route path="/embeddings" element={<EmbeddingPage />} />
+											<Route path="/database" element={<DatabasePage />} />
+											<Route
+												path="/knowledge-graph"
+												element={<KnowledgeGraphPage />}
+											/>
+											<Route
+												path="/documents"
+												element={<DocumentLibraryPage />}
+											/>
+											<Route
+												path="/activities"
+												element={<ActivityTimelinePage />}
+											/>
+											<Route path="/logs" element={<LogsPage />} />
+										</Routes>
+									</Layout>
+								}
+							/>
 						</Routes>
 						<Copilot />
 					</Router>

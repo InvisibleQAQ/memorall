@@ -128,7 +128,11 @@ function findLabelForElement(element: Element): string | undefined {
 
 	// Method 4: Check nearby text (common pattern)
 	const prevSibling = element.previousElementSibling;
-	if (prevSibling && prevSibling.tagName !== "INPUT" && prevSibling.tagName !== "BUTTON") {
+	if (
+		prevSibling &&
+		prevSibling.tagName !== "INPUT" &&
+		prevSibling.tagName !== "BUTTON"
+	) {
 		const text = prevSibling.textContent?.trim();
 		if (text && text.length < 100) {
 			return text;
@@ -295,7 +299,7 @@ function redactContent(content: string): string {
  * Map HTML input type to our tracked input types
  */
 function mapInputType(
-	element: HTMLInputElement | HTMLTextAreaElement
+	element: HTMLInputElement | HTMLTextAreaElement,
 ): "text" | "password" | "email" | "search" | "number" | "other" {
 	if (element instanceof HTMLTextAreaElement) {
 		return "text";
@@ -591,7 +595,7 @@ class ActivityTracker {
 			| ContentReadingData
 			| YouTubeVideoData
 			| VideoWatchingData
-			| VideoCallData
+			| VideoCallData,
 	): void {
 		try {
 			chrome.runtime.sendMessage({
@@ -611,7 +615,10 @@ class ActivityTracker {
 	 * Initialize specialized trackers based on page type
 	 */
 	private initializeSpecializedTrackers(): void {
-		console.log("[ActivityTracker] Initializing specialized trackers on:", window.location.href);
+		console.log(
+			"[ActivityTracker] Initializing specialized trackers on:",
+			window.location.href,
+		);
 
 		// Initialize content reading tracker (for most pages)
 		if (this.config.trackContentReading) {
@@ -626,9 +633,14 @@ class ActivityTracker {
 					this.onUserStoppedScrolling();
 				});
 
-				console.log("✅ [ActivityTracker] Content reading tracker initialized with scroll-stop detection");
+				console.log(
+					"✅ [ActivityTracker] Content reading tracker initialized with scroll-stop detection",
+				);
 			} catch (error) {
-				console.error("❌ [ActivityTracker] Failed to init content reading tracker:", error);
+				console.error(
+					"❌ [ActivityTracker] Failed to init content reading tracker:",
+					error,
+				);
 			}
 		}
 
@@ -639,7 +651,10 @@ class ActivityTracker {
 				this.youtubeTracker.start();
 				console.log("✅ [ActivityTracker] YouTube tracker initialized");
 			} catch (error) {
-				console.error("❌ [ActivityTracker] Failed to init YouTube tracker:", error);
+				console.error(
+					"❌ [ActivityTracker] Failed to init YouTube tracker:",
+					error,
+				);
 			}
 		}
 
@@ -653,10 +668,15 @@ class ActivityTracker {
 						window.location.href,
 					);
 					this.videoCallTracker.start(this.config.videoCalls.captureCaptions);
-					console.log(`✅ [ActivityTracker] Video call tracker initialized (${platform})`);
+					console.log(
+						`✅ [ActivityTracker] Video call tracker initialized (${platform})`,
+					);
 				}
 			} catch (error) {
-				console.error("❌ [ActivityTracker] Failed to init video call tracker:", error);
+				console.error(
+					"❌ [ActivityTracker] Failed to init video call tracker:",
+					error,
+				);
 			}
 		}
 
@@ -665,7 +685,10 @@ class ActivityTracker {
 			try {
 				this.initializeVideoTrackers();
 			} catch (error) {
-				console.error("❌ [ActivityTracker] Failed to init video trackers:", error);
+				console.error(
+					"❌ [ActivityTracker] Failed to init video trackers:",
+					error,
+				);
 			}
 		}
 	}
@@ -776,13 +799,11 @@ class ActivityTracker {
 		if (!this.isActive) return;
 
 		// Check content reading
-		if (
-			this.contentReadingTracker &&
-			this.config.trackContentReading
-		) {
+		if (this.contentReadingTracker && this.config.trackContentReading) {
 			// OPTIMIZED: Quick pre-check before expensive operations
 			const { minWordCount } = this.config.contentReading;
-			const currentWordCount = this.contentReadingTracker.getMetrics().estimatedWordsRead;
+			const currentWordCount =
+				this.contentReadingTracker.getMetrics().estimatedWordsRead;
 			const viewDurationSeconds =
 				this.contentReadingTracker.getViewDuration() / 1000;
 
@@ -817,10 +838,7 @@ class ActivityTracker {
 		}
 
 		// Check YouTube
-		if (
-			this.youtubeTracker &&
-			this.config.trackYouTubeVideos
-		) {
+		if (this.youtubeTracker && this.config.trackYouTubeVideos) {
 			const data = await this.youtubeTracker.capture(
 				this.config.youTube.captureTranscripts,
 			);
@@ -859,7 +877,8 @@ class ActivityTracker {
 		const { minWordCount } = this.config.contentReading;
 
 		// Check if should capture
-		const shouldCapture = this.contentReadingTracker.shouldCapture(minWordCount);
+		const shouldCapture =
+			this.contentReadingTracker.shouldCapture(minWordCount);
 
 		if (shouldCapture) {
 			const data = this.contentReadingTracker.capture();

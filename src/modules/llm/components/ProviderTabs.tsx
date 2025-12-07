@@ -5,6 +5,7 @@ interface ProviderTabsProps {
 	advancedProvider:
 		| "wllama"
 		| "webllm"
+		| "transformer"
 		| "openai"
 		| "openrouter"
 		| "lmstudio"
@@ -13,6 +14,7 @@ interface ProviderTabsProps {
 		provider:
 			| "wllama"
 			| "webllm"
+			| "transformer"
 			| "openai"
 			| "openrouter"
 			| "lmstudio"
@@ -37,6 +39,22 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 	const { t } = useTranslation("llm");
 	return (
 		<div className="flex border-b overflow-x-auto">
+			<button
+				onClick={() => {
+					setAdvancedProvider("transformer");
+					if (advancedProvider !== "transformer") {
+						onProviderChange();
+					}
+				}}
+				className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+					advancedProvider === "transformer"
+						? "border-primary text-primary"
+						: "border-transparent text-muted-foreground hover:text-foreground"
+				}`}
+				disabled={loading}
+			>
+				{t("providers.transformer", { defaultValue: "Transformer" })}
+			</button>
 			<button
 				onClick={() => {
 					setAdvancedProvider("wllama");

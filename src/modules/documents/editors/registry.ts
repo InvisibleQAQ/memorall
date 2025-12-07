@@ -52,7 +52,9 @@ class EditorRegistry {
 	 * Get all editors that support creation
 	 */
 	getCreatableEditors(): EditorConfig[] {
-		return Array.from(this.editors.values()).filter((editor) => editor.supportsCreate);
+		return Array.from(this.editors.values()).filter(
+			(editor) => editor.supportsCreate,
+		);
 	}
 
 	/**

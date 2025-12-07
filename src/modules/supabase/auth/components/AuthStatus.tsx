@@ -90,11 +90,7 @@ export const AuthStatus: React.FC = () => {
 					<UserIcon className="h-4 w-4" />
 					<span className="text-sm truncate">{user.email}</span>
 				</div>
-				<Button
-					onClick={handleSignOut}
-					className="w-full"
-					variant="outline"
-				>
+				<Button onClick={handleSignOut} className="w-full" variant="outline">
 					<LogOut className="mr-2 h-4 w-4" />
 					Sign Out
 				</Button>

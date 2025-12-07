@@ -273,7 +273,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 														},
 													},
 												],
-										  }
+											}
 										: chunk;
 
 									await dependencies.updateJobProgress(jobId, {
@@ -425,7 +425,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 													},
 												},
 											],
-									  }
+										}
 									: chunk;
 
 								await dependencies.updateJobProgress(jobId, {

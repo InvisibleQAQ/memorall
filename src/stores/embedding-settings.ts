@@ -54,12 +54,10 @@ export const useEmbeddingSettings = create<EmbeddingSettingsState>()(
 							"SELECT COUNT(*) as count FROM edges WHERE fact_embedding IS NOT NULL LIMIT 1",
 						);
 
-						const nodeCount =
-							((nodeCheck as { rows: [{ count: number }] }).rows[0]?.count ||
-								0) as number;
-						const edgeCount =
-							((edgeCheck as { rows: [{ count: number }] }).rows[0]?.count ||
-								0) as number;
+						const nodeCount = ((nodeCheck as { rows: [{ count: number }] })
+							.rows[0]?.count || 0) as number;
+						const edgeCount = ((edgeCheck as { rows: [{ count: number }] })
+							.rows[0]?.count || 0) as number;
 
 						return nodeCount > 0 || edgeCount > 0;
 					},

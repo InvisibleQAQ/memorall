@@ -9,15 +9,15 @@ import {
 } from "@/components/ui/select";
 
 interface WebLLMTabProps {
-	webllmModel: string;
-	setWebllmModel: (model: string) => void;
+	model: string;
+	setModel: (model: string) => void;
 	webllmAvailableModels: string[];
 	loading: boolean;
 }
 
 export const WebLLMTab: React.FC<WebLLMTabProps> = ({
-	webllmModel,
-	setWebllmModel,
+	model,
+	setModel,
 	webllmAvailableModels,
 	loading,
 }) => {
@@ -29,11 +29,7 @@ export const WebLLMTab: React.FC<WebLLMTabProps> = ({
 					<label className="text-xs text-muted-foreground">
 						{t("webllm.model")}
 					</label>
-					<Select
-						value={webllmModel}
-						onValueChange={setWebllmModel}
-						disabled={loading}
-					>
+					<Select value={model} onValueChange={setModel} disabled={loading}>
 						<SelectTrigger className="w-full">
 							<SelectValue placeholder={t("webllm.selectModel")} />
 						</SelectTrigger>

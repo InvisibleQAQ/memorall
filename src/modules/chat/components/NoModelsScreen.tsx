@@ -39,9 +39,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 							alt="Memorall Logo"
 							className="w-12 h-12 mx-auto mb-4 object-contain animate-pulse"
 						/>
-						<p className="text-muted-foreground">
-							{t("noModels.loading")}
-						</p>
+						<p className="text-muted-foreground">{t("noModels.loading")}</p>
 					</div>
 				</div>
 			</div>
@@ -61,7 +59,9 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 							className="w-16 h-16 mx-auto object-contain"
 						/>
 						<h1 className="text-2xl font-semibold">{t("noModels.appName")}</h1>
-						<p className="text-muted-foreground">{t("noModels.appDescription")}</p>
+						<h2 className="text-lg font-medium text-muted-foreground">
+							{t("noModels.appDescription")}
+						</h2>
 					</div>
 
 					{/* Login Section */}

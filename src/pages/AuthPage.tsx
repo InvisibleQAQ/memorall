@@ -117,9 +117,7 @@ export const AuthPage: React.FC = () => {
 				email: email.trim(),
 				password: password.trim(),
 			});
-			setSuccessMessage(
-					 t("messages.accountCreated"),
-			);
+			setSuccessMessage(t("messages.accountCreated"));
 			setMode("signin");
 		} catch (err) {
 			logError("Sign up failed:", err);
@@ -144,9 +142,7 @@ export const AuthPage: React.FC = () => {
 				<Card className="w-full max-w-md">
 					<CardHeader>
 						<CardTitle>{t("notConfigured.title")}</CardTitle>
-						<CardDescription>
-							{t("notConfigured.description")}
-						</CardDescription>
+						<CardDescription>{t("notConfigured.description")}</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<p className="text-sm text-muted-foreground mb-4">
@@ -248,7 +244,9 @@ export const AuthPage: React.FC = () => {
 								/>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="signup-password">{t("fields.password.label")}</Label>
+								<Label htmlFor="signup-password">
+									{t("fields.password.label")}
+								</Label>
 								<Input
 									id="signup-password"
 									type="password"

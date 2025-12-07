@@ -208,9 +208,8 @@ export class ReadingAnalyzer {
 		}
 
 		// Calculate ratio of new content
-		const newContentRatio = totalContentCount > 0
-			? newContentCount / totalContentCount
-			: 0;
+		const newContentRatio =
+			totalContentCount > 0 ? newContentCount / totalContentCount : 0;
 
 		// Need at least MIN_NEW_CONTENT_RATIO (30%) new content
 		return newContentRatio >= this.MIN_NEW_CONTENT_RATIO;

@@ -88,9 +88,7 @@ export class YouTubeTracker {
 			video.addEventListener("play", () => this.handlePlay());
 			video.addEventListener("pause", () => this.handlePause());
 			video.addEventListener("seeked", () => this.handleSeeked(video));
-			video.addEventListener("ratechange", () =>
-				this.handleRateChange(video),
-			);
+			video.addEventListener("ratechange", () => this.handleRateChange(video));
 		}
 
 		// Periodically check for video element
@@ -204,7 +202,9 @@ export class YouTubeTracker {
 		}
 
 		// View count (from meta tags)
-		const viewMeta = document.querySelector('meta[itemprop="interactionCount"]');
+		const viewMeta = document.querySelector(
+			'meta[itemprop="interactionCount"]',
+		);
 		if (viewMeta) {
 			const views = viewMeta.getAttribute("content");
 			if (views) {
@@ -344,7 +344,8 @@ export class YouTubeTracker {
 		const metadata = this.extractMetadata();
 		const duration = this.getDuration();
 		const watchDuration = this.totalWatchTime / 1000; // Convert to seconds
-		const completionPercentage = duration > 0 ? (watchDuration / duration) * 100 : 0;
+		const completionPercentage =
+			duration > 0 ? (watchDuration / duration) * 100 : 0;
 
 		let transcript: YouTubeVideoData["transcript"] | undefined;
 		if (includeTranscript) {

@@ -362,7 +362,10 @@ export const DocumentLibraryPage: React.FC = () => {
 
 	const handleCreateDocument = async () => {
 		try {
-			const result = await NiceModal.show(CreateDocumentDialog) as { name: string; extension: string };
+			const result = (await NiceModal.show(CreateDocumentDialog)) as {
+				name: string;
+				extension: string;
+			};
 			if (!result) return;
 
 			// Get the current folder path
@@ -375,7 +378,9 @@ export const DocumentLibraryPage: React.FC = () => {
 			// Create empty document content
 			const initialContent = "";
 			const contentBlob = new Blob([initialContent], { type: "text/markdown" });
-			const file = new File([contentBlob], fullFileName, { type: "text/markdown" });
+			const file = new File([contentBlob], fullFileName, {
+				type: "text/markdown",
+			});
 
 			// Upload the file
 			await documentStorageService.uploadFile(file, targetPath);
@@ -398,7 +403,10 @@ export const DocumentLibraryPage: React.FC = () => {
 				return null;
 			};
 
-			const newFilePath = targetPath === "/" ? `/${fullFileName}` : `${targetPath}/${fullFileName}`;
+			const newFilePath =
+				targetPath === "/"
+					? `/${fullFileName}`
+					: `${targetPath}/${fullFileName}`;
 			const newNode = findNodeByPath(newTree, newFilePath);
 			if (newNode) {
 				handleSelectNode(newNode);
@@ -407,7 +415,11 @@ export const DocumentLibraryPage: React.FC = () => {
 			logInfo(`Created document: ${fullFileName}`);
 		} catch (err) {
 			logError("Failed to create document:", err);
-			setError(t("library.createDocumentError", { defaultValue: "Failed to create document" }));
+			setError(
+				t("library.createDocumentError", {
+					defaultValue: "Failed to create document",
+				}),
+			);
 		}
 	};
 

@@ -43,7 +43,7 @@ export class VideoCallTracker {
 
 		// Check for other video call indicators
 		if (
-			document.querySelector('video[autoplay]') &&
+			document.querySelector("video[autoplay]") &&
 			(url.includes("call") ||
 				url.includes("meet") ||
 				url.includes("conference") ||
@@ -64,7 +64,9 @@ export class VideoCallTracker {
 		switch (platform) {
 			case "google_meet":
 				// Format: https://meet.google.com/abc-defg-hij
-				const meetMatch = url.match(/meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})/);
+				const meetMatch = url.match(
+					/meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})/,
+				);
 				return meetMatch ? meetMatch[1] : undefined;
 
 			case "zoom":
@@ -145,10 +147,10 @@ export class VideoCallTracker {
 	private trackGoogleMeetCaptions(): void {
 		// Google Meet captions appear in specific container
 		const captionSelectors = [
-			'[data-caption-text]',
-			'.iOzk7',  // Caption container class (may change)
+			"[data-caption-text]",
+			".iOzk7", // Caption container class (may change)
 			'[jsname="dsyhDe"]', // Caption text element
-			'.a4cQT', // Another caption class
+			".a4cQT", // Another caption class
 		];
 
 		// Use MutationObserver to watch for caption changes
@@ -191,7 +193,7 @@ export class VideoCallTracker {
 	private trackZoomCaptions(): void {
 		// Zoom web client caption selectors
 		const captionSelectors = [
-			'.live-transcription__text',
+			".live-transcription__text",
 			'[class*="caption"]',
 			'[class*="transcript"]',
 		];
@@ -213,7 +215,7 @@ export class VideoCallTracker {
 		// Teams caption selectors
 		const captionSelectors = [
 			'[data-tid="closed-captions-v2"]',
-			'.ts-calling-screen-caption',
+			".ts-calling-screen-caption",
 			'[class*="caption"]',
 		];
 
@@ -327,7 +329,10 @@ export class VideoCallTracker {
 			'[class*="participant-count"], [aria-label*="participant"]',
 		);
 		if (participantElement) {
-			const text = participantElement.textContent || participantElement.getAttribute("aria-label") || "";
+			const text =
+				participantElement.textContent ||
+				participantElement.getAttribute("aria-label") ||
+				"";
 			const match = text.match(/(\d+)/);
 			if (match) {
 				metadata.participantCount = parseInt(match[1], 10);

@@ -14,6 +14,7 @@ export interface CurrentModelInfo {
 export type ServiceProvider =
 	| "wllama"
 	| "webllm"
+	| "transformer"
 	| "openai"
 	| "openrouter"
 	| "lmstudio"

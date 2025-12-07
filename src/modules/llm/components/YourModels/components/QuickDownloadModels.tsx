@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Download, Play, Square } from "lucide-react";
 import { QUICK_WALLAMA_LLMS } from "@/constants/wllama";
 import { QUICK_WEBLLM_LLMS } from "@/constants/webllm";
+import { QUICK_TRANSFORMER_MODELS } from "@/constants/transformer";
 import { QUICK_OPENAI_LLMS } from "@/constants/openai";
 import { type ModelInfo } from "@/services/llm";
 import { serviceManager } from "@/services";
@@ -21,6 +22,7 @@ interface QuickDownloadModelsProps {
 		model:
 			| (typeof QUICK_WALLAMA_LLMS)[0]
 			| (typeof QUICK_WEBLLM_LLMS)[0]
+			| (typeof QUICK_TRANSFORMER_MODELS)[0]
 			| (typeof QUICK_OPENAI_LLMS)[0],
 		provider: ServiceProvider,
 	) => Promise<void>;
@@ -41,7 +43,9 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 			? QUICK_WALLAMA_LLMS
 			: quickProvider === "webllm"
 				? QUICK_WEBLLM_LLMS
-				: QUICK_OPENAI_LLMS; // reuse OpenAI list for local providers too
+				: quickProvider === "transformer"
+					? QUICK_TRANSFORMER_MODELS
+					: QUICK_OPENAI_LLMS; // reuse OpenAI list for local providers too
 
 	return (
 		<div className="grid gap-2">
@@ -80,6 +84,8 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 				})
 				.map((model) => {
 					const modelId = "repo" in model ? model.repo : model.model;
+					// Transformer models use "model" field directly
+					const displayId = "repo" in model ? model.repo : model.model;
 					const isDownloaded =
 						(quickProvider as
 							| "wllama"
@@ -148,7 +154,12 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 											? model.repo.split("/")[1]
 											: quickProvider === "openai"
 												? model.model
-												: model.model.split("-")[0]}
+												: quickProvider === "transformer"
+													? model.model
+															.replace("onnx-community/", "")
+															.replace("-ONNX", "")
+															.replace("-Instruct", "")
+													: model.model.split("-")[0]}
 									</div>
 									{isLoaded && (
 										<span className="text-xs text-green-600 font-medium">

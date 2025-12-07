@@ -7,6 +7,7 @@ import { logWarn, logInfo } from "@/utils/logger";
 import type { BaseLLM, ProgressEvent, ModelInfo } from "./interfaces/base-llm";
 import { WllamaLLM } from "./implementations/wllama-llm";
 import { WebLLMLLM } from "./implementations/webllm-llm";
+import { TransformerLLM } from "./implementations/transformer-llm";
 import { OpenAILLM } from "./implementations/openai-llm";
 import { LocalOpenAICompatibleLLM } from "./implementations/local-openai-llm";
 import type { ILLMService } from "./interfaces/llm-service.interface";
@@ -19,6 +20,7 @@ import type {
 	OpenRouterConfig,
 	WebLLMConfig,
 	WllamaConfig,
+	TransformerConfig,
 } from "./interfaces/service";
 import { LLMServiceCore } from "./llm-service-core";
 
@@ -53,6 +55,9 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 				llm = new WebLLMLLM(
 					(config as WebLLMConfig).url,
 				) as LLMRegistry[K]["llm"];
+				break;
+			case "transformer":
+				llm = new TransformerLLM() as LLMRegistry[K]["llm"];
 				break;
 			case "openai":
 				llm = new OpenAILLM(
@@ -104,6 +109,7 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 		return (
 			this.isReadyByName(DEFAULT_SERVICES.WLLAMA) ||
 			this.isReadyByName(DEFAULT_SERVICES.WEBLLM) ||
+			this.isReadyByName(DEFAULT_SERVICES.TRANSFORMER) ||
 			this.isReadyByName(DEFAULT_SERVICES.OPENAI)
 		);
 	}
@@ -226,6 +232,14 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 		} catch (e) {
 			logWarn("models(): WebLLM models error", e);
 		}
+		try {
+			const w = await this.modelsFor(DEFAULT_SERVICES.TRANSFORMER);
+			w.data.forEach((m) => {
+				if (!results.find((r) => r.id === m.id)) results.push(m);
+			});
+		} catch (e) {
+			logWarn("models(): Transformer models error", e);
+		}
 		if (this.has(DEFAULT_SERVICES.OPENAI)) {
 			try {
 				const w = await this.modelsFor(DEFAULT_SERVICES.OPENAI);
@@ -329,14 +343,24 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 					logWarn("Failed to create WebLLM service:", error);
 				}
 			}
+			if (!this.has(DEFAULT_SERVICES.TRANSFORMER)) {
+				try {
+					await this.create(DEFAULT_SERVICES.TRANSFORMER, {
+						type: "transformer",
+					});
+				} catch (error) {
+					logWarn("Failed to create Transformer service:", error);
+				}
+			}
 
 			await this.restoreLocalServices();
 
-			// Serve models if current model is DEFAULT_SERVICES.WLLAMA or DEFAULT_SERVICES.WEBLLM
+			// Serve models if current model is DEFAULT_SERVICES.WLLAMA, DEFAULT_SERVICES.WEBLLM, or DEFAULT_SERVICES.TRANSFORMER
 			if (
 				this.currentModel?.modelId &&
 				(this.currentModel.serviceName === DEFAULT_SERVICES.WLLAMA ||
-					this.currentModel.serviceName === DEFAULT_SERVICES.WEBLLM)
+					this.currentModel.serviceName === DEFAULT_SERVICES.WEBLLM ||
+					this.currentModel.serviceName === DEFAULT_SERVICES.TRANSFORMER)
 			) {
 				try {
 					const models = await this.modelsFor(this.currentModel.serviceName);

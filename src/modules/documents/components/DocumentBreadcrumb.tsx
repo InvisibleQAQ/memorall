@@ -83,7 +83,8 @@ export const DocumentBreadcrumb: React.FC<DocumentBreadcrumbProps> = ({
 					{/* Show only last 2 segments on small screens */}
 					{pathSegments.slice(-2).map((segment, index) => {
 						const actualIndex = pathSegments.length - 2 + index;
-						const segmentPath = "/" + pathSegments.slice(0, actualIndex + 1).join("/");
+						const segmentPath =
+							"/" + pathSegments.slice(0, actualIndex + 1).join("/");
 						const isLast = actualIndex === pathSegments.length - 1;
 
 						return (

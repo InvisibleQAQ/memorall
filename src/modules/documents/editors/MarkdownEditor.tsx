@@ -12,7 +12,16 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { marked } from "marked";
 import TurndownService from "turndown";
 import { Button } from "@/components/ui/button";
-import { Save, Loader2, Bold, Italic, List, ListOrdered, Code, Quote } from "lucide-react";
+import {
+	Save,
+	Loader2,
+	Bold,
+	Italic,
+	List,
+	ListOrdered,
+	Code,
+	Quote,
+} from "lucide-react";
 import { logInfo, logError } from "@/utils/logger";
 import type { DocumentEditorProps } from "./types";
 import { cn } from "@/lib/utils";
@@ -62,7 +71,8 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 			}),
 			Placeholder.configure({
 				placeholder: t("editor.markdownPlaceholder", {
-					defaultValue: "Start writing... (Type # for heading, * for list, etc.)",
+					defaultValue:
+						"Start writing... (Type # for heading, * for list, etc.)",
 				}),
 			}),
 		],
@@ -70,7 +80,8 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 		editable: !readOnly,
 		editorProps: {
 			attributes: {
-				class: "prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4 min-h-[500px]",
+				class:
+					"prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4 min-h-[500px]",
 			},
 		},
 		onUpdate: ({ editor }) => {
@@ -153,7 +164,9 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 					<h3 className="text-sm font-medium truncate">{file.name}</h3>
 					{hasUnsavedChanges && (
 						<span className="text-xs text-muted-foreground">
-							{t("editor.unsavedChanges", { defaultValue: "(Unsaved changes)" })}
+							{t("editor.unsavedChanges", {
+								defaultValue: "(Unsaved changes)",
+							})}
 						</span>
 					)}
 				</div>
@@ -252,13 +265,16 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 			<div className="px-4 py-1 border-t bg-card text-xs text-muted-foreground flex items-center justify-between">
 				<span>
 					{t("editor.characterCount", {
-						count: editor.storage.characterCount?.characters() || editor.getText().length,
+						count:
+							editor.storage.characterCount?.characters() ||
+							editor.getText().length,
 						defaultValue: `${editor.getText().length} characters`,
 					})}
 				</span>
 				<span className="text-xs">
 					{t("editor.saveHint", {
-						defaultValue: "Markdown shortcuts: ## for heading, * for list | Ctrl+S to save",
+						defaultValue:
+							"Markdown shortcuts: ## for heading, * for list | Ctrl+S to save",
 					})}
 				</span>
 			</div>

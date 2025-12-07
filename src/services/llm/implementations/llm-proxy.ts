@@ -1,6 +1,8 @@
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type {
 	BaseLLM,
+	LLMInfo,
+	LLMType,
 	ModelInfo,
 	ModelsResponse,
 	ProgressEvent,
@@ -342,14 +344,10 @@ export class LLMProxy implements BaseLLM {
 		}
 	}
 
-	getInfo(): {
-		name: string;
-		type: "wllama" | "openai" | "custom";
-		ready: boolean;
-	} {
+	getInfo(): LLMInfo {
 		return {
 			name: this.name,
-			type: this.llmType as "wllama" | "openai" | "custom",
+			type: this.llmType as LLMType,
 			ready: this.isReady(),
 		};
 	}

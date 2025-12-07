@@ -139,15 +139,17 @@ function extractTextFromElement(element: Element): string {
 					const tagName = elem.tagName.toLowerCase();
 
 					// Skip non-content tags
-					if ([
-						"script",
-						"style",
-						"nav",
-						"header",
-						"footer",
-						"aside",
-						"button",
-					].includes(tagName)) {
+					if (
+						[
+							"script",
+							"style",
+							"nav",
+							"header",
+							"footer",
+							"aside",
+							"button",
+						].includes(tagName)
+					) {
 						return NodeFilter.FILTER_REJECT;
 					}
 
@@ -156,10 +158,10 @@ function extractTextFromElement(element: Element): string {
 					if (
 						typeof className === "string" &&
 						(className.includes("ad") ||
-						className.includes("navigation") ||
-						className.includes("menu") ||
-						className.includes("sidebar") ||
-						className.includes("comment"))
+							className.includes("navigation") ||
+							className.includes("menu") ||
+							className.includes("sidebar") ||
+							className.includes("comment"))
 					) {
 						return NodeFilter.FILTER_REJECT;
 					}
@@ -185,10 +187,7 @@ function extractTextFromElement(element: Element): string {
 	}
 
 	// Join and clean up whitespace
-	return textParts
-		.join(" ")
-		.replace(/\s+/g, " ")
-		.trim();
+	return textParts.join(" ").replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -293,8 +292,7 @@ function extractMetadata(): ExtractedContent["metadata"] {
 		const dateElement = document.querySelector('[itemprop="datePublished"]');
 		if (dateElement) {
 			metadata.publishDate =
-				dateElement.getAttribute("content") ||
-				dateElement.textContent?.trim();
+				dateElement.getAttribute("content") || dateElement.textContent?.trim();
 		}
 	}
 

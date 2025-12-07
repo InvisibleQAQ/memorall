@@ -123,7 +123,10 @@ export const useAuthActions = () => {
 		}
 	};
 
-	const configure = async (config: { supabaseUrl: string; supabaseAnonKey: string }) => {
+	const configure = async (config: {
+		supabaseUrl: string;
+		supabaseAnonKey: string;
+	}) => {
 		try {
 			setError(null);
 			setLoading(true);
@@ -137,7 +140,8 @@ export const useAuthActions = () => {
 				setUser(session.user);
 			}
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "Failed to configure";
+			const message =
+				err instanceof Error ? err.message : "Failed to configure";
 			setError(message);
 			throw err;
 		} finally {

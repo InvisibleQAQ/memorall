@@ -30,7 +30,8 @@ export const ReadingEventRenderer: React.FC<ReadingEventRendererProps> = ({
 
 	// Calculate reading stats
 	const readingTime = Math.round(viewDuration / 1000 / 60); // minutes
-	const readingSpeed = readingTime > 0 ? Math.round(wordCount / readingTime) : 0;
+	const readingSpeed =
+		readingTime > 0 ? Math.round(wordCount / readingTime) : 0;
 
 	return (
 		<div className="space-y-3">
@@ -40,7 +41,9 @@ export const ReadingEventRenderer: React.FC<ReadingEventRendererProps> = ({
 					<Book className="w-5 h-5 text-blue-500" />
 				</div>
 				<div className="flex-1 min-w-0">
-					<h4 className="font-semibold text-base mb-1 line-clamp-2">{pageTitle}</h4>
+					<h4 className="font-semibold text-base mb-1 line-clamp-2">
+						{pageTitle}
+					</h4>
 					<a
 						href={pageUrl}
 						target="_blank"

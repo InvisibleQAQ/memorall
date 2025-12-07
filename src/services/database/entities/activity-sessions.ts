@@ -35,10 +35,7 @@ export const activitySessions = pgTable(tableName, {
 	endTime: timestamp("end_time"),
 	totalActivities: integer("total_activities").notNull().default(0),
 	status: text("status").notNull(), // 'active' | 'stopped'
-	metadata: jsonb("metadata")
-		.$type<SessionMetadata>()
-		.notNull()
-		.default({}),
+	metadata: jsonb("metadata").$type<SessionMetadata>().notNull().default({}),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
 });

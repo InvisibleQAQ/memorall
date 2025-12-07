@@ -8,7 +8,10 @@ const getSupabaseConfig = async (): Promise<{
 }> => {
 	try {
 		// Try to get config from chrome.storage
-		const stored = await chrome.storage?.local?.get?.(["supabaseUrl", "supabaseAnonKey"]);
+		const stored = await chrome.storage?.local?.get?.([
+			"supabaseUrl",
+			"supabaseAnonKey",
+		]);
 
 		if (stored?.supabaseUrl && stored?.supabaseAnonKey) {
 			console.log("✅ Supabase config from chrome.storage");
@@ -34,7 +37,7 @@ const getSupabaseConfig = async (): Promise<{
 	console.log("🔍 Supabase config from .env:", {
 		hasUrl: !!envUrl,
 		hasKey: !!envKey,
-		url: envUrl ? `${envUrl.substring(0, 20)}...` : "MISSING"
+		url: envUrl ? `${envUrl.substring(0, 20)}...` : "MISSING",
 	});
 
 	return {

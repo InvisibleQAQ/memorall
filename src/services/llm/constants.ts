@@ -4,6 +4,7 @@ import type { ServiceProvider } from "./interfaces/llm-service.interface";
 export const DEFAULT_SERVICES = {
 	WLLAMA: "wllama",
 	WEBLLM: "webllm",
+	TRANSFORMER: "transformer",
 	OPENAI: "openai",
 	OPENROUTER: "openrouter",
 	LMSTUDIO: "lmstudio",
@@ -14,6 +15,7 @@ export const DEFAULT_SERVICES = {
 export const PROVIDER_TO_SERVICE: Record<ServiceProvider, string> = {
 	wllama: DEFAULT_SERVICES.WLLAMA,
 	webllm: DEFAULT_SERVICES.WEBLLM,
+	transformer: DEFAULT_SERVICES.TRANSFORMER,
 	openai: DEFAULT_SERVICES.OPENAI,
 	openrouter: DEFAULT_SERVICES.OPENROUTER,
 	lmstudio: DEFAULT_SERVICES.LMSTUDIO,
