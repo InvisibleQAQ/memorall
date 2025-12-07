@@ -17,10 +17,15 @@ import {
 import { MessageGroup } from "@/modules/chat/components/MessageGroup";
 import { groupMessagesBySeparators } from "@/modules/chat/utils/message-grouping";
 import { topicService } from "@/modules/topics/services/topic-service";
+import {
+	useDownloadProgress,
+	ModelDownloadingScreen,
+} from "@/modules/llm/components";
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
 	const { model, isInitialized, handleModelLoaded } = useCurrentModel();
+	const { downloadProgress, quickDownloadModel } = useDownloadProgress();
 	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
 	const [isLoadingTopics, setIsLoadingTopics] = useState(false);
 	const {
@@ -96,6 +101,20 @@ export const ChatPage: React.FC = () => {
 
 	if (!isInitialized) {
 		return <LoadingScreen />;
+	}
+
+	// Check if model is currently downloading
+	const isModelDownloading =
+		downloadProgress.percent > 0 && downloadProgress.percent < 100;
+
+	// Show download progress if model is being downloaded
+	if (isModelDownloading) {
+		return (
+			<ModelDownloadingScreen
+				downloadProgress={downloadProgress}
+				modelName={quickDownloadModel}
+			/>
+		);
 	}
 
 	// Show YourModels component if no loaded models available

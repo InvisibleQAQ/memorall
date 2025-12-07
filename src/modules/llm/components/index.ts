@@ -6,4 +6,5 @@ export { WebLLMTab } from "./WebLLMTab";
 export { OpenAITab } from "./OpenAITab";
 export { ChatSection } from "./ChatSection";
 export { LogsSection } from "./LogsSection";
+export { ModelDownloadingScreen } from "./ModelDownloadingScreen";
 export * from "../hooks";

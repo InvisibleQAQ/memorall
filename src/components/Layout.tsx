@@ -46,13 +46,13 @@ interface LayoutProps {
 const navigation = [
 	{ nameKey: "navigation.chat", path: "/", icon: MessageCircle },
 	{ nameKey: "navigation.documents", path: "/documents", icon: FileText },
-	{ nameKey: "navigation.models", path: "/llm", icon: Bot },
 	{
 		nameKey: "navigation.knowledgeGraph",
 		path: "/knowledge-graph",
 		icon: Network,
 	},
 	{ nameKey: "navigation.activities", path: "/activities", icon: BrainCircuit },
+	{ nameKey: "navigation.models", path: "/llm", icon: Bot },
 ];
 
 const debugItems = [
