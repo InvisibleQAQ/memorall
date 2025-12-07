@@ -9,7 +9,6 @@ import {
 import {
 	LoadingScreen,
 	NoModelsScreen,
-	MessageRenderer,
 	ChatInput,
 	useCurrentModel,
 	useChat,

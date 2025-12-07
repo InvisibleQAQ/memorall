@@ -4,7 +4,23 @@
 	"noModels": {
 		"title": "Chưa tải mô hình",
 		"description": "Bạn cần tải mô hình trước khi bắt đầu trò chuyện. Chọn từ các mô hình đã tải hoặc tải xuống mô hình mới.",
-		"downloadMore": "Tải thêm mô hình"
+		"downloadMore": "Tải thêm mô hình",
+		"loading": "Đang tải...",
+		"appName": "Your Memorall",
+		"appDescription": "Kiến thức của bạn phát triển cùng bạn",
+		"welcome": "Chào mừng đến với Memorall",
+		"signInPrompt": "Đăng nhập để đồng bộ dữ liệu và bắt đầu sử dụng",
+		"authCardTitle": "Đăng nhập vào tài khoản của bạn",
+		"authCardDescription": "Truy cập dữ liệu của bạn ở mọi nơi",
+		"signInOrSignUp": "Đăng nhập / Đăng ký",
+		"signInDescription": "Đăng nhập để truy cập các mô hình AI và đơn giản hóa việc cài đặt",
+		"or": "Hoặc",
+		"skipSetupManually": "Bỏ qua và tự cấu hình thủ công",
+		"welcomeBack": "Chào mừng quay lại, {{name}}!",
+		"getStartedTitle": "Bắt đầu",
+		"getStartedDescription": "Chọn và cấu hình mô hình AI để bắt đầu trò chuyện",
+		"setupModelButton": "Cấu hình mô hình AI",
+		"showAdvancedOptions": "Hoặc cài đặt với API key riêng / mô hình cục bộ"
 	},
 	"input": {
 		"placeholder": "Nhập tin nhắn của bạn...",

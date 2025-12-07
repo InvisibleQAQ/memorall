@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
 	MessageCircle,
 	Bot,
@@ -16,6 +16,9 @@ import {
 	Settings,
 	Activity,
 	BrainCircuit,
+	LogIn,
+	LogOut,
+	User as UserIcon,
 } from "lucide-react";
 import {
 	Tooltip,
@@ -38,6 +41,7 @@ import { CopilotTrigger } from "@/components/atoms/copilot";
 import { ProcessMonitor } from "@/components/molecules/ProcessMonitor";
 import { VietnamFlag, USFlag } from "@/components/atoms/flags";
 import manifest from "../../manifest.json";
+import { useAuth, useAuthActions } from "@/modules/supabase";
 
 interface LayoutProps {
 	children: React.ReactNode;
@@ -67,9 +71,12 @@ const debugItems = [
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
 	const location = useLocation();
+	const navigate = useNavigate();
 	const { theme, setTheme } = useTheme();
 	const { language, changeLanguage } = useLanguage();
 	const { t } = useTranslation();
+	const { user } = useAuth();
+	const { signOut } = useAuthActions();
 
 	const allPaths = [...navigation, ...debugItems];
 	const checkIsExistNavigation = allPaths.some(
@@ -88,6 +95,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 				return <Moon size={16} />;
 			case "system":
 				return <Monitor size={16} />;
+		}
+	};
+
+	const handleLogout = async () => {
+		try {
+			await signOut();
+			navigate("/auth");
+		} catch {
+			// Ignore logout errors here; hook already manages error state
 		}
 	};
 
@@ -195,6 +211,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 										</TooltipContent>
 									</Tooltip>
 									<DropdownMenuContent align="end" className="w-56">
+										{/* Account Section - Top */}
+										{!user ? (
+											<div className="p-2">
+												<button
+													onClick={() => navigate("/auth")}
+													className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors"
+												>
+													<LogIn size={16} />
+													<span>{t("auth:actions.signIn")}</span>
+												</button>
+											</div>
+										) : (
+											<div className="px-2 py-1.5 flex items-center gap-2">
+												<UserIcon size={14} className="text-muted-foreground" />
+												<span className="text-sm truncate flex-1">{user.email}</span>
+											</div>
+										)}
+
+										<DropdownMenuSeparator />
+
 										{/* Language Section */}
 										<DropdownMenuLabel className="flex items-center gap-2">
 											<Languages size={14} />
@@ -259,7 +295,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
 										<DropdownMenuSeparator />
 
-										{/* Version */}
+										{/* Logout (only when logged in) */}
+										{user && (
+											<DropdownMenuItem
+												onClick={handleLogout}
+												className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+											>
+												<LogOut size={14} />
+												<span>{t("auth:actions.signOut")}</span>
+											</DropdownMenuItem>
+										)}
+
 										<div className="px-2 py-1.5 text-xs text-muted-foreground text-center">
 											{t("common.version", { version: manifest.version })}
 										</div>

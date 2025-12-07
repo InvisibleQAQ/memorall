@@ -4,7 +4,23 @@
 	"noModels": {
 		"title": "No Models Loaded",
 		"description": "You need to load a model before you can start chatting. Choose from your downloaded models below or download new ones.",
-		"downloadMore": "Download More Models"
+		"downloadMore": "Download More Models",
+		"loading": "Loading...",
+		"appName": "Your Memorall",
+		"appDescription": "Your knowledge evolves with you",
+		"welcome": "Welcome to Memorall",
+		"signInPrompt": "Sign in to sync your data and get started",
+		"authCardTitle": "Sign In to Your Account",
+		"authCardDescription": "Access your data from anywhere",
+		"signInOrSignUp": "Sign In / Sign Up",
+		"signInDescription": "Sign in to access AI models and simplify your setup",
+		"or": "Or",
+		"skipSetupManually": "Skip and setup manually",
+		"welcomeBack": "Welcome back, {{name}}!",
+		"getStartedTitle": "Get Started",
+		"getStartedDescription": "Choose and configure an AI model to start chatting",
+		"setupModelButton": "Setup AI Model",
+		"showAdvancedOptions": "Or setup with your own API key / local model"
 	},
 	"input": {
 		"placeholder": "Type your message...",

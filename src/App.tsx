@@ -34,7 +34,9 @@ import { AppLoadingScreen } from "@/components/atoms/AppLoadingScreen";
 import { KnowledgeGraphPage } from "@/pages/KnowledgeGraphPage";
 import { DocumentLibraryPage } from "@/pages/DocumentLibraryPage";
 import { ActivityTimelinePage } from "@/pages/ActivityTimelinePage";
+import { AuthPage } from "@/pages/AuthPage";
 import { registerAllEditors } from "@/modules/documents/editors";
+import { useAuthInit } from "@/modules/supabase";
 
 const App: React.FC = () => {
 	const [servicesStatus, setServicesStatus] = useState<
@@ -49,6 +51,10 @@ const App: React.FC = () => {
 	// Bridge component to access navigate from message listener once Router is active
 	const NavigatorBridge: React.FC = () => {
 		const navigate = useNavigate();
+
+		// Initialize Supabase auth
+		useAuthInit();
+
 		useEffect(() => {
 			const handler = (message: { type: string }) => {
 				if (message?.type === "OPEN_KNOWLEDGE_GRAPH") {
@@ -288,21 +294,29 @@ const App: React.FC = () => {
 				<NiceModal.Provider>
 					<Router>
 						<NavigatorBridge />
-						<Layout>
-							<Routes>
-								<Route path="/*" element={<ChatPage />} />
-								<Route path="/llm" element={<LLMPage />} />
-								<Route path="/embeddings" element={<EmbeddingPage />} />
-								<Route path="/database" element={<DatabasePage />} />
-								<Route
-									path="/knowledge-graph"
-									element={<KnowledgeGraphPage />}
-								/>
-								<Route path="/documents" element={<DocumentLibraryPage />} />
-								<Route path="/activities" element={<ActivityTimelinePage />} />
-								<Route path="/logs" element={<LogsPage />} />
-							</Routes>
-						</Layout>
+						<Routes>
+							{/* Auth page without layout */}
+							<Route path="/auth" element={<AuthPage />} />
+
+							{/* All other routes with layout */}
+							<Route path="*" element={
+								<Layout>
+									<Routes>
+										<Route path="/*" element={<ChatPage />} />
+										<Route path="/llm" element={<LLMPage />} />
+										<Route path="/embeddings" element={<EmbeddingPage />} />
+										<Route path="/database" element={<DatabasePage />} />
+										<Route
+											path="/knowledge-graph"
+											element={<KnowledgeGraphPage />}
+										/>
+										<Route path="/documents" element={<DocumentLibraryPage />} />
+										<Route path="/activities" element={<ActivityTimelinePage />} />
+										<Route path="/logs" element={<LogsPage />} />
+									</Routes>
+								</Layout>
+							} />
+						</Routes>
 						<Copilot />
 					</Router>
 
