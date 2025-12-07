@@ -34,6 +34,7 @@ import { AppLoadingScreen } from "@/components/atoms/AppLoadingScreen";
 import { KnowledgeGraphPage } from "@/pages/KnowledgeGraphPage";
 import { DocumentLibraryPage } from "@/pages/DocumentLibraryPage";
 import { ActivityTimelinePage } from "@/pages/ActivityTimelinePage";
+import { registerAllEditors } from "@/modules/documents/editors";
 
 const App: React.FC = () => {
 	const [servicesStatus, setServicesStatus] = useState<
@@ -101,6 +102,10 @@ const App: React.FC = () => {
 						setUiProgress(100);
 						// Small delay before showing app
 						await serviceManager.initialize({ proxy: true });
+
+						// Register all document editors
+						registerAllEditors();
+						logInfo("📝 Document editors registered");
 
 						// Check if current model requires authentication
 						try {

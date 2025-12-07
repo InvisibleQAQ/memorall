@@ -416,6 +416,44 @@ class DocumentStorageService {
 	}
 
 	/**
+	 * Update file content by file ID
+	 * Note: Does NOT trigger filesystem changed notification since
+	 * content updates don't affect the tree structure
+	 */
+	async updateFileContent(fileId: string, content: Uint8Array): Promise<void> {
+		// Get file path from ID
+		let filePath = fileId;
+
+		// If fileId doesn't start with /, it might be an old random ID
+		// In that case, scan to find the file
+		if (!fileId.startsWith("/")) {
+			const files = await this.scanFiles("/");
+			const file = files.find((f) => f.id === fileId);
+
+			if (!file) {
+				throw new Error(`File not found: ${fileId}`);
+			}
+			filePath = file.path;
+		}
+
+		const fullPath = `${DOCUMENTS_ROOT}${filePath}`;
+
+		try {
+			// Write the new content
+			await fs.promises.writeFile(fullPath, content);
+
+			// Do NOT notify filesystem changed for content updates
+			// Content changes don't affect tree structure, so no reload needed
+			// This prevents the editor from closing/resetting after save
+
+			logInfo(`📝 Updated file content: ${filePath}`);
+		} catch (error) {
+			logError(`Failed to update file content: ${filePath}`, error);
+			throw new Error(`Failed to update file: ${fileId}`);
+		}
+	}
+
+	/**
 	 * Get tree structure by scanning filesystem
 	 * Uses internal cache to avoid re-scanning when data hasn't changed
 	 * Cache is automatically invalidated when filesystem changes in ANY context

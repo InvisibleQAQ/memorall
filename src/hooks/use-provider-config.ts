@@ -87,7 +87,7 @@ export function useProviderConfig() {
 	);
 
 	// Quick provider selection
-	const [quickProvider, setQuickProvider] = useState<ServiceProvider>("wllama");
+	const [quickProvider, setQuickProvider] = useState<ServiceProvider>("openrouter");
 
 	// Overall ready state - true when all providers are checked and loaded
 	const [ready, setReady] = useState(false);

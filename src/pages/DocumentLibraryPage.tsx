@@ -14,11 +14,10 @@ import {
 	Search,
 	Loader2,
 	AlertCircle,
-	Home,
-	ChevronRight,
 	Folder,
 	Tags,
 	Plus,
+	FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +32,7 @@ import { documentStorageService } from "@/modules/documents/services/document-st
 import { DocumentTreeDraggable } from "@/modules/documents/components/DocumentTreeDraggable";
 import { DocumentList } from "@/modules/documents/components/DocumentList";
 import { DocumentViewer } from "@/modules/documents/components/DocumentViewer";
+import { DocumentBreadcrumb } from "@/modules/documents/components/DocumentBreadcrumb";
 import type {
 	DocumentLibraryItem,
 	DocumentTreeNode,
@@ -45,6 +45,7 @@ import { readExcelFile } from "@/modules/documents/handlers/excel-extraction";
 import {
 	UploadProgressDialog,
 	CreateFolderDialog,
+	CreateDocumentDialog,
 } from "@/modules/documents/modals";
 import {
 	TopicSelectorDialog,
@@ -171,7 +172,7 @@ export const DocumentLibraryPage: React.FC = () => {
 	 * - If folder selected: show its contents in grid/list
 	 * - If file selected: show file viewer
 	 */
-	const handleSelectNode = (node: DocumentTreeNode) => {
+	const handleSelectNode = (node: DocumentTreeNode | null) => {
 		setSelectedNode(node);
 	};
 
@@ -199,7 +200,21 @@ export const DocumentLibraryPage: React.FC = () => {
 	 * Filters by selected topics if any are selected
 	 */
 	const getFolderContents = (): DocumentLibraryItem[] => {
-		if (!selectedNode || selectedNode.type !== "folder") return [];
+		// If no node selected (null), show root level contents
+		if (selectedNode === null) {
+			// Return root level items (top-level folders and files)
+			const rootItems: DocumentLibraryItem[] = [];
+			for (const node of tree) {
+				if (node.type === "folder" && node.folder) {
+					rootItems.push({ type: "folder", item: node.folder });
+				} else if (node.type === "file" && node.file) {
+					rootItems.push({ type: "file", item: node.file });
+				}
+			}
+			return rootItems;
+		}
+
+		if (selectedNode.type !== "folder") return [];
 
 		const items: DocumentLibraryItem[] = [];
 
@@ -342,6 +357,57 @@ export const DocumentLibraryPage: React.FC = () => {
 			logError("Failed to create folder:", err);
 			setError(t("library.createFolderError"));
 			throw err; // Re-throw to let modal handle error
+		}
+	};
+
+	const handleCreateDocument = async () => {
+		try {
+			const result = await NiceModal.show(CreateDocumentDialog) as { name: string; extension: string };
+			if (!result) return;
+
+			// Get the current folder path
+			const targetPath =
+				selectedNode?.type === "folder" ? selectedNode.path : "/";
+
+			// Create the full filename with extension
+			const fullFileName = `${result.name}${result.extension}`;
+
+			// Create empty document content
+			const initialContent = "";
+			const contentBlob = new Blob([initialContent], { type: "text/markdown" });
+			const file = new File([contentBlob], fullFileName, { type: "text/markdown" });
+
+			// Upload the file
+			await documentStorageService.uploadFile(file, targetPath);
+
+			// Reload tree to show new document
+			const newTree = await loadTree();
+
+			// Find and select the newly created document
+			const findNodeByPath = (
+				nodes: DocumentTreeNode[],
+				targetFilePath: string,
+			): DocumentTreeNode | null => {
+				for (const node of nodes) {
+					if (node.path === targetFilePath) return node;
+					if (node.children) {
+						const found = findNodeByPath(node.children, targetFilePath);
+						if (found) return found;
+					}
+				}
+				return null;
+			};
+
+			const newFilePath = targetPath === "/" ? `/${fullFileName}` : `${targetPath}/${fullFileName}`;
+			const newNode = findNodeByPath(newTree, newFilePath);
+			if (newNode) {
+				handleSelectNode(newNode);
+			}
+
+			logInfo(`Created document: ${fullFileName}`);
+		} catch (err) {
+			logError("Failed to create document:", err);
+			setError(t("library.createDocumentError", { defaultValue: "Failed to create document" }));
 		}
 	};
 
@@ -643,9 +709,6 @@ export const DocumentLibraryPage: React.FC = () => {
 		}
 	};
 
-	// Breadcrumb navigation
-	const pathSegments = currentPath.split("/").filter(Boolean);
-
 	// Get folder contents for main area display
 	const folderContents = getFolderContents();
 
@@ -671,70 +734,13 @@ export const DocumentLibraryPage: React.FC = () => {
 			<div className="border-b bg-card">
 				{/* Row 1: Breadcrumb + Actions */}
 				<div className="flex items-center justify-between gap-2 px-2 md:px-3 py-2 border-b">
-					{/* Breadcrumb - More compact on small screens */}
-					<div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground min-w-0 flex-1 overflow-hidden">
-						<button
-							onClick={() => {
-								// Find root node and select it
-								if (tree.length > 0) {
-									handleSelectNode(tree[0]);
-								}
-							}}
-							className="flex items-center gap-1 hover:text-foreground transition-colors flex-shrink-0"
-							title={t("title")}
-						>
-							<Home className="h-3.5 w-3.5 md:h-4 md:w-4" />
-						</button>
-						{pathSegments.length > 0 && (
-							<>
-								<ChevronRight className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
-								{/* Show only last 2 segments on small screens */}
-								{pathSegments.slice(-2).map((segment, index) => {
-									const actualIndex = pathSegments.length - 2 + index;
-									const path =
-										"/" + pathSegments.slice(0, actualIndex + 1).join("/");
-									const isLast = actualIndex === pathSegments.length - 1;
-									return (
-										<React.Fragment key={path}>
-											<button
-												onClick={() => {
-													// Find node by path and select it
-													const findNodeByPath = (
-														nodes: DocumentTreeNode[],
-														targetPath: string,
-													): DocumentTreeNode | null => {
-														for (const node of nodes) {
-															if (node.path === targetPath) return node;
-															if (node.children) {
-																const found = findNodeByPath(
-																	node.children,
-																	targetPath,
-																);
-																if (found) return found;
-															}
-														}
-														return null;
-													};
-
-													const node = findNodeByPath(tree, path);
-													if (node) handleSelectNode(node);
-												}}
-												className={`hover:text-foreground transition-colors truncate max-w-[120px] ${
-													isLast ? "font-medium text-foreground" : ""
-												}`}
-												title={segment}
-											>
-												{segment}
-											</button>
-											{!isLast && (
-												<ChevronRight className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
-											)}
-										</React.Fragment>
-									);
-								})}
-							</>
-						)}
-					</div>
+					{/* Breadcrumb */}
+					<DocumentBreadcrumb
+						currentPath={currentPath}
+						tree={tree}
+						onNavigate={handleSelectNode}
+						homeTitle={t("title")}
+					/>
 
 					{/* Actions */}
 					<div className="flex items-center gap-1 flex-shrink-0">
@@ -747,6 +753,10 @@ export const DocumentLibraryPage: React.FC = () => {
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
+								<DropdownMenuItem onClick={handleCreateDocument}>
+									<FileText className="h-4 w-4 mr-2" />
+									{t("upload.createDocument", { defaultValue: "New Document" })}
+								</DropdownMenuItem>
 								<DropdownMenuItem onClick={triggerFileUpload}>
 									<Upload className="h-4 w-4 mr-2" />
 									{t("upload.uploadFiles")}

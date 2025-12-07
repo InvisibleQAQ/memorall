@@ -51,7 +51,7 @@
 	"selector": {
 		"title": "Manage Topics",
 		"searchPlaceholder": "Search topics...",
-		"selectedCount": "{{count}} topic{{count, plural, one {} other {s}}} selected",
+		"selectedCount": "{{count}} topic selected",
 		"noTopicsFound": "No topics found",
 		"noTopicsAvailable": "No topics available",
 		"createNewTopic": "Create New Topic",

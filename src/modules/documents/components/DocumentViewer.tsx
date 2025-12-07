@@ -18,6 +18,11 @@ import {
 	Tag,
 	Tags,
 } from "lucide-react";
+import { logInfo, logError } from "@/utils/logger";
+import { serviceManager } from "@/services";
+import { eq, inArray } from "drizzle-orm";
+import { TopicBadgeList } from "@/modules/topics/components";
+import { useIsProcessing } from "@/stores/process-monitor";
 import type { DocumentFile } from "@/types/document-library";
 import type { Topic } from "@/services/database/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,16 +30,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { documentStorageService } from "@/modules/documents/services/document-storage";
+
 import { PDFPageSelector } from "./PDFPageSelector";
 import { ExcelViewer } from "./ExcelViewer";
 import { ExcelSheetSelector } from "./ExcelSheetSelector";
 import { useModalSelector } from "../hooks/useModalSelector";
 import { useSourceStatus } from "../hooks/useSourceStatus";
-import { logInfo, logError } from "@/utils/logger";
-import { serviceManager } from "@/services";
-import { eq, inArray } from "drizzle-orm";
-import { TopicBadgeList } from "@/modules/topics/components";
-import { useIsProcessing } from "@/stores/process-monitor";
+import { editorRegistry } from "../editors";
 
 interface DocumentViewerProps {
 	file: DocumentFile;
@@ -94,7 +96,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				} finally {
 					setLoading(false);
 				}
-			} else if (file.type === "text") {
+			} else if (file.type === "text" || file.type === "markdown") {
 				setLoading(true);
 				try {
 					const content = await documentStorageService.getFileContent(file.id);
@@ -188,6 +190,26 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 		}).format(date);
 	};
 
+	const handleSaveContent = async (content: string): Promise<void> => {
+		try {
+			// Convert content to Uint8Array
+			const encoder = new TextEncoder();
+			const contentArray = encoder.encode(content);
+
+			// Update the file content
+			// This will NOT trigger tree reload (content-only changes)
+			await documentStorageService.updateFileContent(file.id, contentArray);
+
+			// Update local state after successful save
+			setTextContent(content);
+
+			logInfo(`[DOCUMENT_VIEWER] Saved ${file.name}`);
+		} catch (error) {
+			logError("[DOCUMENT_VIEWER] Failed to save file:", error);
+			throw error;
+		}
+	};
+
 	const handleConvertPages = () => {
 		// Simplified callback - conversion happens in background job now
 		logInfo("PDF pages converted successfully");
@@ -267,7 +289,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							</span>
 						</Button>
 					)}
-					{file.type === "text" && onConvertToKnowledge && (
+					{(file.type === "text" || file.type === "markdown") && onConvertToKnowledge && (
 						<Button
 							variant="default"
 							size="sm"
@@ -360,6 +382,31 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 						</div>
 					</ScrollArea>
 				)}
+
+				{file.type === "markdown" && textContent !== null && (() => {
+					const EditorComponent = editorRegistry.getEditorComponent("markdown");
+					if (EditorComponent) {
+						return (
+							<div className="flex-1 overflow-hidden">
+								<EditorComponent
+									file={file}
+									initialContent={textContent}
+									onSave={handleSaveContent}
+								/>
+							</div>
+						);
+					}
+					// Fallback to text preview if editor not available
+					return (
+						<ScrollArea className="flex-1 p-4">
+							<div className="border rounded-lg p-4 bg-muted/20">
+								<pre className="text-sm whitespace-pre-wrap font-mono">
+									{textContent}
+								</pre>
+							</div>
+						</ScrollArea>
+					);
+				})()}
 
 				{file.type === "excel" && excelData && (
 					<div className="flex-1 p-4 overflow-hidden">
