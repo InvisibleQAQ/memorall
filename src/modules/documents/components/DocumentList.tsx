@@ -95,6 +95,9 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 	const [editingName, setEditingName] = useState<string>("");
 	const inputRef = useRef<HTMLInputElement>(null);
 
+	// Get the isProcessing function once at component level (not inside loops)
+	const isProcessing = useProcessMonitor((state) => state.isProcessing);
+
 	useEffect(() => {
 		if (editingItem && inputRef.current) {
 			inputRef.current.focus();
@@ -263,9 +266,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 					const colorClass = FILE_COLORS[file.type];
 					const fileTopics = fileTopicMap?.get(file.path) || [];
 					const isEditing = editingItem === file.id;
-					const isProcessing = useProcessMonitor((state) =>
-						state.isProcessing(file.path),
-					);
+					const fileIsProcessing = isProcessing(file.path);
 
 					return (
 						<div
@@ -347,12 +348,12 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 												}}
 												disabled={
 													sourceStatusMap?.get(file.path)?.isGenerating ||
-													isProcessing
+													fileIsProcessing
 												}
 											>
 												<Brain className="h-4 w-4 mr-2" />
 												{sourceStatusMap?.get(file.path)?.isGenerating ||
-												isProcessing
+												fileIsProcessing
 													? t("list.converting")
 													: t("list.convertToKnowledge")}
 											</DropdownMenuItem>
@@ -476,9 +477,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 					const colorClass = FILE_COLORS[file.type];
 					const fileTopics = fileTopicMap?.get(file.path) || [];
 					const isEditing = editingItem === file.id;
-					const isProcessing = useProcessMonitor((state) =>
-						state.isProcessing(file.path),
-					);
+					const fileIsProcessing = isProcessing(file.path);
 
 					return (
 						<div
@@ -523,12 +522,12 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 													}}
 													disabled={
 														sourceStatusMap?.get(file.path)?.isGenerating ||
-														isProcessing
+														fileIsProcessing
 													}
 												>
 													<Brain className="h-4 w-4 mr-2" />
 													{sourceStatusMap?.get(file.path)?.isGenerating ||
-													isProcessing
+													fileIsProcessing
 														? t("list.converting")
 														: t("list.convertToKnowledge")}
 												</DropdownMenuItem>
