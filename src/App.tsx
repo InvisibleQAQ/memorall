@@ -23,6 +23,7 @@ import {
 } from "@/utils/auth-provider-restore";
 import { serviceManager } from "@/services";
 import { backgroundJob } from "@/services/background-jobs/background-job";
+import { sharedStorageService } from "@/services/shared-storage/shared-storage-service";
 import { CopilotProvider, Copilot } from "@/components/atoms/copilot";
 import { Layout } from "@/components/Layout";
 // pages
@@ -102,6 +103,10 @@ const App: React.FC = () => {
 			try {
 				logInfo("🚀 Starting app initialization...");
 				setServicesStatus("loading");
+
+				// Initialize shared storage service first (required for cross-thread communication)
+				await sharedStorageService.initialize();
+				logInfo("✅ Shared storage service initialized in UI thread");
 
 				// Initialize services through offscreen with progress streaming
 				const progressStream = await backgroundJob.initializeServices();

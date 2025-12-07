@@ -4,6 +4,11 @@ import type { ILLMService } from "@/services/llm/interfaces/llm-service.interfac
 import { FlowsService } from "./flows";
 import { DatabaseMode } from "./database/constants";
 import type { IDatabaseService } from "./database/interfaces/database-service.interface";
+import {
+	getCurrentEmbeddingInfo,
+	getCurrentModelId,
+	initializeEmbeddingSize,
+} from "@/utils/embedding-size-config";
 
 export interface InitializationProgress {
 	step: string;
@@ -236,9 +241,6 @@ export class ServiceManager {
 
 			// Initialize embedding size configuration BEFORE loading model
 			if (!liteMode) {
-				const { initializeEmbeddingSize } = await import(
-					"@/utils/embedding-size-config"
-				);
 				await initializeEmbeddingSize(this.databaseService);
 				logInfo("✅ Embedding size configuration initialized");
 			}
@@ -247,11 +249,8 @@ export class ServiceManager {
 
 			if (!liteMode) {
 				// Full mode: Create default embedding model with configured size
-				const { getCurrentModelId, getCurrentEmbeddingInfo } = await import(
-					"@/utils/embedding-size-config"
-				);
-				const modelId = getCurrentModelId();
-				const embeddingInfo = getCurrentEmbeddingInfo();
+				const modelId = await getCurrentModelId();
+				const embeddingInfo = await getCurrentEmbeddingInfo();
 
 				if (!modelId) {
 					throw new Error(

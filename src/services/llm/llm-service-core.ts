@@ -37,7 +37,6 @@ export abstract class LLMServiceCore {
 	}
 
 	async initialize(): Promise<void> {
-		await sharedStorageService.initialize();
 		await this.loadCurrentModelFromStorage();
 		this.setupStorageListener();
 		await this.ensureAllServices();

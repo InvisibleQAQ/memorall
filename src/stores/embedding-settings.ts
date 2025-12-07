@@ -24,7 +24,7 @@ export interface EmbeddingSettingsState {
 	isDetecting: boolean;
 
 	// Actions
-	setEmbeddingSize: (size: EmbeddingSize) => void;
+	setEmbeddingSize: (size: EmbeddingSize) => Promise<void>;
 	detectExistingData: () => Promise<void>;
 	initialize: () => Promise<void>;
 }
@@ -35,8 +35,8 @@ export const useEmbeddingSettings = create<EmbeddingSettingsState>()(
 		hasExistingData: false,
 		isDetecting: false,
 
-		setEmbeddingSize: (size: EmbeddingSize) => {
-			setCurrentEmbeddingSize(size);
+		setEmbeddingSize: async (size: EmbeddingSize) => {
+			await setCurrentEmbeddingSize(size);
 			set({ embeddingSize: size });
 			logInfo(`Embedding size changed to: ${size}`);
 		},
@@ -47,11 +47,12 @@ export const useEmbeddingSettings = create<EmbeddingSettingsState>()(
 
 				const hasData = await serviceManager.databaseService.use(
 					async ({ raw }) => {
+						// Check for ANY embedding data across all sizes
 						const nodeCheck = await raw(
-							"SELECT COUNT(*) as count FROM nodes WHERE name_embedding IS NOT NULL LIMIT 1",
+							"SELECT COUNT(*) as count FROM nodes WHERE name_embedding_small IS NOT NULL OR name_embedding IS NOT NULL OR name_embedding_large IS NOT NULL LIMIT 1",
 						);
 						const edgeCheck = await raw(
-							"SELECT COUNT(*) as count FROM edges WHERE fact_embedding IS NOT NULL LIMIT 1",
+							"SELECT COUNT(*) as count FROM edges WHERE fact_embedding_small IS NOT NULL OR fact_embedding IS NOT NULL OR fact_embedding_large IS NOT NULL OR type_embedding_small IS NOT NULL OR type_embedding IS NOT NULL OR type_embedding_large IS NOT NULL LIMIT 1",
 						);
 
 						const nodeCount = ((nodeCheck as { rows: [{ count: number }] })
@@ -76,9 +77,13 @@ export const useEmbeddingSettings = create<EmbeddingSettingsState>()(
 			try {
 				set({ isDetecting: true });
 
-				// Read the already-configured size from localStorage
+				// Read the already-configured size from shared storage
 				// (It was already initialized by service-manager in offscreen thread)
-				const currentSize = getCurrentEmbeddingSize();
+				const currentSize = await getCurrentEmbeddingSize();
+
+				console.log(
+					`[EmbeddingSettings] Initializing - getCurrentEmbeddingSize(): "${currentSize}"`,
+				);
 
 				// Detect existing data for UI display
 				await get().detectExistingData();
@@ -88,7 +93,7 @@ export const useEmbeddingSettings = create<EmbeddingSettingsState>()(
 			} catch (error) {
 				console.error("Failed to load embedding settings:", error);
 				// Fallback to saved or default
-				const savedSize = getCurrentEmbeddingSize();
+				const savedSize = await getCurrentEmbeddingSize();
 				set({
 					embeddingSize: isValidEmbeddingSize(savedSize)
 						? savedSize

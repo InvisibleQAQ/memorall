@@ -6,6 +6,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
+	Bell,
 	Activity,
 	Loader2,
 	CheckCircle2,
@@ -280,7 +281,7 @@ export const ProcessMonitor: React.FC = () => {
 					className="relative h-8 w-8"
 					title={t("processMonitor.viewProcesses")}
 				>
-					<Activity className="h-4 w-4" />
+					<Bell className="h-4 w-4" />
 					{hasActiveProcesses && (
 						<span className="absolute top-0 right-0 flex h-2 w-2">
 							<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />

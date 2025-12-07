@@ -413,13 +413,15 @@ export class EmbeddingOperationsHandler implements ProcessHandler<BaseJob> {
 			progress: 10,
 		});
 
-		// Update the embedding size in localStorage
+		// Update the embedding size in shared storage
 		const { setCurrentEmbeddingSize, getCurrentEmbeddingInfo } = await import(
 			"@/utils/embedding-size-config"
 		);
-		setCurrentEmbeddingSize(payload.newSize as "small" | "medium" | "large");
+		await setCurrentEmbeddingSize(
+			payload.newSize as "small" | "medium" | "large",
+		);
 
-		const embeddingInfo = getCurrentEmbeddingInfo();
+		const embeddingInfo = await getCurrentEmbeddingInfo();
 
 		await updateJobProgress(jobId, {
 			stage: `Preparing to load ${embeddingInfo.size} model (${embeddingInfo.dimensions}d)`,

@@ -14,7 +14,6 @@ import {
 	FileText,
 	Languages,
 	Settings,
-	Activity,
 	BrainCircuit,
 	LogIn,
 	LogOut,
@@ -54,6 +53,7 @@ import { ProcessMonitor } from "@/components/molecules/ProcessMonitor";
 import { VietnamFlag, USFlag } from "@/components/atoms/flags";
 import manifest from "../../manifest.json";
 import { useAuth, useAuthActions } from "@/modules/supabase";
+import { backgroundJob } from "@/services/background-jobs/background-job";
 
 interface LayoutProps {
 	children: React.ReactNode;
@@ -169,10 +169,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 		setReloadProgress({ stage: "Initializing...", progress: 0 });
 
 		try {
-			const { backgroundJob } = await import(
-				"@/services/background-jobs/background-job"
-			);
-
 			// Execute reload job with streaming to get real-time progress
 			const { stream } = await backgroundJob.execute(
 				"reload-embedding-model",

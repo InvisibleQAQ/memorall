@@ -44,7 +44,7 @@ export async function vectorSearchNodes(
 		const searchEmbedding = await embeddingService.textToVector(searchText);
 
 		// Get current embedding column names
-		const columns = getCurrentEmbeddingColumns();
+		const columns = await getCurrentEmbeddingColumns();
 
 		const results = await databaseService.use(async ({ db, raw }) => {
 			// Use cosine similarity for vector search with dynamic field name
@@ -126,7 +126,7 @@ export async function vectorSearchEdges(
 		const searchEmbedding = await embeddingService.textToVector(searchText);
 
 		// Get current embedding column names
-		const columns = getCurrentEmbeddingColumns();
+		const columns = await getCurrentEmbeddingColumns();
 
 		const results = await databaseService.use(async ({ raw }) => {
 			// Use cosine similarity for vector search on both fact and type embeddings with dynamic field names

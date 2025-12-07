@@ -190,7 +190,7 @@ export class DatabaseSaveFlow {
 					);
 					if (nameEmbedding) {
 						// Get current embedding field names
-						const fields = getCurrentEmbeddingFields();
+						const fields = await getCurrentEmbeddingFields();
 						// Dynamically set the correct field based on current embedding size
 						(nodeData as Record<string, unknown>)[fields.nameEmbedding] =
 							nameEmbedding;
@@ -471,7 +471,7 @@ export class DatabaseSaveFlow {
 
 					if (factEmbedding || typeEmbedding) {
 						// Get current embedding field names
-						const fields = getCurrentEmbeddingFields();
+						const fields = await getCurrentEmbeddingFields();
 
 						if (factEmbedding) {
 							// Dynamically set the correct field based on current embedding size
