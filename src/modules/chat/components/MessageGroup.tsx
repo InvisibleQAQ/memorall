@@ -72,6 +72,8 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 				complexContent: null,
 				topicId: null,
 				embedding: null,
+				embeddingSmall: null,
+				embeddingLarge: null,
 			};
 		}, [inProgressMessage]);
 

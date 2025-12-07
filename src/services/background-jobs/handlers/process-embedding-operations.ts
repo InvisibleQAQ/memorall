@@ -13,6 +13,7 @@ const JOB_NAMES = {
 	createEmbedding: "create-embedding",
 	getEmbedding: "get-embedding",
 	initializeEmbeddingService: "initialize-embedding-service",
+	reloadEmbeddingModel: "reload-embedding-model",
 } as const;
 
 export interface TextToVectorPayload {
@@ -37,6 +38,10 @@ export interface GetEmbeddingPayload {
 
 export interface InitializeEmbeddingServicePayload {
 	// No specific payload needed
+}
+
+export interface ReloadEmbeddingModelPayload {
+	newSize: string; // "small" | "medium" | "large"
 }
 
 // Define result types that handlers return
@@ -76,6 +81,13 @@ export interface InitializeEmbeddingServiceResult
 	wasAlreadyReady: boolean;
 }
 
+export interface ReloadEmbeddingModelResult extends Record<string, unknown> {
+	success: boolean;
+	newSize: string;
+	modelId: string | null;
+	dimensions: number;
+}
+
 export type EmbeddingJob = BaseJob & {
 	jobType: (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 	payload:
@@ -83,7 +95,8 @@ export type EmbeddingJob = BaseJob & {
 		| TextsToVectorsPayload
 		| CreateEmbeddingPayload
 		| GetEmbeddingPayload
-		| InitializeEmbeddingServicePayload;
+		| InitializeEmbeddingServicePayload
+		| ReloadEmbeddingModelPayload;
 };
 
 export class EmbeddingOperationsHandler implements ProcessHandler<BaseJob> {
@@ -107,6 +120,8 @@ export class EmbeddingOperationsHandler implements ProcessHandler<BaseJob> {
 					job,
 					dependencies,
 				);
+			case JOB_NAMES.reloadEmbeddingModel:
+				return await this.handleReloadEmbeddingModel(jobId, job, dependencies);
 			default:
 				throw new Error(`Unknown embedding job type: ${job.jobType}`);
 		}
@@ -379,6 +394,89 @@ export class EmbeddingOperationsHandler implements ProcessHandler<BaseJob> {
 
 		return serviceInfo;
 	}
+
+	private async handleReloadEmbeddingModel(
+		jobId: string,
+		job: BaseJob,
+		dependencies: ProcessDependencies,
+	): Promise<ItemHandlerResult> {
+		const { logger, updateJobProgress } = dependencies;
+		const payload = job.payload as ReloadEmbeddingModelPayload;
+
+		await logger.info(
+			`Starting reload-embedding-model job with new size: ${payload.newSize}`,
+			{ jobId },
+		);
+
+		await updateJobProgress(jobId, {
+			stage: "Updating embedding size configuration",
+			progress: 10,
+		});
+
+		// Update the embedding size in localStorage
+		const { setCurrentEmbeddingSize, getCurrentEmbeddingInfo } = await import(
+			"@/utils/embedding-size-config"
+		);
+		setCurrentEmbeddingSize(payload.newSize as "small" | "medium" | "large");
+
+		const embeddingInfo = getCurrentEmbeddingInfo();
+
+		await updateJobProgress(jobId, {
+			stage: `Preparing to load ${embeddingInfo.size} model (${embeddingInfo.dimensions}d)`,
+			progress: 20,
+		});
+
+		const embeddingService = serviceManager.getEmbeddingService();
+
+		if (!embeddingService) {
+			throw new Error("Embedding service not available");
+		}
+
+		// Validate model availability
+		if (!embeddingInfo.modelId) {
+			throw new Error(
+				`Embedding size "${embeddingInfo.size}" requires remote API and cannot be used in local mode`,
+			);
+		}
+
+		await updateJobProgress(jobId, {
+			stage: `Downloading model: ${embeddingInfo.modelId}`,
+			progress: 30,
+		});
+
+		// Create new "default" embedding with the new model
+		// TODO: Add progress callback when embedding service supports it
+		await embeddingService.create("default", "local", {
+			type: "local",
+			modelName: embeddingInfo.modelId,
+		});
+
+		await updateJobProgress(jobId, {
+			stage: "New embedding model loaded successfully",
+			progress: 80,
+		});
+
+		// Remove the old embedding model after new one is loaded
+		await updateJobProgress(jobId, {
+			stage: "Cleaning up old embedding model",
+			progress: 90,
+		});
+
+		// Note: The embedding service automatically handles cleanup when creating
+		// a new "default" embedding, so explicit removal is not needed
+
+		await logger.info(
+			`Embedding model reloaded successfully: ${embeddingInfo.size} (${embeddingInfo.dimensions}d)`,
+			{ jobId },
+		);
+
+		return {
+			success: true,
+			newSize: embeddingInfo.size,
+			modelId: embeddingInfo.modelId,
+			dimensions: embeddingInfo.dimensions,
+		};
+	}
 }
 
 // Self-register the handler
@@ -395,6 +493,7 @@ declare global {
 		"create-embedding": CreateEmbeddingPayload;
 		"get-embedding": GetEmbeddingPayload;
 		"initialize-embedding-service": InitializeEmbeddingServicePayload;
+		"reload-embedding-model": ReloadEmbeddingModelPayload;
 	}
 
 	interface JobResultRegistry {
@@ -403,5 +502,6 @@ declare global {
 		"create-embedding": CreateEmbeddingResult;
 		"get-embedding": GetEmbeddingResult;
 		"initialize-embedding-service": InitializeEmbeddingServiceResult;
+		"reload-embedding-model": ReloadEmbeddingModelResult;
 	}
 }

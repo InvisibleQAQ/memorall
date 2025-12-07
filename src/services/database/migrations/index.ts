@@ -13,6 +13,10 @@ import {
 	up as addDisplayMetaUp,
 	down as addDisplayMetaDown,
 } from "./004_add_display_meta";
+import {
+	up as addMultiSizeEmbeddingsUp,
+	down as addMultiSizeEmbeddingsDown,
+} from "./005_add_multi_size_embeddings";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -54,6 +58,14 @@ export const migrations: Migration[] = [
 			"Add display_meta column to activities table for user-friendly rendering",
 		up: addDisplayMetaUp,
 		down: addDisplayMetaDown,
+	},
+	{
+		id: "add_multi_size_embeddings",
+		version: 5,
+		description:
+			"Add multi-size embedding support (small 384d, medium 768d, large 1536d)",
+		up: addMultiSizeEmbeddingsUp,
+		down: addMultiSizeEmbeddingsDown,
 	},
 	// Example of how to add future migrations:
 	// {

@@ -16,6 +16,7 @@ import { logError, logInfo } from "@/utils/logger";
 import "@/i18n/config"; // Initialize i18n
 import { ThemeProvider } from "@/components/molecules/ThemeContext";
 import { PasskeyPromptDialog } from "@/components/molecules/PasskeyPromptDialog";
+import { useEmbeddingSettings } from "@/stores/embedding-settings";
 import {
 	checkProviderNeedsRestore,
 	restoreAuthProvider,
@@ -91,6 +92,11 @@ const App: React.FC = () => {
 		return null;
 	};
 
+	// Initialize embedding settings store
+	const initializeEmbeddingSettings = useEmbeddingSettings(
+		(state) => state.initialize,
+	);
+
 	useEffect(() => {
 		const initializeApp = async () => {
 			try {
@@ -142,6 +148,9 @@ const App: React.FC = () => {
 							);
 							// Continue to ready state even if check fails
 						}
+
+						// Initialize embedding settings
+						await initializeEmbeddingSettings();
 
 						setTimeout(() => {
 							setServicesStatus("ready");

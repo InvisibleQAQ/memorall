@@ -234,15 +234,38 @@ export class ServiceManager {
 				"embedding",
 			);
 
+			// Initialize embedding size configuration BEFORE loading model
+			if (!liteMode) {
+				const { initializeEmbeddingSize } = await import(
+					"@/utils/embedding-size-config"
+				);
+				await initializeEmbeddingSize(this.databaseService);
+				logInfo("✅ Embedding size configuration initialized");
+			}
+
 			await this.embeddingService.initialize();
 
 			if (!liteMode) {
-				// Full mode: Create default embedding model
+				// Full mode: Create default embedding model with configured size
+				const { getCurrentModelId, getCurrentEmbeddingInfo } = await import(
+					"@/utils/embedding-size-config"
+				);
+				const modelId = getCurrentModelId();
+				const embeddingInfo = getCurrentEmbeddingInfo();
+
+				if (!modelId) {
+					throw new Error(
+						`Embedding size "${embeddingInfo.size}" requires remote API and cannot be used in local mode`,
+					);
+				}
+
 				await this.embeddingService.create("default", "local", {
 					type: "local",
-					modelName: "nomic-ai/nomic-embed-text-v1.5",
+					modelName: modelId,
 				});
-				logInfo("✅ Embedding service initialized with local models");
+				logInfo(
+					`✅ Embedding service initialized with ${embeddingInfo.size} model (${embeddingInfo.dimensions}d): ${modelId}`,
+				);
 			} else {
 				logInfo(
 					"✅ Embedding service initialized in lite mode (will use offscreen for operations)",

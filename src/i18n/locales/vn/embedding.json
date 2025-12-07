@@ -18,5 +18,13 @@
 		"query": "Truy vấn tìm kiếm",
 		"results": "Kết quả",
 		"similarity": "Độ tương tự"
+	},
+	"label": "Kích thước nhúng",
+	"changeWarning": "Thay đổi kích thước nhúng sẽ xóa các nhúng hiện có trong nodes và edges. Bạn có muốn tiếp tục?",
+	"clearError": "Không thể xóa nhúng. Vui lòng thử lại.",
+	"sizes": {
+		"small": "Nhỏ (384d)",
+		"medium": "Trung bình (768d)",
+		"large": "Lớn (1536d)"
 	}
 }

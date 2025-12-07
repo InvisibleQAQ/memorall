@@ -25,7 +25,9 @@ export const message = pgTable(
 		content: text("content").notNull(),
 		complexContent: jsonb("complex_content"), // For storing structured content like images, files, etc.
 		topicId: uuid("topic_id").references(() => topic.id),
+		embeddingSmall: vector("embedding_small", { dimensions: 384 }),
 		embedding: vector("embedding", { dimensions: 768 }),
+		embeddingLarge: vector("embedding_large", { dimensions: 1536 }),
 		metadata: jsonb("metadata").default({}),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),

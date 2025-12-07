@@ -5,6 +5,7 @@ import type { Node, NewNode } from "@/services/database/entities/nodes";
 import type { Edge, NewEdge } from "@/services/database/entities/edges";
 import type { IEmbeddingService } from "@/services/embedding/interfaces/embedding-service.interface";
 import { schema } from "@/services/database/schema";
+import { getCurrentEmbeddingFields } from "@/utils/embedding-size-config";
 
 import type { AllServices } from "../../interfaces/tool";
 import type {
@@ -181,14 +182,18 @@ export class DatabaseSaveFlow {
 						graph: state.graphId,
 					};
 
-					// Generate embedding for node name
+					// Generate embedding for node name and store in correct field
 					const nameEmbedding = await safeTextToVector(
 						this.services.embedding,
 						entity.finalName,
 						`NODE_EMBEDDING:${entity.finalName.substring(0, 50)}`,
 					);
 					if (nameEmbedding) {
-						nodeData.nameEmbedding = nameEmbedding;
+						// Get current embedding field names
+						const fields = getCurrentEmbeddingFields();
+						// Dynamically set the correct field based on current embedding size
+						(nodeData as Record<string, unknown>)[fields.nameEmbedding] =
+							nameEmbedding;
 					}
 
 					const [createdNode] = await db
@@ -452,7 +457,7 @@ export class DatabaseSaveFlow {
 						graph: state.graphId,
 					};
 
-					// Generate embeddings for fact
+					// Generate embeddings for fact and store in correct fields
 					const factEmbedding = await safeTextToVector(
 						this.services.embedding,
 						fact.factText,
@@ -464,11 +469,20 @@ export class DatabaseSaveFlow {
 						`TYPE_EMBEDDING:${fact.relationType}`,
 					);
 
-					if (factEmbedding) {
-						edgeData.factEmbedding = factEmbedding;
-					}
-					if (typeEmbedding) {
-						edgeData.typeEmbedding = typeEmbedding;
+					if (factEmbedding || typeEmbedding) {
+						// Get current embedding field names
+						const fields = getCurrentEmbeddingFields();
+
+						if (factEmbedding) {
+							// Dynamically set the correct field based on current embedding size
+							(edgeData as Record<string, unknown>)[fields.factEmbedding] =
+								factEmbedding;
+						}
+						if (typeEmbedding) {
+							// Dynamically set the correct field based on current embedding size
+							(edgeData as Record<string, unknown>)[fields.typeEmbedding] =
+								typeEmbedding;
+						}
 					}
 
 					let createdEdge: Edge;

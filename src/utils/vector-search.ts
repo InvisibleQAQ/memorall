@@ -1,6 +1,7 @@
 import type { BaseEmbedding } from "@/services/embedding/interfaces/base-embedding";
 import type { IDatabaseService } from "@/services/database";
 import type { Node, Edge } from "@/services/database/types";
+import { getCurrentEmbeddingColumns } from "@/utils/embedding-size-config";
 
 export interface VectorSearchResult<T> {
 	item: T;
@@ -42,8 +43,11 @@ export async function vectorSearchNodes(
 		const searchText = searchTerms.join(" ");
 		const searchEmbedding = await embeddingService.textToVector(searchText);
 
+		// Get current embedding column names
+		const columns = getCurrentEmbeddingColumns();
+
 		const results = await databaseService.use(async ({ db, raw }) => {
-			// Use cosine similarity for vector search
+			// Use cosine similarity for vector search with dynamic field name
 			let query = `
 				SELECT id,
 					name,
@@ -52,9 +56,9 @@ export async function vectorSearchNodes(
 					graph,
 					created_at,
 					updated_at,
-					1 - (name_embedding <=> $1::vector) as similarity
+					1 - (${columns.nameEmbedding} <=> $1::vector) as similarity
 				FROM nodes
-				WHERE name_embedding IS NOT NULL`;
+				WHERE ${columns.nameEmbedding} IS NOT NULL`;
 
 			const params: (string | number)[] = [JSON.stringify(searchEmbedding)];
 
@@ -121,8 +125,11 @@ export async function vectorSearchEdges(
 		const searchText = searchTerms.join(" ");
 		const searchEmbedding = await embeddingService.textToVector(searchText);
 
+		// Get current embedding column names
+		const columns = getCurrentEmbeddingColumns();
+
 		const results = await databaseService.use(async ({ raw }) => {
-			// Use cosine similarity for vector search on both fact and type embeddings
+			// Use cosine similarity for vector search on both fact and type embeddings with dynamic field names
 			let query = `
 				SELECT id,
 					source_id,
@@ -136,11 +143,11 @@ export async function vectorSearchEdges(
 					created_at,
 					updated_at,
 					GREATEST(
-						1 - (fact_embedding <=> $1::vector),
-						1 - (type_embedding <=> $1::vector)
+						1 - (${columns.factEmbedding} <=> $1::vector),
+						1 - (${columns.typeEmbedding} <=> $1::vector)
 					) as similarity
 				FROM edges
-				WHERE (fact_embedding IS NOT NULL OR type_embedding IS NOT NULL)`;
+				WHERE (${columns.factEmbedding} IS NOT NULL OR ${columns.typeEmbedding} IS NOT NULL)`;
 
 			const params: (string | number)[] = [JSON.stringify(searchEmbedding)];
 

@@ -44,5 +44,13 @@
 	"placeholder": {
 		"searchSimilar": "Search for similar content",
 		"enterQuery": "Enter a query to find semantically similar items"
+	},
+	"label": "Embedding Size",
+	"changeWarning": "Changing embedding size will require clearing existing embeddings in nodes and edges. Do you want to continue?",
+	"clearError": "Failed to clear embeddings. Please try again.",
+	"sizes": {
+		"small": "Small (384d)",
+		"medium": "Medium (768d)",
+		"large": "Large (1536d)"
 	}
 }

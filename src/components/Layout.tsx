@@ -35,8 +35,20 @@ import {
 	DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/molecules/ThemeContext";
+import {
+	useCurrentEmbeddingSize,
+	useHasExistingData,
+	useEmbeddingSettings,
+} from "@/stores/embedding-settings";
 import { useLanguage } from "@/i18n/hooks/useLanguage";
 import { useTranslation } from "react-i18next";
+import {
+	EMBEDDING_MODELS,
+	type EmbeddingSize,
+	getAvailableSizes,
+} from "@/config/embedding-models";
+import { clearAllEmbeddings } from "@/services/database/utils/embedding-cleanup";
+import { serviceManager } from "@/services";
 import { CopilotTrigger } from "@/components/atoms/copilot";
 import { ProcessMonitor } from "@/components/molecules/ProcessMonitor";
 import { VietnamFlag, USFlag } from "@/components/atoms/flags";
@@ -73,10 +85,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { theme, setTheme } = useTheme();
+	const embeddingSize = useCurrentEmbeddingSize();
+	const hasExistingData = useHasExistingData();
+	const setEmbeddingSize = useEmbeddingSettings((state) => state.setEmbeddingSize);
 	const { language, changeLanguage } = useLanguage();
 	const { t } = useTranslation();
 	const { user } = useAuth();
 	const { signOut } = useAuthActions();
+
+	// State for model reload progress
+	const [isReloadingModel, setIsReloadingModel] = React.useState(false);
+	const [reloadProgress, setReloadProgress] = React.useState({
+		stage: "",
+		progress: 0,
+	});
 
 	const allPaths = [...navigation, ...debugItems];
 	const checkIsExistNavigation = allPaths.some(
@@ -104,6 +126,83 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 			navigate("/auth");
 		} catch {
 			// Ignore logout errors here; hook already manages error state
+		}
+	};
+
+	const handleEmbeddingSizeChange = async (newSize: EmbeddingSize) => {
+		if (hasExistingData && newSize !== embeddingSize) {
+			const confirmed = window.confirm(
+				t("embedding.changeWarning", {
+					defaultValue:
+						"Changing embedding size will require clearing existing embeddings in nodes and edges. Do you want to continue?",
+				}),
+			);
+
+			if (!confirmed) {
+				return;
+			}
+
+			try {
+				// Clear all embeddings from database
+				const result = await clearAllEmbeddings(serviceManager.databaseService);
+				console.log(
+					`Cleared ${result.total} embeddings (${result.nodes} nodes, ${result.edges} edges, ${result.messages} messages)`,
+				);
+			} catch (error) {
+				console.error("Failed to clear embeddings:", error);
+				alert(
+					t("embedding.clearError", {
+						defaultValue: "Failed to clear embeddings. Please try again.",
+					}),
+				);
+				return;
+			}
+		}
+
+		// Update local state immediately
+		await setEmbeddingSize(newSize);
+
+		// Send reload job to offscreen thread to reload embedding model
+		setIsReloadingModel(true);
+		setReloadProgress({ stage: "Initializing...", progress: 0 });
+
+		try {
+			const { backgroundJob } = await import(
+				"@/services/background-jobs/background-job"
+			);
+
+			// Execute reload job with streaming to get real-time progress
+			const { stream } = await backgroundJob.execute(
+				"reload-embedding-model",
+				{ newSize },
+				{ stream: true },
+			);
+
+			// Stream progress updates
+			for await (const progressEvent of stream) {
+				if (progressEvent.progress !== undefined) {
+					setReloadProgress({
+						stage: progressEvent.stage || "Processing...",
+						progress: progressEvent.progress,
+					});
+				}
+
+				if (progressEvent.status === "failed") {
+					throw new Error(progressEvent.error || "Job failed");
+				}
+			}
+
+			console.log(`✅ Embedding model reloaded to ${newSize}`);
+			setIsReloadingModel(false);
+		} catch (error) {
+			console.error("Failed to reload embedding model:", error);
+			setIsReloadingModel(false);
+			alert(
+				t("embedding.reloadError", {
+					defaultValue:
+						"Failed to reload embedding model. Please refresh the page.",
+				}),
+			);
 		}
 	};
 
@@ -263,6 +362,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
 										<DropdownMenuSeparator />
 
+										{/* Embedding Size Section */}
+										<DropdownMenuLabel className="flex items-center gap-2">
+											<VectorSquareIcon size={14} />
+											<span>{t("embedding.label", { defaultValue: "Embedding Size" })}</span>
+										</DropdownMenuLabel>
+										{getAvailableSizes().map((size) => {
+											const config = EMBEDDING_MODELS[size];
+											return (
+												<DropdownMenuItem
+													key={size}
+													onClick={() => handleEmbeddingSizeChange(size)}
+													className="flex flex-col items-start gap-0.5 cursor-pointer"
+												>
+													<div className="flex items-center gap-2 w-full">
+														<span className="font-medium">{config.displayName}</span>
+														{embeddingSize === size && <span className="ml-auto">✓</span>}
+													</div>
+													<span className="text-xs text-muted-foreground">
+														{config.description}
+													</span>
+												</DropdownMenuItem>
+											);
+										})}
+
+										<DropdownMenuSeparator />
+
 										{/* Theme Section */}
 										<DropdownMenuLabel className="flex items-center gap-2">
 											{getThemeIcon()}
@@ -318,6 +443,36 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 			</nav>
 
 			<main className="flex-1 min-h-0 overflow-auto">{children}</main>
+
+			{/* Model reload loading overlay */}
+			{isReloadingModel && (
+				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+					<div className="bg-background border rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
+						<h3 className="text-lg font-semibold mb-4">
+							{t("embedding.reloading", {
+								defaultValue: "Reloading Embedding Model",
+							})}
+						</h3>
+						<p className="text-sm text-muted-foreground mb-4">
+							{reloadProgress.stage || "Downloading model..."}
+						</p>
+						<div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+							<div
+								className="bg-primary h-full transition-all duration-300"
+								style={{ width: `${reloadProgress.progress}%` }}
+							/>
+						</div>
+						<p className="text-xs text-muted-foreground mt-2 text-center">
+							{reloadProgress.progress}%
+						</p>
+						<p className="text-xs text-muted-foreground mt-4">
+							{t("embedding.pleaseWait", {
+								defaultValue: "Please wait, do not close this window...",
+							})}
+						</p>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };
