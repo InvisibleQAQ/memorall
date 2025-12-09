@@ -65,5 +65,14 @@
 		"loading": "Loading model...",
 		"noModels": "No models available",
 		"goToModels": "Go to Models"
+	},
+	"tooltips": {
+		"normalMode": "Normal chat mode - Simple conversation without knowledge context",
+		"knowledgeMode": "Knowledge mode - Chat with access to your saved knowledge and context",
+		"topicSelector": "Select a topic to filter knowledge context",
+		"newMessage": "Start a new message thread in the current conversation",
+		"moreActions": "More actions and settings",
+		"stopGeneration": "Stop generating response",
+		"sendMessage": "Send message (Enter)"
 	}
 }

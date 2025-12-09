@@ -64,5 +64,14 @@
 		"loading": "Đang tải mô hình...",
 		"noModels": "Không có mô hình nào",
 		"goToModels": "Đến Mô hình"
+	},
+	"tooltips": {
+		"normalMode": "Chế độ trò chuyện thường - Đàm thoại đơn giản không có ngữ cảnh kiến thức",
+		"knowledgeMode": "Chế độ tri thức - Trò chuyện với quyền truy cập vào kiến thức và ngữ cảnh đã lưu",
+		"topicSelector": "Chọn chủ đề để lọc ngữ cảnh kiến thức",
+		"newMessage": "Bắt đầu chuỗi tin nhắn mới trong cuộc trò chuyện hiện tại",
+		"moreActions": "Thêm hành động và cài đặt",
+		"stopGeneration": "Dừng tạo phản hồi",
+		"sendMessage": "Gửi tin nhắn (Enter)"
 	}
 }

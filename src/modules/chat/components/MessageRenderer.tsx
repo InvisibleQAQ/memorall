@@ -1,7 +1,6 @@
 import React, { useRef, lazy, Suspense, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
-	Loader2,
 	Network,
 	FileText,
 	GitBranch,
@@ -14,6 +13,7 @@ import {
 	Zap,
 	type LucideIcon,
 } from "lucide-react";
+import { ThreeDotsLoader } from "@/components/atoms/ThreeDotsLoader";
 import { Message, MessageContent } from "@/components/ui/shadcn-io/ai/message";
 import {
 	Task,
@@ -295,15 +295,45 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 					/>
 				))}
 				<Message key={message.id} from={message.role}>
-					<MessageContent>
+					<MessageContent className="relative">
 						{!message.content && isLastMessage && isStreaming ? (
-							<Loader2 className="w-4 h-4 animate-spin" />
+							<div className="py-2">
+								<ThreeDotsLoader className="text-muted-foreground" />
+							</div>
 						) : (
-							<Suspense fallback={<Loader2 className="w-4 h-4 animate-spin" />}>
-								<ContentComponent isStreaming={isStreaming}>
-									{message.content}
-								</ContentComponent>
-								{isStreaming && <Loader2 className="w-4 h-4 animate-spin" />}
+							<Suspense
+								fallback={
+									<div className="py-2">
+										<ThreeDotsLoader className="text-muted-foreground" />
+									</div>
+								}
+							>
+								<div className="relative">
+									<ContentComponent isStreaming={isStreaming}>
+										{message.content}
+									</ContentComponent>
+									{isStreaming && (
+										<>
+											{/* Streaming indicator with three dots */}
+											<div className="mt-2 flex items-center gap-2">
+												<ThreeDotsLoader
+													className="text-muted-foreground"
+													size="sm"
+												/>
+											</div>
+											{/* Subtle glass gradient at bottom to indicate streaming */}
+											<div
+												className="absolute -bottom-4 -left-6 -right-6 h-14 pointer-events-none rounded-b-lg"
+												style={{
+													background:
+														"linear-gradient(to top, hsl(var(--background) / 0.2) 0%, hsl(var(--background) / 0.08) 50%, transparent 100%)",
+													backdropFilter: "blur(1px)",
+													WebkitBackdropFilter: "blur(1px)",
+												}}
+											/>
+										</>
+									)}
+								</div>
 							</Suspense>
 						)}
 					</MessageContent>
