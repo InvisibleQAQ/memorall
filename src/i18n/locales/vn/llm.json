@@ -15,6 +15,7 @@
 		"selectModel": "Chọn một mô hình từ các tùy chọn bên dưới"
 	},
 	"providers": {
+		"transformer": "Transformer (WebGPU)",
 		"wllama": "Wllama (GGUF)",
 		"webllm": "WebLLM (MLC)",
 		"openai": "OpenAI",
@@ -91,6 +92,20 @@
 	"webllm": {
 		"model": "Mô hình WebLLM",
 		"selectModel": "Chọn một mô hình WebLLM..."
+	},
+	"transformer": {
+		"webgpuInfo": "Mô hình Transformer WebGPU",
+		"description": "Chạy các mô hình LLM mới nhất (LFM2, Gemma 3, Phi 4) trực tiếp trong trình duyệt của bạn với gia tốc WebGPU. Các mô hình này sử dụng định dạng ONNX để hiệu suất tối ưu.",
+		"selectModel": "Chọn mô hình",
+		"selectModelPlaceholder": "Chọn một mô hình WebGPU",
+		"selectedModel": "Mô hình đã chọn",
+		"features": "Tính năng",
+		"feature": {
+			"webgpu": "Gia tốc WebGPU cho suy luận nhanh",
+			"onnx": "ONNX Runtime cho hiệu suất tối ưu",
+			"quantized": "Mô hình lượng tử hóa để tải xuống nhỏ hơn",
+			"latest": "Các mô hình LFM2, Gemma 3 và Phi 4 mới nhất"
+		}
 	},
 	"downloadedModels": {
 		"downloadMoreModels": "Tải xuống thêm mô hình"
@@ -174,6 +189,145 @@
 		"title": "Thêm mô hình mới",
 		"url": "URL mô hình",
 		"custom": "Mô hình tùy chỉnh"
+	},
+	"externalProviders": {
+		"title": "Nhà cung cấp dịch vụ AI bên ngoài",
+		"selectProvider": "Chọn một nhà cung cấp để cấu hình",
+		"configureProvider": "Cấu hình {{provider}}",
+		"connectProvider": "Kết nối tài khoản {{provider}} của bạn",
+		"noApiKey": "Chưa có API key?",
+		"getApiKey": "Lấy API Key {{provider}}",
+		"providers": {
+			"openai": {
+				"name": "OpenAI",
+				"description": "GPT-4, GPT-5 và nhiều hơn",
+				"apiKeyUrl": "https://platform.openai.com/api-keys"
+			},
+			"openrouter": {
+				"name": "OpenRouter",
+				"description": "Truy cập nhiều nhà cung cấp AI",
+				"apiKeyUrl": "https://openrouter.ai/keys"
+			}
+		}
+	},
+	"noModelsScreen": {
+		"chooseSetup": "Chọn cách bạn muốn bắt đầu",
+		"managedService": {
+			"title": "Dịch vụ Quản lý",
+			"description": "Thiết lập đơn giản với gói đăng ký",
+			"feature1": "Thiết lập nhanh và dễ dàng",
+			"feature2": "Mô hình AI được quản lý đầy đủ",
+			"feature3": "Cập nhật & hỗ trợ thường xuyên",
+			"feature4": "Giá theo gói đăng ký",
+			"action": "Đăng nhập / Đăng ký"
+		},
+		"localModels": {
+			"title": "Mô hình Cục bộ",
+			"description": "Miễn phí và xử lý trên thiết bị",
+			"feature1": "100% miễn phí sử dụng",
+			"feature2": "Hoàn toàn riêng tư & offline",
+			"feature3": "Sử dụng tài nguyên thiết bị của bạn",
+			"feature4": "Chỉ cần tải xuống một lần",
+			"action": "Sử dụng Mô hình Cục bộ",
+			"magicAction": "Thiết lập Thông minh",
+			"magicTooltip": "AI sẽ phân tích thiết bị của bạn và đề xuất mô hình tốt nhất dựa trên khả năng phần cứng và sở thích của bạn",
+			"advancedTooltip": "Duyệt và chọn thủ công từ tất cả các mô hình có sẵn với toàn quyền kiểm soát nhà cung cấp và cấu hình",
+			"setupTitle": "Thiết lập Mô hình Cục bộ",
+			"setupDescription": "Chọn phương thức thiết lập ưa thích của bạn",
+			"magicSetupTitle": "Thiết lập Thông minh",
+			"magicSetupDescription": "Đề xuất mô hình bằng AI",
+			"advancedSetupTitle": "Tải Mô hình Cục bộ",
+			"advancedSetupDescription": "Chọn và tải xuống các mô hình AI để chạy trên thiết bị của bạn"
+		},
+		"ownKeys": {
+			"title": "API Key Của Bạn",
+			"description": "Kết nối dịch vụ AI bên ngoài",
+			"feature1": "Sử dụng API key của bạn",
+			"feature2": "OpenAI, OpenRouter & nhiều hơn",
+			"feature3": "Kiểm soát hoàn toàn chi phí",
+			"feature4": "Giá trả theo mức sử dụng",
+			"action": "Cấu hình API Keys",
+			"setupTitle": "Cấu hình API Keys",
+			"setupDescription": "Kết nối các nhà cung cấp dịch vụ AI bên ngoài của bạn"
+		},
+		"magicSetup": {
+			"title": "Thiết lập Thông minh",
+			"subtitle": "Khuyên dùng cho người mới bắt đầu",
+			"feature1": "Phát hiện hệ thống tự động",
+			"feature2": "Đề xuất bằng AI",
+			"feature3": "Chọn: tốc độ, chất lượng, hoặc ngữ cảnh",
+			"feature4": "Thiết lập một cú nhấp"
+		},
+		"advancedSetup": {
+			"title": "Thiết lập Nâng cao",
+			"subtitle": "Kiểm soát đầy đủ việc lựa chọn",
+			"feature1": "Chọn nhà cung cấp cụ thể",
+			"feature2": "Duyệt tất cả các mô hình có sẵn",
+			"feature3": "Tinh chỉnh cấu hình",
+			"feature4": "Dành cho người dùng có kinh nghiệm"
+		},
+		"back": "Quay lại"
+	},
+	"magicSetup": {
+		"detecting": {
+			"title": "Đang Phân tích Thiết bị của Bạn",
+			"description": "Đang phát hiện CPU, bộ nhớ, và khả năng GPU..."
+		},
+		"systemDetected": {
+			"title": "Hệ thống Đã Phát hiện",
+			"description": "Thông số kỹ thuật và khả năng của thiết bị của bạn",
+			"cpu": "CPU",
+			"memory": "Bộ nhớ",
+			"webgpu": "WebGPU",
+			"deviceClass": "Loại Thiết bị",
+			"gpuDetected": "GPU Đã Phát hiện",
+			"cores": "lõi",
+			"ramGB": "GB RAM",
+			"vramGB": "GB VRAM",
+			"available": "Có sẵn",
+			"notAvailable": "Không có sẵn",
+			"continue": "Tiếp tục đến Chọn Mô hình"
+		},
+		"choosePriority": {
+			"title": "Chọn Ưu tiên Của Bạn",
+			"description": "Chọn điều quan trọng nhất với bạn",
+			"performance": {
+				"title": "Hiệu suất",
+				"description": "Phản hồi nhanh nhất"
+			},
+			"quality": {
+				"title": "Chất lượng",
+				"description": "Câu trả lời tốt nhất"
+			},
+			"context": {
+				"title": "Ngữ cảnh",
+				"description": "Tài liệu dài"
+			},
+			"backToSpecs": "Quay lại Thông tin Hệ thống"
+		},
+		"recommendation": {
+			"title": "Sẵn sàng Tải xuống",
+			"description": "Đề xuất mô hình cá nhân hóa của bạn",
+			"optimized": "tối ưu hóa",
+			"released": "Phát hành",
+			"speed": "Tốc độ",
+			"context": "Ngữ cảnh",
+			"tokensPerSec": "token/giây",
+			"tokens": "token",
+			"download": "Tải xuống & Sử dụng Mô hình Này",
+			"change": "Thay đổi",
+			"settingUp": "Đang thiết lập...",
+			"alternatives": {
+				"title": "Tùy chọn {{preference}} khác",
+				"description": "Các mô hình thay thế bạn có thể chọn"
+			}
+		},
+		"error": {
+			"title": "Lỗi",
+			"tryAgain": "Thử lại",
+			"advancedSetup": "Thiết lập Nâng cao"
+		},
+		"useAdvancedSetup": "Sử dụng Thiết lập Nâng cao Thay thế"
 	},
 	"empty": "Không có mô hình nào",
 	"error": "Không thể tải mô hình"

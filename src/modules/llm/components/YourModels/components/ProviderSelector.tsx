@@ -6,14 +6,37 @@ interface ProviderSelectorProps {
 	quickProvider: ServiceProvider;
 	setQuickProvider: (provider: ServiceProvider) => void;
 	loading: boolean;
+	allowedProviders?: ServiceProvider[];
 }
+
+const ALL_PROVIDERS: ServiceProvider[] = [
+	"transformer",
+	"wllama",
+	"webllm",
+	"openai",
+	"openrouter",
+	"lmstudio",
+	"ollama",
+];
 
 export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
 	quickProvider,
 	setQuickProvider,
 	loading,
+	allowedProviders = ALL_PROVIDERS,
 }) => {
 	const { t } = useTranslation("llm");
+
+	const providerLabels: Record<ServiceProvider, string> = {
+		transformer: t("providers.transformer"),
+		wllama: t("providers.wllama"),
+		webllm: t("providers.webllm"),
+		openai: `${t("providers.openai")} (Cloud)`,
+		openrouter: `${t("providers.openrouter")} (Cloud)`,
+		lmstudio: `${t("providers.lmstudio")} (Local)`,
+		ollama: `${t("providers.ollama")} (Local)`,
+	};
+
 	return (
 		<div className="flex items-center gap-2">
 			<select
@@ -22,15 +45,13 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
 				className="text-xs border rounded px-2 py-1 bg-background"
 				disabled={loading}
 			>
-				<option value="transformer">
-					{t("providers.transformer", { defaultValue: "Transformer (WebGPU)" })}
-				</option>
-				<option value="wllama">{t("providers.wllama")}</option>
-				<option value="webllm">{t("providers.webllm")}</option>
-				<option value="openai">{t("providers.openai")} (Cloud)</option>
-				<option value="openrouter">{t("providers.openrouter")} (Cloud)</option>
-				<option value="lmstudio">{t("providers.lmstudio")} (Local)</option>
-				<option value="ollama">{t("providers.ollama")} (Local)</option>
+				{ALL_PROVIDERS.filter((provider) =>
+					allowedProviders.includes(provider),
+				).map((provider) => (
+					<option key={provider} value={provider}>
+						{providerLabels[provider]}
+					</option>
+				))}
 			</select>
 		</div>
 	);

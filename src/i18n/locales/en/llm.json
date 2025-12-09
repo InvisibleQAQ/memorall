@@ -15,6 +15,7 @@
 		"selectModel": "Select a model from the options below"
 	},
 	"providers": {
+		"transformer": "Transformer (WebGPU)",
 		"wllama": "Wllama (GGUF)",
 		"webllm": "WebLLM (MLC)",
 		"openai": "OpenAI",
@@ -93,6 +94,20 @@
 	"webllm": {
 		"model": "WebLLM Model",
 		"selectModel": "Select a WebLLM model..."
+	},
+	"transformer": {
+		"webgpuInfo": "WebGPU Transformer Models",
+		"description": "Run the latest LLM models (LFM2, Gemma 3, Phi 4) directly in your browser using WebGPU acceleration. These models use ONNX format for optimal performance.",
+		"selectModel": "Select Model",
+		"selectModelPlaceholder": "Choose a WebGPU model",
+		"selectedModel": "Selected Model",
+		"features": "Features",
+		"feature": {
+			"webgpu": "WebGPU acceleration for fast inference",
+			"onnx": "ONNX Runtime for optimal performance",
+			"quantized": "Quantized models for smaller downloads",
+			"latest": "Latest LFM2, Gemma 3, and Phi 4 models"
+		}
 	},
 	"downloadedModels": {
 		"downloadMoreModels": "Download More Models"
@@ -176,6 +191,145 @@
 		"title": "Add New Model",
 		"url": "Model URL",
 		"custom": "Custom Model"
+	},
+	"externalProviders": {
+		"title": "External AI Service Providers",
+		"selectProvider": "Select a provider to configure",
+		"configureProvider": "{{provider}} Configuration",
+		"connectProvider": "Connect your {{provider}} account",
+		"noApiKey": "Don't have an API key?",
+		"getApiKey": "Get {{provider}} API Key",
+		"providers": {
+			"openai": {
+				"name": "OpenAI",
+				"description": "GPT-4, GPT-5, and more",
+				"apiKeyUrl": "https://platform.openai.com/api-keys"
+			},
+			"openrouter": {
+				"name": "OpenRouter",
+				"description": "Access multiple AI providers",
+				"apiKeyUrl": "https://openrouter.ai/keys"
+			}
+		}
+	},
+	"noModelsScreen": {
+		"chooseSetup": "Choose how you want to get started",
+		"managedService": {
+			"title": "Managed Service",
+			"description": "Simple setup with subscription",
+			"feature1": "Quick and easy setup",
+			"feature2": "Fully managed AI models",
+			"feature3": "Regular updates & support",
+			"feature4": "Subscription-based pricing",
+			"action": "Sign In / Sign Up"
+		},
+		"localModels": {
+			"title": "Local Models",
+			"description": "Free and on-device processing",
+			"feature1": "100% free to use",
+			"feature2": "Complete privacy & offline",
+			"feature3": "Uses your device resources",
+			"feature4": "One-time download required",
+			"action": "Use Local Models",
+			"magicAction": "Magic Setup",
+			"magicTooltip": "AI will analyze your device and recommend the best model for you based on your hardware capabilities and preferences",
+			"advancedTooltip": "Browse and manually select from all available models with full control over provider and configuration",
+			"setupTitle": "Setup Local Models",
+			"setupDescription": "Choose your preferred setup method",
+			"magicSetupTitle": "Magic Setup",
+			"magicSetupDescription": "AI-powered model recommendation",
+			"advancedSetupTitle": "Download Local Models",
+			"advancedSetupDescription": "Choose and download AI models to run on your device"
+		},
+		"ownKeys": {
+			"title": "Your Own Keys",
+			"description": "Connect external AI services",
+			"feature1": "Use your API keys",
+			"feature2": "OpenAI, OpenRouter & more",
+			"feature3": "Full control over costs",
+			"feature4": "Pay-as-you-go pricing",
+			"action": "Configure API Keys",
+			"setupTitle": "Configure API Keys",
+			"setupDescription": "Connect your external AI service providers"
+		},
+		"magicSetup": {
+			"title": "Magic Setup",
+			"subtitle": "Recommended for beginners",
+			"feature1": "Automatic system detection",
+			"feature2": "AI-powered recommendations",
+			"feature3": "Choose: speed, quality, or context",
+			"feature4": "One-click setup"
+		},
+		"advancedSetup": {
+			"title": "Advanced Setup",
+			"subtitle": "Full control over selection",
+			"feature1": "Choose specific provider",
+			"feature2": "Browse all available models",
+			"feature3": "Fine-tune configurations",
+			"feature4": "For experienced users"
+		},
+		"back": "Back"
+	},
+	"magicSetup": {
+		"detecting": {
+			"title": "Analyzing Your Device",
+			"description": "Detecting CPU, memory, and GPU capabilities..."
+		},
+		"systemDetected": {
+			"title": "System Detected",
+			"description": "Your device specifications and capabilities",
+			"cpu": "CPU",
+			"memory": "Memory",
+			"webgpu": "WebGPU",
+			"deviceClass": "Device Class",
+			"gpuDetected": "GPU Detected",
+			"cores": "cores",
+			"ramGB": "GB RAM",
+			"vramGB": "GB VRAM",
+			"available": "Available",
+			"notAvailable": "Not available",
+			"continue": "Continue to Model Selection"
+		},
+		"choosePriority": {
+			"title": "Choose Your Priority",
+			"description": "Select what matters most to you",
+			"performance": {
+				"title": "Performance",
+				"description": "Fastest responses"
+			},
+			"quality": {
+				"title": "Quality",
+				"description": "Best answers"
+			},
+			"context": {
+				"title": "Context",
+				"description": "Long documents"
+			},
+			"backToSpecs": "Back to System Info"
+		},
+		"recommendation": {
+			"title": "Ready to Download",
+			"description": "Your personalized model recommendation",
+			"optimized": "optimized",
+			"released": "Released",
+			"speed": "Speed",
+			"context": "Context",
+			"tokensPerSec": "tokens/sec",
+			"tokens": "tokens",
+			"download": "Download & Use This Model",
+			"change": "Change",
+			"settingUp": "Setting up...",
+			"alternatives": {
+				"title": "Other {{preference}} options",
+				"description": "Alternative models you can choose instead"
+			}
+		},
+		"error": {
+			"title": "Error",
+			"tryAgain": "Try Again",
+			"advancedSetup": "Advanced Setup"
+		},
+		"useAdvancedSetup": "Use Advanced Setup Instead"
 	},
 	"empty": "No models available",
 	"error": "Failed to load model"

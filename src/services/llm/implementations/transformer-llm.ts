@@ -16,6 +16,7 @@ import {
 	AutoTokenizer,
 	TextStreamer,
 } from "@huggingface/transformers";
+import { ensureWebGPUSupported } from "@/utils/webgpu";
 
 interface HFProgressEvent {
 	status?: string;
@@ -42,6 +43,16 @@ const DEFAULT_MAX_MODEL_TOKENS = 8192;
 const DEFAULT_MAX_RESPONSE_TOKENS = 512;
 
 const WEBGPU_TRANSFORMER_MODELS: LFM2ModelDefinition[] = [
+	// === MINISTRAL 3B (December 2025, Latest from Mistral AI) ===
+	{
+		id: "onnx-community/Ministral-3-3B-Instruct-2512",
+		name: "Ministral 3B (WebGPU)",
+		filename: "model.onnx",
+		size: 1_500 * 1024 * 1024,
+		aliases: ["Ministral-3B", "ministral-3b"],
+		created: 1_733_000_000, // Dec 2025
+	},
+
 	// LFM2 models - Liquid AI's efficient foundation models
 	{
 		id: "onnx-community/LFM2-350M-ONNX",
@@ -76,22 +87,32 @@ const WEBGPU_TRANSFORMER_MODELS: LFM2ModelDefinition[] = [
 		created: 1_704_720_000,
 	},
 
-	// Phi-3 models - Microsoft's efficient instruction-tuned models
+	// === GEMMA 3 MODELS (March 2025, Google) ===
 	{
-		id: "onnx-community/Phi-3-mini-4k-instruct",
-		name: "Phi-3 Mini 4K Instruct (WebGPU)",
+		id: "onnx-community/gemma-3-1b-it-ONNX",
+		name: "Gemma 3 1B Instruct (WebGPU)",
 		filename: "model.onnx",
-		size: 2_300 * 1024 * 1024,
-		aliases: ["phi-3-mini", "phi3-mini", "Phi-3-mini-4k-instruct"],
-		created: 1_712_000_000,
+		size: 500 * 1024 * 1024,
+		aliases: ["gemma-3-1b", "gemma-3-1b-it"],
+		created: 1_741_000_000, // Mar 2025
 	},
 	{
-		id: "onnx-community/Phi-3.5-mini-instruct",
-		name: "Phi-3.5 Mini Instruct (WebGPU)",
+		id: "onnx-community/gemma-2b-it",
+		name: "Gemma 2B Instruct (WebGPU)",
 		filename: "model.onnx",
-		size: 2_400 * 1024 * 1024,
-		aliases: ["phi-3.5-mini", "phi35-mini", "Phi-3.5-mini-instruct"],
-		created: 1_723_000_000,
+		size: 1_500 * 1024 * 1024,
+		aliases: ["gemma-2b", "gemma-2b-it"],
+		created: 1_708_000_000,
+	},
+
+	// === QWEN 3 MODELS (April 2025) ===
+	{
+		id: "onnx-community/Qwen3-0.6B-ONNX",
+		name: "Qwen 3 0.6B (WebGPU)",
+		filename: "model.onnx",
+		size: 400 * 1024 * 1024,
+		aliases: ["Qwen3-0.6B", "qwen3-0.6b"],
+		created: 1_743_000_000, // Apr 2025
 	},
 
 	// Qwen2.5 models - Alibaba's multilingual chat models
@@ -120,7 +141,27 @@ const WEBGPU_TRANSFORMER_MODELS: LFM2ModelDefinition[] = [
 		created: 1_725_000_000,
 	},
 
-	// SmolLM models - Hugging Face's small efficient models
+	// === DEEPSEEK-R1-DISTILL MODELS (January 2025) ===
+	{
+		id: "onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX",
+		name: "DeepSeek-R1 Qwen 1.5B (WebGPU)",
+		filename: "model.onnx",
+		size: 1_500 * 1024 * 1024,
+		aliases: ["DeepSeek-R1-1.5B", "deepseek-r1-1.5b"],
+		created: 1_737_000_000, // Jan 2025
+	},
+
+	// === SMOLLM3 MODELS (July 2025, HuggingFace) ===
+	{
+		id: "HuggingFaceTB/SmolLM3-3B-ONNX",
+		name: "SmolLM3 3B (WebGPU)",
+		filename: "model.onnx",
+		size: 1_800 * 1024 * 1024,
+		aliases: ["SmolLM3-3B", "smollm3-3b"],
+		created: 1_751_000_000, // Jul 2025
+	},
+
+	// SmolLM2 models - Hugging Face's small efficient models
 	{
 		id: "onnx-community/SmolLM2-135M-Instruct",
 		name: "SmolLM2 135M Instruct (WebGPU)",
@@ -146,14 +187,22 @@ const WEBGPU_TRANSFORMER_MODELS: LFM2ModelDefinition[] = [
 		created: 1_730_000_000,
 	},
 
-	// Gemma models - Google's open models
+	// Phi-3 models - Microsoft's efficient instruction-tuned models
 	{
-		id: "onnx-community/gemma-2b-it",
-		name: "Gemma 2B Instruct (WebGPU)",
+		id: "onnx-community/Phi-3-mini-4k-instruct",
+		name: "Phi-3 Mini 4K Instruct (WebGPU)",
 		filename: "model.onnx",
-		size: 1_500 * 1024 * 1024,
-		aliases: ["gemma-2b", "gemma-2b-it"],
-		created: 1_708_000_000,
+		size: 2_300 * 1024 * 1024,
+		aliases: ["phi-3-mini", "phi3-mini", "Phi-3-mini-4k-instruct"],
+		created: 1_712_000_000,
+	},
+	{
+		id: "onnx-community/Phi-3.5-mini-instruct",
+		name: "Phi-3.5 Mini Instruct (WebGPU)",
+		filename: "model.onnx",
+		size: 2_400 * 1024 * 1024,
+		aliases: ["phi-3.5-mini", "phi35-mini", "Phi-3.5-mini-instruct"],
+		created: 1_723_000_000,
 	},
 ];
 
@@ -173,14 +222,6 @@ function normalizeContent(content: ChatMessage["content"]): string {
 		.join("\n");
 }
 
-function ensureWebGPUAvailable(): void {
-	if (typeof navigator === "undefined" || !("gpu" in navigator)) {
-		throw new Error(
-			"WebGPU is not available in this environment. Please enable the transformer provider in an offscreen context.",
-		);
-	}
-}
-
 export class TransformerLLM implements BaseLLM {
 	name = "transformer";
 	private ready = false;
@@ -195,7 +236,7 @@ export class TransformerLLM implements BaseLLM {
 
 	async initialize(): Promise<void> {
 		if (this.ready) return;
-		ensureWebGPUAvailable();
+		ensureWebGPUSupported();
 		this.ready = true;
 	}
 

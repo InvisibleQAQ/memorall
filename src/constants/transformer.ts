@@ -27,7 +27,47 @@ export const RECOMMENDATION_TRANSFORMER_MODELS: string[] = [
 
 // Quick download recommended models (latest only)
 export const QUICK_TRANSFORMER_MODELS = [
-	// LFM2 Models - Best for on-device efficiency
+	// === MINISTRAL 3B (December 2025) ===
+	{
+		model: "onnx-community/Ministral-3-3B-Instruct-2512",
+		size: "1.5GB",
+		description: "✨ Ministral 3B: Latest from Mistral, 256K context (WebGPU)",
+	},
+
+	// === SMOLLM3 (July 2025) ===
+	{
+		model: "HuggingFaceTB/SmolLM3-3B-ONNX",
+		size: "1.8GB",
+		description: "🐭 SmolLM3 3B: Dual-mode reasoning, 128K context (WebGPU)",
+	},
+
+	// === DEEPSEEK-R1 (January 2025) ===
+	{
+		model: "onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX",
+		size: "1.5GB",
+		description: "🧠 DeepSeek-R1: Reasoning specialist, 128K context (WebGPU)",
+	},
+
+	// === GEMMA 3 (March 2025) ===
+	{
+		model: "onnx-community/gemma-3-1b-it-ONNX",
+		size: "500MB",
+		description: "💎 Gemma 3 1B: Latest Google model, 32K context (WebGPU)",
+	},
+	{
+		model: "onnx-community/gemma-3-270m-it",
+		size: "180MB",
+		description: "💎 Gemma 3: Ultra-compact chat model (WebGPU)",
+	},
+
+	// === QWEN 3 (April 2025) ===
+	{
+		model: "onnx-community/Qwen3-0.6B-ONNX",
+		size: "400MB",
+		description: "🌐 Qwen 3 0.6B: Smallest, fastest, 32K context (WebGPU)",
+	},
+
+	// === LFM2 MODELS (November 2024) ===
 	{
 		model: "onnx-community/LFM2-350M-ONNX",
 		size: "200MB",
@@ -49,33 +89,21 @@ export const QUICK_TRANSFORMER_MODELS = [
 		description: "🌊 LFM2: Tool-calling specialist (WebGPU)",
 	},
 
-	// Gemma 3 Models - Latest from Google
-	{
-		model: "onnx-community/gemma-3-270m-it",
-		size: "180MB",
-		description: "💎 Gemma 3: Ultra-compact chat model (WebGPU)",
-	},
-	{
-		model: "onnx-community/gemma-3-1b-it",
-		size: "650MB",
-		description: "💎 Gemma 3: Latest Google chat model (WebGPU)",
-	},
-
-	// Phi 4 Models - Latest from Microsoft
+	// === PHI 4 MODELS ===
 	{
 		model: "onnx-community/Phi-4-mini-instruct",
 		size: "2.4GB",
 		description: "🔬 Phi 4: Latest reasoning model (WebGPU)",
 	},
 
-	// SmolLM2 - For edge devices
+	// === SMOLLM2 ===
 	{
 		model: "onnx-community/SmolLM2-360M-Instruct",
 		size: "230MB",
 		description: "🐭 SmolLM2: Efficient edge model (WebGPU)",
 	},
 
-	// Qwen2.5 - Multilingual
+	// === QWEN 2.5 ===
 	{
 		model: "onnx-community/Qwen2.5-0.5B-Instruct",
 		size: "320MB",

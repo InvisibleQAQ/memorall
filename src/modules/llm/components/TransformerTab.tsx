@@ -26,30 +26,21 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 			{/* Info Section */}
 			<div className="p-3 border rounded-lg bg-muted/20 space-y-2">
 				<div className="text-sm font-medium">
-					{t("transformer.webgpuInfo", {
-						defaultValue: "WebGPU Transformer Models",
-					})}
+					{t("transformer.webgpuInfo")}
 				</div>
 				<div className="text-xs text-muted-foreground">
-					{t("transformer.description", {
-						defaultValue:
-							"Run the latest LLM models (LFM2, Gemma 3, Phi 4) directly in your browser using WebGPU acceleration. These models use ONNX format for optimal performance.",
-					})}
+					{t("transformer.description")}
 				</div>
 			</div>
 
 			{/* Model Selection */}
 			<div>
 				<label className="text-xs text-muted-foreground">
-					{t("transformer.selectModel", { defaultValue: "Select Model" })}
+					{t("transformer.selectModel")}
 				</label>
 				<Select value={model} onValueChange={setModel} disabled={loading}>
 					<SelectTrigger className="w-full">
-						<SelectValue
-							placeholder={t("transformer.selectModelPlaceholder", {
-								defaultValue: "Choose a WebGPU model",
-							})}
-						/>
+						<SelectValue placeholder={t("transformer.selectModelPlaceholder")} />
 					</SelectTrigger>
 					<SelectContent>
 						{RECOMMENDATION_TRANSFORMER_MODELS.map((modelId) => {
@@ -73,7 +64,7 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 			{model && (
 				<div className="p-3 border rounded-lg bg-muted/10">
 					<div className="text-xs font-medium mb-1">
-						{t("transformer.selectedModel", { defaultValue: "Selected Model" })}
+						{t("transformer.selectedModel")}
 					</div>
 					<div className="text-xs text-muted-foreground break-all">{model}</div>
 				</div>
@@ -81,30 +72,12 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 
 			{/* Features */}
 			<div className="space-y-2">
-				<div className="text-xs font-medium">
-					{t("transformer.features", { defaultValue: "Features" })}
-				</div>
+				<div className="text-xs font-medium">{t("transformer.features")}</div>
 				<ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-					<li>
-						{t("transformer.feature.webgpu", {
-							defaultValue: "WebGPU acceleration for fast inference",
-						})}
-					</li>
-					<li>
-						{t("transformer.feature.onnx", {
-							defaultValue: "ONNX Runtime for optimal performance",
-						})}
-					</li>
-					<li>
-						{t("transformer.feature.quantized", {
-							defaultValue: "Quantized models for smaller downloads",
-						})}
-					</li>
-					<li>
-						{t("transformer.feature.latest", {
-							defaultValue: "Latest LFM2, Gemma 3, and Phi 4 models",
-						})}
-					</li>
+					<li>{t("transformer.feature.webgpu")}</li>
+					<li>{t("transformer.feature.onnx")}</li>
+					<li>{t("transformer.feature.quantized")}</li>
+					<li>{t("transformer.feature.latest")}</li>
 				</ul>
 			</div>
 		</div>

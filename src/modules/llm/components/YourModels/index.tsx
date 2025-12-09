@@ -32,6 +32,8 @@ interface YourModelsProps {
 	title?: string;
 	/** Show quick download section */
 	showQuickDownload?: boolean;
+	/** Filter which providers to show (defaults to all) */
+	allowedProviders?: ServiceProvider[];
 }
 
 export const YourModels: React.FC<YourModelsProps> = ({
@@ -40,6 +42,7 @@ export const YourModels: React.FC<YourModelsProps> = ({
 	onDownloadMore,
 	title,
 	showQuickDownload = true,
+	allowedProviders,
 }) => {
 	const { t } = useTranslation("llm");
 
@@ -141,6 +144,7 @@ export const YourModels: React.FC<YourModelsProps> = ({
 							quickProvider={quickProvider}
 							setQuickProvider={setQuickProvider}
 							loading={loading}
+							allowedProviders={allowedProviders}
 						/>
 					</div>
 
