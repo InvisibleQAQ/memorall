@@ -157,14 +157,6 @@
 				"title": "💬 Chat Tab",
 				"content": "Your main interface for conversing with your AI assistant about saved content."
 			},
-			"topicsTab": {
-				"title": "🏷️ Topics Tab",
-				"content": "Categorize your remembered pages and knowledge graph by topics. This helps organize your knowledge around focused areas instead of random information, making it easier to find and connect related content."
-			},
-			"rememberedTab": {
-				"title": "📚 Remembered Tab",
-				"content": "Your knowledge library where all saved content is stored and organized."
-			},
 			"knowledgeGraphTab": {
 				"title": "🕸️ Knowledge Graph Tab",
 				"content": "Interactive visualization showing connections between your saved content."
@@ -191,7 +183,7 @@
 			},
 			"getStarted": {
 				"title": "🚀 You're Ready to Start!",
-				"content": "Perfect! Now you understand Memorall's interface and setup options.\n\n**Next steps:**\n1. Choose and configure an AI model below\n2. Start saving content (right-click → 'Remember this page')\n3. Chat with your knowledge in the Chat tab\n\nLet's get your first model set up!"
+				"content": "Perfect! Now you understand Memorall's interface and setup options.\n\n**Next steps:**\n1. Select a setup option from the welcome screen (Easy managed service, Free local models, or Bring your own API keys)\n2. Configure your chosen AI model\n3. Start saving content and chatting with your knowledge\n\nLet's begin your journey with Memorall!"
 			}
 		}
 	}

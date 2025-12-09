@@ -156,14 +156,6 @@
 				"title": "💬 Tab Trò chuyện",
 				"content": "Giao diện chính để trò chuyện với trợ lý AI về nội dung đã lưu."
 			},
-			"topicsTab": {
-				"title": "🏷️ Tab Chủ đề",
-				"content": "Phân loại các trang đã nhớ và đồ thị tri thức theo chủ đề. Điều này giúp tổ chức kiến thức xung quanh các lĩnh vực tập trung thay vì thông tin ngẫu nhiên, giúp dễ dàng tìm kiếm và kết nối nội dung liên quan."
-			},
-			"rememberedTab": {
-				"title": "📚 Tab Đã nhớ",
-				"content": "Thư viện tri thức nơi tất cả nội dung đã lưu được lưu trữ và tổ chức."
-			},
 			"knowledgeGraphTab": {
 				"title": "🕸️ Tab Đồ thị tri thức",
 				"content": "Trực quan hóa tương tác hiển thị kết nối giữa nội dung đã lưu của bạn."
@@ -190,7 +182,7 @@
 			},
 			"getStarted": {
 				"title": "🚀 Bạn đã sẵn sàng bắt đầu!",
-				"content": "Hoàn hảo! Bây giờ bạn đã hiểu giao diện và tùy chọn thiết lập của Memorall.\n\n**Các bước tiếp theo:**\n1. Chọn và cấu hình mô hình AI bên dưới\n2. Bắt đầu lưu nội dung (nhấp chuột phải → 'Nhớ trang này')\n3. Trò chuyện với kiến thức của bạn trong tab Trò chuyện\n\nHãy thiết lập mô hình đầu tiên của bạn!"
+				"content": "Hoàn hảo! Bây giờ bạn đã hiểu giao diện và tùy chọn thiết lập của Memorall.\n\n**Các bước tiếp theo:**\n1. Chọn một tùy chọn thiết lập từ màn hình chào mừng (Dịch vụ quản lý dễ dàng, Mô hình cục bộ miễn phí, hoặc Mang khóa API của riêng bạn)\n2. Cấu hình mô hình AI đã chọn\n3. Bắt đầu lưu nội dung và trò chuyện với kiến thức của bạn\n\nHãy bắt đầu hành trình của bạn với Memorall!"
 			}
 		}
 	}

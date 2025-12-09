@@ -7,6 +7,9 @@ import {
 	Download,
 	Settings,
 	Wand2,
+	Zap,
+	Gift,
+	Sliders,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +25,11 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import { YourModels } from "@/modules/llm/components/YourModels";
 import { ExternalProvidersConfig } from "@/modules/llm/components/ExternalProvidersConfig";
 import { MagicSetup } from "@/modules/llm/components/MagicSetup";
@@ -300,9 +308,37 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 					{!selectedOption && (
 						<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
 							{/* Card 1: Login/Signup */}
-							<Card className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2">
+							<Card className="group transition-all duration-300 cursor-not-allowed border-2 opacity-60 relative">
+								<Popover>
+									<PopoverTrigger asChild>
+										<div className="absolute top-3 right-3 cursor-help">
+											<span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-200 hover:scale-105">
+												<Zap className="w-3 h-3" />
+												Easy
+											</span>
+										</div>
+									</PopoverTrigger>
+									<PopoverContent className="w-64" align="end">
+										<div className="space-y-2">
+											<h4 className="font-semibold text-sm">
+												{tLlm("noModelsScreen.managedService.badge.title", {
+													defaultValue: "Easy Setup",
+												})}
+											</h4>
+											<p className="text-xs text-muted-foreground">
+												{tLlm(
+													"noModelsScreen.managedService.badge.description",
+													{
+														defaultValue:
+															"Sign in and start chatting immediately. No configuration needed - we handle the infrastructure and model hosting for you.",
+													},
+												)}
+											</p>
+										</div>
+									</PopoverContent>
+								</Popover>
 								<CardHeader className="text-center pb-4">
-									<div className="mx-auto mb-4 p-4 rounded-full bg-primary/10 w-fit group-hover:bg-primary/20 transition-colors">
+									<div className="mx-auto mb-4 p-4 rounded-full bg-primary/10 w-fit transition-colors">
 										<Sparkles className="w-8 h-8 text-primary" />
 									</div>
 									<CardTitle className="text-xl">
@@ -332,7 +368,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 										</div>
 									</div>
 									<Button
-										onClick={() => setSelectedOption("login")}
+										disabled
 										className="w-full bg-primary hover:bg-primary/90"
 										size="lg"
 									>
@@ -343,7 +379,32 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 							</Card>
 
 							{/* Card 2: Local LLM */}
-							<Card className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2">
+							<Card className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2 relative">
+								<Popover>
+									<PopoverTrigger asChild>
+										<div className="absolute top-3 right-3 cursor-help z-10">
+											<span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-200 hover:scale-105">
+												<Gift className="w-3 h-3" />
+												Free
+											</span>
+										</div>
+									</PopoverTrigger>
+									<PopoverContent className="w-64" align="end">
+										<div className="space-y-2">
+											<h4 className="font-semibold text-sm">
+												{tLlm("noModelsScreen.localModels.badge.title", {
+													defaultValue: "Completely Free",
+												})}
+											</h4>
+											<p className="text-xs text-muted-foreground">
+												{tLlm("noModelsScreen.localModels.badge.description", {
+													defaultValue:
+														"Run AI models directly on your device. Zero API costs, complete privacy, and works offline. Your data never leaves your computer.",
+												})}
+											</p>
+										</div>
+									</PopoverContent>
+								</Popover>
 								<CardHeader className="text-center pb-4">
 									<div className="mx-auto mb-4 p-4 rounded-full bg-emerald-500/10 w-fit group-hover:bg-emerald-500/20 transition-colors">
 										<Cpu className="w-8 h-8 text-emerald-600 dark:text-emerald-500" />
@@ -425,7 +486,32 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 							</Card>
 
 							{/* Card 3: Own Keys */}
-							<Card className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2">
+							<Card className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2 relative">
+								<Popover>
+									<PopoverTrigger asChild>
+										<div className="absolute top-3 right-3 cursor-help z-10">
+											<span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-200 hover:scale-105">
+												<Sliders className="w-3 h-3" />
+												Control
+											</span>
+										</div>
+									</PopoverTrigger>
+									<PopoverContent className="w-64" align="end">
+										<div className="space-y-2">
+											<h4 className="font-semibold text-sm">
+												{tLlm("noModelsScreen.ownKeys.badge.title", {
+													defaultValue: "Full Control",
+												})}
+											</h4>
+											<p className="text-xs text-muted-foreground">
+												{tLlm("noModelsScreen.ownKeys.badge.description", {
+													defaultValue:
+														"Use your own API keys from OpenAI or OpenRouter. You control your spending limits, choose your models, and manage your own billing.",
+												})}
+											</p>
+										</div>
+									</PopoverContent>
+								</Popover>
 								<CardHeader className="text-center pb-4">
 									<div className="mx-auto mb-4 p-4 rounded-full bg-amber-500/10 w-fit group-hover:bg-amber-500/20 transition-colors">
 										<KeyRound className="w-8 h-8 text-amber-600 dark:text-amber-500" />

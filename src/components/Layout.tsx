@@ -49,6 +49,7 @@ import {
 import { clearAllEmbeddings } from "@/services/database/utils/embedding-cleanup";
 import { serviceManager } from "@/services";
 import { CopilotTrigger } from "@/components/atoms/copilot";
+import { getCurrentEmbeddingSize } from "@/utils/embedding-size-config";
 import { ProcessMonitor } from "@/components/molecules/ProcessMonitor";
 import { VietnamFlag, USFlag } from "@/components/atoms/flags";
 import manifest from "../../manifest.json";
@@ -128,6 +129,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 			navigate("/auth");
 		} catch {
 			// Ignore logout errors here; hook already manages error state
+		}
+	};
+
+	const handleSettingsDropdownOpen = async (open: boolean) => {
+		if (open) {
+			// Refresh embedding size from offscreen when dropdown opens
+			const currentSize = await getCurrentEmbeddingSize();
+			const storeSize = useEmbeddingSettings.getState().embeddingSize;
+
+			// Only update if different to avoid unnecessary re-renders
+			if (currentSize !== storeSize) {
+				useEmbeddingSettings.setState({ embeddingSize: currentSize });
+			}
 		}
 	};
 
@@ -294,7 +308,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 							<ProcessMonitor />
 							<TooltipProvider>
 								{/* Settings Menu */}
-								<DropdownMenu>
+								<DropdownMenu onOpenChange={handleSettingsDropdownOpen}>
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<DropdownMenuTrigger asChild>
@@ -373,10 +387,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 										</DropdownMenuLabel>
 										{getAvailableSizes().map((size) => {
 											const config = EMBEDDING_MODELS[size];
+											const isDisabled = size === "large";
 											return (
 												<DropdownMenuItem
 													key={size}
-													onClick={() => handleEmbeddingSizeChange(size)}
+													disabled={isDisabled}
+													onClick={() =>
+														!isDisabled && handleEmbeddingSizeChange(size)
+													}
 													className="flex flex-col items-start gap-0.5 cursor-pointer"
 												>
 													<div className="flex items-center gap-2 w-full">

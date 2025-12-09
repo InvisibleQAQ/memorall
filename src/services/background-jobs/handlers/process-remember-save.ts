@@ -76,6 +76,7 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 			let contentText = "";
 			let fileName = "";
 			let sourceInfo = "";
+			let folderPath = "/saved-content"; // default
 
 			if ("html" in payload && "article" in payload) {
 				// Full page save
@@ -85,6 +86,7 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 				sourceInfo = `Web Title: ${savePageData.title}\nWeb URL: ${savePageData.url}\n\n`;
 				contentText =
 					savePageData.article?.textContent || savePageData.html || "";
+				folderPath = "/webpages";
 			} else {
 				// Direct content save (selection, user input, etc.)
 				const saveContentData = payload as SaveContentData;
@@ -93,10 +95,13 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 
 				if (saveContentData.sourceType === "webpage") {
 					sourceInfo = `Web Title: ${saveContentData.title}\nWeb URL: ${saveContentData.sourceUrl || ""}\n\n`;
+					folderPath = "/webpages";
 				} else if (saveContentData.sourceType === "selection") {
 					sourceInfo = `Selection from: ${saveContentData.title}\nOriginal URL: ${saveContentData.originalUrl || ""}\n\n`;
+					folderPath = "/selections";
 				} else if (saveContentData.sourceType === "user_input") {
 					sourceInfo = `Note: ${saveContentData.title}\n\n`;
+					folderPath = "/notes";
 				}
 
 				contentText =
@@ -119,7 +124,7 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 			await documentStorageService.initialize();
 			const savedFile = await documentStorageService.uploadFile(
 				file,
-				"/saved-content",
+				folderPath,
 			);
 
 			await dependencies.logger.info(
