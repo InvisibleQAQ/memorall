@@ -25,9 +25,7 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 		<div className="space-y-4">
 			{/* Info Section */}
 			<div className="p-3 border rounded-lg bg-muted/20 space-y-2">
-				<div className="text-sm font-medium">
-					{t("transformer.webgpuInfo")}
-				</div>
+				<div className="text-sm font-medium">{t("transformer.webgpuInfo")}</div>
 				<div className="text-xs text-muted-foreground">
 					{t("transformer.description")}
 				</div>
@@ -40,7 +38,9 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 				</label>
 				<Select value={model} onValueChange={setModel} disabled={loading}>
 					<SelectTrigger className="w-full">
-						<SelectValue placeholder={t("transformer.selectModelPlaceholder")} />
+						<SelectValue
+							placeholder={t("transformer.selectModelPlaceholder")}
+						/>
 					</SelectTrigger>
 					<SelectContent>
 						{RECOMMENDATION_TRANSFORMER_MODELS.map((modelId) => {

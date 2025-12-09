@@ -560,42 +560,43 @@ export const MagicSetup: React.FC<MagicSetupProps> = ({
 											</div>
 										) : (
 											filteredAlternatives.map((altModel) => (
-											<div
-												key={altModel.modelId}
-												onClick={() => setSelectedModel(altModel)}
-												className={`p-3 border rounded-lg cursor-pointer transition-all hover:border-primary ${
-													selectedModel.modelId === altModel.modelId
-														? "border-primary bg-primary/5"
-														: ""
-												}`}
-											>
-												<div className="flex items-center justify-between">
-													<div className="flex-1">
-														<div className="flex items-center gap-2">
-															<div className="font-medium text-sm">
-																{altModel.displayName}
+												<div
+													key={altModel.modelId}
+													onClick={() => setSelectedModel(altModel)}
+													className={`p-3 border rounded-lg cursor-pointer transition-all hover:border-primary ${
+														selectedModel.modelId === altModel.modelId
+															? "border-primary bg-primary/5"
+															: ""
+													}`}
+												>
+													<div className="flex items-center justify-between">
+														<div className="flex-1">
+															<div className="flex items-center gap-2">
+																<div className="font-medium text-sm">
+																	{altModel.displayName}
+																</div>
+																<div className="text-xs text-primary">
+																	{altModel.providerName}
+																</div>
 															</div>
-															<div className="text-xs text-primary">
-																{altModel.providerName}
+															<div className="text-xs text-muted-foreground mt-1">
+																{altModel.size} •{" "}
+																{altModel.usesWebGPU ? "WebGPU" : "CPU"} •{" "}
+																{t("magicSetup.recommendation.released")}{" "}
+																{altModel.releaseDate}
 															</div>
 														</div>
-														<div className="text-xs text-muted-foreground mt-1">
-															{altModel.size} •{" "}
-															{altModel.usesWebGPU ? "WebGPU" : "CPU"} •{" "}
-															{t("magicSetup.recommendation.released")}{" "}
-															{altModel.releaseDate}
-														</div>
-													</div>
-													<div className="text-right text-xs">
-														<div className="font-medium">
-															~{altModel.estimatedTokensPerSecond} tok/s
-														</div>
-														<div className="text-muted-foreground">
-															{(altModel.contextLength / 1000).toFixed(0)}K ctx
+														<div className="text-right text-xs">
+															<div className="font-medium">
+																~{altModel.estimatedTokensPerSecond} tok/s
+															</div>
+															<div className="text-muted-foreground">
+																{(altModel.contextLength / 1000).toFixed(0)}K
+																ctx
+															</div>
 														</div>
 													</div>
 												</div>
-											</div>
 											))
 										)}
 									</div>

@@ -25,14 +25,16 @@ import {
 import { YourModels } from "@/modules/llm/components/YourModels";
 import { ExternalProvidersConfig } from "@/modules/llm/components/ExternalProvidersConfig";
 import { MagicSetup } from "@/modules/llm/components/MagicSetup";
-import { useAuth } from "@/modules/supabase";
+import { useAuth, useAuthActions } from "@/modules/supabase";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { AlertCircle, Loader2, CheckCircle } from "lucide-react";
 import type {
 	ModelRecommendation,
 	ModelPreference,
 } from "@/modules/llm/types/system-specs";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 import { QUICK_TRANSFORMER_MODELS } from "@/constants/transformer";
 import { QUICK_WALLAMA_LLMS } from "@/constants/wllama";
 import { QUICK_WEBLLM_LLMS } from "@/constants/webllm";
@@ -40,6 +42,8 @@ import { useModelOperations } from "@/modules/llm/hooks/use-model-operations";
 import { useDownloadedModels } from "@/modules/llm/hooks/use-downloaded-models";
 import { useDownloadProgress } from "@/modules/llm/hooks/use-download-progress";
 import { useCurrentModel } from "@/hooks/use-current-model";
+import { serviceManager } from "@/services";
+import { eq } from "drizzle-orm";
 
 interface NoModelsScreenProps {
 	onModelLoaded: (modelId: string, provider: ServiceProvider) => void;
@@ -52,25 +56,34 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 }) => {
 	const { t } = useTranslation("chat");
 	const { t: tLlm } = useTranslation("llm");
-	const navigate = useNavigate();
 	const { isLoading, isInitialized } = useAuth();
 	const [selectedOption, setSelectedOption] = React.useState<
 		"login" | "local" | "keys" | null
 	>(null);
+	const [authMode, setAuthMode] = React.useState<"signin" | "signup">("signin");
+	const [email, setEmail] = React.useState("");
+	const [password, setPassword] = React.useState("");
+	const [isSubmitting, setIsSubmitting] = React.useState(false);
+	const [authError, setAuthError] = React.useState<string | null>(null);
+	const [successMessage, setSuccessMessage] = React.useState<string | null>(
+		null,
+	);
+	const { signIn, signUp } = useAuthActions();
+	const { t: tAuth } = useTranslation("auth");
 	const [localSetupMode, setLocalSetupMode] = React.useState<
 		"magic" | "advanced" | null
 	>(null);
 	const [loading, setLoading] = React.useState(false);
+	const [externalProviderConfigured, setExternalProviderConfigured] =
+		React.useState<ServiceProvider | null>(null);
+	const [defaultProvider, setDefaultProvider] = React.useState<
+		"openai" | "openrouter" | undefined
+	>(undefined);
 
 	// Setup hooks for model operations
 	const { setCurrent } = useCurrentModel();
 	const { downloadedModels, fetchDownloadedModels } = useDownloadedModels();
-	const {
-		downloadProgress,
-		setDownloadProgress,
-		quickDownloadModel,
-		setQuickDownloadModel,
-	} = useDownloadProgress();
+	const { setDownloadProgress, setQuickDownloadModel } = useDownloadProgress();
 
 	const { handleQuickDownload } = useModelOperations({
 		setCurrent,
@@ -81,6 +94,47 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 		downloadedModels,
 		onModelLoaded,
 	});
+
+	// Check for existing provider configurations
+	React.useEffect(() => {
+		const checkExistingProviders = async () => {
+			try {
+				// Check OpenRouter first (prioritize if both exist)
+				const openrouterConfig = await serviceManager.databaseService.use(
+					({ db, schema }) => {
+						return db
+							.select()
+							.from(schema.encryption)
+							.where(eq(schema.encryption.key, "openrouter_config"));
+					},
+				);
+
+				if (openrouterConfig && openrouterConfig.length > 0) {
+					setDefaultProvider("openrouter");
+					return;
+				}
+
+				// Check OpenAI
+				const openaiConfig = await serviceManager.databaseService.use(
+					({ db, schema }) => {
+						return db
+							.select()
+							.from(schema.encryption)
+							.where(eq(schema.encryption.key, "openai_config"));
+					},
+				);
+
+				if (openaiConfig && openaiConfig.length > 0) {
+					setDefaultProvider("openai");
+					return;
+				}
+			} catch (error) {
+				console.error("Failed to check existing providers:", error);
+			}
+		};
+
+		checkExistingProviders();
+	}, []);
 
 	// Handler for magic setup model selection
 	const handleMagicModelSelected = async (
@@ -114,10 +168,93 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 		}
 	};
 
-	// Reset local setup mode when changing options
+	// Auth handlers
+	const handleSignIn = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setAuthError(null);
+		setSuccessMessage(null);
+
+		if (!email.trim() || !password.trim()) {
+			setAuthError(tAuth("errors.missingEmailOrPassword"));
+			return;
+		}
+
+		try {
+			setIsSubmitting(true);
+			await signIn({
+				email: email.trim(),
+				password: password.trim(),
+			});
+			setSuccessMessage(tAuth("messages.signInSuccess"));
+			// User will be redirected automatically when auth state changes
+		} catch (err) {
+			setAuthError(
+				err instanceof Error ? err.message : tAuth("errors.signInFailed"),
+			);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	const handleSignUp = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setAuthError(null);
+		setSuccessMessage(null);
+
+		if (!email.trim() || !password.trim()) {
+			setAuthError(tAuth("errors.missingEmailOrPassword"));
+			return;
+		}
+
+		if (password.length < 6) {
+			setAuthError(tAuth("errors.passwordTooShort"));
+			return;
+		}
+
+		try {
+			setIsSubmitting(true);
+			await signUp({
+				email: email.trim(),
+				password: password.trim(),
+			});
+			setSuccessMessage(tAuth("messages.accountCreated"));
+			setAuthMode("signin");
+		} catch (err) {
+			setAuthError(
+				err instanceof Error ? err.message : tAuth("errors.signUpFailed"),
+			);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	// Handler for when external provider API key is configured
+	const handleExternalProviderConfigured = (
+		modelId: string,
+		provider: ServiceProvider,
+	) => {
+		// When API key is configured, track the provider
+		if (provider === "openai" || provider === "openrouter") {
+			setExternalProviderConfigured(provider);
+		}
+		// Also call the parent's onModelLoaded
+		onModelLoaded(modelId, provider);
+	};
+
+	// Reset states when changing options
 	React.useEffect(() => {
 		if (selectedOption !== "local") {
 			setLocalSetupMode(null);
+		}
+		if (selectedOption !== "login") {
+			setAuthMode("signin");
+			setEmail("");
+			setPassword("");
+			setAuthError(null);
+			setSuccessMessage(null);
+		}
+		if (selectedOption !== "keys") {
+			setExternalProviderConfigured(null);
 		}
 	}, [selectedOption]);
 
@@ -195,8 +332,8 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 										</div>
 									</div>
 									<Button
-										onClick={() => navigate("/auth")}
-										className="w-full"
+										onClick={() => setSelectedOption("login")}
+										className="w-full bg-primary hover:bg-primary/90"
 										size="lg"
 									>
 										<LogIn className="w-4 h-4 mr-2" />
@@ -345,7 +482,9 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 									<p className="text-sm text-muted-foreground">
 										{localSetupMode === "magic"
 											? tLlm("noModelsScreen.localModels.magicSetupDescription")
-											: tLlm("noModelsScreen.localModels.advancedSetupDescription")}
+											: tLlm(
+													"noModelsScreen.localModels.advancedSetupDescription",
+												)}
 									</p>
 								</div>
 								<Button
@@ -381,16 +520,20 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 						</div>
 					)}
 
-					{/* API Keys Setup */}
-					{selectedOption === "keys" && (
-						<div className="max-w-4xl mx-auto space-y-4">
+					{/* Login/Signup Setup */}
+					{selectedOption === "login" && (
+						<div className="max-w-md mx-auto space-y-4">
 							<div className="flex items-center justify-between">
 								<div>
 									<h2 className="text-2xl font-semibold">
-										{tLlm("noModelsScreen.ownKeys.setupTitle")}
+										{authMode === "signin"
+											? tAuth("titles.signIn")
+											: tAuth("titles.signUp")}
 									</h2>
 									<p className="text-sm text-muted-foreground">
-										{tLlm("noModelsScreen.ownKeys.setupDescription")}
+										{authMode === "signin"
+											? tAuth("descriptions.signIn")
+											: tAuth("descriptions.signUp")}
 									</p>
 								</div>
 								<Button
@@ -400,7 +543,203 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 									{tLlm("noModelsScreen.back")}
 								</Button>
 							</div>
-							<ExternalProvidersConfig onModelLoaded={onModelLoaded} />
+
+							<Card>
+								<CardContent className="pt-6">
+									{authError && (
+										<div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-2">
+											<AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+											<p className="text-sm text-destructive">{authError}</p>
+										</div>
+									)}
+
+									{successMessage && (
+										<div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-md flex items-start gap-2">
+											<CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+											<p className="text-sm text-green-600 dark:text-green-400">
+												{successMessage}
+											</p>
+										</div>
+									)}
+
+									{authMode === "signin" && (
+										<form onSubmit={handleSignIn} className="space-y-4">
+											<div className="space-y-2">
+												<Label htmlFor="email">
+													{tAuth("fields.email.label")}
+												</Label>
+												<Input
+													id="email"
+													type="email"
+													placeholder={tAuth("fields.email.placeholder")}
+													value={email}
+													onChange={(e) => setEmail(e.target.value)}
+													disabled={isSubmitting}
+													required
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label htmlFor="password">
+													{tAuth("fields.password.label")}
+												</Label>
+												<Input
+													id="password"
+													type="password"
+													placeholder={tAuth("fields.password.placeholder")}
+													value={password}
+													onChange={(e) => setPassword(e.target.value)}
+													disabled={isSubmitting}
+													required
+												/>
+											</div>
+											<Button
+												type="submit"
+												className="w-full"
+												disabled={isSubmitting}
+											>
+												{isSubmitting ? (
+													<>
+														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+														{tAuth("actions.signingIn")}
+													</>
+												) : (
+													tAuth("actions.signIn")
+												)}
+											</Button>
+										</form>
+									)}
+
+									{authMode === "signup" && (
+										<form onSubmit={handleSignUp} className="space-y-4">
+											<div className="space-y-2">
+												<Label htmlFor="signup-email">
+													{tAuth("fields.email.label")}
+												</Label>
+												<Input
+													id="signup-email"
+													type="email"
+													placeholder={tAuth("fields.email.placeholder")}
+													value={email}
+													onChange={(e) => setEmail(e.target.value)}
+													disabled={isSubmitting}
+													required
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label htmlFor="signup-password">
+													{tAuth("fields.password.label")}
+												</Label>
+												<Input
+													id="signup-password"
+													type="password"
+													placeholder={tAuth(
+														"fields.password.signupPlaceholder",
+													)}
+													value={password}
+													onChange={(e) => setPassword(e.target.value)}
+													disabled={isSubmitting}
+													required
+													minLength={6}
+												/>
+											</div>
+											<Button
+												type="submit"
+												className="w-full"
+												disabled={isSubmitting}
+											>
+												{isSubmitting ? (
+													<>
+														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+														{tAuth("actions.creatingAccount")}
+													</>
+												) : (
+													tAuth("actions.signUp")
+												)}
+											</Button>
+										</form>
+									)}
+
+									<div className="mt-4 space-y-2">
+										{authMode === "signin" && (
+											<Button
+												variant="ghost"
+												className="w-full"
+												onClick={() => setAuthMode("signup")}
+												disabled={isSubmitting}
+											>
+												{tAuth("actions.goToSignUp")}
+											</Button>
+										)}
+
+										{authMode === "signup" && (
+											<Button
+												variant="ghost"
+												className="w-full"
+												onClick={() => setAuthMode("signin")}
+												disabled={isSubmitting}
+											>
+												{tAuth("actions.goToSignIn")}
+											</Button>
+										)}
+
+										<div className="w-full border-t my-2" />
+
+										<Button
+											variant="outline"
+											className="w-full"
+											onClick={() => setSelectedOption(null)}
+											disabled={isSubmitting}
+										>
+											{tAuth("actions.skipLocalOnly")}
+										</Button>
+									</div>
+								</CardContent>
+							</Card>
+						</div>
+					)}
+
+					{/* API Keys Setup */}
+					{selectedOption === "keys" && (
+						<div className="max-w-4xl mx-auto space-y-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<h2 className="text-2xl font-semibold">
+										{externalProviderConfigured
+											? tLlm("yourModels.title")
+											: tLlm("noModelsScreen.ownKeys.setupTitle")}
+									</h2>
+									<p className="text-sm text-muted-foreground">
+										{externalProviderConfigured
+											? tLlm("yourModels.description")
+											: tLlm("noModelsScreen.ownKeys.setupDescription")}
+									</p>
+								</div>
+								<Button
+									variant="outline"
+									onClick={() => {
+										if (externalProviderConfigured) {
+											setExternalProviderConfigured(null);
+										} else {
+											setSelectedOption(null);
+										}
+									}}
+								>
+									{tLlm("noModelsScreen.back")}
+								</Button>
+							</div>
+
+							{/* Show API key configuration if not configured yet */}
+							{!externalProviderConfigured && (
+								<ExternalProvidersConfig
+									onModelLoaded={handleExternalProviderConfigured}
+									defaultProvider={defaultProvider}
+								/>
+							)}
+
+							{/* Show models list after configuration */}
+							{externalProviderConfigured && (
+								<YourModels onModelLoaded={onModelLoaded} />
+							)}
 						</div>
 					)}
 				</div>

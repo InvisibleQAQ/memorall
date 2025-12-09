@@ -14,7 +14,7 @@ export class VideoCallTracker {
 	private platform: Platform;
 	private meetingUrl: string;
 	private joinTime: number;
-	private captions: VideoCallData["captions"] = [];
+	private captions: NonNullable<VideoCallData["captions"]> = [];
 	private captionObserver: MutationObserver | null = null;
 	private captionCheckInterval: NodeJS.Timeout | null = null;
 	private isTracking: boolean = false;

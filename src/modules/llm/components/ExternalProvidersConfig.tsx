@@ -42,14 +42,15 @@ const PROVIDERS: ProviderConfig[] = [
 
 interface ExternalProvidersConfigProps {
 	onModelLoaded?: (modelId: string, provider: ServiceProvider) => void;
+	defaultProvider?: ProviderKey;
 }
 
 export const ExternalProvidersConfig: React.FC<
 	ExternalProvidersConfigProps
-> = ({ onModelLoaded }) => {
+> = ({ onModelLoaded, defaultProvider }) => {
 	const { t } = useTranslation("llm");
 	const [activeProvider, setActiveProvider] = useState<ProviderKey>(
-		PROVIDERS[0].key,
+		defaultProvider || PROVIDERS[0].key,
 	);
 
 	const activeConfig = PROVIDERS.find((p) => p.key === activeProvider);

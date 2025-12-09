@@ -102,6 +102,14 @@ export const YourModels: React.FC<YourModelsProps> = ({
 			onModelLoaded,
 		});
 
+	// Ensure quickProvider is one of the allowed providers
+	useEffect(() => {
+		if (allowedProviders && !allowedProviders.includes(quickProvider)) {
+			// Set to first allowed provider if current is not allowed
+			setQuickProvider(allowedProviders[0]);
+		}
+	}, [allowedProviders]);
+
 	// Auto-select provider if current model exists
 	useEffect(() => {
 		if (current?.provider && current.provider !== quickProvider) {
