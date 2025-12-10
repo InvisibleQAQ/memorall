@@ -5,6 +5,7 @@ import type { ChatMessage } from "@/types/openai";
 import { useChatStore } from "@/stores/chat";
 import type { ChatStatus } from "ai";
 import { logError, logInfo } from "@/utils/logger";
+import { serviceManager } from "@/services";
 
 export interface InProgressMessage {
 	id: string;
@@ -93,6 +94,18 @@ export const useChat = (model: string) => {
 
 		let assistantMessage: any = null;
 		let currentContent = "";
+		const startTime = Date.now();
+		let provider = "unknown";
+
+		// Get current model provider
+		try {
+			const currentModel = await serviceManager.llmService.getCurrentModel();
+			if (currentModel?.provider) {
+				provider = currentModel.provider;
+			}
+		} catch (error) {
+			logError("Failed to get current model provider:", error);
+		}
 
 		try {
 			// Add user message to store and database
@@ -172,13 +185,29 @@ export const useChat = (model: string) => {
 				controller.signal,
 			);
 
+			// Calculate timing and performance metrics
+			const endTime = Date.now();
+			const timeToAnswer = (endTime - startTime) / 1000; // in seconds
+
+			// Estimate tokens (rough estimate: ~4 characters per token)
+			const estimatedTokens = Math.round(result.content.length / 4);
+			const tokensPerSecond =
+				timeToAnswer > 0 ? estimatedTokens / timeToAnswer : 0;
+
 			// Handle completion or failure after stream finishes
 			if (result.failed) {
 				// Keep streamed content and append error message
 				const errorContent = `${result.content}\n\n---\n\n❌ **Error:** ${result.error}`;
 				await finalizeMessage(assistantMessage.id, {
 					content: errorContent,
-					metadata: { actions: result.actions },
+					metadata: {
+						actions: result.actions,
+						model: model,
+						provider: provider,
+						timeToAnswer: timeToAnswer,
+						tokensPerSecond: tokensPerSecond,
+						estimatedTokens: estimatedTokens,
+					},
 				});
 				throw new Error(result.error || "Chat failed");
 			} else {
@@ -196,7 +225,14 @@ export const useChat = (model: string) => {
 				// Finalize with final content and actions
 				await finalizeMessage(assistantMessage.id, {
 					content: result.content,
-					metadata: { actions: result.actions },
+					metadata: {
+						actions: result.actions,
+						model: model,
+						provider: provider,
+						timeToAnswer: timeToAnswer,
+						tokensPerSecond: tokensPerSecond,
+						estimatedTokens: estimatedTokens,
+					},
 				});
 			}
 

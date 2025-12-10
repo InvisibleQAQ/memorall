@@ -169,6 +169,23 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 		model: string,
 		onProgress?: (progress: ProgressEvent) => void,
 	): Promise<ModelInfo> {
+		// Lazy service creation: create service if it doesn't exist
+		if (!this.has(name)) {
+			try {
+				if (name === DEFAULT_SERVICES.WLLAMA) {
+					await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
+				} else if (name === DEFAULT_SERVICES.WEBLLM) {
+					await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
+				} else if (name === DEFAULT_SERVICES.TRANSFORMER) {
+					await this.create(DEFAULT_SERVICES.TRANSFORMER, {
+						type: "transformer",
+					});
+				}
+			} catch (error) {
+				logWarn(`Failed to create service on-demand: ${name}`, error);
+			}
+		}
+
 		const llm = await this.get(name);
 		if (!llm) throw new Error(`LLM "${name}" not found`);
 		const llmWithServe = llm as BaseLLM & {
@@ -328,56 +345,46 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 
 		this.isEnsuringServices = true;
 		try {
-			// Main mode: Create all services including heavy ones
-			if (!this.has(DEFAULT_SERVICES.WLLAMA)) {
-				try {
-					await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
-				} catch (error) {
-					logWarn("Failed to create Wllama service:", error);
-				}
-			}
-			if (!this.has(DEFAULT_SERVICES.WEBLLM)) {
-				try {
-					await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
-				} catch (error) {
-					logWarn("Failed to create WebLLM service:", error);
-				}
-			}
-			if (!this.has(DEFAULT_SERVICES.TRANSFORMER)) {
-				try {
-					await this.create(DEFAULT_SERVICES.TRANSFORMER, {
-						type: "transformer",
-					});
-				} catch (error) {
-					logWarn("Failed to create Transformer service:", error);
-				}
-			}
+			// Lazy loading: Only create the service if there's a current model using it
+			// This avoids creating unnecessary iframes upfront
 
+			// Restore any saved local services (ollama, lmstudio)
 			await this.restoreLocalServices();
 
-			// Serve models if current model is DEFAULT_SERVICES.WLLAMA, DEFAULT_SERVICES.WEBLLM, or DEFAULT_SERVICES.TRANSFORMER
-			if (
-				this.currentModel?.modelId &&
-				(this.currentModel.serviceName === DEFAULT_SERVICES.WLLAMA ||
-					this.currentModel.serviceName === DEFAULT_SERVICES.WEBLLM ||
-					this.currentModel.serviceName === DEFAULT_SERVICES.TRANSFORMER)
-			) {
-				try {
-					const models = await this.modelsFor(this.currentModel.serviceName);
-					const isLoaded = models.data.some(
-						(m) => m.id === this.currentModel?.modelId && m.loaded,
-					);
-					if (!isLoaded) {
-						await this.serveFor(
-							this.currentModel.serviceName,
-							this.currentModel.modelId,
-						);
+			// If there's a current model, ensure its service exists and load the model
+			if (this.currentModel?.modelId) {
+				const serviceName = this.currentModel.serviceName;
+
+				// Create the service if it doesn't exist
+				if (!this.has(serviceName)) {
+					try {
+						if (serviceName === DEFAULT_SERVICES.WLLAMA) {
+							await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
+						} else if (serviceName === DEFAULT_SERVICES.WEBLLM) {
+							await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
+						} else if (serviceName === DEFAULT_SERVICES.TRANSFORMER) {
+							await this.create(DEFAULT_SERVICES.TRANSFORMER, {
+								type: "transformer",
+							});
+						}
+					} catch (error) {
+						logWarn(`Failed to create service: ${serviceName}`, error);
 					}
-				} catch (error) {
-					logWarn(
-						`Failed to load models for ${this.currentModel.serviceName}:`,
-						error,
-					);
+				}
+
+				// Load the model if the service exists
+				if (this.has(serviceName)) {
+					try {
+						const models = await this.modelsFor(serviceName);
+						const isLoaded = models.data.some(
+							(m) => m.id === this.currentModel?.modelId && m.loaded,
+						);
+						if (!isLoaded) {
+							await this.serveFor(serviceName, this.currentModel.modelId);
+						}
+					} catch (error) {
+						logWarn(`Failed to load model for ${serviceName}:`, error);
+					}
 				}
 			}
 		} finally {

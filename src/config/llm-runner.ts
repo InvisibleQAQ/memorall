@@ -9,12 +9,13 @@ const BASE_RUNNER_URL: string = (() => {
 	}
 })();
 
-export type LLMRunnerMode = "wllama" | "webllm" | "embedding";
+export type LLMRunnerMode = "wllama" | "webllm" | "embedding" | "transformer";
 
 export const LLM_RUNNER_URLS: Record<LLMRunnerMode, string> = {
 	wllama: `${BASE_RUNNER_URL}?mode=wllama`,
 	webllm: `${BASE_RUNNER_URL}?mode=webllm`,
 	embedding: `${BASE_RUNNER_URL}?mode=embedding`,
+	transformer: `${BASE_RUNNER_URL}?mode=transformer`,
 };
 
 // Backward compatibility - defaults to wllama mode

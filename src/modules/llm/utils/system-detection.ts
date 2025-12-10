@@ -1,5 +1,6 @@
 import type { SystemSpecs } from "../types/system-specs";
 import { detectWebGPUAdapter } from "@/utils/webgpu";
+import { estimateVRAM as getVRAM } from "./gpu-vram-database";
 
 /**
  * Detects the user's system specifications
@@ -87,39 +88,11 @@ async function detectGPU(): Promise<SystemSpecs["gpu"] | undefined> {
 
 /**
  * Estimates VRAM based on GPU renderer string
+ * Uses comprehensive GPU database
  */
 function estimateVRAM(renderer: string): number | undefined {
-	const rendererLower = renderer.toLowerCase();
-
-	// Look for VRAM indicators in the renderer string
-	// This is a very rough estimation
-	if (
-		rendererLower.includes("rtx 4090") ||
-		rendererLower.includes("rtx 4080")
-	) {
-		return 16;
-	}
-	if (
-		rendererLower.includes("rtx 3090") ||
-		rendererLower.includes("rtx 3080")
-	) {
-		return 12;
-	}
-	if (
-		rendererLower.includes("rtx 3070") ||
-		rendererLower.includes("rtx 4060")
-	) {
-		return 8;
-	}
-	if (rendererLower.includes("rtx 3060") || rendererLower.includes("gtx")) {
-		return 6;
-	}
-	if (rendererLower.includes("mx") || rendererLower.includes("integrated")) {
-		return 2;
-	}
-
-	// Default: unknown
-	return undefined;
+	// Use the comprehensive GPU database
+	return estimateVRAM(renderer);
 }
 
 /**

@@ -64,20 +64,20 @@ const PROVIDER_INFO = {
  * - Transformers.js: huggingface.co ONNX models with WebGPU support
  * - Wllama: llama.cpp compatible GGUF models
  *
- * Performance benchmarks (WebGPU):
- * - Small models (0.6B-3.8B): 20-60 tokens/second
- * - WebGPU provides 10-100x speedup vs WASM
- * - Ministral 3B: 52 tok/s (Jetson), 256K context, vision-capable
+ * Performance benchmarks (Browser WebGPU - realistic):
+ * - High-end GPU (RTX 4090): 15-25 tok/s for 1-3B models
+ * - Mid-range GPU (RTX 4060): 8-15 tok/s for 1-3B models
+ * - Integrated GPU (Iris Xe): 3-8 tok/s for 1-3B models
+ * - CPU (WASM): 1-5 tok/s for 1-3B models
+ * - Ministral 3B: 256K context, vision-capable
  * - SmolLM3 3B: 128K context, dual reasoning, beats Qwen2.5-3B
- * - Phi-3.5 Mini: 40+ tok/s, 128K context, excellent quality
- * - LFM2: 2x faster than Qwen3 on CPU, WebGPU optimized
+ * - Phi-3.5 Mini: 128K context, excellent quality
  * - Qwen 3 0.6B: Smallest, fastest (0.6B params, 32K context)
- * - Gemma 3 1B: Google's latest (1B params, 32K context, WebGPU in progress)
- * - DeepSeek-R1 1.5B: Reasoning model with 128K context (was incorrectly 4K)
+ * - DeepSeek-R1 1.5B: Reasoning model with 128K context
  */
 const MODEL_DATABASE: ModelSpec[] = [
 	// === MINISTRAL 3B (Released December 2025, Latest from Mistral AI) ===
-	// Vision-language model, 256K context, 52 tok/s on Jetson, sub-10s load
+	// Vision-language model, 256K context, sub-10s load
 
 	{
 		provider: "transformer",
@@ -417,7 +417,7 @@ const MODEL_DATABASE: ModelSpec[] = [
 	},
 
 	// === PHI-3.5-MINI (Released August 2024, Microsoft) ===
-	// 3.8B params, 128K context, 40+ tokens/sec in browser
+	// 3.8B params, 128K context
 
 	{
 		provider: "webllm",
@@ -430,7 +430,7 @@ const MODEL_DATABASE: ModelSpec[] = [
 		requiresWebGPU: true,
 		minMemoryGB: 5,
 		releaseDate: "2024-08",
-		performanceScore: 78, // 40+ tokens/sec
+		performanceScore: 78,
 		qualityScore: 88, // Excellent quality for size
 		contextScore: 98, // 128K context
 		config: {
@@ -655,37 +655,48 @@ export function generateAllRecommendations(
 
 /**
  * Estimates tokens per second based on device specs and model
+ * Updated with realistic browser-based LLM performance
  */
 function estimateTokensPerSecond(specs: SystemSpecs, model: ModelSpec): number {
+	// Base speeds based on realistic browser-based LLM inference
+	// WebGPU with good GPU: 15-25 tok/s for 1-3B models
+	// WebGPU with integrated: 5-10 tok/s
+	// WASM (CPU only): 1-5 tok/s
 	let baseSpeed = 0;
 
 	switch (specs.deviceCategory) {
 		case "ultra":
-			baseSpeed = 120;
+			// RTX 4090, RTX 4080, high-end AMD
+			baseSpeed = model.requiresWebGPU ? 20 : 4;
 			break;
 		case "high":
-			baseSpeed = 70;
+			// RTX 3070, RTX 4060, mid-range GPUs
+			baseSpeed = model.requiresWebGPU ? 12 : 3;
 			break;
 		case "medium":
-			baseSpeed = 35;
+			// Integrated GPUs, older discrete GPUs
+			baseSpeed = model.requiresWebGPU ? 6 : 2;
 			break;
 		case "low":
-			baseSpeed = 12;
+			// Old hardware, CPU-only
+			baseSpeed = model.requiresWebGPU ? 3 : 1;
 			break;
 	}
 
-	// Adjust for model size
-	const sizeMultiplier = Math.max(0.3, 1 - model.sizeGB * 0.15);
+	// Model size penalty - larger models are slower
+	// 0.5GB: 1.0x, 1.5GB: 0.85x, 3GB: 0.7x, 5GB: 0.55x
+	const sizeMultiplier = Math.max(0.4, 1 - model.sizeGB * 0.1);
 
-	// Provider-specific multipliers
+	// Provider-specific multipliers (WebLLM is most optimized)
 	const providerMultiplier = PROVIDER_INFO[model.provider].speedMultiplier;
 
-	// WebGPU acceleration
-	const gpuMultiplier = model.requiresWebGPU && specs.hasWebGPU ? 1.6 : 1;
+	// WebGPU check (already factored into baseSpeed, but keep for compatibility)
+	const hasAcceleration = model.requiresWebGPU && specs.hasWebGPU;
 
-	return Math.round(
-		baseSpeed * sizeMultiplier * providerMultiplier * gpuMultiplier,
-	);
+	const finalSpeed = baseSpeed * sizeMultiplier * providerMultiplier;
+
+	// Round to realistic values
+	return Math.max(1, Math.round(finalSpeed));
 }
 
 /**

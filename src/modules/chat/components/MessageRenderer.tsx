@@ -11,6 +11,9 @@ import {
 	Database,
 	Brain,
 	Zap,
+	Clock,
+	Gauge,
+	Box,
 	type LucideIcon,
 } from "lucide-react";
 import { ThreeDotsLoader } from "@/components/atoms/ThreeDotsLoader";
@@ -85,6 +88,15 @@ interface ActionItem {
 	name: string;
 	description: string;
 	metadata?: Record<string, unknown>;
+}
+
+interface MessageMetadata extends Record<string, unknown> {
+	model?: string;
+	provider?: string;
+	timeToAnswer?: number;
+	tokensPerSecond?: number;
+	estimatedTokens?: number;
+	actions?: ActionItem[];
 }
 
 // Type guard for knowledge graph metadata
@@ -252,6 +264,74 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 	},
 );
 
+interface ModelMetadataProps {
+	metadata: MessageMetadata;
+}
+
+const ModelMetadata: React.FC<ModelMetadataProps> = React.memo(
+	({ metadata }) => {
+		const { model, provider, timeToAnswer, tokensPerSecond } = metadata;
+
+		if (!model && !provider) return null;
+
+		const formatTime = (seconds?: number) => {
+			if (!seconds) return "-";
+			if (seconds < 1) return `${(seconds * 1000).toFixed(0)}ms`;
+			return `${seconds.toFixed(2)}s`;
+		};
+
+		const formatTokensPerSecond = (tps?: number) => {
+			if (!tps) return "-";
+			return `${tps.toFixed(1)} t/s`;
+		};
+
+		const getProviderBadgeColor = () => {
+			return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
+		};
+
+		const getProviderLabel = (provider?: string) => {
+			return provider || "Unknown";
+		};
+
+		return (
+			<div className="mt-3 pt-3 border-t border-border/40 flex flex-wrap items-center gap-2 text-xs">
+				{/* Provider Badge */}
+				{provider && (
+					<div
+						className={`flex items-center gap-1.5 px-2 py-1 rounded-md border font-medium ${getProviderBadgeColor()}`}
+					>
+						<Sparkles className="w-3.5 h-3.5" />
+						<span>{getProviderLabel(provider)}</span>
+					</div>
+				)}
+				{/* Model Name */}
+				{model && (
+					<div className="flex items-center gap-1.5 px-0 rounded-md bg-muted/50 border border-border/40">
+						<Box className="w-3.5 h-3.5 text-muted-foreground" />
+						<span className="font-medium text-foreground/80">{model}</span>
+					</div>
+				)}
+
+				{/* Time to Answer */}
+				{timeToAnswer !== undefined && (
+					<div className="flex items-center gap-1.5 px-0 py-1 rounded-md bg-muted/50 border border-border/40 text-muted-foreground">
+						<Clock className="w-3.5 h-3.5" />
+						<span>{formatTime(timeToAnswer)}</span>
+					</div>
+				)}
+
+				{/* Tokens per Second */}
+				{tokensPerSecond !== undefined && (
+					<div className="flex items-center gap-1.5 px-0 py-1 rounded-md bg-muted/50 border border-border/40 text-muted-foreground">
+						<Gauge className="w-3.5 h-3.5" />
+						<span>{formatTokensPerSecond(tokensPerSecond)}</span>
+					</div>
+				)}
+			</div>
+		);
+	},
+);
+
 interface MessageRendererProps {
 	message: DBMessage;
 	index: number;
@@ -333,6 +413,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 											/>
 										</>
 									)}
+									{!isStreaming && message.metadata ? (
+										<ModelMetadata
+											metadata={message.metadata as MessageMetadata}
+										/>
+									) : null}
 								</div>
 							</Suspense>
 						)}

@@ -21,7 +21,7 @@ import {
 	Search,
 	ArrowUpDown,
 } from "lucide-react";
-import { detectSystemSpecs } from "../utils/system-detection";
+import { backgroundJob } from "@/services/background-jobs/background-job";
 import { generateAllRecommendations } from "../utils/model-recommendations";
 import type {
 	SystemSpecs,
@@ -102,19 +102,34 @@ export const MagicSetup: React.FC<MagicSetupProps> = ({
 			setStep("detecting");
 			setError(null);
 
-			const detectedSpecs = await detectSystemSpecs();
-			setSpecs(detectedSpecs);
+			// Run system detection in offscreen thread to avoid WebGPU memory allocation in UI thread
+			const { promise } = await backgroundJob.execute(
+				"detect-system-specs",
+				{},
+				{ stream: false },
+			);
 
-			const recs = generateAllRecommendations(detectedSpecs);
-			if (!recs) {
-				setError(
-					"Unable to find compatible models for your device. Please try advanced setup.",
+			const result = await promise;
+
+			if (result.status === "completed" && result.result) {
+				const detectedSpecs = result.result.specs;
+				setSpecs(detectedSpecs);
+
+				const recs = generateAllRecommendations(detectedSpecs);
+				if (!recs) {
+					setError(
+						"Unable to find compatible models for your device. Please try advanced setup.",
+					);
+					return;
+				}
+
+				setRecommendations(recs);
+				setStep("specs");
+			} else {
+				throw new Error(
+					result.error || "Failed to detect system specifications",
 				);
-				return;
 			}
-
-			setRecommendations(recs);
-			setStep("specs");
 		} catch (err) {
 			setError(
 				err instanceof Error

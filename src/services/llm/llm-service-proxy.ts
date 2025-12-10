@@ -229,6 +229,23 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 		model: string,
 		onProgress?: (progress: ProgressEvent) => void,
 	): Promise<ModelInfo> {
+		// Lazy service creation: create service if it doesn't exist
+		if (!this.has(name)) {
+			try {
+				if (name === DEFAULT_SERVICES.WLLAMA) {
+					await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
+				} else if (name === DEFAULT_SERVICES.WEBLLM) {
+					await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
+				} else if (name === DEFAULT_SERVICES.TRANSFORMER) {
+					await this.create(DEFAULT_SERVICES.TRANSFORMER, {
+						type: "transformer",
+					});
+				}
+			} catch (error) {
+				logWarn(`Failed to create service on-demand: ${name}`, error);
+			}
+		}
+
 		// For lite services, try local first
 		const llm = await this.get(name);
 		const llmWithServe = llm as BaseLLM & {
@@ -306,30 +323,33 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 	}
 
 	async ensureAllServices(): Promise<void> {
-		if (!this.has(DEFAULT_SERVICES.WLLAMA)) {
-			try {
-				await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
-			} catch (error) {
-				logWarn("Failed to create Wllama service:", error);
-			}
-		}
-		if (!this.has(DEFAULT_SERVICES.WEBLLM)) {
-			try {
-				await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
-			} catch (error) {
-				logWarn("Failed to create WebLLM service:", error);
-			}
-		}
-		if (!this.has(DEFAULT_SERVICES.TRANSFORMER)) {
-			try {
-				await this.create(DEFAULT_SERVICES.TRANSFORMER, {
-					type: "transformer",
-				});
-			} catch (error) {
-				logWarn("Failed to create Transformer service:", error);
-			}
-		}
+		// In proxy mode, we use lazy loading - services are created on-demand
+		// Only restore local services and current model's service
 		await this.restoreLocalServices();
+
+		// If there's a current model, ensure its service exists
+		if (this.currentModel) {
+			const serviceName = this.currentModel.serviceName;
+			if (!this.has(serviceName)) {
+				try {
+					// Determine config type from service name
+					if (serviceName === DEFAULT_SERVICES.WLLAMA) {
+						await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
+					} else if (serviceName === DEFAULT_SERVICES.WEBLLM) {
+						await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
+					} else if (serviceName === DEFAULT_SERVICES.TRANSFORMER) {
+						await this.create(DEFAULT_SERVICES.TRANSFORMER, {
+							type: "transformer",
+						});
+					}
+				} catch (error) {
+					logWarn(
+						`Failed to create service for current model: ${serviceName}`,
+						error,
+					);
+				}
+			}
+		}
 	}
 
 	async restoreLocalServices(): Promise<void> {

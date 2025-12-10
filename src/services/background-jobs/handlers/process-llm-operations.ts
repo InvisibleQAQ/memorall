@@ -27,6 +27,7 @@ const JOB_NAMES = {
 	chatCompletion: "chat-completion",
 	restoreAuthProvider: "restore-auth-provider",
 	removeAuthProvider: "remove-auth-provider",
+	detectSystemSpecs: "detect-system-specs",
 } as const;
 
 export interface GetCurrentModelPayload {
@@ -142,6 +143,24 @@ export interface RemoveAuthProviderResult extends Record<string, unknown> {
 	provider: string;
 }
 
+export interface DetectSystemSpecsPayload {
+	// No payload needed
+}
+
+export interface DetectSystemSpecsResult extends Record<string, unknown> {
+	specs: {
+		memoryGB: number;
+		cpuCores: number;
+		hasWebGPU: boolean;
+		gpu?: {
+			vendor: string;
+			renderer: string;
+			estimatedVRAM?: number;
+		};
+		deviceCategory: "low" | "medium" | "high" | "ultra";
+	};
+}
+
 export type LLMModelsJob = BaseJob & {
 	jobType: (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 	payload:
@@ -156,7 +175,8 @@ export type LLMModelsJob = BaseJob & {
 		| ChatCompletionPayload
 		| RestoreAuthProviderPayload
 		| RemoveAuthProviderPayload
-		| GetMaxResponseTokensPayload;
+		| GetMaxResponseTokensPayload
+		| DetectSystemSpecsPayload;
 };
 
 export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
@@ -190,6 +210,8 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 				return await this.handleRemoveAuthProvider(jobId, job, dependencies);
 			case JOB_NAMES.getMaxResponseTokens:
 				return await this.handleGetMaxResponseTokens(jobId, job, dependencies);
+			case JOB_NAMES.detectSystemSpecs:
+				return await this.handleDetectSystemSpecs(jobId, job, dependencies);
 			default:
 				throw new Error(`Unknown LLM job type: ${job.jobType}`);
 		}
@@ -857,6 +879,45 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 			provider: payload.provider,
 		};
 	}
+
+	private async handleDetectSystemSpecs(
+		jobId: string,
+		_job: BaseJob,
+		dependencies: ProcessDependencies,
+	): Promise<ItemHandlerResult> {
+		const { logger, updateJobProgress } = dependencies;
+
+		await logger.info("Starting detect-system-specs job", { jobId });
+
+		await updateJobProgress(jobId, {
+			stage: "Detecting system specifications",
+			progress: 20,
+		});
+
+		// Import detectSystemSpecs dynamically to run in offscreen context
+		const { detectSystemSpecs } = await import(
+			"@/modules/llm/utils/system-detection"
+		);
+
+		await updateJobProgress(jobId, {
+			stage: "Detecting WebGPU and hardware capabilities",
+			progress: 50,
+		});
+
+		const specs = await detectSystemSpecs();
+
+		await updateJobProgress(jobId, {
+			stage: "System detection complete",
+			progress: 90,
+		});
+
+		await logger.info("Detect-system-specs job completed", {
+			jobId,
+			specs,
+		});
+
+		return { specs };
+	}
 }
 
 // Self-register the handler
@@ -880,6 +941,7 @@ declare global {
 		"restore-auth-provider": RestoreAuthProviderPayload;
 		"remove-auth-provider": RemoveAuthProviderPayload;
 		"get-max-response-tokens": GetMaxResponseTokensPayload;
+		"detect-system-specs": DetectSystemSpecsPayload;
 	}
 
 	interface JobResultRegistry {
@@ -895,5 +957,6 @@ declare global {
 		"restore-auth-provider": RestoreAuthProviderResult;
 		"remove-auth-provider": RemoveAuthProviderResult;
 		"get-max-response-tokens": GetMaxResponseTokensResult;
+		"detect-system-specs": DetectSystemSpecsResult;
 	}
 }

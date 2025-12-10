@@ -13,6 +13,10 @@
     - Source: node_modules/@mlc-ai/web-llm/lib
     - Dest:   public/runner/libs
 
+ 3b. Transformers.js library
+    - Source: node_modules/@huggingface/transformers/dist
+    - Dest:   public/runner/libs
+
  4. PDF.js worker
     - Source: node_modules/pdfjs-dist/build
     - Dest:   public/vendors/pdfjs
@@ -136,6 +140,23 @@ function main() {
 		console.log("✅ WebLLM library copied.\n");
 	} else {
 		console.warn("⚠️  @mlc-ai/web-llm not found, skipping.\n");
+	}
+
+	// 3b. Copy Transformers.js library
+	const transformersSrc = path.resolve(
+		process.cwd(),
+		"node_modules/@huggingface/transformers/dist/transformers.min.js",
+	);
+	const transformersDest = path.resolve(
+		process.cwd(),
+		"public/runner/libs/transformers.js",
+	);
+
+	if (fs.existsSync(transformersSrc)) {
+		copyFile(transformersSrc, transformersDest);
+		console.log("✅ Transformers.js library copied.\n");
+	} else {
+		console.warn("⚠️  @huggingface/transformers not found, skipping.\n");
 	}
 
 	// 4. Copy PDF.js worker

@@ -188,33 +188,50 @@ class DocumentStorageService {
 		}
 	}
 
-	/**
-	 * Ensure a directory exists
-	 */
-	private async ensureDirectory(path: string): Promise<void> {
-		// Split path into segments and create each level
-		const segments = path.split("/").filter(Boolean);
-		let currentPath = "";
+	private async ensureDirectory(fullPath: string): Promise<void> {
+		// Make sure ZenFS is ready
+		await initializeFs();
 
-		for (const segment of segments) {
-			currentPath += `/${segment}`;
+		// Normalize slashes
+		fullPath = fullPath.replace(/\\/g, "/");
+
+		// Remove empty segments
+		const segments = fullPath.split("/").filter(Boolean);
+
+		if (segments.length === 0) return;
+
+		// Detect if the last segment is likely a file → remove it
+		const last = segments[segments.length - 1];
+		if (last.includes(".") && !last.startsWith(".")) {
+			segments.pop();
+		}
+
+		if (segments.length === 0) return;
+
+		let current = "";
+
+		for (const seg of segments) {
+			current += `/${seg}`;
+
 			try {
-				await fs.promises.stat(currentPath);
-				// Directory exists, continue to next level
-			} catch {
-				// Directory doesn't exist, create it
-				try {
-					await fs.promises.mkdir(currentPath);
-				} catch (error) {
-					// Ignore EEXIST error (directory was created by another operation)
-					if (
-						error &&
-						typeof error === "object" &&
-						"code" in error &&
-						error.code !== "EEXIST"
-					) {
-						throw error;
+				// Check if exists
+				const stat = await fs.promises.stat(current);
+
+				// If exists but is NOT directory → error
+				if (!stat.isDirectory()) {
+					throw new Error(`Path exists but is not a directory: ${current}`);
+				}
+			} catch (err: any) {
+				// ENOENT → create directory
+				if (err?.code === "ENOENT") {
+					try {
+						await fs.promises.mkdir(current);
+					} catch (mkErr: any) {
+						// Ignore race EEXIST
+						if (mkErr?.code !== "EEXIST") throw mkErr;
 					}
+				} else {
+					throw err;
 				}
 			}
 		}

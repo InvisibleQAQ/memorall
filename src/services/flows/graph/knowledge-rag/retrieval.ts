@@ -430,23 +430,26 @@ export class RetrievalContextFlow {
 				relevantNodes,
 				relevantEdges,
 				next: "build_context",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "knowledge_retrieval",
-						description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} relationships (${sqlNodes.length}+${trigramNodeResults.length}+${vectorNodes.length} nodes, ${sqlEdges.length}+${trigramEdgeResults.length}+${vectorEdges.length} edges)`,
-						metadata: {
-							nodeCount: relevantNodes.length,
-							edgeCount: relevantEdges.length,
-							sqlNodeCount: sqlNodes.length,
-							trigramNodeCount: trigramNodeResults.length,
-							vectorNodeCount: vectorNodes.length,
-							sqlEdgeCount: sqlEdges.length,
-							trigramEdgeCount: trigramEdgeResults.length,
-							vectorEdgeCount: vectorEdges.length,
-						},
-					},
-				],
+				actions:
+					relevantNodes?.length || relevantEdges?.length
+						? [
+								{
+									id: crypto.randomUUID(),
+									name: "knowledge_retrieval",
+									description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} relationships (${sqlNodes.length}+${trigramNodeResults.length}+${vectorNodes.length} nodes, ${sqlEdges.length}+${trigramEdgeResults.length}+${vectorEdges.length} edges)`,
+									metadata: {
+										nodeCount: relevantNodes.length,
+										edgeCount: relevantEdges.length,
+										sqlNodeCount: sqlNodes.length,
+										trigramNodeCount: trigramNodeResults.length,
+										vectorNodeCount: vectorNodes.length,
+										sqlEdgeCount: sqlEdges.length,
+										trigramEdgeCount: trigramEdgeResults.length,
+										vectorEdgeCount: vectorEdges.length,
+									},
+								},
+							]
+						: [],
 			};
 		} catch (error) {
 			logError("[KNOWLEDGE_RAG] Knowledge retrieval failed:", error);
