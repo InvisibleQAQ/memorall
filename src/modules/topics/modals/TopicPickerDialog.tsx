@@ -15,7 +15,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { topicService } from "@/modules/topics/services/topic-service";
 import type { Topic } from "@/services/database/types";
@@ -71,8 +70,8 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 				open={modal.visible}
 				onOpenChange={(open) => !open && handleCancel()}
 			>
-				<DialogContent className="sm:max-w-[400px]">
-					<DialogHeader>
+				<DialogContent className="sm:max-w-[400px] max-h-[85vh] flex flex-col gap-0 p-0">
+					<DialogHeader className="px-6 pt-6">
 						<DialogTitle className="flex items-center gap-2">
 							<Tags className="h-5 w-5 text-primary" />
 							{t("picker.title")}
@@ -82,13 +81,13 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="space-y-4">
+					<div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
 						{loading ? (
 							<div className="flex items-center justify-center py-8">
 								<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
 							</div>
 						) : (
-							<ScrollArea className="h-[300px] border rounded-md">
+							<div className="border rounded-md max-h-[300px] overflow-y-auto">
 								<div className="p-2 space-y-1">
 									{/* Default option */}
 									<button
@@ -161,11 +160,11 @@ export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
 										))
 									)}
 								</div>
-							</ScrollArea>
+							</div>
 						)}
 					</div>
 
-					<DialogFooter>
+					<DialogFooter className="px-6 pb-6">
 						<Button variant="outline" onClick={handleCancel}>
 							{t("picker.cancel")}
 						</Button>

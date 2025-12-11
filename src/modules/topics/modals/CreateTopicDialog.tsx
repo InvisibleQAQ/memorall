@@ -78,8 +78,8 @@ export const CreateTopicDialog = NiceModal.create(() => {
 
 	return (
 		<Dialog open={modal.visible} onOpenChange={(open) => !open && modal.hide()}>
-			<DialogContent className="sm:max-w-[480px]">
-				<DialogHeader>
+			<DialogContent className="sm:max-w-[480px] max-h-[85vh] flex flex-col gap-0 p-0">
+				<DialogHeader className="px-6 pt-6">
 					<DialogTitle className="flex items-center gap-2">
 						<Tags className="h-5 w-5 text-primary" />
 						{t("create.title")}
@@ -87,7 +87,7 @@ export const CreateTopicDialog = NiceModal.create(() => {
 					<DialogDescription>{t("create.description")}</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-4 py-4" onKeyDown={handleKeyDown}>
+				<div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0" onKeyDown={handleKeyDown}>
 					<div className="space-y-2">
 						<Label htmlFor="topic-name">{t("create.topicName")} *</Label>
 						<Input
@@ -124,7 +124,7 @@ export const CreateTopicDialog = NiceModal.create(() => {
 					</p>
 				</div>
 
-				<DialogFooter>
+				<DialogFooter className="px-6 pb-6">
 					<Button
 						variant="outline"
 						onClick={() => modal.hide()}

@@ -18,7 +18,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { topicService } from "@/modules/topics/services/topic-service";
@@ -163,8 +162,8 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 				open={modal.visible}
 				onOpenChange={(open) => !open && modal.hide()}
 			>
-				<DialogContent className="sm:max-w-[500px]">
-					<DialogHeader>
+				<DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col gap-0 p-0">
+					<DialogHeader className="px-6 pt-6">
 						<DialogTitle className="flex items-center gap-2">
 							<Tags className="h-5 w-5 text-primary" />
 							{t("selector.title")}
@@ -177,7 +176,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 					{viewMode === "select" ? (
 						<>
 							{/* Topic Selection View */}
-							<div className="space-y-4">
+							<div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
 								{/* Search */}
 								<div className="relative">
 									<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -211,7 +210,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 										<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
 									</div>
 								) : (
-									<ScrollArea className="h-[300px] border rounded-md">
+									<div className="border rounded-md max-h-[300px] overflow-y-auto">
 										<div className="p-2 space-y-1">
 											{filteredTopics.length === 0 ? (
 												<div className="py-8 text-center text-sm text-muted-foreground">
@@ -266,7 +265,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 												})
 											)}
 										</div>
-									</ScrollArea>
+									</div>
 								)}
 
 								{/* Create New Topic Button */}
@@ -280,7 +279,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 								</Button>
 							</div>
 
-							<DialogFooter>
+							<DialogFooter className="px-6 pb-6">
 								<Button
 									variant="outline"
 									onClick={() => modal.hide()}
@@ -303,7 +302,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 					) : (
 						<>
 							{/* Create Topic View */}
-							<div className="space-y-4">
+							<div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
 								<div className="space-y-2">
 									<Label htmlFor="new-topic-name">
 										{t("selector.topicName")} *
@@ -342,7 +341,7 @@ export const TopicSelectorDialog = NiceModal.create<TopicSelectorDialogProps>(
 								</div>
 							</div>
 
-							<DialogFooter>
+							<DialogFooter className="px-6 pb-6">
 								<Button
 									variant="outline"
 									onClick={() => setViewMode("select")}

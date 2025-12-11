@@ -110,7 +110,9 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 			this.isReadyByName(DEFAULT_SERVICES.WLLAMA) ||
 			this.isReadyByName(DEFAULT_SERVICES.WEBLLM) ||
 			this.isReadyByName(DEFAULT_SERVICES.TRANSFORMER) ||
-			this.isReadyByName(DEFAULT_SERVICES.OPENAI)
+			this.isReadyByName(DEFAULT_SERVICES.OPENAI) ||
+			this.isReadyByName(DEFAULT_SERVICES.OPENROUTER) ||
+			this.list().some((name) => this.isReadyByName(name))
 		);
 	}
 

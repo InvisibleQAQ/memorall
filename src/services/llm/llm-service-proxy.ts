@@ -138,6 +138,7 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 	isReady(): boolean {
 		return (
 			this.isReadyByName(DEFAULT_SERVICES.OPENAI) ||
+			this.isReadyByName(DEFAULT_SERVICES.OPENROUTER) ||
 			this.list().some((name) => this.isReadyByName(name))
 		);
 	}

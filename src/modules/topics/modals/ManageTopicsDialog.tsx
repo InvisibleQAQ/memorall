@@ -26,7 +26,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -151,8 +150,8 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 				open={modal.visible}
 				onOpenChange={(open) => !open && modal.hide()}
 			>
-				<DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col">
-					<DialogHeader>
+				<DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col gap-0 p-0">
+					<DialogHeader className="px-6 pt-6">
 						<DialogTitle className="flex items-center gap-2">
 							<Tags className="h-5 w-5 text-primary" />
 							{t("manage.title")}
@@ -161,8 +160,8 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 					</DialogHeader>
 
 					{/* Search */}
-					<div className="relative">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+					<div className="relative px-6">
+						<Search className="absolute left-9 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 						<Input
 							placeholder={t("manage.searchPlaceholder")}
 							value={searchQuery}
@@ -173,7 +172,7 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 							<button
 								type="button"
 								onClick={() => setSearchQuery("")}
-								className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+								className="absolute right-9 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
 							>
 								<X className="h-4 w-4" />
 							</button>
@@ -182,11 +181,11 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 
 					{/* Topics List */}
 					{loading ? (
-						<div className="flex items-center justify-center py-12">
+						<div className="flex items-center justify-center py-12 px-6">
 							<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
 						</div>
 					) : (
-						<ScrollArea className="flex-1 -mx-6 px-6">
+						<div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
 							{filteredTopics.length === 0 ? (
 								<div className="py-12 text-center text-muted-foreground">
 									<Tags className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -257,11 +256,11 @@ export const ManageTopicsDialog = NiceModal.create(() => {
 									))}
 								</div>
 							)}
-						</ScrollArea>
+						</div>
 					)}
 
 					{/* Footer */}
-					<div className="flex items-center justify-between pt-4 border-t">
+					<div className="flex items-center justify-between px-6 pb-6 pt-4 border-t">
 						<Button
 							variant="outline"
 							size="sm"
