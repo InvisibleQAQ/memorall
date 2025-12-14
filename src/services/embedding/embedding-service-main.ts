@@ -1,4 +1,5 @@
 import { logInfo, logWarn } from "@/utils/logger";
+import { getCurrentModelId } from "@/utils/embedding-size-config";
 import type {
 	BaseEmbedding,
 	LocalEmbeddingConfig,
@@ -80,17 +81,18 @@ export class EmbeddingServiceMain
 	}
 
 	protected async createDefaultEmbedding(): Promise<void> {
-		// Create a local embedding by default for full capability
+		// Create a worker embedding by default to avoid loading transformers directly
 		try {
-			await this.create(this.defaultName, "local", {
-				type: "local",
-				modelName: "Xenova/all-MiniLM-L6-v2",
-				normalize: true,
+			const configuredModelId = await getCurrentModelId();
+			const modelName = configuredModelId || "Xenova/all-MiniLM-L6-v2";
+			await this.create(this.defaultName, "worker", {
+				type: "worker",
+				modelName,
 			});
-			logInfo("🔤 Created default local embedding");
+			logInfo(`🔤 Created default worker embedding (${modelName})`);
 		} catch (error) {
 			logWarn(
-				"Failed to create default local embedding, trying OpenAI:",
+				"Failed to create default worker embedding, trying OpenAI:",
 				String(error),
 			);
 

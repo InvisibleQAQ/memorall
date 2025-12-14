@@ -40,11 +40,12 @@ export const RECOMMENDATION_TRANSFORMER_MODELS: string[] = [
 // Quick download recommended models (latest only)
 export const QUICK_TRANSFORMER_MODELS = [
 	// === MINISTRAL 3B (December 2025) ===
-	{
-		model: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
-		size: "1.5GB",
-		description: "✨ Ministral 3B: Latest from Mistral, 256K context (WebGPU)",
-	},
+	// Transformer not yet supported
+	// {
+	// 	model: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
+	// 	size: "1.5GB",
+	// 	description: "✨ Ministral 3B: Latest from Mistral, 256K context (WebGPU)",
+	// },
 
 	// === SMOLLM3 (July 2025) ===
 	{

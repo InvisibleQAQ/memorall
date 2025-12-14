@@ -258,8 +258,8 @@ export class ServiceManager {
 					);
 				}
 
-				await this.embeddingService.create("default", "local", {
-					type: "local",
+				await this.embeddingService.create("default", "worker", {
+					type: "worker",
 					modelName: modelId,
 				});
 				logInfo(

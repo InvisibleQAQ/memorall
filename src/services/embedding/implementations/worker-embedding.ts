@@ -1,5 +1,7 @@
 import type { BaseEmbedding } from "../interfaces/base-embedding";
 import { LLM_RUNNER_URLS } from "@/config/llm-runner";
+import { waitForDOMReady } from "@/utils/dom";
+import { logError, logInfo, logWarn } from "@/utils/logger";
 
 interface BaseMessage {
 	messageId: string;
@@ -11,7 +13,7 @@ interface OutgoingMessage extends BaseMessage {
 }
 
 interface IncomingMessage extends BaseMessage {
-	type: "ready" | "complete" | "error";
+	type: "ready" | "progress" | "complete" | "error";
 	payload?: unknown;
 }
 
@@ -28,6 +30,13 @@ type PendingRequest = {
 	reject: (error: Error) => void;
 };
 
+type PendingMeta = {
+	startedAt: number;
+	lastProgressAt: number;
+	idleTimeout?: ReturnType<typeof setTimeout>;
+	maxTimeout?: ReturnType<typeof setTimeout>;
+};
+
 export interface WorkerEmbeddingOptions {
 	modelName?: string;
 	runnerUrl?: string;
@@ -40,6 +49,7 @@ export class WorkerEmbedding implements BaseEmbedding {
 	private ready = false;
 	private loading = false;
 	private pending = new Map<string, PendingRequest>();
+	private pendingMeta = new Map<string, PendingMeta>();
 	private url: string;
 	private modelName: string;
 
@@ -47,7 +57,13 @@ export class WorkerEmbedding implements BaseEmbedding {
 		this.modelName = options.modelName || "nomic-ai/nomic-embed-text-v1.5";
 		this.name = this.modelName;
 		const baseUrl = options.runnerUrl || LLM_RUNNER_URLS?.embedding;
-		this.url = `${baseUrl}?mode=embedding&model=${encodeURIComponent(this.modelName)}`;
+		const url = new URL(
+			baseUrl,
+			typeof location !== "undefined" ? location.href : undefined,
+		);
+		url.searchParams.set("mode", "embedding");
+		url.searchParams.set("model", this.modelName);
+		this.url = url.toString();
 	}
 
 	async initialize(): Promise<void> {
@@ -58,34 +74,47 @@ export class WorkerEmbedding implements BaseEmbedding {
 		}
 		this.loading = true;
 		try {
+			logInfo(`🔤 WorkerEmbedding initialize (model=${this.modelName})`);
+			logInfo(`🔤 WorkerEmbedding runner url: ${this.url}`);
+			await waitForDOMReady();
 			this.iframe = document.createElement("iframe");
 			this.iframe.src = this.url;
 			this.iframe.style.display = "none";
 			document.body.appendChild(this.iframe);
+			logInfo("🔤 WorkerEmbedding runner iframe appended");
 
 			window.addEventListener("message", this.onMessage);
 
-			await new Promise<void>((resolve, reject) => {
-				const timeout = setTimeout(
-					() => reject(new Error("Embedding runner not ready")),
-					15000,
-				);
+			await new Promise<void>((resolve) => {
+				logInfo("🔤 WorkerEmbedding waiting for RUNNER_READY...");
 				const handler = (e: MessageEvent<IncomingMessage>) => {
 					if (e.data?.messageId === "RUNNER_READY") {
-						clearTimeout(timeout);
-						window.removeEventListener("message", handler);
-						resolve();
+						const isFromRunner = e.source === this.iframe?.contentWindow;
+						logInfo(
+							`🔤 WorkerEmbedding received RUNNER_READY (origin=${e.origin}, fromRunner=${isFromRunner})`,
+						);
+						if (isFromRunner) {
+							window.removeEventListener("message", handler);
+							resolve();
+						}
 					}
 				};
 				window.addEventListener("message", handler);
 			});
 
-			await this.send("init", { modelName: this.modelName });
+			logInfo("🔤 WorkerEmbedding sending init to runner...");
+			await this.send("init", { modelName: this.modelName }, { timeoutMs: 0 });
+			logInfo("🔤 WorkerEmbedding init completed");
 
 			// Get model info to set dimensions (embedding models typically have known dimensions)
 			this.dimensions = 768; // Default for most embedding models, will be updated if needed
 
 			this.ready = true;
+		} catch (e) {
+			// Ensure we don't leave a broken iframe/listeners around which can cause
+			// subsequent initializations to hang.
+			this.destroy();
+			throw e;
 		} finally {
 			this.loading = false;
 		}
@@ -127,6 +156,11 @@ export class WorkerEmbedding implements BaseEmbedding {
 		this.iframe?.remove();
 		this.iframe = null;
 		window.removeEventListener("message", this.onMessage);
+		this.pendingMeta.forEach(({ idleTimeout, maxTimeout }) => {
+			if (idleTimeout) clearTimeout(idleTimeout);
+			if (maxTimeout) clearTimeout(maxTimeout);
+		});
+		this.pendingMeta.clear();
 		this.pending.forEach(({ reject }) =>
 			reject(new Error("Service destroyed")),
 		);
@@ -137,18 +171,45 @@ export class WorkerEmbedding implements BaseEmbedding {
 	private onMessage = (ev: MessageEvent<IncomingMessage>) => {
 		const { messageId, type, payload } = ev.data || {};
 
+		// CRITICAL: Only process messages from our own iframe to prevent cross-contamination
+		const fromRunner = ev.source === this.iframe?.contentWindow;
+		if (!fromRunner) {
+			// Silently ignore messages from other iframes
+			return;
+		}
+
 		if (!messageId) return;
+		if (messageId === "RUNNER_READY") return; // Already handled during initialization
 
 		const pendingRequest = this.pending.get(messageId);
-		if (!pendingRequest) return;
+		if (!pendingRequest) {
+			logWarn(
+				`🔤 WorkerEmbedding received message with no pending request (messageId=${messageId}, type=${type}, origin=${ev.origin})`,
+			);
+			return;
+		}
+
+		if (type === "progress") {
+			const meta = this.pendingMeta.get(messageId);
+			if (meta) meta.lastProgressAt = Date.now();
+			return;
+		}
 
 		this.pending.delete(messageId);
+		const meta = this.pendingMeta.get(messageId);
+		if (meta?.idleTimeout) clearTimeout(meta.idleTimeout);
+		if (meta?.maxTimeout) clearTimeout(meta.maxTimeout);
+		this.pendingMeta.delete(messageId);
 
 		if (type === "complete") {
 			pendingRequest.resolve(payload);
 		} else if (type === "error") {
 			const errorData = payload as ErrorResponse;
 			const error = new Error(errorData.error?.message || "Unknown error");
+			logError(
+				`🔤 WorkerEmbedding runner error (messageId=${messageId}, origin=${ev.origin})`,
+				error,
+			);
 			pendingRequest.reject(error);
 		}
 	};
@@ -156,6 +217,7 @@ export class WorkerEmbedding implements BaseEmbedding {
 	private send(
 		type: OutgoingMessage["type"],
 		payload?: unknown,
+		options?: { timeoutMs?: number },
 	): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			const target = this.iframe?.contentWindow;
@@ -165,11 +227,90 @@ export class WorkerEmbedding implements BaseEmbedding {
 			const id = Math.random().toString(36).slice(2);
 			this.pending.set(id, { resolve, reject });
 
+			logInfo(
+				`🔤 WorkerEmbedding -> runner send (type=${type}, messageId=${id}, runnerOrigin=${this.iframe?.src})`,
+			);
+			const startedAt = Date.now();
+
+			// Setup timeout based on options (0 = no timeout)
+			const timeoutMs = options?.timeoutMs ?? 60_000;
+			if (timeoutMs > 0) {
+				const lastProgressAt = startedAt;
+				const idleTimeoutMs = timeoutMs;
+				const maxTimeoutMs = timeoutMs;
+
+				const fail = (reason: string) => {
+					if (!this.pending.has(id)) return;
+					this.pending.delete(id);
+					const meta = this.pendingMeta.get(id);
+					if (meta?.idleTimeout) clearTimeout(meta.idleTimeout);
+					if (meta?.maxTimeout) clearTimeout(meta.maxTimeout);
+					this.pendingMeta.delete(id);
+					logWarn(
+						`🔤 WorkerEmbedding request timeout (${reason}) (type=${type}, messageId=${id}, elapsedMs=${Date.now() - startedAt})`,
+					);
+					reject(new Error(`Embedding runner timed out (${type})`));
+				};
+
+				const scheduleIdleCheck = () => {
+					const meta = this.pendingMeta.get(id);
+					if (!meta) return;
+					if (meta.idleTimeout) clearTimeout(meta.idleTimeout);
+					meta.idleTimeout = setTimeout(() => {
+						const m = this.pendingMeta.get(id);
+						if (!m) return;
+						const idleFor = Date.now() - m.lastProgressAt;
+						if (idleFor >= idleTimeoutMs) {
+							fail(`idle>${idleTimeoutMs}ms`);
+							return;
+						}
+						scheduleIdleCheck();
+					}, idleTimeoutMs);
+				};
+
+				this.pendingMeta.set(id, {
+					startedAt,
+					lastProgressAt,
+				});
+				scheduleIdleCheck();
+				const meta = this.pendingMeta.get(id);
+				if (meta) {
+					meta.maxTimeout = setTimeout(
+						() => fail(`max>${maxTimeoutMs}ms`),
+						maxTimeoutMs,
+					);
+				}
+			}
+
+			this.pending.set(id, {
+				resolve: (value) => {
+					const meta = this.pendingMeta.get(id);
+					if (meta?.idleTimeout) clearTimeout(meta.idleTimeout);
+					if (meta?.maxTimeout) clearTimeout(meta.maxTimeout);
+					this.pendingMeta.delete(id);
+					logInfo(
+						`🔤 WorkerEmbedding request completed (type=${type}, messageId=${id}, elapsedMs=${Date.now() - startedAt})`,
+					);
+					resolve(value);
+				},
+				reject: (error) => {
+					const meta = this.pendingMeta.get(id);
+					if (meta?.idleTimeout) clearTimeout(meta.idleTimeout);
+					if (meta?.maxTimeout) clearTimeout(meta.maxTimeout);
+					this.pendingMeta.delete(id);
+					reject(error);
+				},
+			});
+
 			try {
 				const message: OutgoingMessage = { messageId: id, type, payload };
 				target.postMessage(message, "*");
 			} catch (e) {
 				this.pending.delete(id);
+				const meta = this.pendingMeta.get(id);
+				if (meta?.idleTimeout) clearTimeout(meta.idleTimeout);
+				if (meta?.maxTimeout) clearTimeout(meta.maxTimeout);
+				this.pendingMeta.delete(id);
 				reject(e);
 			}
 		});

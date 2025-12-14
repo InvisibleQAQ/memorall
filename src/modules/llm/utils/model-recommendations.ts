@@ -79,25 +79,26 @@ const MODEL_DATABASE: ModelSpec[] = [
 	// === MINISTRAL 3B (Released December 2025, Latest from Mistral AI) ===
 	// Vision-language model, 256K context, sub-10s load
 
-	{
-		provider: "transformer",
-		providerName: PROVIDER_INFO.transformer.name,
-		modelId: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
-		displayName: "Ministral 3B",
-		size: "1.5GB",
-		sizeGB: 1.5,
-		contextLength: 256000, // 256K context!
-		requiresWebGPU: true,
-		minMemoryGB: 4,
-		releaseDate: "2025-12",
-		performanceScore: 85, // Fast, vision-capable
-		qualityScore: 90, // Excellent quality, latest from Mistral
-		contextScore: 100, // 256K context is massive
-		config: {
-			provider: "transformer",
-			model: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
-		},
-	},
+	// Transformer not yet supported
+	// {
+	// 	provider: "transformer",
+	// 	providerName: PROVIDER_INFO.transformer.name,
+	// 	modelId: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
+	// 	displayName: "Ministral 3B",
+	// 	size: "1.5GB",
+	// 	sizeGB: 1.5,
+	// 	contextLength: 256000, // 256K context!
+	// 	requiresWebGPU: true,
+	// 	minMemoryGB: 4,
+	// 	releaseDate: "2025-12",
+	// 	performanceScore: 85, // Fast, vision-capable
+	// 	qualityScore: 90, // Excellent quality, latest from Mistral
+	// 	contextScore: 100, // 256K context is massive
+	// 	config: {
+	// 		provider: "transformer",
+	// 		model: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
+	// 	},
+	// },
 
 	// === LFM2 MODELS (Released November 2024, Liquid AI) ===
 	// 2x faster than Qwen3 on CPU, now available in Transformers.js with WebGPU!

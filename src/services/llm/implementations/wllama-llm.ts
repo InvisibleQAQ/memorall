@@ -96,16 +96,14 @@ export class WllamaLLM implements BaseLLM {
 
 			window.addEventListener("message", this.onMessage);
 
-			await new Promise<void>((resolve, reject) => {
-				const timeout = setTimeout(
-					() => reject(new Error("Runner not ready")),
-					15000,
-				);
+			await new Promise<void>((resolve) => {
 				const handler = (e: MessageEvent<IncomingMessage>) => {
 					if (e.data?.messageId === "RUNNER_READY") {
-						clearTimeout(timeout);
-						window.removeEventListener("message", handler);
-						resolve();
+						const isFromRunner = e.source === this.iframe?.contentWindow;
+						if (isFromRunner) {
+							window.removeEventListener("message", handler);
+							resolve();
+						}
 					}
 				};
 				window.addEventListener("message", handler);
@@ -328,6 +326,13 @@ export class WllamaLLM implements BaseLLM {
 
 	private onMessage = (ev: MessageEvent<IncomingMessage>) => {
 		const { messageId, type, payload } = ev.data || {};
+
+		// CRITICAL: Only process messages from our own iframe to prevent cross-contamination
+		const fromRunner = ev.source === this.iframe?.contentWindow;
+		if (!fromRunner) {
+			// Silently ignore messages from other iframes
+			return;
+		}
 
 		if (type === "progress") {
 			const progressData = payload as ProgressEvent;

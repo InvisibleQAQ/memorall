@@ -25,9 +25,58 @@ interface HFProgressEvent {
 	total?: number;
 }
 
+type LoadedTransformerModel = Awaited<
+	ReturnType<typeof AutoModelForCausalLM.from_pretrained>
+>;
+
+type LoadedTransformerTokenizer = Awaited<
+	ReturnType<typeof AutoTokenizer.from_pretrained>
+>;
+
+interface HFInputIds {
+	dims?: number[];
+}
+
+interface HFTokenizerInput {
+	input_ids?: HFInputIds;
+	[key: string]: unknown;
+}
+
+interface HFGenerationResult {
+	sequences: unknown;
+}
+
+type Disposable = {
+	dispose?: () => void;
+};
+
+type GenerateCapableModel = {
+	generate: (options: Record<string, unknown>) => Promise<HFGenerationResult>;
+};
+
+type ChatTemplateCapableTokenizer = {
+	apply_chat_template: (
+		messages: Array<{ role: string; content: string }>,
+		options: { add_generation_prompt: boolean; return_dict: true },
+	) => HFTokenizerInput;
+};
+
+type BatchDecodeCapableTokenizer = {
+	batch_decode: (
+		sequences: unknown,
+		options: { skip_special_tokens: boolean },
+	) => string[];
+};
+
 interface TransformerInstance {
-	model: any;
-	tokenizer: any;
+	model: LoadedTransformerModel;
+	tokenizer: LoadedTransformerTokenizer;
+}
+
+function isTensorLike(
+	value: unknown,
+): value is { dims?: unknown; slice?: unknown } {
+	return typeof value === "object" && value !== null;
 }
 
 interface LFM2ModelDefinition {
@@ -44,14 +93,14 @@ const DEFAULT_MAX_RESPONSE_TOKENS = 512;
 
 const WEBGPU_TRANSFORMER_MODELS: LFM2ModelDefinition[] = [
 	// === MINISTRAL 3B (December 2025, Latest from Mistral AI) ===
-	{
-		id: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
-		name: "Ministral 3B (WebGPU)",
-		filename: "model.onnx",
-		size: 1_500 * 1024 * 1024,
-		aliases: ["Ministral-3B", "ministral-3b"],
-		created: 1_733_000_000, // Dec 2025
-	},
+	// {
+	// 	id: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
+	// 	name: "Ministral 3B (WebGPU)",
+	// 	filename: "model.onnx",
+	// 	size: 1_500 * 1024 * 1024,
+	// 	aliases: ["Ministral-3B", "ministral-3b"],
+	// 	created: 1_733_000_000, // Dec 2025
+	// },
 
 	// LFM2 models - Liquid AI's efficient foundation models
 	{
@@ -300,8 +349,8 @@ export class TransformerDirectLLM implements BaseLLM {
 		if (this.activeModelId !== resolvedId) return;
 
 		if (this.currentInstance) {
-			this.currentInstance.model?.dispose?.();
-			this.currentInstance.tokenizer?.dispose?.();
+			(this.currentInstance.model as unknown as Disposable).dispose?.();
+			(this.currentInstance.tokenizer as unknown as Disposable).dispose?.();
 			this.currentInstance = null;
 		}
 		this.activeModelId = null;
@@ -474,12 +523,19 @@ export class TransformerDirectLLM implements BaseLLM {
 			return_dict: true,
 		});
 
-		return { instance, input, modelId };
+		const typedInput = (
+			instance.tokenizer as unknown as ChatTemplateCapableTokenizer
+		).apply_chat_template(normalizedMessages, {
+			add_generation_prompt: true,
+			return_dict: true,
+		});
+
+		return { instance, input: typedInput, modelId };
 	}
 
 	private async executeGeneration(
 		instance: TransformerInstance,
-		input: Record<string, unknown>,
+		input: HFTokenizerInput,
 		request: ChatCompletionRequest,
 		streamer?: TextStreamer,
 	) {
@@ -503,33 +559,48 @@ export class TransformerDirectLLM implements BaseLLM {
 			throw new Error("Operation aborted");
 		}
 
-		return instance.model.generate(generationOptions);
+		return (instance.model as unknown as GenerateCapableModel).generate(
+			generationOptions,
+		);
 	}
 
 	private decodeGeneration(
-		sequences: any,
-		input: Record<string, unknown>,
-		tokenizer: any,
+		sequences: unknown,
+		input: HFTokenizerInput,
+		tokenizer: LoadedTransformerTokenizer,
 	) {
 		const promptTokens = this.getPromptTokenLength(input);
 		let trimmedSeq = sequences;
-		if (typeof sequences?.slice === "function") {
-			trimmedSeq = sequences.slice(null, [promptTokens, null]);
+		if (
+			isTensorLike(sequences) &&
+			typeof (sequences as { slice?: unknown }).slice === "function"
+		) {
+			trimmedSeq = (
+				sequences as {
+					slice: (start: unknown, end: unknown) => unknown;
+				}
+			).slice(null, [promptTokens, null]);
 		}
 
 		let decoded = "";
 		try {
 			decoded =
-				tokenizer.batch_decode(trimmedSeq, { skip_special_tokens: true })[0] ||
-				"";
+				(tokenizer as unknown as BatchDecodeCapableTokenizer).batch_decode(
+					trimmedSeq,
+					{ skip_special_tokens: true },
+				)[0] || "";
 		} catch {
 			decoded = "";
 		}
 
-		const completionTokens = Math.max(
-			0,
-			(sequences?.dims?.[1] ?? promptTokens) - promptTokens,
-		);
+		const sequenceDims = isTensorLike(sequences)
+			? (sequences as { dims?: unknown }).dims
+			: undefined;
+		const seqLen =
+			Array.isArray(sequenceDims) && typeof sequenceDims[1] === "number"
+				? sequenceDims[1]
+				: promptTokens;
+		const completionTokens = Math.max(0, seqLen - promptTokens);
 
 		return { text: decoded, completionTokens };
 	}
@@ -554,8 +625,8 @@ export class TransformerDirectLLM implements BaseLLM {
 		};
 	}
 
-	private getPromptTokenLength(input: Record<string, unknown>): number {
-		const dims = (input as any)?.input_ids?.dims;
+	private getPromptTokenLength(input: HFTokenizerInput): number {
+		const dims = input.input_ids?.dims;
 		if (Array.isArray(dims) && typeof dims[1] === "number") {
 			return dims[1];
 		}
@@ -670,8 +741,8 @@ export class TransformerDirectLLM implements BaseLLM {
 		// Unload any currently loaded model that is different from the requested one
 		if (this.activeModelId && this.activeModelId !== modelId) {
 			if (this.currentInstance) {
-				this.currentInstance.model?.dispose?.();
-				this.currentInstance.tokenizer?.dispose?.();
+				(this.currentInstance.model as unknown as Disposable).dispose?.();
+				(this.currentInstance.tokenizer as unknown as Disposable).dispose?.();
 				this.currentInstance = null;
 			}
 			this.activeModelId = null;

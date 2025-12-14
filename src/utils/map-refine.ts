@@ -309,6 +309,8 @@ async function processChunkWithRetry<T>(
 				stream: false,
 			});
 
+			logInfo("[ProcessChunkWithRetry] response", response);
+
 			if ("choices" in response && response.choices[0]?.message?.content) {
 				const content = response.choices[0].message.content;
 				const newItems = parse(content);

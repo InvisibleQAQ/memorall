@@ -21,15 +21,26 @@ async function ensureTransformers() {
 		throw new Error("Failed to load @huggingface/transformers");
 	}
 
-	// Configure ONNX Runtime to use local bundled WASM files
-	if (transformers.env?.backends?.onnx?.wasm) {
-		// Get the correct URL for the bundled ONNX Runtime files
-		const wasmPath =
-			typeof chrome !== "undefined" && chrome.runtime?.getURL
-				? chrome.runtime.getURL("vendors/transformers/")
-				: "../../../vendors/transformers/";
-		transformers.env.backends.onnx.wasm.wasmPaths = wasmPath;
-		console.log("ONNX Runtime WASM path configured:", wasmPath);
+	// Configure cache and ONNX Runtime
+	if (transformers.env) {
+		// Enable browser cache for models
+		transformers.env.useBrowserCache = true;
+		transformers.env.allowLocalModels = false;
+
+		// Configure ONNX Runtime to use local bundled WASM files
+		if (transformers.env.backends?.onnx?.wasm) {
+			const wasmPath =
+				typeof chrome !== "undefined" && chrome.runtime?.getURL
+					? chrome.runtime.getURL("vendors/transformers/")
+					: "../../../vendors/transformers/";
+			transformers.env.backends.onnx.wasm.wasmPaths = wasmPath;
+			console.log("ONNX Runtime WASM path configured:", wasmPath);
+		}
+
+		console.log("[transformer-runner] cache and env configured", {
+			useBrowserCache: transformers.env.useBrowserCache,
+			allowLocalModels: transformers.env.allowLocalModels,
+		});
 	}
 }
 
@@ -99,6 +110,14 @@ window.addEventListener("message", async (event) => {
 
 				const { model } = payload || {};
 				if (!model) throw new Error("Model ID is required");
+				const hasWebGPU =
+					typeof navigator !== "undefined" && typeof navigator.gpu !== "undefined";
+				const device = hasWebGPU ? "webgpu" : "wasm";
+				console.log("[transformer-runner] device selection", {
+					hasWebGPU,
+					device,
+					model,
+				});
 
 				// Progress callback for model loading
 				const progressCallback = (progress) => {
@@ -137,7 +156,7 @@ window.addEventListener("message", async (event) => {
 					// Load model with WebGPU
 					currentModel = await AutoModelForCausalLM.from_pretrained(model, {
 						dtype: "q4f16",
-						device: "webgpu",
+						device,
 						progress_callback: progressCallback,
 					});
 
@@ -172,7 +191,7 @@ window.addEventListener("message", async (event) => {
 				const {
 					messages,
 					stream = false,
-					max_tokens = 512,
+					max_tokens,
 					temperature = 0,
 					top_p = 1,
 					top_k = 50,
@@ -186,6 +205,103 @@ window.addEventListener("message", async (event) => {
 						add_generation_prompt: true,
 						return_dict: true,
 					});
+
+					const promptLength = input.input_ids?.dims?.[1] || 0;
+					const tokenizerMaxRaw =
+						typeof currentTokenizer?.model_max_length === "number"
+							? currentTokenizer.model_max_length
+							: undefined;
+					const tokenizerMax =
+						typeof tokenizerMaxRaw === "number" &&
+							Number.isFinite(tokenizerMaxRaw) &&
+							tokenizerMaxRaw > 0 &&
+							tokenizerMaxRaw <= 1_000_000
+							? tokenizerMaxRaw
+							: undefined;
+
+					const cfg = currentModel?.config || {};
+					const modelMaxRaw =
+						typeof cfg.max_position_embeddings === "number"
+							? cfg.max_position_embeddings
+							: typeof cfg.n_positions === "number"
+								? cfg.n_positions
+								: typeof cfg.context_length === "number"
+									? cfg.context_length
+									: typeof cfg.max_seq_len === "number"
+										? cfg.max_seq_len
+										: typeof cfg.n_ctx === "number"
+											? cfg.n_ctx
+											: typeof cfg.seq_length === "number"
+												? cfg.seq_length
+												: undefined;
+					const modelMax =
+						typeof modelMaxRaw === "number" &&
+							Number.isFinite(modelMaxRaw) &&
+							modelMaxRaw > 0 &&
+							modelMaxRaw <= 1_000_000
+							? modelMaxRaw
+							: undefined;
+
+					const maxContextTokens =
+						typeof tokenizerMax === "number"
+							? tokenizerMax
+							: typeof modelMax === "number"
+								? modelMax
+								: undefined;
+					const maxNewTokensLimit =
+						typeof maxContextTokens === "number"
+							? Math.max(0, maxContextTokens - promptLength)
+							: undefined;
+
+					// If caller doesn't set max_tokens, we use the maximum allowed by model context.
+					// If context window is unknown, we do NOT set max_new_tokens at all.
+					const requestedMaxTokens =
+						typeof max_tokens === "number" && Number.isFinite(max_tokens)
+							? max_tokens
+							: typeof maxNewTokensLimit === "number"
+								? maxNewTokensLimit
+								: undefined;
+
+					if (
+						typeof max_tokens !== "number" &&
+						typeof maxNewTokensLimit === "number"
+					) {
+						console.log("[transformer-runner] auto max_new_tokens", {
+							auto: true,
+							max_new_tokens: requestedMaxTokens,
+							promptLength,
+							maxContextTokens,
+							tokenizerMaxRaw,
+							modelMaxRaw,
+						});
+					}
+					if (
+						typeof max_tokens !== "number" &&
+						typeof maxNewTokensLimit !== "number"
+					) {
+						console.log("[transformer-runner] max_new_tokens unset", {
+							reason: "unknown_context_window",
+							promptLength,
+							tokenizerMaxRaw,
+							modelMaxRaw,
+							configKeys: Object.keys(cfg || {}).slice(0, 50),
+						});
+					}
+
+					const effectiveMaxNewTokens =
+						typeof maxNewTokensLimit === "number" &&
+						typeof requestedMaxTokens === "number"
+							? Math.min(requestedMaxTokens, maxNewTokensLimit)
+							: requestedMaxTokens;
+
+					if (
+						typeof maxNewTokensLimit === "number" &&
+						maxNewTokensLimit <= 0
+					) {
+						throw new Error(
+							`Prompt is too long for the model context window (promptLength=${promptLength}, maxContextTokens=${maxContextTokens})`,
+						);
+					}
 
 					if (stream) {
 						// Streaming response
@@ -217,7 +333,9 @@ window.addEventListener("message", async (event) => {
 						// Generate with streaming
 						await currentModel.generate({
 							...input,
-							max_new_tokens: max_tokens,
+							...(typeof effectiveMaxNewTokens === "number"
+								? { max_new_tokens: effectiveMaxNewTokens }
+								: {}),
 							do_sample: temperature > 0,
 							streamer,
 							return_dict_in_generate: true,
@@ -245,7 +363,9 @@ window.addEventListener("message", async (event) => {
 						// Non-streaming response
 						const generationResult = await currentModel.generate({
 							...input,
-							max_new_tokens: max_tokens,
+							...(typeof effectiveMaxNewTokens === "number"
+								? { max_new_tokens: effectiveMaxNewTokens }
+								: {}),
 							do_sample: temperature > 0,
 							return_dict_in_generate: true,
 							temperature,
@@ -254,7 +374,6 @@ window.addEventListener("message", async (event) => {
 						});
 
 						// Decode the generated sequence
-						const promptLength = input.input_ids?.dims?.[1] || 0;
 						let trimmedSeq = generationResult.sequences;
 						if (typeof generationResult.sequences?.slice === "function") {
 							trimmedSeq = generationResult.sequences.slice(null, [promptLength, null]);
