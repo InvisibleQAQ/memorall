@@ -753,9 +753,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 		// Return true to indicate async response
 		return true;
+	} else if (message.type === CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED) {
+		// Relay filesystem change notifications to ALL contexts
+		// This ensures popup/UI receives updates even from offscreen document
+		logInfo("🔁 Relaying FILESYSTEM_CHANGED to all contexts");
+
+		// Broadcast to all extension contexts (popup, options page, etc.)
+		chrome.runtime
+			.sendMessage({
+				type: CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
+			})
+			.catch((err: Error) => {
+				// Ignore "no receiver" errors (normal when popup is closed)
+				if (
+					!err.message?.includes("Receiving end does not exist") &&
+					!err.message?.includes("Could not establish connection")
+				) {
+					logError("Failed to relay FILESYSTEM_CHANGED:", err);
+				}
+			});
+
+		// Don't send response - this is a fire-and-forget notification
+		return false;
 	}
-	// Note: FILESYSTEM_CHANGED relay removed - chrome.runtime.sendMessage auto-broadcasts
-	// in MV3, so document-storage.ts handles both sending and receiving directly
 });
 
 // Handle extension startup

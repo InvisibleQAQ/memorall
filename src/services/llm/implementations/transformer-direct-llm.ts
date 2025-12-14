@@ -45,7 +45,7 @@ const DEFAULT_MAX_RESPONSE_TOKENS = 512;
 const WEBGPU_TRANSFORMER_MODELS: LFM2ModelDefinition[] = [
 	// === MINISTRAL 3B (December 2025, Latest from Mistral AI) ===
 	{
-		id: "onnx-community/Ministral-3-3B-Instruct-2512",
+		id: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
 		name: "Ministral 3B (WebGPU)",
 		filename: "model.onnx",
 		size: 1_500 * 1024 * 1024,
@@ -317,7 +317,7 @@ export class TransformerDirectLLM implements BaseLLM {
 	getInfo(): LLMInfo {
 		return {
 			name: this.name,
-			type: "transformer-direct",
+			type: "transformer",
 			ready: this.ready,
 		};
 	}

@@ -246,7 +246,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 				</div>
 
 				{/* Graph content */}
-				<div className="flex-1">
+				<div className="flex-1 overflow-hidden h-full">
 					{loading ? (
 						<div className="h-full flex items-center justify-center text-muted-foreground">
 							<div className="text-center">
@@ -263,13 +263,13 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 							</div>
 						</div>
 					) : (
-						<D3KnowledgeGraph
-							graphData={{ nodes, edges }}
-							selectedNodeId={selectedNodeId || undefined}
-							width={800}
-							height={600}
-							onNodeDeleted={handleNodeDeleted}
-						/>
+						<div className="h-full">
+							<D3KnowledgeGraph
+								graphData={{ nodes, edges }}
+								selectedNodeId={selectedNodeId || undefined}
+								onNodeDeleted={handleNodeDeleted}
+							/>
+						</div>
 					)}
 				</div>
 			</div>

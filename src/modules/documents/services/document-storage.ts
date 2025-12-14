@@ -61,10 +61,16 @@ class DocumentStorageService {
 	 */
 	onFilesystemChanged(callback: () => void): () => void {
 		this.changeListeners.add(callback);
+		logInfo(
+			`📝 Registered filesystem change listener (total: ${this.changeListeners.size})`,
+		);
 
 		// Return unsubscribe function
 		return () => {
 			this.changeListeners.delete(callback);
+			logInfo(
+				`📝 Unregistered filesystem change listener (remaining: ${this.changeListeners.size})`,
+			);
 		};
 	}
 
@@ -83,6 +89,10 @@ class DocumentStorageService {
 		// CRITICAL: Invalidate cache FIRST before notifying anyone
 		this.invalidateCache();
 
+		logInfo(
+			`📢 Notifying filesystem changed (${this.changeListeners.size} local listeners)`,
+		);
+
 		try {
 			// Immediately notify local listeners
 			this.changeListeners.forEach((callback) => {
@@ -94,19 +104,27 @@ class DocumentStorageService {
 			});
 
 			// Then broadcast to ALL other extension contexts (MV3 auto-broadcast)
-			chrome.runtime
-				.sendMessage({
-					type: CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
-				})
-				.catch((err: Error) => {
-					// Ignore "no receiver" errors (expected when no other contexts are open)
-					if (
-						!err.message?.includes("Receiving end does not exist") &&
-						!err.message?.includes("Could not establish connection")
-					) {
-						logError("Failed to send filesystem change notification:", err);
-					}
-				});
+			// IMPORTANT: In MV3, messages from offscreen/background may not reach popup
+			// reliably, so we also send to background worker explicitly
+			const message = {
+				type: CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
+			};
+
+			chrome.runtime.sendMessage(message).catch((err: Error) => {
+				// Ignore "no receiver" errors (expected when no other contexts are open)
+				if (
+					!err.message?.includes("Receiving end does not exist") &&
+					!err.message?.includes("Could not establish connection")
+				) {
+					logError("Failed to send filesystem change notification:", err);
+				} else {
+					logInfo(
+						"📭 No receivers for filesystem change notification (normal)",
+					);
+				}
+			});
+
+			logInfo("✅ Filesystem change notifications sent");
 		} catch (error) {
 			// In non-extension context, this might fail - notify local listeners anyway
 			logError("Failed to notify filesystem change:", error);
@@ -138,7 +156,7 @@ class DocumentStorageService {
 	 */
 	private handleFilesystemChangeMessage = (
 		message: unknown,
-		_sender: chrome.runtime.MessageSender,
+		sender: chrome.runtime.MessageSender,
 		_sendResponse: (response?: unknown) => void,
 	): void => {
 		// Type guard for message structure
@@ -149,20 +167,24 @@ class DocumentStorageService {
 			message.type === CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED
 		) {
 			logInfo(
-				"📢 Received filesystem change notification from another context",
+				`📢 Received FILESYSTEM_CHANGED from ${sender.id || "unknown"} (${this.changeListeners.size} listeners)`,
 			);
 
 			// CRITICAL: Invalidate cache when receiving notification
 			this.invalidateCache();
 
 			// Notify all registered listeners synchronously
+			let notifiedCount = 0;
 			this.changeListeners.forEach((callback) => {
 				try {
 					callback();
+					notifiedCount++;
 				} catch (error) {
 					logError("Error in filesystem change listener:", error);
 				}
 			});
+
+			logInfo(`✅ Notified ${notifiedCount} local listeners`);
 		}
 		// Don't return anything - synchronous handling
 	};
@@ -225,7 +247,7 @@ class DocumentStorageService {
 				// ENOENT → create directory
 				if (err?.code === "ENOENT") {
 					try {
-						await fs.promises.mkdir(current);
+						await fs.promises.mkdir(current, { recursive: true });
 					} catch (mkErr: any) {
 						// Ignore race EEXIST
 						if (mkErr?.code !== "EEXIST") throw mkErr;

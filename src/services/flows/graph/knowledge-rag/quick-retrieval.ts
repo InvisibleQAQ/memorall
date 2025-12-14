@@ -19,7 +19,6 @@ export class QuickRetrievalContextFlow {
 		config: KnowledgeRAGConfig = {},
 	) {
 		this.config = {
-			quickMode: true,
 			maxGrowthLevels: 3,
 			searchLimit: 50,
 			...config,

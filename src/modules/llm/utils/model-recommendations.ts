@@ -82,7 +82,7 @@ const MODEL_DATABASE: ModelSpec[] = [
 	{
 		provider: "transformer",
 		providerName: PROVIDER_INFO.transformer.name,
-		modelId: "onnx-community/Ministral-3-3B-Instruct-2512",
+		modelId: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
 		displayName: "Ministral 3B",
 		size: "1.5GB",
 		sizeGB: 1.5,
@@ -95,7 +95,7 @@ const MODEL_DATABASE: ModelSpec[] = [
 		contextScore: 100, // 256K context is massive
 		config: {
 			provider: "transformer",
-			model: "onnx-community/Ministral-3-3B-Instruct-2512",
+			model: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
 		},
 	},
 

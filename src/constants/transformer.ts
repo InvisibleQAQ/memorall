@@ -1,26 +1,38 @@
 // Latest WebGPU-compatible transformer models
-// Focus on: LFM2, Gemma 3, Phi 4
+// Focus on: Ministral, SmolLM3, DeepSeek-R1, Qwen3, Gemma 3
 
 export const RECOMMENDATION_TRANSFORMER_MODELS: string[] = [
-	// LFM2 models - Liquid AI's latest efficient foundation models
+	// Ministral 3B - Mistral AI's latest model (December 2025)
+	"mistralai/Ministral-3-3B-Instruct-2512-ONNX",
+
+	// SmolLM3 - HuggingFace's latest efficient model (July 2025)
+	"HuggingFaceTB/SmolLM3-3B-ONNX",
+
+	// DeepSeek-R1 - Reasoning specialist (January 2025)
+	"onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX",
+
+	// Qwen 3 - Latest MoE architecture (April 2025)
+	"onnx-community/Qwen3-0.6B-ONNX",
+
+	// Gemma 3 models - Google's latest open models (March 2025)
+	"onnx-community/gemma-3-1b-it-ONNX",
+	"onnx-community/gemma-3-270m-it",
+
+	// Phi 4 - Microsoft's latest reasoning model
+	"onnx-community/Phi-4-mini-instruct",
+
+	// LFM2 models - Liquid AI's efficient foundation models
 	"onnx-community/LFM2-350M-ONNX",
 	"onnx-community/LFM2-700M-ONNX",
 	"onnx-community/LFM2-1.2B-ONNX",
 	"onnx-community/LFM2-1.2B-Tool-ONNX",
 
-	// Gemma 3 models - Google's latest open models
-	"onnx-community/gemma-3-1b-it",
-	"onnx-community/gemma-3-270m-it",
-
-	// Phi 4 models - Microsoft's latest efficient models
-	"onnx-community/Phi-4-mini-instruct",
-
-	// SmolLM2 - Latest compact models
+	// SmolLM2 - Compact models (older generation)
 	"onnx-community/SmolLM2-135M-Instruct",
 	"onnx-community/SmolLM2-360M-Instruct",
 	"onnx-community/SmolLM2-1.7B-Instruct",
 
-	// Qwen2.5 - Latest multilingual models
+	// Qwen2.5 - Multilingual models (older generation)
 	"onnx-community/Qwen2.5-0.5B-Instruct",
 	"onnx-community/Qwen2.5-1.5B-Instruct",
 ];
@@ -29,7 +41,7 @@ export const RECOMMENDATION_TRANSFORMER_MODELS: string[] = [
 export const QUICK_TRANSFORMER_MODELS = [
 	// === MINISTRAL 3B (December 2025) ===
 	{
-		model: "onnx-community/Ministral-3-3B-Instruct-2512",
+		model: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
 		size: "1.5GB",
 		description: "✨ Ministral 3B: Latest from Mistral, 256K context (WebGPU)",
 	},

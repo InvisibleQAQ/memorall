@@ -7,7 +7,13 @@ import type {
 } from "@/types/openai";
 
 // Centralized LLM type definition
-export type LLMType = "wllama" | "webllm" | "transformer" | "openai" | "custom";
+export type LLMType =
+	| "wllama"
+	| "webllm"
+	| "transformer"
+	| "transformer-direct"
+	| "openai"
+	| "custom";
 
 export interface LLMInfo {
 	name: string;

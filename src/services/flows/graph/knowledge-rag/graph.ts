@@ -11,6 +11,7 @@ import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "../../flow-registry";
 import { RetrievalContextFlow } from "./retrieval";
 import { QuickRetrievalContextFlow } from "./quick-retrieval";
+import { SmartRetrievalFlow } from "./smart-retrieval";
 
 const RESPONSE_GENERATION_PROMPT = `
 You are a knowledgeable assistant that can answer questions using a knowledge graph.
@@ -66,30 +67,44 @@ export class KnowledgeRAGFlow extends GraphBase<
 	| "analyze_query"
 	| "retrieve_knowledge"
 	| "quick_retrieve"
+	| "smart_retrieve"
 	| "build_context"
 	| "generate_response"
 	| "citation",
 	KnowledgeRAGState,
 	AllServices
 > {
-	private quickMode: boolean;
+	private mode: "standard" | "quick" | "smart";
 	private retrieveContext: RetrievalContextFlow;
 	private quickRetrieveContext: QuickRetrievalContextFlow;
+	private smartRetrieveContext: SmartRetrievalFlow;
 
 	constructor(services: AllServices, config: KnowledgeRAGConfig = {}) {
 		super(services);
-		this.quickMode = config.quickMode || false;
+
+		// Determine mode (default: smart)
+		this.mode = config.mode ?? "smart";
+
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
 		this.retrieveContext = new RetrievalContextFlow(services);
 		this.quickRetrieveContext = new QuickRetrievalContextFlow(services, config);
+		this.smartRetrieveContext = new SmartRetrievalFlow(services);
 
 		// Add common nodes
 		this.workflow.addNode("build_context", this.buildContextNode);
 		this.workflow.addNode("generate_response", this.generateResponseNode);
 		this.workflow.addNode("citation", this.citationNode);
 
-		// Add nodes and edges based on configuration
-		if (this.quickMode) {
+		// Add nodes and edges based on mode
+		if (this.mode === "smart") {
+			// Smart mode: hybrid semantic + graph expansion + completeness
+			this.workflow.addNode(
+				"smart_retrieve",
+				this.smartRetrieveContext.smartRetrieveNode,
+			);
+			this.workflow.addEdge(START, "smart_retrieve");
+			this.workflow.addEdge("smart_retrieve", "build_context");
+		} else if (this.mode === "quick") {
 			// Quick mode: skip query analysis and go straight to semantic search
 			this.workflow.addNode(
 				"quick_retrieve",
@@ -118,6 +133,8 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		// Compile the workflow
 		this.compile();
+
+		logInfo(`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}`);
 	}
 
 	buildContextNode = async (

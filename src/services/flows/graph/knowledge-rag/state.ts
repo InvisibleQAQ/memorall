@@ -6,7 +6,8 @@ import {
 } from "@/services/flows/interfaces/graph.base";
 
 export interface KnowledgeRAGConfig {
-	quickMode?: boolean;
+	/** Retrieval mode: standard (LLM-based), quick (fast semantic), smart (hybrid - default) */
+	mode?: "standard" | "quick" | "smart";
 	maxGrowthLevels?: number;
 	searchLimit?: number;
 }
@@ -23,6 +24,9 @@ export interface KnowledgeRAGState extends BaseStateBase {
 	messages: ChatMessage[];
 	query: string;
 	graphId?: string;
+
+	// Core context for general knowledge retrieval (topic name + description)
+	coreContext?: string;
 
 	// Query Analysis
 	extractedEntities: string[];
@@ -83,6 +87,10 @@ export const KnowledgeRAGAnnotation = {
 		default: () => "",
 	}),
 	graphId: Annotation<string | undefined>({
+		value: (x, y) => y ?? x,
+		default: () => undefined,
+	}),
+	coreContext: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,
 		default: () => undefined,
 	}),

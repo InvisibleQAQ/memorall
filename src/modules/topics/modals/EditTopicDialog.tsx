@@ -91,7 +91,10 @@ export const EditTopicDialog = NiceModal.create<EditTopicDialogProps>(
 						<DialogDescription>{t("edit.description")}</DialogDescription>
 					</DialogHeader>
 
-					<div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0" onKeyDown={handleKeyDown}>
+					<div
+						className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0"
+						onKeyDown={handleKeyDown}
+					>
 						<div className="space-y-2">
 							<Label htmlFor="edit-topic-name">{t("edit.topicName")} *</Label>
 							<Input

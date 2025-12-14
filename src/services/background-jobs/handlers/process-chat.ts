@@ -8,6 +8,7 @@ import type {
 } from "@/types/openai";
 import { handlerRegistry } from "./handler-registry";
 import type { KnowledgeRAGState } from "@/services/flows/graph/knowledge-rag/state";
+import { sql } from "drizzle-orm";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
@@ -218,13 +219,47 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					? extractTextContent(lastUserMessage.content)
 					: "";
 
+				// Fetch topic info for core context if topicId exists
+				let coreContext: string | undefined;
+				if (topicId) {
+					try {
+						const topicInfo = await serviceManager.databaseService.use(
+							async ({ db, schema }) => {
+								const graphs = await db
+									.select()
+									.from(schema.topics)
+									.where(sql`${schema.topics.id} = ${topicId}`)
+									.limit(1);
+
+								if (graphs.length > 0) {
+									const graph = graphs[0];
+									const name = graph.name || "Unknown Topic";
+									const desc = graph.description || graph.name || "";
+									// Combine name and description for core context query
+									return desc ? `${name}: ${desc}` : name;
+								}
+								return undefined;
+							},
+						);
+						coreContext = topicInfo;
+					} catch (error) {
+						await dependencies.logger.warn(
+							`Failed to fetch topic info for ${topicId}:`,
+							`${error}`,
+							"offscreen",
+						);
+						// Continue without core context
+					}
+				}
+
 				let finalState: Partial<KnowledgeRAGState> | null = null;
 
 				const stream = await graph.stream(
 					{
 						messages: messages, // Keep full multimodal messages for LLM
 						query: queryText, // Use text-only query for search
-						graphId: topicId,
+						graphId: topicId, // For scoping
+						coreContext, // For general context retrieval
 						steps: [],
 					},
 					{
