@@ -120,6 +120,20 @@ export interface SmartRetrievalConfig {
 		maxEdges: number;
 	};
 
+	/** Phase 5: Post-Expansion Configuration */
+	postExpansion: {
+		/** Enable post-expansion to connect standalone nodes/edges */
+		enabled: boolean;
+		/** Maximum iterations for expansion loop */
+		maxIterations: number;
+		/** Number of levels to grow from standalone items */
+		growthLevels: number;
+		/** Maximum nodes to add per iteration */
+		maxNodesPerIteration: number;
+		/** Maximum edges to add per iteration */
+		maxEdgesPerIteration: number;
+	};
+
 	/** Topic-based retrieval configuration (for general context) */
 	topic?: {
 		/** Enable topic-based retrieval alongside task-based retrieval */
@@ -186,6 +200,13 @@ export const DEFAULT_SMART_CONFIG: SmartRetrievalConfig = {
 	output: {
 		maxNodes: 50,
 		maxEdges: 70,
+	},
+	postExpansion: {
+		enabled: true,
+		maxIterations: 3, // Increase iterations
+		growthLevels: 2, // Grow 2 levels deep
+		maxNodesPerIteration: 30, // Allow more nodes per iteration
+		maxEdgesPerIteration: 50, // Allow more edges per iteration
 	},
 	topic: {
 		enabled: true,
@@ -277,6 +298,13 @@ interface RetrievalStats {
 		finalEdges: number;
 		avgFinalScore: number;
 	};
+	phase5?: {
+		iterations: number;
+		nodesAdded: number;
+		edgesAdded: number;
+		standaloneNodesResolved: number;
+		standaloneEdgesResolved: number;
+	};
 	topic?: {
 		enabled: boolean;
 		topicNodes: number;
@@ -311,11 +339,6 @@ export class SmartRetrievalFlow {
 		state: KnowledgeRAGState,
 	): Promise<Partial<KnowledgeRAGState>> => {
 		try {
-			logInfo(
-				`[SMART_RETRIEVAL] Starting smart hybrid retrieval for query: "${state.query}"`,
-				{ graphId: state.graphId, coreContext: state.coreContext },
-			);
-
 			// Validate services
 			const { database, embedding } = this.validateServices();
 			const defaultEmbedding = await this.getDefaultEmbedding(embedding);
@@ -333,7 +356,7 @@ export class SmartRetrievalFlow {
 			const relevantNodes: KnowledgeRAGState["relevantNodes"] =
 				result.nodes.map((node) => ({
 					id: node.id,
-					nodeType: node.nodeType,
+					nodeType: node.nodeType || "default", // Use "default" if nodeType is missing
 					name: node.name,
 					summary: node.summary,
 					attributes: node.attributes,
@@ -351,12 +374,6 @@ export class SmartRetrievalFlow {
 					relevanceScore: edge.finalScore ?? edge.semanticScore,
 				}));
 
-			logInfo("[SMART_RETRIEVAL] Retrieval complete", {
-				nodes: relevantNodes.length,
-				edges: relevantEdges.length,
-				stats: this.stats,
-			});
-
 			return {
 				relevantNodes,
 				relevantEdges,
@@ -372,6 +389,12 @@ export class SmartRetrievalFlow {
 							mode: "smart_hybrid",
 							stats: this.stats,
 							coverage: this.stats.phase3.coverage,
+							// Add growth metrics like quick-retrieval for graph rendering
+							initialNodeCount: this.stats.phase1.seedNodes,
+							initialEdgeCount: this.stats.phase1.seedEdges,
+							grownNodeCount: this.stats.phase4.finalNodes,
+							grownEdgeCount: this.stats.phase4.finalEdges,
+							growthLevels: this.stats.phase2.levelsExpanded,
 						},
 					},
 				],
@@ -394,7 +417,7 @@ export class SmartRetrievalFlow {
 	 * 2. Apply MMR to select diverse nodeLimit results
 	 * 3. Ensures diversity while maintaining relevance
 	 */
-	private async phase1_SemanticSeed(
+	private async phaseSemanticSeed(
 		query: string,
 		graphId: string | undefined,
 		database: IDatabaseService,
@@ -404,8 +427,6 @@ export class SmartRetrievalFlow {
 		edges: EnhancedEdge[];
 		queryEmbedding: number[];
 	}> {
-		logInfo("[SMART_RETRIEVAL][P1] Starting semantic seed retrieval");
-
 		// Get query embedding
 		const queryEmbedding = await embedding.textToVector(query);
 
@@ -417,13 +438,6 @@ export class SmartRetrievalFlow {
 
 		const nodeCandidateLimit = this.config.seed.nodeLimit * candidateMultiplier;
 		const targetNodeCount = this.config.seed.nodeLimit;
-
-		logInfo(`[SMART_RETRIEVAL][P1] Fetching candidates`, {
-			mmrEnabled: mmrConfig.enabled,
-			mmrMode: mmrConfig.enabled ? mmrConfig.mode : "disabled",
-			targetNodes: targetNodeCount,
-			candidateNodes: nodeCandidateLimit,
-		});
 
 		// Search for semantically relevant nodes (fetch more if MMR enabled)
 		const nodeResults = await vectorSearchNodes(
@@ -478,15 +492,6 @@ export class SmartRetrievalFlow {
 			avgEdgeSimilarity: this.average(edges.map((e) => e.semanticScore)),
 		};
 
-		logInfo("[SMART_RETRIEVAL][P1] Seed retrieval complete", {
-			nodes: nodes.length,
-			edges: edges.length,
-			candidates: nodeCandidates.length,
-			mmrApplied: mmrConfig.enabled && nodeCandidates.length > targetNodeCount,
-			avgNodeSim: this.stats.phase1.avgNodeSimilarity.toFixed(3),
-			avgEdgeSim: this.stats.phase1.avgEdgeSimilarity.toFixed(3),
-		});
-
 		return { nodes, edges, queryEmbedding };
 	}
 
@@ -497,7 +502,7 @@ export class SmartRetrievalFlow {
 	/**
 	 * Phase 2: Expand graph intelligently with semantic filtering
 	 */
-	private async phase2_SmartExpansion(
+	private async phaseSmartExpansion(
 		initialNodes: EnhancedNode[],
 		initialEdges: EnhancedEdge[],
 		queryEmbedding: number[],
@@ -507,8 +512,6 @@ export class SmartRetrievalFlow {
 		nodes: EnhancedNode[];
 		edges: EnhancedEdge[];
 	}> {
-		logInfo("[SMART_RETRIEVAL][P2] Starting smart graph expansion");
-
 		const allNodes = new Map<string, EnhancedNode>();
 		const allEdges = new Map<string, EnhancedEdge>();
 
@@ -523,23 +526,12 @@ export class SmartRetrievalFlow {
 		for (let level = 1; level <= this.config.expansion.maxLevels; level++) {
 			const threshold = this.config.expansion.levelThresholds[level - 1] ?? 0.2;
 
-			logInfo(
-				`[SMART_RETRIEVAL][P2] Expanding level ${level}/${this.config.expansion.maxLevels}`,
-				{
-					threshold,
-					currentNodes: allNodes.size,
-				},
-			);
-
 			// Get nodes from previous level
 			const currentLevelNodes = Array.from(allNodes.values()).filter(
 				(n) => n.level === level - 1,
 			);
 
 			if (currentLevelNodes.length === 0) {
-				logInfo(
-					`[SMART_RETRIEVAL][P2] No nodes at level ${level - 1}, stopping expansion`,
-				);
 				break;
 			}
 
@@ -574,15 +566,8 @@ export class SmartRetrievalFlow {
 			nodesPerLevel.push(newNodesCount);
 			edgesPerLevel.push(newEdgesCount);
 
-			logInfo(`[SMART_RETRIEVAL][P2] Level ${level} complete`, {
-				newNodes: newNodesCount,
-				newEdges: newEdgesCount,
-				totalNodes: allNodes.size,
-			});
-
 			// Early stopping if no new nodes added
 			if (newNodesCount === 0) {
-				logInfo(`[SMART_RETRIEVAL][P2] No new nodes added, stopping expansion`);
 				break;
 			}
 		}
@@ -594,12 +579,6 @@ export class SmartRetrievalFlow {
 			edgesPerLevel,
 			totalExpanded: allNodes.size - this.stats.phase1.seedNodes,
 		};
-
-		logInfo("[SMART_RETRIEVAL][P2] Graph expansion complete", {
-			totalNodes: allNodes.size,
-			totalEdges: allEdges.size,
-			levelsExpanded: nodesPerLevel.length,
-		});
 
 		return {
 			nodes: Array.from(allNodes.values()),
@@ -700,7 +679,7 @@ export class SmartRetrievalFlow {
 	/**
 	 * Phase 3: Verify completeness and fill gaps
 	 */
-	private async phase3_CompletenessCheck(
+	private async phaseCompletenessCheck(
 		nodes: EnhancedNode[],
 		edges: EnhancedEdge[],
 		query: string,
@@ -712,8 +691,6 @@ export class SmartRetrievalFlow {
 		edges: EnhancedEdge[];
 		queryComponents: QueryComponent[];
 	}> {
-		logInfo("[SMART_RETRIEVAL][P3] Starting completeness verification");
-
 		// Extract query components
 		const queryComponents = this.extractQueryComponents(query);
 
@@ -729,26 +706,13 @@ export class SmartRetrievalFlow {
 			const coverage = this.checkCoverage(currentNodes, queryComponents);
 			const coverageRatio = coverage.covered / coverage.total;
 
-			logInfo(
-				`[SMART_RETRIEVAL][P3] Coverage check (iteration ${iterations})`,
-				{
-					covered: coverage.covered,
-					total: coverage.total,
-					ratio: coverageRatio.toFixed(2),
-				},
-			);
-
 			// If complete, stop
 			if (coverageRatio >= this.config.completeness.threshold) {
-				logInfo("[SMART_RETRIEVAL][P3] Coverage threshold met, stopping");
 				break;
 			}
 
 			// Fill gaps for missing components
 			const missingComponents = queryComponents.filter((c) => !c.covered);
-			logInfo(
-				`[SMART_RETRIEVAL][P3] Filling gaps for ${missingComponents.length} components`,
-			);
 
 			for (const component of missingComponents) {
 				const gapResults = await this.fillGap(
@@ -792,12 +756,6 @@ export class SmartRetrievalFlow {
 			iterations,
 			gapsFilled: totalGapsFilled,
 		};
-
-		logInfo("[SMART_RETRIEVAL][P3] Completeness verification complete", {
-			finalCoverage: finalRatio.toFixed(2),
-			iterations,
-			gapsFilled: totalGapsFilled,
-		});
 
 		return {
 			nodes: currentNodes,
@@ -955,21 +913,454 @@ export class SmartRetrievalFlow {
 	}
 
 	// ============================================================================
+	// PHASE 5: POST-EXPANSION
+	// ============================================================================
+
+	/**
+	 * Post-expansion phase to connect standalone nodes and edges
+	 */
+	private async phasePostExpansion(
+		nodes: EnhancedNode[],
+		edges: EnhancedEdge[],
+		graphId: string | undefined,
+		database: IDatabaseService,
+	): Promise<{ nodes: EnhancedNode[]; edges: EnhancedEdge[] }> {
+		const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+		const edgeMap = new Map(edges.map((e) => [e.id, e]));
+
+		let iteration = 0;
+		let totalNodesAdded = 0;
+		let totalEdgesAdded = 0;
+
+		while (iteration < this.config.postExpansion.maxIterations) {
+			iteration++;
+
+			const standalone = this.findStandaloneItems(nodeMap, edgeMap);
+
+			if (standalone.nodeIds.length === 0 && standalone.edgeIds.length === 0) {
+				break;
+			}
+
+			// Expand nodes by querying connected edges
+			const expandedNodes = await this.expandNodesViaEdges(
+				standalone.nodeIds,
+				nodeMap,
+				graphId,
+				database,
+			);
+
+			// Expand edges by querying missing source/destination nodes
+			const expandedEdges = await this.expandEdgesViaNodes(
+				standalone.edgeIds,
+				edgeMap,
+				nodeMap,
+				graphId,
+				database,
+			);
+
+			// Merge and deduplicate
+			const added = this.mergeExpansionResults(
+				nodeMap,
+				edgeMap,
+				expandedNodes,
+				expandedEdges,
+			);
+
+			totalNodesAdded += added.nodes;
+			totalEdgesAdded += added.edges;
+
+			if (added.nodes === 0 && added.edges === 0) {
+				break;
+			}
+		}
+
+		this.stats.phase5 = {
+			iterations: iteration,
+			nodesAdded: totalNodesAdded,
+			edgesAdded: totalEdgesAdded,
+			standaloneNodesResolved: totalNodesAdded,
+			standaloneEdgesResolved: totalEdgesAdded,
+		};
+
+		return {
+			nodes: Array.from(nodeMap.values()).slice(
+				0,
+				this.config.output.maxNodes,
+			),
+			edges: Array.from(edgeMap.values()).slice(
+				0,
+				this.config.output.maxEdges,
+			),
+		};
+	}
+
+	/**
+	 * Find standalone nodes and edges
+	 */
+	private findStandaloneItems(
+		nodeMap: Map<string, EnhancedNode>,
+		edgeMap: Map<string, EnhancedEdge>,
+	): { nodeIds: string[]; edgeIds: string[] } {
+		const nodeConnections = new Map<string, number>();
+		nodeMap.forEach((_, id) => nodeConnections.set(id, 0));
+
+		edgeMap.forEach((edge) => {
+			if (nodeMap.has(edge.sourceId) && nodeMap.has(edge.destinationId)) {
+				nodeConnections.set(
+					edge.sourceId,
+					(nodeConnections.get(edge.sourceId) ?? 0) + 1,
+				);
+				nodeConnections.set(
+					edge.destinationId,
+					(nodeConnections.get(edge.destinationId) ?? 0) + 1,
+				);
+			}
+		});
+
+		const standaloneNodes = Array.from(nodeConnections.entries())
+			.filter(([_, count]) => count === 0)
+			.map(([id]) => id);
+
+		const standaloneEdges = Array.from(edgeMap.values())
+			.filter(
+				(edge) =>
+					!nodeMap.has(edge.sourceId) || !nodeMap.has(edge.destinationId),
+			)
+			.map((edge) => edge.id);
+
+		return { nodeIds: standaloneNodes, edgeIds: standaloneEdges };
+	}
+
+	/**
+	 * Expand standalone nodes by fetching connected edges
+	 */
+	private async expandNodesViaEdges(
+		standaloneNodeIds: string[],
+		existingNodes: Map<string, EnhancedNode>,
+		graphId: string | undefined,
+		database: IDatabaseService,
+	): Promise<{ nodes: EnhancedNode[]; edges: EnhancedEdge[] }> {
+		if (standaloneNodeIds.length === 0) {
+			return { nodes: [], edges: [] };
+		}
+
+		const maxEdges = this.config.postExpansion.maxEdgesPerIteration;
+
+		const result = await database.use(async ({ db, schema }) => {
+			const edges = await db
+				.select()
+				.from(schema.edges)
+				.where(
+					and(
+						or(
+							inArray(schema.edges.sourceId, standaloneNodeIds),
+							inArray(schema.edges.destinationId, standaloneNodeIds),
+						),
+						getScopedGraphWhere({ graphId }, schema.edges.graph),
+					),
+				)
+				.limit(maxEdges);
+
+			// Fallback: try without graphId filter if no results
+			const edgesFound =
+				edges.length === 0
+					? await db
+							.select()
+							.from(schema.edges)
+							.where(
+								or(
+									inArray(schema.edges.sourceId, standaloneNodeIds),
+									inArray(schema.edges.destinationId, standaloneNodeIds),
+								),
+							)
+							.limit(maxEdges)
+					: edges;
+
+			// Collect missing node IDs
+			const missingNodeIds = new Set<string>();
+			edgesFound.forEach((edge) => {
+				if (edge.sourceId && !existingNodes.has(edge.sourceId)) {
+					missingNodeIds.add(edge.sourceId);
+				}
+				if (edge.destinationId && !existingNodes.has(edge.destinationId)) {
+					missingNodeIds.add(edge.destinationId);
+				}
+			});
+
+			const nodes =
+				missingNodeIds.size > 0
+					? await db
+							.select()
+							.from(schema.nodes)
+							.where(inArray(schema.nodes.id, Array.from(missingNodeIds)))
+					: [];
+
+			return { edges: edgesFound, nodes };
+		});
+
+		return {
+			nodes: result.nodes.map((n) => this.toEnhancedNode(n, 0.3, -1, "expansion")),
+			edges: result.edges
+				.filter((e) => e.sourceId && e.destinationId)
+				.map((e) => this.toEnhancedEdge(e, 0.4, -1, "expansion")),
+		};
+	}
+
+	/**
+	 * Expand standalone edges by fetching missing nodes
+	 */
+	private async expandEdgesViaNodes(
+		standaloneEdgeIds: string[],
+		edgeMap: Map<string, EnhancedEdge>,
+		existingNodes: Map<string, EnhancedNode>,
+		graphId: string | undefined,
+		database: IDatabaseService,
+	): Promise<{ nodes: EnhancedNode[]; edges: EnhancedEdge[] }> {
+		if (standaloneEdgeIds.length === 0) {
+			return { nodes: [], edges: [] };
+		}
+
+		const missingNodeIds = new Set<string>();
+		standaloneEdgeIds.forEach((edgeId) => {
+			const edge = edgeMap.get(edgeId);
+			if (!edge) return;
+
+			if (!existingNodes.has(edge.sourceId)) {
+				missingNodeIds.add(edge.sourceId);
+			}
+			if (!existingNodes.has(edge.destinationId)) {
+				missingNodeIds.add(edge.destinationId);
+			}
+		});
+
+		if (missingNodeIds.size === 0) {
+			return { nodes: [], edges: [] };
+		}
+
+		const result = await database.use(async ({ db, schema }) => {
+			const nodes = await db
+				.select()
+				.from(schema.nodes)
+				.where(inArray(schema.nodes.id, Array.from(missingNodeIds)));
+
+			return { nodes };
+		});
+
+		return {
+			nodes: result.nodes.map((n) =>
+				this.toEnhancedNode(n, 0.3, -1, "expansion"),
+			),
+			edges: [],
+		};
+	}
+
+	/**
+	 * Merge expansion results and remove duplicates
+	 */
+	private mergeExpansionResults(
+		nodeMap: Map<string, EnhancedNode>,
+		edgeMap: Map<string, EnhancedEdge>,
+		expandedNodes: { nodes: EnhancedNode[]; edges: EnhancedEdge[] },
+		expandedEdges: { nodes: EnhancedNode[]; edges: EnhancedEdge[] },
+	): { nodes: number; edges: number } {
+		let nodesAdded = 0;
+		let edgesAdded = 0;
+
+		// Add nodes from both expansions
+		[...expandedNodes.nodes, ...expandedEdges.nodes].forEach((node) => {
+			if (!nodeMap.has(node.id)) {
+				nodeMap.set(node.id, node);
+				nodesAdded++;
+			}
+		});
+
+		// Add edges from both expansions
+		[...expandedNodes.edges, ...expandedEdges.edges].forEach((edge) => {
+			if (!edgeMap.has(edge.id)) {
+				edgeMap.set(edge.id, edge);
+				edgesAdded++;
+			}
+		});
+
+		return { nodes: nodesAdded, edges: edgesAdded };
+	}
+
+	/**
+	 * Grow from standalone edges by fetching missing nodes
+	 */
+	private async growFromStandaloneEdges(
+		standaloneEdges: EnhancedEdge[],
+		existingNodeIds: Set<string>,
+		graphId: string | undefined,
+		database: IDatabaseService,
+	): Promise<{
+		nodes: EnhancedNode[];
+		edges: EnhancedEdge[];
+	}> {
+		// Collect missing node IDs from standalone edges
+		const missingNodeIds = new Set<string>();
+		standaloneEdges.forEach((edge) => {
+			if (!existingNodeIds.has(edge.sourceId)) {
+				missingNodeIds.add(edge.sourceId);
+			}
+			if (!existingNodeIds.has(edge.destinationId)) {
+				missingNodeIds.add(edge.destinationId);
+			}
+		});
+
+		if (missingNodeIds.size === 0) {
+			return { nodes: [], edges: [] };
+		}
+
+		const missingNodeIdsArray = Array.from(missingNodeIds);
+
+		try {
+			// Fetch missing nodes
+			const result = await database.use(async ({ db, schema }) => {
+				const nodes = await db
+					.select()
+					.from(schema.nodes)
+					.where(inArray(schema.nodes.id, missingNodeIdsArray));
+
+				// Fetch edges connected to these nodes (N levels) - be AGGRESSIVE
+				const connectedEdges = await db
+					.select()
+					.from(schema.edges)
+					.where(
+						and(
+							or(
+								inArray(schema.edges.sourceId, missingNodeIdsArray),
+								inArray(schema.edges.destinationId, missingNodeIdsArray),
+							),
+							getScopedGraphWhere({ graphId }, schema.edges.graph),
+						),
+					)
+					.limit(this.config.postExpansion.maxEdgesPerIteration * 3); // Fetch 3x more
+
+				return { nodes, edges: connectedEdges };
+			});
+
+			const enhancedNodes = result.nodes.map((node) =>
+				this.toEnhancedNode(node, 0.3, -1, "expansion"),
+			);
+
+			const enhancedEdges = result.edges
+				.filter((edge) => edge.sourceId && edge.destinationId)
+				.map((edge) => this.toEnhancedEdge(edge, 0.3, -1, "expansion"));
+
+			return {
+				nodes: enhancedNodes,
+				edges: enhancedEdges,
+			};
+		} catch (error) {
+			logError("[SMART_RETRIEVAL][P5] Failed to grow from standalone edges:", error);
+			return { nodes: [], edges: [] };
+		}
+	}
+
+	/**
+	 * Grow from standalone nodes by fetching their connections
+	 */
+	private async growFromStandaloneNodes(
+		standaloneNodes: EnhancedNode[],
+		graphId: string | undefined,
+		database: IDatabaseService,
+	): Promise<{
+		nodes: EnhancedNode[];
+		edges: EnhancedEdge[];
+	}> {
+		const standaloneNodeIds = standaloneNodes.map((n) => n.id);
+
+		try {
+			// First, let's see ALL edges for these nodes (without graphId filter)
+			const debugResult = await database.use(async ({ db, schema }) => {
+				const allEdges = await db
+					.select()
+					.from(schema.edges)
+					.where(
+						or(
+							inArray(schema.edges.sourceId, standaloneNodeIds),
+							inArray(schema.edges.destinationId, standaloneNodeIds),
+						),
+					)
+					.limit(200);
+				return allEdges;
+			});
+
+			// Now fetch with graphId filter
+			const result = await database.use(async ({ db, schema }) => {
+				const connectedEdges = await db
+					.select()
+					.from(schema.edges)
+					.where(
+						and(
+							or(
+								inArray(schema.edges.sourceId, standaloneNodeIds),
+								inArray(schema.edges.destinationId, standaloneNodeIds),
+							),
+							getScopedGraphWhere({ graphId }, schema.edges.graph),
+						),
+					)
+					.limit(this.config.postExpansion.maxEdgesPerIteration * 2); // Fetch 2x more
+
+				// Collect node IDs from edges
+				const connectedNodeIds = new Set<string>();
+				connectedEdges.forEach((edge) => {
+					if (edge.sourceId) connectedNodeIds.add(edge.sourceId);
+					if (edge.destinationId) connectedNodeIds.add(edge.destinationId);
+				});
+
+				// Remove standalone node IDs (we already have them)
+				standaloneNodeIds.forEach((id) => connectedNodeIds.delete(id));
+
+				const nodeIdsToFetch = Array.from(connectedNodeIds);
+
+				// Fetch the connected nodes
+				const connectedNodes =
+					nodeIdsToFetch.length > 0
+						? await db
+								.select()
+								.from(schema.nodes)
+								.where(inArray(schema.nodes.id, nodeIdsToFetch))
+						: [];
+
+				return { nodes: connectedNodes, edges: connectedEdges };
+			});
+
+			const enhancedNodes = result.nodes.map((node) =>
+				this.toEnhancedNode(node, 0.3, -1, "expansion"),
+			);
+
+			const enhancedEdges = result.edges
+				.filter((edge) => edge.sourceId && edge.destinationId)
+				.map((edge) => this.toEnhancedEdge(edge, 0.3, -1, "expansion"));
+
+			return {
+				nodes: enhancedNodes,
+				edges: enhancedEdges,
+			};
+		} catch (error) {
+			logError("[SMART_RETRIEVAL][P5] Failed to grow from standalone nodes:", error);
+			return { nodes: [], edges: [] };
+		}
+	}
+
+	// ============================================================================
 	// PHASE 4: MULTI-FACTOR RE-RANKING
 	// ============================================================================
 
 	/**
 	 * Phase 4: Re-rank using multiple factors
 	 */
-	private async phase4_ReRanking(
+	private async phaseReRanking(
 		nodes: EnhancedNode[],
 		edges: EnhancedEdge[],
+		graphId: string | undefined,
+		database: IDatabaseService,
 	): Promise<{
 		nodes: EnhancedNode[];
 		edges: EnhancedEdge[];
 	}> {
-		logInfo("[SMART_RETRIEVAL][P4] Starting multi-factor re-ranking");
-
 		// Calculate graph metrics
 		const graphMetrics = this.calculateGraphMetrics(nodes, edges);
 
@@ -998,35 +1389,162 @@ export class SmartRetrievalFlow {
 		// Take top N nodes
 		const topNodes = scoredNodes.slice(0, this.config.output.maxNodes);
 
-		// Filter edges to only include those connecting top nodes
+		// Filter edges to include those connecting ANY of the top nodes (not just both ends)
 		const topNodeIds = new Set(topNodes.map((n) => n.id));
 		const filteredEdges = edges.filter(
 			(edge) =>
-				topNodeIds.has(edge.sourceId) && topNodeIds.has(edge.destinationId),
+				topNodeIds.has(edge.sourceId) || topNodeIds.has(edge.destinationId),
 		);
 
+		// Fetch additional edges and grow from nodes to improve connectivity
+		const additionalEdges = await this.fetchMissingEdges(
+			topNodes.map((n) => n.id),
+			filteredEdges,
+			graphId,
+			database,
+		);
+
+		// Combine filtered edges with additional edges
+		const allEdges = [...filteredEdges, ...additionalEdges];
+
+		// Remove duplicate edges
+		const uniqueEdgesMap = new Map<string, EnhancedEdge>();
+		allEdges.forEach((edge) => uniqueEdgesMap.set(edge.id, edge));
+		const uniqueEdges = Array.from(uniqueEdgesMap.values());
+
+		// Collect all node IDs referenced by edges (including new nodes from grown edges)
+		const allReferencedNodeIds = new Set<string>();
+		uniqueEdges.forEach((edge) => {
+			allReferencedNodeIds.add(edge.sourceId);
+			allReferencedNodeIds.add(edge.destinationId);
+		});
+
+		// Add any new nodes that were discovered through edge growth
+		const existingNodeIds = new Set(nodes.map((n) => n.id));
+		const newNodeIds = Array.from(allReferencedNodeIds).filter(
+			(id) => !existingNodeIds.has(id),
+		);
+
+		// Fetch the new nodes from database if any
+		let finalNodes: typeof topNodes = topNodes;
+		if (newNodeIds.length > 0) {
+			try {
+				const newNodesFromDb = await database.use(async ({ db, schema }) => {
+					return await db
+						.select()
+						.from(schema.nodes)
+						.where(inArray(schema.nodes.id, newNodeIds));
+				});
+
+				// Convert to EnhancedNode and add to finalNodes
+				const enhancedNewNodes: typeof topNodes = newNodesFromDb.map((node) => {
+					const enhancedNode = this.toEnhancedNode(node, 0.3, -1, "expansion");
+					// Add default scoring properties to match topNodes structure
+					return {
+						...enhancedNode,
+						centralityScore: 0 as number,
+						edgeDensity: 0 as number,
+						finalScore: 0.3 as number,
+					};
+				});
+
+				// Combine and limit total nodes
+				const allNodes: typeof topNodes = [...topNodes, ...enhancedNewNodes];
+				finalNodes = allNodes.slice(0, this.config.output.maxNodes);
+
+			} catch (error) {
+				logError("[SMART_RETRIEVAL][P4] Failed to fetch new nodes:", error);
+			}
+		}
+
 		// Sort edges by semantic score and take top N
-		filteredEdges.sort((a, b) => b.semanticScore - a.semanticScore);
-		const topEdges = filteredEdges.slice(0, this.config.output.maxEdges);
+		uniqueEdges.sort((a, b) => b.semanticScore - a.semanticScore);
+		const topEdges = uniqueEdges.slice(0, this.config.output.maxEdges);
 
 		// Update stats
-		const avgScore = this.average(topNodes.map((n) => n.finalScore ?? 0));
+		const avgScore = this.average(finalNodes.map((n) => n.finalScore ?? 0));
 		this.stats.phase4 = {
-			finalNodes: topNodes.length,
+			finalNodes: finalNodes.length,
 			finalEdges: topEdges.length,
 			avgFinalScore: avgScore,
 		};
 
-		logInfo("[SMART_RETRIEVAL][P4] Re-ranking complete", {
-			nodes: topNodes.length,
-			edges: topEdges.length,
-			avgScore: avgScore.toFixed(3),
-		});
-
 		return {
-			nodes: topNodes,
+			nodes: finalNodes,
 			edges: topEdges,
 		};
+	}
+
+	/**
+	 * Fetch missing edges and grow from nodes to improve connectivity
+	 * Strategy:
+	 * 1. Fetch edges where at least ONE end is in our node set (grow outward)
+	 * 2. Fetch edges connecting standalone nodes (bridge gaps)
+	 * 3. Add new nodes discovered through edges
+	 */
+	private async fetchMissingEdges(
+		nodeIds: string[],
+		existingEdges: EnhancedEdge[],
+		graphId: string | undefined,
+		database: IDatabaseService,
+	): Promise<EnhancedEdge[]> {
+		if (nodeIds.length < 1) {
+			return [];
+		}
+
+		// Check current connectivity
+		const currentEdgeCount = existingEdges.filter(
+			(edge) =>
+				nodeIds.includes(edge.sourceId) && nodeIds.includes(edge.destinationId),
+		).length;
+
+		// Target: at least 2-3x edges as nodes for good connectivity
+		const minDesiredEdges = nodeIds.length * 2;
+
+		try {
+			const result = await database.use(async ({ db, schema }) => {
+				// Strategy 1: Fetch edges where at least ONE end is in our node set
+				// This allows us to grow outward from our existing nodes
+				const outwardEdges = await db
+					.select()
+					.from(schema.edges)
+					.where(
+						and(
+							or(
+								inArray(schema.edges.sourceId, nodeIds),
+								inArray(schema.edges.destinationId, nodeIds),
+							),
+							getScopedGraphWhere({ graphId }, schema.edges.graph),
+						),
+					)
+					.limit(this.config.output.maxEdges * 3); // Fetch 3x more candidates for better connectivity
+
+				return { outwardEdges };
+			});
+
+			// Filter out edges we already have
+			const existingEdgeIds = new Set(existingEdges.map((e) => e.id));
+			const newEdges = result.outwardEdges.filter(
+				(edge) => !existingEdgeIds.has(edge.id),
+			);
+
+			// Convert to EnhancedEdge format
+			const enhancedEdges: EnhancedEdge[] = newEdges
+				.filter((edge) => edge.sourceId && edge.destinationId)
+				.map((edge) => {
+					// Higher score for edges connecting our existing nodes
+					const score =
+						nodeIds.includes(edge.sourceId) && nodeIds.includes(edge.destinationId)
+							? 0.6
+							: 0.4;
+					return this.toEnhancedEdge(edge, score, -1, "expansion");
+				});
+
+			return enhancedEdges;
+		} catch (error) {
+			logError("[SMART_RETRIEVAL][P4] Failed to fetch missing edges:", error);
+			return [];
+		}
 	}
 
 	/**
@@ -1095,12 +1613,6 @@ export class SmartRetrievalFlow {
 			return { nodes: [], edges: [] };
 		}
 
-		logInfo("[SMART_RETRIEVAL][CORE] Retrieving core context knowledge", {
-			contextQuery: coreContext.substring(0, 100),
-			nodeLimit: this.config.topic.nodeLimit,
-			mmrMode: this.config.topic.mmrMode,
-		});
-
 		// Embed core context for semantic search
 		const contextEmbedding = await embedding.textToVector(coreContext);
 
@@ -1163,12 +1675,6 @@ export class SmartRetrievalFlow {
 				this.toEnhancedEdge(result.item, result.similarity, -2, "seed"),
 			);
 
-		logInfo("[SMART_RETRIEVAL][CORE] Core context knowledge retrieved", {
-			nodes: nodes.length,
-			edges: edges.length,
-			avgSimilarity: this.average(nodes.map((n) => n.semanticScore)).toFixed(3),
-		});
-
 		return { nodes, edges };
 	}
 
@@ -1224,14 +1730,6 @@ export class SmartRetrievalFlow {
 		const mergedNodes = Array.from(nodeMap.values());
 		const mergedEdges = Array.from(edgeMap.values());
 
-		logInfo("[SMART_RETRIEVAL][MERGE] Merged task and topic knowledge", {
-			taskNodes: taskNodes.length,
-			topicNodes: topicNodes.length,
-			mergedNodes: mergedNodes.length,
-			duplicateNodes,
-			duplicateEdges,
-		});
-
 		return {
 			nodes: mergedNodes,
 			edges: mergedEdges,
@@ -1259,7 +1757,7 @@ export class SmartRetrievalFlow {
 	}> {
 		// TASK-BASED RETRIEVAL (always performed)
 		// Phase 1: Semantic Seed Retrieval
-		const phase1 = await this.phase1_SemanticSeed(
+		const phase1 = await this.phaseSemanticSeed(
 			query,
 			graphId,
 			database,
@@ -1267,7 +1765,7 @@ export class SmartRetrievalFlow {
 		);
 
 		// Phase 2: Smart Graph Expansion
-		const phase2 = await this.phase2_SmartExpansion(
+		const phase2 = await this.phaseSmartExpansion(
 			phase1.nodes,
 			phase1.edges,
 			phase1.queryEmbedding,
@@ -1276,7 +1774,7 @@ export class SmartRetrievalFlow {
 		);
 
 		// Phase 3: Completeness Verification
-		const phase3 = await this.phase3_CompletenessCheck(
+		const phase3 = await this.phaseCompletenessCheck(
 			phase2.nodes,
 			phase2.edges,
 			query,
@@ -1291,10 +1789,6 @@ export class SmartRetrievalFlow {
 
 		if (coreContext && this.config.topic?.enabled) {
 			try {
-				logInfo("[SMART_RETRIEVAL] Performing dual retrieval (task + core)", {
-					coreContext: coreContext.substring(0, 100),
-				});
-
 				const coreKnowledge = await this.retrieveCoreContext(
 					coreContext,
 					graphId,
@@ -1322,12 +1816,6 @@ export class SmartRetrievalFlow {
 					mergedEdges: merged.edges.length,
 					duplicatesRemoved: merged.duplicatesRemoved,
 				};
-
-				logInfo("[SMART_RETRIEVAL] Dual retrieval complete", {
-					taskOnly: phase3.nodes.length,
-					coreAdded: coreKnowledge.nodes.length,
-					finalMerged: merged.nodes.length,
-				});
 			} catch (error) {
 				logError(
 					"[SMART_RETRIEVAL] Topic retrieval failed, using task-only results:",
@@ -1344,9 +1832,6 @@ export class SmartRetrievalFlow {
 				};
 			}
 		} else {
-			logInfo(
-				"[SMART_RETRIEVAL] Task-only retrieval (no graphId or topic disabled)",
-			);
 			this.stats.topic = {
 				enabled: false,
 				topicNodes: 0,
@@ -1358,11 +1843,27 @@ export class SmartRetrievalFlow {
 		}
 
 		// Phase 4: Multi-Factor Re-Ranking (on merged results)
-		const phase4 = await this.phase4_ReRanking(finalNodes, finalEdges);
+		const phase4 = await this.phaseReRanking(
+			finalNodes,
+			finalEdges,
+			graphId,
+			database,
+		);
+
+		// Phase 5: Post-Expansion to connect standalone nodes/edges
+		let finalResult = { nodes: phase4.nodes, edges: phase4.edges };
+		if (this.config.postExpansion.enabled) {
+			finalResult = await this.phasePostExpansion(
+				phase4.nodes,
+				phase4.edges,
+				graphId,
+				database,
+			);
+		}
 
 		return {
-			nodes: phase4.nodes,
-			edges: phase4.edges,
+			nodes: finalResult.nodes,
+			edges: finalResult.edges,
 			queryComponents: phase3.queryComponents,
 		};
 	}
@@ -1491,29 +1992,11 @@ export class SmartRetrievalFlow {
 
 		const lambda = this.getMMRLambda(mmrConfig);
 
-		logInfo(
-			`[SMART_RETRIEVAL][MMR] Applying MMR to ${nodes.length} candidates`,
-			{
-				mode: mmrConfig.mode,
-				lambda,
-				targetCount,
-			},
-		);
-
 		const diverseNodes = this.applyMMR(
 			nodes,
 			queryEmbedding,
 			targetCount,
 			lambda,
-		);
-
-		logInfo(
-			`[SMART_RETRIEVAL][MMR] Selected ${diverseNodes.length} diverse nodes`,
-			{
-				avgSimilarity: this.average(
-					diverseNodes.map((n) => n.semanticScore),
-				).toFixed(3),
-			},
 		);
 
 		return diverseNodes;
@@ -1688,6 +2171,10 @@ export class SmartRetrievalFlow {
 			completeness: { ...defaults.completeness, ...overrides.completeness },
 			ranking: { ...defaults.ranking, ...overrides.ranking },
 			output: { ...defaults.output, ...overrides.output },
+			postExpansion: {
+				...defaults.postExpansion,
+				...overrides.postExpansion,
+			},
 			topic: overrides.topic
 				? { ...defaults.topic, ...overrides.topic }
 				: defaults.topic,
@@ -1729,10 +2216,20 @@ export class SmartRetrievalFlow {
 	 * Format retrieval description for actions
 	 */
 	private formatRetrievalDescription(): string {
-		const { phase1, phase2, phase3, phase4, topic } = this.stats;
+		const { phase1, phase2, phase3, phase4, phase5, topic } = this.stats;
+
+		// Use Phase 5 final counts if available, otherwise Phase 4
+		const finalNodeCount = phase4.finalNodes + (phase5?.nodesAdded ?? 0);
+		const finalEdgeCount = phase4.finalEdges + (phase5?.edgesAdded ?? 0);
+
+		// Calculate edge growth rate
+		const edgeGrowthRate =
+			phase1.seedEdges > 0
+				? ((finalEdgeCount - phase1.seedEdges) / phase1.seedEdges) * 100
+				: 0;
 
 		const lines = [
-			`Smart Hybrid Retrieval: ${phase4.finalNodes} nodes, ${phase4.finalEdges} edges`,
+			`Smart Hybrid Retrieval: ${finalNodeCount} nodes, ${finalEdgeCount} edges`,
 			`• Phase 1: ${phase1.seedNodes} seed nodes (avg sim: ${phase1.avgNodeSimilarity.toFixed(2)})`,
 			`• Phase 2: ${phase2.levelsExpanded} levels, +${phase2.totalExpanded} nodes`,
 			`• Phase 3: ${(phase3.coverage * 100).toFixed(0)}% coverage, ${phase3.gapsFilled} gaps filled`,
@@ -1745,7 +2242,16 @@ export class SmartRetrievalFlow {
 			);
 		}
 
-		lines.push(`• Phase 4: avg score ${phase4.avgFinalScore.toFixed(2)}`);
+		lines.push(
+			`• Phase 4: avg score ${phase4.avgFinalScore.toFixed(2)} (edges: ${phase1.seedEdges} → ${phase4.finalEdges}, +${edgeGrowthRate.toFixed(0)}%)`,
+		);
+
+		// Add Phase 5 info if enabled
+		if (phase5) {
+			lines.push(
+				`• Phase 5: ${phase5.iterations} iterations, +${phase5.nodesAdded} nodes, +${phase5.edgesAdded} edges (${phase5.standaloneNodesResolved} standalone nodes, ${phase5.standaloneEdgesResolved} standalone edges resolved)`,
+			);
+		}
 
 		return lines.join("\n");
 	}

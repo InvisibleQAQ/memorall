@@ -771,7 +771,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 						name: node.name,
 						nodeType: node.nodeType,
 						summary: node.summary || undefined,
-						group: hash(node.nodeType) % 6,
+						group: hash(node.nodeType || "default") % 6,
 						radius: NODE_RADIUS[node.nodeType] || NODE_RADIUS.default,
 						x:
 							400 +
@@ -833,7 +833,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 				name: node.name,
 				nodeType: node.nodeType,
 				summary: node.summary || undefined,
-				group: hash(node.nodeType) % 6,
+				group: hash(node.nodeType || "default") % 6,
 				radius: NODE_RADIUS[node.nodeType] || NODE_RADIUS.default,
 				x: 400 + Math.cos((index * 2 * Math.PI) / nodes.length) * 150,
 				y: 300 + Math.sin((index * 2 * Math.PI) / nodes.length) * 150,

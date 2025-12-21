@@ -7,7 +7,7 @@ import {
 import { GraphBase } from "@/services/flows/interfaces/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ChatMessage } from "@/types/openai";
-import { logError, logInfo } from "@/utils/logger";
+import { logError, logInfo, logWarn } from "@/utils/logger";
 import { flowRegistry } from "../../flow-registry";
 import { RetrievalContextFlow } from "./retrieval";
 import { QuickRetrievalContextFlow } from "./quick-retrieval";
@@ -145,7 +145,37 @@ export class KnowledgeRAGFlow extends GraphBase<
 				"[KNOWLEDGE_RAG] Building knowledge context in natural language format",
 			);
 
+			// DEBUG: Log what we received in state
+			logInfo("[KNOWLEDGE_RAG] State received in buildContextNode:", {
+				relevantNodesCount: state.relevantNodes?.length ?? 0,
+				relevantEdgesCount: state.relevantEdges?.length ?? 0,
+				hasNodes: !!state.relevantNodes,
+				hasEdges: !!state.relevantEdges,
+				firstNode: state.relevantNodes?.[0]
+					? {
+							id: state.relevantNodes[0].id,
+							name: state.relevantNodes[0].name,
+						}
+					: null,
+				firstEdge: state.relevantEdges?.[0]
+					? {
+							id: state.relevantEdges[0].id,
+							sourceId: state.relevantEdges[0].sourceId,
+							destinationId: state.relevantEdges[0].destinationId,
+						}
+					: null,
+			});
+
 			if (!state.relevantNodes?.length || !state.relevantEdges?.length) {
+				logWarn(
+					"[KNOWLEDGE_RAG] No nodes or edges in state, returning empty context",
+					{
+						hasNodes: !!state.relevantNodes,
+						hasEdges: !!state.relevantEdges,
+						nodesLength: state.relevantNodes?.length,
+						edgesLength: state.relevantEdges?.length,
+					},
+				);
 				return {
 					knowledgeContext: "",
 					next: "generate_response",
@@ -183,6 +213,22 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 				edgesCount: state.relevantEdges.length,
 			});
 
+			// DEBUG: Log the action metadata before returning
+			const actionMetadata = {
+				nodes: state.relevantNodes,
+				edges: state.relevantEdges,
+			};
+			logInfo("[KNOWLEDGE_RAG] Creating knowledge_graph action:", {
+				nodesInMetadata: actionMetadata.nodes.length,
+				edgesInMetadata: actionMetadata.edges.length,
+				firstNodeInMetadata: actionMetadata.nodes[0]
+					? {
+							id: actionMetadata.nodes[0].id,
+							name: actionMetadata.nodes[0].name,
+						}
+					: null,
+			});
+
 			return {
 				knowledgeContext,
 				next: "generate_response",
@@ -191,10 +237,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 						id: crypto.randomUUID(),
 						name: "knowledge_graph",
 						description: `Retrieved ${state.relevantNodes.length} nodes and ${state.relevantEdges.length} edges`,
-						metadata: {
-							nodes: state.relevantNodes,
-							edges: state.relevantEdges,
-						},
+						metadata: actionMetadata,
 					},
 					{
 						id: crypto.randomUUID(),

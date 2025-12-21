@@ -150,6 +150,15 @@ class DocumentStorageService {
 	}
 
 	/**
+	 * Public method to force cache invalidation
+	 * Use this when you want to ensure fresh data is loaded (e.g., when opening a page)
+	 */
+	public forceRefresh(): void {
+		logInfo("🔄 Force refreshing document storage cache");
+		this.invalidateCache();
+	}
+
+	/**
 	 * Handle filesystem change messages from other contexts
 	 * IMPORTANT: Must not return a value or return undefined for synchronous handling
 	 * Returning true would indicate async response, but we handle everything sync
@@ -217,44 +226,41 @@ class DocumentStorageService {
 		// Normalize slashes
 		fullPath = fullPath.replace(/\\/g, "/");
 
-		// Remove empty segments
+		// Remove empty segments and rebuild path
 		const segments = fullPath.split("/").filter(Boolean);
 
 		if (segments.length === 0) return;
 
-		// Detect if the last segment is likely a file → remove it
-		const last = segments[segments.length - 1];
-		if (last.includes(".") && !last.startsWith(".")) {
-			segments.pop();
-		}
+		// Reconstruct normalized path
+		const normalizedPath = "/" + segments.join("/");
 
-		if (segments.length === 0) return;
+		try {
+			// Try to stat the path first
+			const stat = await fs.promises.stat(normalizedPath);
 
-		let current = "";
+			// If exists but is NOT directory → error
+			if (!stat.isDirectory()) {
+				throw new Error(`Path exists but is not a directory: ${normalizedPath}`);
+			}
 
-		for (const seg of segments) {
-			current += `/${seg}`;
-
-			try {
-				// Check if exists
-				const stat = await fs.promises.stat(current);
-
-				// If exists but is NOT directory → error
-				if (!stat.isDirectory()) {
-					throw new Error(`Path exists but is not a directory: ${current}`);
-				}
-			} catch (err: any) {
-				// ENOENT → create directory
-				if (err?.code === "ENOENT") {
-					try {
-						await fs.promises.mkdir(current, { recursive: true });
-					} catch (mkErr: any) {
-						// Ignore race EEXIST
-						if (mkErr?.code !== "EEXIST") throw mkErr;
+			// Directory already exists, we're done
+			return;
+		} catch (err: any) {
+			// If directory doesn't exist, create it
+			if (err?.code === "ENOENT") {
+				try {
+					await fs.promises.mkdir(normalizedPath, { recursive: true });
+					logInfo(`📁 Created directory: ${normalizedPath}`);
+				} catch (mkErr: any) {
+					// Ignore if directory was created by another process (race condition)
+					if (mkErr?.code !== "EEXIST") {
+						logError(`Failed to create directory ${normalizedPath}:`, mkErr);
+						throw mkErr;
 					}
-				} else {
-					throw err;
 				}
+			} else {
+				// Other error, rethrow
+				throw err;
 			}
 		}
 	}
@@ -339,6 +345,10 @@ class DocumentStorageService {
 			// Read file as ArrayBuffer
 			const arrayBuffer = await file.arrayBuffer();
 			const uint8Array = new Uint8Array(arrayBuffer);
+
+			// Double-check directory exists before writing (safety measure)
+			const dirPath = fullPath.substring(0, fullPath.lastIndexOf("/"));
+			await this.ensureDirectory(dirPath);
 
 			// Write file to filesystem (directory already ensured above)
 			await fs.promises.writeFile(fullPath, uint8Array);

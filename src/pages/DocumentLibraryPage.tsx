@@ -125,6 +125,11 @@ export const DocumentLibraryPage: React.FC = () => {
 		try {
 			setLoading(true);
 			await documentStorageService.initialize();
+
+			// Force refresh cache to ensure we load fresh data when page opens
+			// This prevents showing stale cached data from previous sessions
+			documentStorageService.forceRefresh();
+
 			await Promise.all([loadTree(), loadTopics()]);
 			setError(null);
 		} catch (err) {

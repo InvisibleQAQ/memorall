@@ -311,21 +311,50 @@ export class BackgroundJob {
 		try {
 			// Check if chrome API is available
 			if (typeof chrome !== "undefined" && chrome.runtime) {
-				// Listen for progress updates
+				// First, set up the message listener before sending INITIAL
+				// This ensures we don't miss any progress updates
 				chrome.runtime.onMessage.addListener(messageListener);
 
-				// Send INITIAL message to trigger offscreen initialization
+				// Then check if offscreen is already initialized
+				// Send INITIAL message with response handler to get current state
 				try {
-					await chrome.runtime.sendMessage({ type: "INITIAL" });
-					logInfo("📋 Sent INITIAL message to offscreen");
-				} catch (error) {
-					logError("Failed to send INITIAL message:", error);
-					controller.enqueue({
-						stage: "Failed to initialize",
-						progress: 0,
-						status: "error",
+					const response = await new Promise<any>((resolve, reject) => {
+						const timeout = setTimeout(() => {
+							reject(new Error("Timeout waiting for INITIAL response"));
+						}, 5000);
+
+						chrome.runtime.sendMessage(
+							{ type: "INITIAL" },
+							(response) => {
+								clearTimeout(timeout);
+								if (chrome.runtime.lastError) {
+									reject(chrome.runtime.lastError);
+								} else {
+									resolve(response);
+								}
+							},
+						);
 					});
-					controller.close();
+
+					logInfo("📋 Received INITIAL response:", response);
+
+					// Check if offscreen is already initialized
+					if (response?.currentProgress?.done) {
+						logInfo("✅ Offscreen already initialized - completing immediately");
+						controller.enqueue({
+							stage: response.currentProgress.status || "Ready",
+							progress: response.currentProgress.progress || 100,
+							status: "completed",
+						});
+						controller.close();
+						chrome.runtime.onMessage.removeListener(messageListener);
+					} else {
+						// Not done yet, will wait for progress updates via messageListener
+						logInfo("⏳ Waiting for offscreen initialization to complete...");
+					}
+				} catch (error) {
+					logInfo("📋 INITIAL message sent (waiting for progress updates):", error);
+					// Continue waiting for progress updates via messageListener
 				}
 			} else {
 				// If chrome API not available, simulate completion

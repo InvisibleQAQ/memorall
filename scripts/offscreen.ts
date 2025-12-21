@@ -109,8 +109,10 @@ class OffscreenProcessor {
 					if (message.type === "INITIAL") {
 						logInfo("🚀 OffscreenProcessor handling INITIAL message");
 						logInfo("📊 Current progress:", this.currentProgress);
+						// Send current progress immediately in response
+						sendResponse({ currentProgress: this.currentProgress });
+						// Also broadcast progress update for any listeners
 						this.reportProgress();
-						sendResponse(true);
 						return true;
 					}
 				},
