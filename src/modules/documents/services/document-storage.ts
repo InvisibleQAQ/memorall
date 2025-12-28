@@ -3,7 +3,7 @@
  * Direct filesystem operations without metadata
  */
 
-import fs, { initializeFs } from "@/utils/fs";
+import fs, { initializeFs, refreshFsCache } from "@/utils/fs";
 import { logInfo, logError } from "@/utils/logger";
 import type {
 	DocumentFile,
@@ -150,6 +150,15 @@ class DocumentStorageService {
 	}
 
 	/**
+	 * Invalidate internal cache AND refresh ZenFS cache
+	 * This ensures we get fresh data from IndexedDB when files are modified in other contexts
+	 */
+	private async invalidateCacheAndRefreshFs(): Promise<void> {
+		this.invalidateCache();
+		await refreshFsCache();
+	}
+
+	/**
 	 * Public method to force cache invalidation
 	 * Use this when you want to ensure fresh data is loaded (e.g., when opening a page)
 	 */
@@ -179,8 +188,11 @@ class DocumentStorageService {
 				`📢 Received FILESYSTEM_CHANGED from ${sender.id || "unknown"} (${this.changeListeners.size} listeners)`,
 			);
 
-			// CRITICAL: Invalidate cache when receiving notification
-			this.invalidateCache();
+			// CRITICAL: Invalidate cache AND refresh ZenFS cache when receiving notification
+			// This ensures we get fresh data from IndexedDB (async but fire-and-forget)
+			this.invalidateCacheAndRefreshFs().catch((err) => {
+				logError("Failed to refresh FS cache:", err);
+			});
 
 			// Notify all registered listeners synchronously
 			let notifiedCount = 0;
@@ -240,22 +252,37 @@ class DocumentStorageService {
 
 			// If exists but is NOT directory → error
 			if (!stat.isDirectory()) {
-				throw new Error(`Path exists but is not a directory: ${normalizedPath}`);
+				throw new Error(
+					`Path exists but is not a directory: ${normalizedPath}`,
+				);
 			}
 
 			// Directory already exists, we're done
 			return;
-		} catch (err: any) {
-			// If directory doesn't exist, create it
-			if (err?.code === "ENOENT") {
+		} catch (err) {
+			// Check if it's a filesystem error with ENOENT code
+			const isNotFound =
+				err &&
+				typeof err === "object" &&
+				"code" in err &&
+				err.code === "ENOENT";
+
+			// If directory doesn't exist, create it recursively
+			if (isNotFound) {
 				try {
 					await fs.promises.mkdir(normalizedPath, { recursive: true });
 					logInfo(`📁 Created directory: ${normalizedPath}`);
-				} catch (mkErr: any) {
-					// Ignore if directory was created by another process (race condition)
-					if (mkErr?.code !== "EEXIST") {
-						logError(`Failed to create directory ${normalizedPath}:`, mkErr);
-						throw mkErr;
+				} catch (mkdirErr) {
+					// Ignore if directory was just created by another process
+					const isDirExists =
+						mkdirErr &&
+						typeof mkdirErr === "object" &&
+						"code" in mkdirErr &&
+						mkdirErr.code === "EEXIST";
+
+					if (!isDirExists) {
+						logError(`Failed to create directory ${normalizedPath}:`, mkdirErr);
+						throw mkdirErr;
 					}
 				}
 			} else {
@@ -313,7 +340,11 @@ class DocumentStorageService {
 
 		try {
 			// Ensure target directory exists BEFORE checking if file exists
+			logInfo(
+				`📂 Ensuring directory exists: ${DOCUMENTS_ROOT}${normalizedPath}`,
+			);
 			await this.ensureDirectory(`${DOCUMENTS_ROOT}${normalizedPath}`);
+			logInfo(`✅ Directory confirmed: ${DOCUMENTS_ROOT}${normalizedPath}`);
 
 			// Check if file already exists
 			try {
@@ -348,10 +379,27 @@ class DocumentStorageService {
 
 			// Double-check directory exists before writing (safety measure)
 			const dirPath = fullPath.substring(0, fullPath.lastIndexOf("/"));
+			logInfo(`📂 Final directory check before write: ${dirPath}`);
 			await this.ensureDirectory(dirPath);
+			logInfo(`✅ Directory verified, writing file: ${fullPath}`);
 
 			// Write file to filesystem (directory already ensured above)
-			await fs.promises.writeFile(fullPath, uint8Array);
+			try {
+				await fs.promises.writeFile(fullPath, uint8Array);
+				logInfo(`✅ File written successfully: ${fullPath}`);
+			} catch (writeErr) {
+				logError(`❌ Failed to write file ${fullPath}:`, writeErr);
+				// Try to provide more diagnostic info
+				try {
+					const dirStat = await fs.promises.stat(dirPath);
+					logInfo(
+						`Directory ${dirPath} exists: ${dirStat.isDirectory()}, size: ${dirStat.size}`,
+					);
+				} catch (dirStatErr) {
+					logError(`Directory ${dirPath} stat failed:`, dirStatErr);
+				}
+				throw writeErr;
+			}
 
 			// Create file metadata (use path as ID for consistency)
 			const filePath = `${normalizedPath}/${fileName}`;

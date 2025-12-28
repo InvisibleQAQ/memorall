@@ -22,7 +22,7 @@ export const useChat = (model: string) => {
 	const [inputValue, setInputValue] = useState("");
 	const [status, setStatus] = useState<ChatStatus>("ready");
 	const [chatMode, setChatMode] = useState<ChatMode>("knowledge");
-	const [selectedTopic, setSelectedTopic] = useState<string>("__all__");
+	const [selectedTopic, setSelectedTopic] = useState<string>("default");
 	const [abortController, setAbortController] =
 		useState<AbortController | null>(null);
 	const [inProgressMessage, setInProgressMessage] =
@@ -52,6 +52,25 @@ export const useChat = (model: string) => {
 
 		initializeConversation();
 	}, [model, ensureMainConversation]);
+
+	// Sync selectedTopic with last message's topic
+	useEffect(() => {
+		if (chatMode !== "knowledge") return;
+
+		// Find the last user or assistant message (skip separators)
+		const lastMessage = messages
+			.filter((msg) => msg.type !== "separator")
+			.findLast((msg) => msg.role === "user" || msg.role === "assistant");
+
+		if (lastMessage?.topicId) {
+			// If last message has a topicId, use it
+			setSelectedTopic(lastMessage.topicId);
+		} else if (messages.length > 0 && !lastMessage?.topicId) {
+			// If there are messages but no topicId, use default
+			setSelectedTopic("default");
+		}
+		// If no messages, keep current selection (default)
+	}, [messages, chatMode]);
 
 	// Stop current chat request
 	const handleStop = () => {
@@ -112,6 +131,14 @@ export const useChat = (model: string) => {
 			const userMessage = await addMessage({
 				role: "user",
 				content: userMessageContent,
+				// Include topicId when in knowledge mode with a selected topic
+				topicId:
+					chatMode === "knowledge" &&
+					selectedTopic &&
+					selectedTopic !== "default" &&
+					selectedTopic !== "__all__"
+						? selectedTopic
+						: undefined,
 			});
 
 			setStatus("streaming");
@@ -140,6 +167,8 @@ export const useChat = (model: string) => {
 			assistantMessage = await addMessage({
 				role: "assistant",
 				content: "",
+				// Use the same topicId as the user message for consistency
+				topicId: userMessage.topicId,
 			});
 
 			// Set in-progress message for real-time updates

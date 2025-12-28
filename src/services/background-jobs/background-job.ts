@@ -14,6 +14,7 @@ import type {
 	JobResultFor,
 	JobStatus,
 } from "./handlers/types";
+import { sharedStorageService } from "@/services/shared-storage";
 export type { BaseJob };
 
 export interface JobQueueState {
@@ -290,6 +291,20 @@ export class BackgroundJob {
 			},
 		});
 
+		// Track if we've already completed to prevent duplicate completion
+		let completed = false;
+		const completeStream = () => {
+			if (!completed) {
+				completed = true;
+				try {
+					controller.close();
+					chrome.runtime?.onMessage.removeListener(messageListener);
+				} catch (error) {
+					// Stream might already be closed
+				}
+			}
+		};
+
 		// Set up message listener for initialization progress updates
 		const messageListener = (message: any) => {
 			if (message.type === "INITIAL_PROGRESS") {
@@ -302,8 +317,7 @@ export class BackgroundJob {
 
 				// Complete when done
 				if (message.currentProgress?.done) {
-					controller.close();
-					chrome.runtime?.onMessage.removeListener(messageListener);
+					completeStream();
 				}
 			}
 		};
@@ -311,50 +325,38 @@ export class BackgroundJob {
 		try {
 			// Check if chrome API is available
 			if (typeof chrome !== "undefined" && chrome.runtime) {
-				// First, set up the message listener before sending INITIAL
-				// This ensures we don't miss any progress updates
+				// STEP 1: Check SharedStorage immediately for current status
+				logInfo("🔍 Checking SharedStorage for offscreen status...");
+				const stored = await sharedStorageService.get("offscreenProgress");
+				logInfo("📦 SharedStorage value:", stored);
+
+				if (stored && stored.done) {
+					// Already done - complete immediately
+					logInfo("✅ Offscreen already done - completing immediately");
+					controller.enqueue({
+						stage: stored.status || "Ready",
+						progress: stored.progress || 100,
+						status: "completed",
+					});
+					controller.close();
+					return stream as any as AsyncIterable<{
+						stage: string;
+						progress: number;
+						status: string;
+					}>;
+				}
+
+				// STEP 2: Not done - listen for INITIAL_PROGRESS messages
+				logInfo("⏳ Offscreen initializing - listening for progress...");
 				chrome.runtime.onMessage.addListener(messageListener);
 
-				// Then check if offscreen is already initialized
-				// Send INITIAL message with response handler to get current state
-				try {
-					const response = await new Promise<any>((resolve, reject) => {
-						const timeout = setTimeout(() => {
-							reject(new Error("Timeout waiting for INITIAL response"));
-						}, 5000);
-
-						chrome.runtime.sendMessage(
-							{ type: "INITIAL" },
-							(response) => {
-								clearTimeout(timeout);
-								if (chrome.runtime.lastError) {
-									reject(chrome.runtime.lastError);
-								} else {
-									resolve(response);
-								}
-							},
-						);
+				// Show current progress if we have it
+				if (stored) {
+					controller.enqueue({
+						stage: stored.status || "Initializing...",
+						progress: stored.progress || 0,
+						status: "initializing",
 					});
-
-					logInfo("📋 Received INITIAL response:", response);
-
-					// Check if offscreen is already initialized
-					if (response?.currentProgress?.done) {
-						logInfo("✅ Offscreen already initialized - completing immediately");
-						controller.enqueue({
-							stage: response.currentProgress.status || "Ready",
-							progress: response.currentProgress.progress || 100,
-							status: "completed",
-						});
-						controller.close();
-						chrome.runtime.onMessage.removeListener(messageListener);
-					} else {
-						// Not done yet, will wait for progress updates via messageListener
-						logInfo("⏳ Waiting for offscreen initialization to complete...");
-					}
-				} catch (error) {
-					logInfo("📋 INITIAL message sent (waiting for progress updates):", error);
-					// Continue waiting for progress updates via messageListener
 				}
 			} else {
 				// If chrome API not available, simulate completion

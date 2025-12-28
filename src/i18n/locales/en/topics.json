@@ -35,7 +35,7 @@
 		"searchPlaceholder": "Search topics...",
 		"noTopicsFound": "No topics found",
 		"noTopicsCreated": "No topics created yet",
-		"fileCount": "{{count}} file{{count, plural, one {} other {s}}}",
+		"fileCount": "{{count}} files",
 		"createdDate": "Created {{date}}",
 		"edit": "Edit",
 		"delete": "Delete",

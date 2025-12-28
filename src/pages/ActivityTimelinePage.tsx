@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { logInfo, logError } from "@/utils/logger";
+import { logError } from "@/utils/logger";
 import { activityTrackingService } from "@/modules/activity-tracking/activity-tracking-service";
 import {
 	ActivitySessionList,
@@ -21,7 +21,7 @@ import type {
 	ActivityStats,
 } from "@/types/activity-tracking";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 export const ActivityTimelinePage: React.FC = () => {
 	const { t } = useTranslation("activity");

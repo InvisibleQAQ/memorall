@@ -4,6 +4,7 @@
 import { logInfo, logError } from "./utils/logger";
 import { backgroundJob } from "./services/background-jobs/background-job";
 import { backgroundJobMessageForwarder } from "./background/message-forwarder";
+import { portBridge } from "./background/port-bridge";
 import { sharedStorageService } from "./services/shared-storage";
 import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
 import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "./constants/language";
@@ -246,6 +247,10 @@ logInfo("🔄 Service Worker loaded, initializing core services...");
 		// Initialize message relay for job notifications
 		backgroundJobMessageForwarder.initialize();
 		logInfo("✅ Background job message relay initialized");
+
+		// Initialize Port bridge for database RPC (popup ↔ offscreen)
+		portBridge.initialize();
+		logInfo("✅ Port bridge initialized for database RPC");
 
 		// Initialize offscreen document
 		await ensureOffscreenDocument();

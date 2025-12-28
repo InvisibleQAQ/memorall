@@ -30,6 +30,7 @@ import { BaseProcessHandler } from "./base-process-handler";
 import type { ProcessDependencies, BaseJob, ItemHandlerResult } from "./types";
 import { backgroundProcessFactory } from "./process-factory";
 import { serviceManager } from "@/services";
+import { backgroundJob } from "@/services/background-jobs/background-job";
 
 export type RememberSavePayload = SaveContentData | SavePageData;
 
@@ -70,6 +71,84 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 				"offscreen",
 			);
 
+			// Check if this is a selection - if so, convert directly to knowledge
+			if (
+				"sourceType" in payload &&
+				(payload as SaveContentData).sourceType === "selection"
+			) {
+				await dependencies.logger.info(
+					`🧠 Converting selection directly to knowledge: ${title}`,
+					{},
+					"offscreen",
+				);
+
+				await this.addProgress(
+					jobId,
+					"Converting selection to knowledge...",
+					10,
+					dependencies,
+				);
+
+				const saveContentData = payload as SaveContentData;
+
+				// Extract content
+				const contentText =
+					saveContentData.textContent ||
+					saveContentData.cleanContent ||
+					saveContentData.rawContent ||
+					"";
+
+				// Add source info as metadata in the content
+				const sourceInfo = `Selection from: ${saveContentData.title}\nOriginal URL: ${saveContentData.originalUrl || ""}\n\n`;
+				const fullContent = sourceInfo + contentText;
+
+				// Generate a unique identifier for this selection
+				const selectionId = `selection-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+				await this.addProgress(
+					jobId,
+					"Processing knowledge graph...",
+					30,
+					dependencies,
+				);
+
+				// Convert directly to knowledge using the knowledge-graph job
+				const result = await backgroundJob.execute(
+					"knowledge-graph",
+					{
+						filePath: selectionId, // Use unique ID as filePath
+						content: fullContent,
+						topicId: saveContentData.topicId,
+					},
+					{ stream: false },
+				);
+
+				if ("promise" in result) {
+					await this.addProgress(
+						jobId,
+						"Generating embeddings...",
+						60,
+						dependencies,
+					);
+					await result.promise;
+				}
+
+				await dependencies.logger.info(
+					`✅ Selection converted to knowledge: ${selectionId}`,
+					{},
+					"offscreen",
+				);
+
+				await this.addProgress(jobId, "Completed", 100, dependencies);
+
+				// Return success with the selection ID
+				return this.createSuccessResult({
+					filePath: selectionId,
+					fileName: `${saveContentData.title} (selection)`,
+				});
+			}
+
+			// Original flow for non-selection content (webpage, user_input, etc.)
 			await this.addProgress(jobId, "Preparing content...", 10, dependencies);
 
 			// Determine content type and extract text
@@ -88,7 +167,7 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 					savePageData.article?.textContent || savePageData.html || "";
 				folderPath = "/webpages";
 			} else {
-				// Direct content save (selection, user input, etc.)
+				// Direct content save (webpage, user_input, etc.)
 				const saveContentData = payload as SaveContentData;
 				fileName =
 					this.sanitizeFileName(saveContentData.title || "content") + ".txt";
@@ -96,9 +175,6 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 				if (saveContentData.sourceType === "webpage") {
 					sourceInfo = `Web Title: ${saveContentData.title}\nWeb URL: ${saveContentData.sourceUrl || ""}\n\n`;
 					folderPath = "/webpages";
-				} else if (saveContentData.sourceType === "selection") {
-					sourceInfo = `Selection from: ${saveContentData.title}\nOriginal URL: ${saveContentData.originalUrl || ""}\n\n`;
-					folderPath = "/selections";
 				} else if (saveContentData.sourceType === "user_input") {
 					sourceInfo = `Note: ${saveContentData.title}\n\n`;
 					folderPath = "/notes";

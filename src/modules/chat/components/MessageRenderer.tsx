@@ -110,44 +110,48 @@ function isKnowledgeGraphMetadata(
 	// Validate nodes with detailed logging
 	let hasNodes = false;
 	if (Array.isArray(metadata.nodes)) {
-		const invalidNodes = metadata.nodes.filter((node: unknown, index: number) => {
-			if (typeof node !== "object" || node === null) {
-				return true;
-			}
-			const nodeObj = node as Record<string, unknown>;
-			const checks = {
-				hasId: "id" in nodeObj,
-				hasName: "name" in nodeObj,
-				idIsString: typeof nodeObj.id === "string",
-				nameIsString: typeof nodeObj.name === "string",
-			};
-			const isValid = Object.values(checks).every(Boolean);
-			return !isValid;
-		});
+		const invalidNodes = metadata.nodes.filter(
+			(node: unknown, index: number) => {
+				if (typeof node !== "object" || node === null) {
+					return true;
+				}
+				const nodeObj = node as Record<string, unknown>;
+				const checks = {
+					hasId: "id" in nodeObj,
+					hasName: "name" in nodeObj,
+					idIsString: typeof nodeObj.id === "string",
+					nameIsString: typeof nodeObj.name === "string",
+				};
+				const isValid = Object.values(checks).every(Boolean);
+				return !isValid;
+			},
+		);
 		hasNodes = invalidNodes.length === 0;
 	}
 
 	// Validate edges with detailed logging
 	let hasEdges = false;
 	if (Array.isArray(metadata.edges)) {
-		const invalidEdges = metadata.edges.filter((edge: unknown, index: number) => {
-			if (typeof edge !== "object" || edge === null) {
-				return true;
-			}
-			const edgeObj = edge as Record<string, unknown>;
-			const checks = {
-				hasId: "id" in edgeObj,
-				hasSourceId: "sourceId" in edgeObj,
-				hasDestinationId: "destinationId" in edgeObj,
-				hasEdgeType: "edgeType" in edgeObj,
-				idIsString: typeof edgeObj.id === "string",
-				sourceIdIsString: typeof edgeObj.sourceId === "string",
-				destinationIdIsString: typeof edgeObj.destinationId === "string",
-				edgeTypeIsString: typeof edgeObj.edgeType === "string",
-			};
-			const isValid = Object.values(checks).every(Boolean);
-			return !isValid;
-		});
+		const invalidEdges = metadata.edges.filter(
+			(edge: unknown, index: number) => {
+				if (typeof edge !== "object" || edge === null) {
+					return true;
+				}
+				const edgeObj = edge as Record<string, unknown>;
+				const checks = {
+					hasId: "id" in edgeObj,
+					hasSourceId: "sourceId" in edgeObj,
+					hasDestinationId: "destinationId" in edgeObj,
+					hasEdgeType: "edgeType" in edgeObj,
+					idIsString: typeof edgeObj.id === "string",
+					sourceIdIsString: typeof edgeObj.sourceId === "string",
+					destinationIdIsString: typeof edgeObj.destinationId === "string",
+					edgeTypeIsString: typeof edgeObj.edgeType === "string",
+				};
+				const isValid = Object.values(checks).every(Boolean);
+				return !isValid;
+			},
+		);
 		hasEdges = invalidEdges.length === 0;
 	}
 

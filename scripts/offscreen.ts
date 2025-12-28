@@ -97,29 +97,31 @@ class OffscreenProcessor {
 		// Set up message listener for INITIAL command
 		this.setupInitialMessageListener();
 
+		// Send initial progress immediately to let UI know we're starting
+		this.reportProgress();
+
 		this.initialize();
 	}
 
 	private setupInitialMessageListener(): void {
 		try {
-			chrome.runtime?.onMessage.addListener(
-				(message, _sender, sendResponse) => {
-					logInfo("🔔 OffscreenProcessor received message:", message.type);
+			const listener = (
+				message: any,
+				sender: chrome.runtime.MessageSender,
+				sendResponse: (response?: any) => void,
+			): boolean => {
+				if (message && message.type === "REQUEST_PROGRESS") {
+					logInfo("📨 Received REQUEST_PROGRESS - sending current status");
+					this.reportProgress();
+					return false;
+				}
+				return false;
+			};
 
-					if (message.type === "INITIAL") {
-						logInfo("🚀 OffscreenProcessor handling INITIAL message");
-						logInfo("📊 Current progress:", this.currentProgress);
-						// Send current progress immediately in response
-						sendResponse({ currentProgress: this.currentProgress });
-						// Also broadcast progress update for any listeners
-						this.reportProgress();
-						return true;
-					}
-				},
-			);
-			logInfo("✅ OffscreenProcessor INITIAL message listener registered");
+			chrome.runtime.onMessage.addListener(listener);
+			logInfo("✅ OffscreenProcessor progress request listener registered");
 		} catch (error) {
-			logWarn("Failed to add INITIAL message listener:", error);
+			logError("❌ Failed to add progress request listener:", error);
 		}
 	}
 
@@ -428,15 +430,25 @@ class OffscreenProcessor {
 
 	// Report current progress to UI thread
 	reportProgress(): void {
-		logInfo("📤 Sending INITIAL_PROGRESS:", this.currentProgress);
+		logInfo("📤 Broadcasting progress:", this.currentProgress);
 		try {
+			// Store in SharedStorageService (IndexedDB)
+			sharedStorageService
+				.set("offscreenProgress", this.currentProgress)
+				.then(() => {
+					logInfo("✅ Progress written to SharedStorage");
+				})
+				.catch((error: Error) => {
+					logError("❌ Failed to write to SharedStorage:", error);
+				});
+
+			// Broadcast via message for listeners
 			chrome.runtime?.sendMessage?.({
 				type: "INITIAL_PROGRESS",
 				currentProgress: this.currentProgress,
 			});
-			logInfo("✅ INITIAL_PROGRESS message sent successfully");
 		} catch (error) {
-			logError("❌ Failed to send INITIAL_PROGRESS:", error);
+			logError("❌ Failed to update progress:", error);
 		}
 	}
 }

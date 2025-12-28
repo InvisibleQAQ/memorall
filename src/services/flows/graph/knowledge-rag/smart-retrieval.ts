@@ -983,14 +983,8 @@ export class SmartRetrievalFlow {
 		};
 
 		return {
-			nodes: Array.from(nodeMap.values()).slice(
-				0,
-				this.config.output.maxNodes,
-			),
-			edges: Array.from(edgeMap.values()).slice(
-				0,
-				this.config.output.maxEdges,
-			),
+			nodes: Array.from(nodeMap.values()).slice(0, this.config.output.maxNodes),
+			edges: Array.from(edgeMap.values()).slice(0, this.config.output.maxEdges),
 		};
 	}
 
@@ -1099,7 +1093,9 @@ export class SmartRetrievalFlow {
 		});
 
 		return {
-			nodes: result.nodes.map((n) => this.toEnhancedNode(n, 0.3, -1, "expansion")),
+			nodes: result.nodes.map((n) =>
+				this.toEnhancedNode(n, 0.3, -1, "expansion"),
+			),
 			edges: result.edges
 				.filter((e) => e.sourceId && e.destinationId)
 				.map((e) => this.toEnhancedEdge(e, 0.4, -1, "expansion")),
@@ -1253,7 +1249,10 @@ export class SmartRetrievalFlow {
 				edges: enhancedEdges,
 			};
 		} catch (error) {
-			logError("[SMART_RETRIEVAL][P5] Failed to grow from standalone edges:", error);
+			logError(
+				"[SMART_RETRIEVAL][P5] Failed to grow from standalone edges:",
+				error,
+			);
 			return { nodes: [], edges: [] };
 		}
 	}
@@ -1340,7 +1339,10 @@ export class SmartRetrievalFlow {
 				edges: enhancedEdges,
 			};
 		} catch (error) {
-			logError("[SMART_RETRIEVAL][P5] Failed to grow from standalone nodes:", error);
+			logError(
+				"[SMART_RETRIEVAL][P5] Failed to grow from standalone nodes:",
+				error,
+			);
 			return { nodes: [], edges: [] };
 		}
 	}
@@ -1451,7 +1453,6 @@ export class SmartRetrievalFlow {
 				// Combine and limit total nodes
 				const allNodes: typeof topNodes = [...topNodes, ...enhancedNewNodes];
 				finalNodes = allNodes.slice(0, this.config.output.maxNodes);
-
 			} catch (error) {
 				logError("[SMART_RETRIEVAL][P4] Failed to fetch new nodes:", error);
 			}
@@ -1534,7 +1535,8 @@ export class SmartRetrievalFlow {
 				.map((edge) => {
 					// Higher score for edges connecting our existing nodes
 					const score =
-						nodeIds.includes(edge.sourceId) && nodeIds.includes(edge.destinationId)
+						nodeIds.includes(edge.sourceId) &&
+						nodeIds.includes(edge.destinationId)
 							? 0.6
 							: 0.4;
 					return this.toEnhancedEdge(edge, score, -1, "expansion");
