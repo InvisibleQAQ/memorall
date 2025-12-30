@@ -3,7 +3,7 @@
 // chrome.runtime Port messaging (best performance for MV3 extensions).
 
 import type { RpcRequest, RpcResponse, RpcTransport } from "./types";
-import { serializeForRpc, deserializeFromRpc } from "./serialization";
+import { serializeForRpc } from "./serialization";
 
 export interface ChromePortTransportOptions {
 	/** Port name; must match on the server side. Default: "pglite-rpc". */

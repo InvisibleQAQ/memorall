@@ -111,8 +111,13 @@ const App: React.FC = () => {
 				// Initialize services through offscreen with progress streaming
 				const progressStream = await backgroundJob.initializeServices();
 
+				let finished = false;
 				// Listen to initialization progress
 				for await (const progress of progressStream) {
+					console.log("🚀 App initialization progress:", progress);
+					if (finished) {
+						break;
+					}
 					setUiProgress(progress.progress);
 
 					if (progress.status === "completed") {
@@ -214,6 +219,63 @@ const App: React.FC = () => {
 		logInfo("User cancelled passkey prompt - continuing without auth provider");
 	};
 
+	const handleRetry = async () => {
+		setServicesStatus("loading");
+		setInitError(null);
+		setUiProgress(0);
+		// Re-run initialization
+		try {
+			const progressStream = await backgroundJob.initializeServices();
+			for await (const progress of progressStream) {
+				setUiProgress(progress.progress);
+				if (progress.status === "completed") {
+					setUiProgress(100);
+					await serviceManager.initialize({ proxy: true });
+
+					// Check auth provider with error handling
+					try {
+						const currentModel =
+							await serviceManager.llmService.getCurrentModel();
+						if (
+							currentModel &&
+							(currentModel.provider === "openai" ||
+								currentModel.provider === "openrouter")
+						) {
+							const needsRestore = await checkProviderNeedsRestore(
+								currentModel.provider,
+							);
+							if (needsRestore) {
+								logInfo(
+									`🔐 ${currentModel.provider} authentication required - waiting for passkey`,
+								);
+								setPasskeyProvider(currentModel.provider);
+								setServicesStatus("awaiting-passkey");
+								return;
+							}
+						}
+					} catch (error) {
+						logError(
+							"Failed to check auth provider restore - continuing anyway:",
+							error,
+						);
+					}
+
+					setTimeout(() => {
+						setServicesStatus("ready");
+						logInfo("✅ App re-initialization complete");
+					}, 100);
+					break;
+				}
+			}
+		} catch (error) {
+			logError("❌ App re-initialization failed:", error);
+			setServicesStatus("error");
+			setInitError(
+				error instanceof Error ? error.message : "Unknown error",
+			);
+		}
+	}
+
 	// Initial route is set before first render in popup.tsx based on storage flag
 
 	if (servicesStatus === "loading" || servicesStatus === "error") {
@@ -240,62 +302,7 @@ const App: React.FC = () => {
 					<AppLoadingScreen
 						error={servicesStatus === "error" ? initError : null}
 						uiProgress={uiProgress}
-						onRetry={async () => {
-							setServicesStatus("loading");
-							setInitError(null);
-							setUiProgress(0);
-							// Re-run initialization
-							try {
-								const progressStream = await backgroundJob.initializeServices();
-								for await (const progress of progressStream) {
-									setUiProgress(progress.progress);
-									if (progress.status === "completed") {
-										setUiProgress(100);
-										await serviceManager.initialize({ proxy: true });
-
-										// Check auth provider with error handling
-										try {
-											const currentModel =
-												await serviceManager.llmService.getCurrentModel();
-											if (
-												currentModel &&
-												(currentModel.provider === "openai" ||
-													currentModel.provider === "openrouter")
-											) {
-												const needsRestore = await checkProviderNeedsRestore(
-													currentModel.provider,
-												);
-												if (needsRestore) {
-													logInfo(
-														`🔐 ${currentModel.provider} authentication required - waiting for passkey`,
-													);
-													setPasskeyProvider(currentModel.provider);
-													setServicesStatus("awaiting-passkey");
-													return;
-												}
-											}
-										} catch (error) {
-											logError(
-												"Failed to check auth provider restore - continuing anyway:",
-												error,
-											);
-										}
-
-										setTimeout(() => {
-											setServicesStatus("ready");
-											logInfo("✅ App re-initialization complete");
-										}, 100);
-										break;
-									}
-								}
-							} catch (error) {
-								logError("❌ App re-initialization failed:", error);
-								setServicesStatus("error");
-								setInitError(
-									error instanceof Error ? error.message : "Unknown error",
-								);
-							}
-						}}
+						onRetry={handleRetry}
 					/>
 				</CursorProvider>
 			</ThemeProvider>

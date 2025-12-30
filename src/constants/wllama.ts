@@ -43,4 +43,10 @@ export const QUICK_WALLAMA_LLMS = [
 		size: "952MB",
 		description: "Advanced vision-language model",
 	},
+	{
+		repo: "unsloth/gemma-3-1b-it-GGUF",
+		filename: "gemma-3-1b-it-Q4_0.gguf",
+		size: "722MB",
+		description: "💎 Gemma 3 1B: Google's latest, 32K context",
+	},
 ];

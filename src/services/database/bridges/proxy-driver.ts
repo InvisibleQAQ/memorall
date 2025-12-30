@@ -12,7 +12,6 @@ import type {
 } from "./types";
 import {
 	serializeForRpc,
-	deserializeFromRpc,
 	deserializeQueryResult,
 } from "./serialization";
 
@@ -60,6 +59,7 @@ export class PGliteSharedProxy implements PGliteLike {
 	private readonly defaultRowMode: RowMode;
 	private readonly timeoutMs: number;
 	private rid = 0;
+	private readonly instanceId: number; // Unique ID per proxy instance
 
 	private readonly pending = new Map<
 		number,
@@ -80,6 +80,10 @@ export class PGliteSharedProxy implements PGliteLike {
 
 		this.defaultRowMode = opts.defaultRowMode ?? "object";
 		this.timeoutMs = opts.requestTimeoutMs ?? 30_000;
+
+		// Generate unique instance ID to prevent ID collisions between multiple proxy instances
+		// Use random value from 1 to 1,000,000 to create unique ID space per instance
+		this.instanceId = Math.floor(Math.random() * 1_000_000) + 1;
 
 		// Bind response handler
 		this.unsubscribe = this.transport.subscribe((resp) =>
@@ -186,9 +190,12 @@ export class PGliteSharedProxy implements PGliteLike {
 	}
 
 	private nextId(): number {
-		this.rid = (this.rid + 1) >>> 0; // uint32 rollover
-		if (this.rid === 0) this.rid = 1;
-		return this.rid;
+		this.rid = (this.rid + 1) % 1_000_000_000; // Keep counter in range [0, 999,999,999]
+		if (this.rid === 0) this.rid = 1; // Start from 1
+		// Combine instanceId and counter to create globally unique ID
+		// Format: instanceId * 1,000,000,000 + rid
+		// This gives each proxy instance its own unique ID range
+		return this.instanceId * 1_000_000_000 + this.rid;
 	}
 
 	private call<T = unknown>(op: RpcOp, payload?: unknown): Promise<T> {

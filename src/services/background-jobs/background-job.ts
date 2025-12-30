@@ -306,7 +306,7 @@ export class BackgroundJob {
 		};
 
 		// Set up message listener for initialization progress updates
-		const messageListener = (message: any) => {
+		const messageListener = (message: { type: string; currentProgress: any }) => {
 			if (message.type === "INITIAL_PROGRESS") {
 				// Forward currentProgress from offscreen
 				controller.enqueue({
@@ -380,6 +380,20 @@ export class BackgroundJob {
 			controller.close();
 		}
 
+		const intervalId = setInterval(() => {
+			sharedStorageService.get("offscreenProgress").then((progress) => {
+				logInfo(`🚀 App initialization status`, progress);
+				if (progress?.status === "Ready" || progress?.progress >= 100) {
+					clearInterval(intervalId);
+					try {
+						controller.close();
+					} catch {
+						// ignore
+					}
+				}
+			});
+		}, 1000);
+
 		// Convert ReadableStream to AsyncIterable
 		return {
 			async *[Symbol.asyncIterator]() {
@@ -392,6 +406,7 @@ export class BackgroundJob {
 					}
 				} finally {
 					reader.releaseLock();
+					clearInterval(intervalId);
 				}
 			},
 		};

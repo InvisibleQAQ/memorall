@@ -30,6 +30,12 @@ class PortBridge {
 				return;
 			}
 
+			// Only handle connections from popup, not from background itself
+			// popupPort.sender will be undefined if the connection is from the same context (background)
+			if (!popupPort.sender) {
+				return;
+			}
+
 			logInfo("🌉 Port bridge: Popup connected, creating bridge to offscreen", {
 				portName: popupPort.name,
 			});

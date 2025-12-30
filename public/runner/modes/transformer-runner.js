@@ -21,6 +21,23 @@ async function ensureTransformers() {
 		throw new Error("Failed to load @huggingface/transformers");
 	}
 
+	// Request high-performance GPU adapter if available
+	if (typeof navigator !== "undefined" && navigator.gpu) {
+		try {
+			const adapter = await navigator.gpu.requestAdapter({
+				powerPreference: "high-performance",
+			});
+			if (adapter) {
+				console.log("[transformer-runner] WebGPU adapter obtained:", {
+					features: Array.from(adapter.features || []),
+					limits: adapter.limits,
+				});
+			}
+		} catch (err) {
+			console.warn("[transformer-runner] could not get WebGPU adapter:", err);
+		}
+	}
+
 	// Configure cache and ONNX Runtime
 	if (transformers.env) {
 		// Enable browser cache for models
@@ -34,6 +51,8 @@ async function ensureTransformers() {
 					? chrome.runtime.getURL("vendors/transformers/")
 					: "../../../vendors/transformers/";
 			transformers.env.backends.onnx.wasm.wasmPaths = wasmPath;
+			transformers.env.backends.onnx.wasm.wasmBinary = null; // Let it load automatically
+
 			console.log("ONNX Runtime WASM path configured:", wasmPath);
 		}
 
@@ -112,14 +131,17 @@ window.addEventListener("message", async (event) => {
 				if (!model) throw new Error("Model ID is required");
 				const hasWebGPU =
 					typeof navigator !== "undefined" && typeof navigator.gpu !== "undefined";
-				const device = hasWebGPU ? "webgpu" : "wasm";
+
+				// Try WebGPU first, but will fallback to WASM if it fails
+				let device = hasWebGPU ? "webgpu" : "wasm";
 				console.log("[transformer-runner] device selection", {
 					hasWebGPU,
-					device,
+					initialDevice: device,
 					model,
 				});
 
 				// Progress callback for model loading
+				let currentDtype = null;
 				const progressCallback = (progress) => {
 					if (
 						progress.status === "progress" &&
@@ -128,11 +150,12 @@ window.addEventListener("message", async (event) => {
 						const loaded = progress.loaded || 0;
 						const total = progress.total || 1;
 						const percent = Math.min(100, Math.round((loaded / total) * 100));
+						const dtypeInfo = currentDtype ? ` (${currentDtype})` : "";
 						reply(src, origin, messageId, "progress", {
 							loaded,
 							total,
 							percent,
-							text: `Downloading model... ${percent}%`,
+							text: `Downloading model${dtypeInfo}... ${percent}%`,
 						});
 					}
 				};
@@ -140,27 +163,108 @@ window.addEventListener("message", async (event) => {
 				try {
 					// Unload previous model if any
 					if (currentModel) {
-						currentModel.dispose?.();
+						console.log("[transformer-runner] disposing previous model");
+						try {
+							currentModel.dispose?.();
+						} catch (e) {
+							console.warn("Error disposing model:", e);
+						}
 						currentModel = null;
 					}
 					if (currentTokenizer) {
-						currentTokenizer.dispose?.();
+						try {
+							currentTokenizer.dispose?.();
+						} catch (e) {
+							console.warn("Error disposing tokenizer:", e);
+						}
 						currentTokenizer = null;
 					}
 
 					// Load tokenizer
+					console.log("[transformer-runner] loading tokenizer for", model);
 					currentTokenizer = await AutoTokenizer.from_pretrained(model, {
 						progress_callback: progressCallback,
 					});
+					console.log("[transformer-runner] tokenizer loaded successfully");
 
-					// Load model with WebGPU
-					currentModel = await AutoModelForCausalLM.from_pretrained(model, {
-						dtype: "q4f16",
-						device,
-						progress_callback: progressCallback,
-					});
+					// Use smallest quantization for browser performance (q4 = 4-bit, most aggressive)
+					currentDtype = "q4";
+
+					// Try multiple configurations: device (WebGPU → WASM) and threads (4 → 1)
+					let loadError = null;
+					const devicesToTry = device === "webgpu" ? ["webgpu", "wasm"] : ["wasm"];
+					const threadsToTry = [4, 1]; // Try multi-thread first for performance, fallback to single-thread
+
+					for (const tryDevice of devicesToTry) {
+						for (const numThreads of threadsToTry) {
+							try {
+								// Set thread count for this attempt
+								if (transformers.env?.backends?.onnx?.wasm) {
+									transformers.env.backends.onnx.wasm.numThreads = numThreads;
+								}
+
+								console.log(
+									`[transformer-runner] loading model with dtype: ${currentDtype}, device: ${tryDevice}, threads: ${numThreads}`,
+								);
+
+								currentModel = await AutoModelForCausalLM.from_pretrained(model, {
+									dtype: currentDtype,
+									device: tryDevice,
+									progress_callback: progressCallback,
+								});
+
+								device = tryDevice; // Update to successful device
+								console.log(
+									`[transformer-runner] ✅ model loaded successfully with dtype: ${currentDtype}, device: ${device}, threads: ${numThreads}`,
+								);
+								break; // Success, exit inner loop
+							} catch (err) {
+								loadError = err;
+								const errorMsg = err instanceof Error ? err.message : String(err);
+								console.warn(
+									`[transformer-runner] failed to load with device ${tryDevice}, threads ${numThreads}: ${errorMsg}`,
+								);
+
+								// If this was multi-thread and we have single-thread fallback, continue
+								if (numThreads === 4 && threadsToTry.length > 1) {
+									console.log("[transformer-runner] falling back to single-thread...");
+									continue;
+								}
+
+								// If we've tried all thread counts for this device and this was WebGPU, try WASM
+								if (tryDevice === "webgpu" && devicesToTry.length > 1) {
+									console.log("[transformer-runner] falling back to WASM...");
+									break; // Exit thread loop, continue to next device
+								}
+
+								// No more fallbacks, throw error
+								throw err;
+							}
+						}
+
+						// If model loaded successfully, exit device loop
+						if (currentModel) break;
+					}
+
+					if (!currentModel) {
+						// Convert error to string if it's not an Error object
+						const errorMsg = loadError instanceof Error ? loadError.message : String(loadError);
+						throw new Error(`Failed to load model: ${errorMsg}`);
+					}
 
 					activeModelId = model;
+
+					// Include quantization info in model metadata
+					const usedDtype = currentDtype || "unknown";
+					const quantizationInfo = {
+						q4: "4-bit (smallest, fastest)",
+						q4f16: "4-bit weights + fp16 activations",
+						fp16: "16-bit floating point",
+						q8: "8-bit quantization",
+					}[usedDtype] || usedDtype;
+
+					console.log(`[transformer-runner] model serving with ${quantizationInfo}`);
+
 					const modelInfo = {
 						id: model,
 						object: "model",
@@ -168,14 +272,53 @@ window.addEventListener("message", async (event) => {
 						owned_by: "transformer",
 						loaded: true,
 						downloaded: true,
+						dtype: usedDtype, // Include dtype in response
 					};
 
 					loadedModels.set(model, modelInfo);
 					reply(src, origin, messageId, "complete", modelInfo);
 				} catch (error) {
+					console.error("[transformer-runner] model loading failed:", error);
+
+					// Clean up on error
+					if (currentModel) {
+						try {
+							currentModel.dispose?.();
+						} catch (e) {
+							console.warn("Error disposing model after failure:", e);
+						}
+						currentModel = null;
+					}
+					if (currentTokenizer) {
+						try {
+							currentTokenizer.dispose?.();
+						} catch (e) {
+							console.warn("Error disposing tokenizer after failure:", e);
+						}
+						currentTokenizer = null;
+					}
+					activeModelId = null;
+
+					// Handle both Error objects and primitive values (numbers, strings)
+					const errorStr = error instanceof Error ? error.message : String(error);
+					const isMemoryError =
+						errorStr.includes("Aborted") ||
+						errorStr.includes("abort") ||
+						errorStr.includes("memory") ||
+						/^\d+$/.test(errorStr); // Numeric error codes often indicate WASM/memory issues
+
+					// Provide helpful error message
+					let errorMessage = `Failed to load model: ${errorStr || "Unknown error"}`;
+					if (isMemoryError) {
+						errorMessage +=
+							"\n\nThis is likely due to insufficient memory or WebGPU issues. " +
+							"Gemma 3 1B requires at least 2-3GB of available RAM in q4 format. " +
+							"Try:\n1. Closing other browser tabs\n2. Restarting your browser\n3. Using a smaller model";
+					}
+
 					reply(src, origin, messageId, "error", {
 						error: {
-							message: `Failed to load model: ${error.message}`,
+							message: errorMessage,
 							type: "ModelLoadError",
 							code: null,
 						},

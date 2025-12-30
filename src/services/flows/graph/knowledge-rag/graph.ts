@@ -16,13 +16,14 @@ import { SmartRetrievalFlow } from "./smart-retrieval";
 const RESPONSE_GENERATION_PROMPT = `
 You are a knowledgeable assistant that can answer questions using a knowledge graph.
 
-User Query: {query}
-
 Available Knowledge Context:
 {context}
 
 Using the provided knowledge context, provide a comprehensive and accurate answer to the user's query.
 If the knowledge graph doesn't contain enough information to fully answer the question, mention what information is available and what might be missing.
+Following below order of information:
+1. If information to answer available in knowledge graph use it to answer the question.
+2. If information to answer not available in knowledge graph use your general knowledge to answer the question.
 Structure your answer in clear sections when appropriate.
 `;
 
@@ -218,16 +219,6 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 				nodes: state.relevantNodes,
 				edges: state.relevantEdges,
 			};
-			logInfo("[KNOWLEDGE_RAG] Creating knowledge_graph action:", {
-				nodesInMetadata: actionMetadata.nodes.length,
-				edgesInMetadata: actionMetadata.edges.length,
-				firstNodeInMetadata: actionMetadata.nodes[0]
-					? {
-							id: actionMetadata.nodes[0].id,
-							name: actionMetadata.nodes[0].name,
-						}
-					: null,
-			});
 
 			return {
 				knowledgeContext,
@@ -268,10 +259,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 			// Build system message with knowledge context
 			const systemMessage: ChatMessage = {
 				role: "system",
-				content: RESPONSE_GENERATION_PROMPT.replace(
-					"{query}",
-					state.query,
-				).replace("{context}", state.knowledgeContext),
+				content: RESPONSE_GENERATION_PROMPT.replace("{context}", state.knowledgeContext),
 			};
 
 			// Use full multimodal messages from input, prepending system message
@@ -279,7 +267,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 
 			const llmResponse = await llm.chatCompletions({
 				messages,
-				temperature: 0.3,
+				temperature: 0.2,
 				stream: true,
 			});
 

@@ -15,8 +15,11 @@ export const RECOMMENDATION_TRANSFORMER_MODELS: string[] = [
 	"onnx-community/Qwen3-0.6B-ONNX",
 
 	// Gemma 3 models - Google's latest open models (March 2025)
-	"onnx-community/gemma-3-1b-it-ONNX",
-	"onnx-community/gemma-3-270m-it",
+	// DISABLED: gemma-3-1b-it-ONNX - Known JSEP crash bug in transformers.js 3.8 (Issue #1469)
+	// NOT available in WebLLM prebuilt config (only Gemma 2 models available)
+	// For Gemma 3 1B, use Wllama with GGUF format instead
+	// "onnx-community/gemma-3-1b-it-ONNX",
+	"onnx-community/gemma-3-270m-it", // Gemma 3 270M works in transformers.js
 
 	// Phi 4 - Microsoft's latest reasoning model
 	"onnx-community/Phi-4-mini-instruct",
@@ -62,15 +65,18 @@ export const QUICK_TRANSFORMER_MODELS = [
 	},
 
 	// === GEMMA 3 (March 2025) ===
-	{
-		model: "onnx-community/gemma-3-1b-it-ONNX",
-		size: "500MB",
-		description: "💎 Gemma 3 1B: Latest Google model, 32K context (WebGPU)",
-	},
+	// DISABLED: gemma-3-1b-it-ONNX has known JSEP crash bug (GitHub Issue #1469)
+	// NOT available in WebLLM (only Gemma 2 models in prebuilt config)
+	// For Gemma 3 1B: Use Wllama provider with GGUF format
+	// {
+	// 	model: "onnx-community/gemma-3-1b-it-ONNX",
+	// 	size: "500MB",
+	// 	description: "💎 Gemma 3 1B: Latest Google model, 32K context (WebGPU)",
+	// },
 	{
 		model: "onnx-community/gemma-3-270m-it",
 		size: "180MB",
-		description: "💎 Gemma 3: Ultra-compact chat model (WebGPU)",
+		description: "💎 Gemma 3 270M: Works in transformers.js (WebGPU)",
 	},
 
 	// === QWEN 3 (April 2025) ===
