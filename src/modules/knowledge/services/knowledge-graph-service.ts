@@ -163,6 +163,7 @@ export class KnowledgeGraphService {
 		filePath: string,
 		content: string,
 		topicId?: string,
+		isSpecificTextConversion?: boolean,
 	): Promise<void> {
 		const conversionId = filePath;
 		// Initialize conversion progress
@@ -223,6 +224,7 @@ export class KnowledgeGraphService {
 				currentMessage: `File: ${filePath}\n\nContent:\n${content}`,
 				sourceType: "file",
 				previousMessages: undefined,
+				isSpecificTextConversion: isSpecificTextConversion,
 			};
 
 			// Execute the knowledge graph flow with progress tracking

@@ -147,7 +147,10 @@ window.addEventListener("message", async (event) => {
 				try {
 					await wllama.loadModelFromUrl(
 						`https://huggingface.co/${parts[0]}/${parts[1]}/resolve/main/${parts[2]}`,
-						{ progressCallback },
+						{
+							progressCallback,
+							n_ctx: 65536, // Large value - Wllama auto-clamps to model's actual maximum
+						},
 					);
 
 					const modelInfo = {

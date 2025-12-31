@@ -296,7 +296,6 @@ export const DocumentTreeDraggable: React.FC<DocumentTreeProps> = ({
 
 		// Don't do anything if dropping into the same folder
 		if (currentParentPath === targetFolderId) {
-			console.log("Item is already in this folder, skipping move");
 			return;
 		}
 
@@ -305,7 +304,6 @@ export const DocumentTreeDraggable: React.FC<DocumentTreeProps> = ({
 			activeNode.type === "folder" &&
 			targetFolderId.startsWith(activeNode.path)
 		) {
-			console.warn("Cannot move a folder into itself or its children");
 			return;
 		}
 

@@ -3,6 +3,7 @@ import type { KnowledgeGraphState, ResolvedFact, ExtractedFact } from "./state";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import { logInfo, logError, logWarn } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
+import { UuidMapper } from "./utils/uuid-mapping";
 
 const FACT_RESOLUTION_SYSTEM_PROMPT = `Given the context, determine for EACH NEW EDGE whether it represents any of the edges in the list of Existing Edges.
 
@@ -213,6 +214,9 @@ ${factsText}
 				existing_id?: string;
 			}
 
+			// Create UUID mapper for this resolution session
+			const uuidMapper = new UuidMapper();
+
 			const parseFactResolutions = (content: string): ResolvedFact[] => {
 				let cleaned = content.trim();
 				if (cleaned.startsWith("```json"))
@@ -239,18 +243,52 @@ ${factsText}
 							is_duplicate: false,
 						};
 
+						const isDuplicate = resolution.is_duplicate || false;
+
+						// Use UUID mapper to get correct edge UUID
+						const mappingResult = uuidMapper.mapFactUuid(
+							fact.sourceEntityId,
+							fact.destinationEntityId,
+							fact.relationType,
+							resolution.existing_id,
+							state.existingEdges || [],
+							state.resolvedEntities || [],
+						);
+
+						// If LLM said it's a duplicate but mapper couldn't find a match,
+						// the mapper will have generated a new UUID and marked isExisting=false
+						if (isDuplicate && !mappingResult.isExisting) {
+							logInfo(
+								`[FACT_RESOLUTION] LLM marked fact "${fact.relationType}" as duplicate but could not find matching edge. Created new fact with UUID: ${mappingResult.correctUuid}`,
+							);
+						}
+
 						results.push({
 							...fact,
-							isExisting: resolution.is_duplicate || false,
-							existingId: resolution.existing_id,
+							uuid: mappingResult.correctUuid,
+							isExisting: mappingResult.isExisting,
+							existingId: mappingResult.isExisting
+								? mappingResult.correctUuid
+								: undefined,
 						});
 					}
 
 					// Handle any remaining facts that weren't in the response
 					for (let i = parsedArray.length; i < needsAIResolution.length; i++) {
 						const fact = needsAIResolution[i];
+						// Generate new UUID for facts without resolution
+						const mappingResult = uuidMapper.mapFactUuid(
+							fact.sourceEntityId,
+							fact.destinationEntityId,
+							fact.relationType,
+							undefined,
+							state.existingEdges || [],
+							state.resolvedEntities || [],
+						);
+
 						results.push({
 							...fact,
+							uuid: mappingResult.correctUuid,
 							isExisting: false,
 						});
 					}
@@ -262,11 +300,23 @@ ${factsText}
 						parseError,
 					);
 
-					// Fallback: assume all AI-resolution facts are new
-					return needsAIResolution.map((fact) => ({
-						...fact,
-						isExisting: false,
-					}));
+					// Fallback: assume all AI-resolution facts are new with generated UUIDs
+					return needsAIResolution.map((fact) => {
+						const mappingResult = uuidMapper.mapFactUuid(
+							fact.sourceEntityId,
+							fact.destinationEntityId,
+							fact.relationType,
+							undefined,
+							state.existingEdges || [],
+							state.resolvedEntities || [],
+						);
+
+						return {
+							...fact,
+							uuid: mappingResult.correctUuid,
+							isExisting: false,
+						};
+					});
 				}
 			};
 

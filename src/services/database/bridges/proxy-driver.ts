@@ -10,10 +10,7 @@ import type {
 	WorkerQueryPayload,
 	WorkerQueryResult,
 } from "./types";
-import {
-	serializeForRpc,
-	deserializeQueryResult,
-} from "./serialization";
+import { serializeForRpc, deserializeQueryResult } from "./serialization";
 
 /* PGliteSharedProxy.ts
  * Strictly-typed proxy that mimics a PGlite client but talks over an

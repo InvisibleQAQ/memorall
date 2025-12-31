@@ -11,6 +11,12 @@ import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "./constants/language";
 import type { Language } from "./constants/language";
 import { activityTrackingManager } from "./background/activity-tracking-manager";
 
+// Global flag to prevent duplicate initialization
+type BackgroundGlobal = typeof globalThis & {
+	__memorallBackgroundInitDone__?: boolean;
+};
+const backgroundGlobal = globalThis as BackgroundGlobal;
+
 // Language management
 let currentLanguage: Language = DEFAULT_LANGUAGE;
 
@@ -18,6 +24,7 @@ let currentLanguage: Language = DEFAULT_LANGUAGE;
 const CONTEXT_MENU_TEXTS = {
 	en: {
 		savePage: "💾 Save page",
+		convertToKnowledge: "✨ Convert to knowledge",
 		recall: "🧠 Recall",
 		recallImage: "🖼️ Recall image",
 		startCapture: "✨ Start AI session",
@@ -28,6 +35,7 @@ const CONTEXT_MENU_TEXTS = {
 	},
 	vn: {
 		savePage: "💾 Lưu trang",
+		convertToKnowledge: "✨ Chuyển thành kiến thức",
 		recall: "🧠 Gợi nhớ",
 		recallImage: "🖼️ Gợi nhớ hình ảnh",
 		startCapture: "✨ Bắt đầu phiên AI",
@@ -40,6 +48,7 @@ const CONTEXT_MENU_TEXTS = {
 
 // Save section
 const SAVE_PAGE_CONTEXT_MENU_ID = "save-page";
+const CONVERT_TO_KNOWLEDGE_CONTEXT_MENU_ID = "convert-to-knowledge";
 
 // Recall section
 const RECALL_CONTEXT_MENU_ID = "recall";
@@ -54,91 +63,6 @@ const VIEW_ACTIVITIES_CONTEXT_MENU_ID = "view-activities";
 const OPEN_PLATFORM_CONTEXT_MENU_ID = "open-platform";
 const OPEN_DOCUMENTS_CONTEXT_MENU_ID = "open-documents";
 
-// Helper to create notifications with proper icon
-function createNotification(title: string, message: string): void {
-	chrome.notifications?.create({
-		type: "basic" as const,
-		title,
-		message,
-		iconUrl: chrome.runtime.getURL("icons/extension_48.png"), // Use extension icon (build transforms images/ to icons/)
-	});
-}
-
-// Load current language from storage
-async function loadCurrentLanguage(): Promise<void> {
-	try {
-		const result = await chrome.storage.local.get(LANGUAGE_STORAGE_KEY);
-		const savedLanguage = result[LANGUAGE_STORAGE_KEY];
-
-		if (savedLanguage && (savedLanguage === "en" || savedLanguage === "vn")) {
-			currentLanguage = savedLanguage;
-			logInfo(`📝 Loaded language: ${currentLanguage}`);
-		} else {
-			currentLanguage = "en"; // Default to English
-			logInfo("📝 Using default language: en");
-		}
-	} catch (error) {
-		logError("❌ Failed to load language:", error);
-		currentLanguage = "en"; // Fallback to English
-	}
-}
-
-// Update context menu text based on current language
-async function updateContextMenuText(): Promise<void> {
-	try {
-		const texts = CONTEXT_MENU_TEXTS[currentLanguage];
-
-		await chrome.contextMenus.update(SAVE_PAGE_CONTEXT_MENU_ID, {
-			title: texts.savePage,
-		});
-
-		await chrome.contextMenus.update(RECALL_CONTEXT_MENU_ID, {
-			title: texts.recall,
-		});
-
-		await chrome.contextMenus.update(RECALL_IMAGE_CONTEXT_MENU_ID, {
-			title: texts.recallImage,
-		});
-
-		// Update activity tracking menu items
-		await chrome.contextMenus.update(START_CAPTURE_CONTEXT_MENU_ID, {
-			title: texts.startCapture,
-		});
-
-		await chrome.contextMenus.update(STOP_CAPTURE_CONTEXT_MENU_ID, {
-			title: texts.stopCapture,
-		});
-
-		await chrome.contextMenus.update(VIEW_ACTIVITIES_CONTEXT_MENU_ID, {
-			title: texts.viewActivities,
-		});
-
-		await chrome.contextMenus.update(OPEN_PLATFORM_CONTEXT_MENU_ID, {
-			title: texts.openPlatform,
-		});
-
-		await chrome.contextMenus.update(OPEN_DOCUMENTS_CONTEXT_MENU_ID, {
-			title: texts.openDocuments,
-		});
-
-		logInfo(`✅ Context menu text updated to ${currentLanguage}`);
-	} catch (error) {
-		logError("❌ Failed to update context menu text:", error);
-	}
-}
-
-// Listen for language changes in storage
-chrome.storage.onChanged.addListener((changes, namespace) => {
-	if (namespace === "local" && changes[LANGUAGE_STORAGE_KEY]) {
-		const newLanguage = changes[LANGUAGE_STORAGE_KEY].newValue;
-		if (newLanguage && (newLanguage === "en" || newLanguage === "vn")) {
-			currentLanguage = newLanguage;
-			logInfo(`🔄 Language changed to: ${currentLanguage}`);
-			updateContextMenuText();
-		}
-	}
-});
-
 // Offscreen document management
 let offscreenCreated = false;
 let offscreenInitPromise: Promise<void> | null = null;
@@ -146,35 +70,25 @@ let offscreenInitPromise: Promise<void> | null = null;
 // Loading state management
 let activeJobs = 0;
 
-// Update extension icon loading state
-function updateIconLoadingState() {
-	if (activeJobs > 0) {
-		// Show loading state
-		chrome.action.setBadgeText({ text: "..." });
-		chrome.action.setBadgeBackgroundColor({ color: "#4285f4" });
-		chrome.action.setTitle({ title: "Processing..." });
-	} else {
-		// Clear loading state
-		chrome.action.setBadgeText({ text: "" });
-		chrome.action.setTitle({ title: "Memorall" });
-	}
-}
-
-// Start loading indicator
-function startLoading() {
-	activeJobs++;
-	updateIconLoadingState();
-	logInfo(`🔄 Started loading (${activeJobs} active jobs)`);
-}
-
-// Stop loading indicator
-function stopLoading() {
-	activeJobs = Math.max(0, activeJobs - 1);
-	updateIconLoadingState();
-	logInfo(`✅ Stopped loading (${activeJobs} active jobs)`);
-}
-
-// Will initialize offscreen document after function definitions
+// ============================================================================
+// CRITICAL: Register port-bridge listener IMMEDIATELY in global scope
+// This MUST happen synchronously at module load time, NOT in async functions
+// Chrome extensions: chrome.runtime.onConnect listeners must be registered
+// before any connection attempts, or they will never fire!
+// ============================================================================
+console.log(
+	"🔥🔥🔥 [BACKGROUND] Registering port-bridge listener at module load",
+	new Date().toISOString(),
+);
+portBridge.initialize({
+	proxyOptions: {
+		channelName: "postgres-rpc",
+	},
+});
+console.log(
+	"🔥 [BACKGROUND] Port-bridge listener registered successfully",
+	new Date().toISOString(),
+);
 
 // Ensure offscreen document is created and ready
 async function ensureOffscreenDocument(): Promise<void> {
@@ -231,14 +145,154 @@ async function ensureOffscreenDocument(): Promise<void> {
 	return offscreenInitPromise;
 }
 
-// Initialize shared services immediately when Service Worker loads
-logInfo("🔄 Service Worker loaded, initializing core services...");
+// Update extension icon loading state
+function updateIconLoadingState() {
+	if (activeJobs > 0) {
+		// Show loading state
+		chrome.action.setBadgeText({ text: "..." });
+		chrome.action.setBadgeBackgroundColor({ color: "#4285f4" });
+		chrome.action.setTitle({ title: "Processing..." });
+	} else {
+		// Clear loading state
+		chrome.action.setBadgeText({ text: "" });
+		chrome.action.setTitle({ title: "Memorall" });
+	}
+}
 
-(async () => {
+// Start loading indicator
+function startLoading() {
+	activeJobs++;
+	updateIconLoadingState();
+	logInfo(`🔄 Started loading (${activeJobs} active jobs)`);
+}
+
+// Stop loading indicator
+function stopLoading() {
+	activeJobs = Math.max(0, activeJobs - 1);
+	updateIconLoadingState();
+	logInfo(`✅ Stopped loading (${activeJobs} active jobs)`);
+}
+
+// Helper to create notifications with proper icon
+function createNotification(title: string, message: string): void {
+	chrome.notifications?.create({
+		type: "basic" as const,
+		title,
+		message,
+		iconUrl: chrome.runtime.getURL("icons/extension_48.png"), // Use extension icon (build transforms images/ to icons/)
+	});
+}
+
+// Load current language from storage
+async function loadCurrentLanguage(): Promise<void> {
 	try {
+		const result = await chrome.storage.local.get(LANGUAGE_STORAGE_KEY);
+		const savedLanguage = result[LANGUAGE_STORAGE_KEY];
+
+		if (savedLanguage && (savedLanguage === "en" || savedLanguage === "vn")) {
+			currentLanguage = savedLanguage;
+			logInfo(`📝 Loaded language: ${currentLanguage}`);
+		} else {
+			currentLanguage = "en"; // Default to English
+			logInfo("📝 Using default language: en");
+		}
+	} catch (error) {
+		logError("❌ Failed to load language:", error);
+		currentLanguage = "en"; // Fallback to English
+	}
+}
+
+// Update context menu text based on current language
+async function updateContextMenuText(): Promise<void> {
+	try {
+		const texts = CONTEXT_MENU_TEXTS[currentLanguage];
+
+		await chrome.contextMenus.update(SAVE_PAGE_CONTEXT_MENU_ID, {
+			title: texts.savePage,
+		});
+
+		await chrome.contextMenus.update(CONVERT_TO_KNOWLEDGE_CONTEXT_MENU_ID, {
+			title: texts.convertToKnowledge,
+		});
+
+		await chrome.contextMenus.update(RECALL_CONTEXT_MENU_ID, {
+			title: texts.recall,
+		});
+
+		await chrome.contextMenus.update(RECALL_IMAGE_CONTEXT_MENU_ID, {
+			title: texts.recallImage,
+		});
+
+		// Update activity tracking menu items
+		await chrome.contextMenus.update(START_CAPTURE_CONTEXT_MENU_ID, {
+			title: texts.startCapture,
+		});
+
+		await chrome.contextMenus.update(STOP_CAPTURE_CONTEXT_MENU_ID, {
+			title: texts.stopCapture,
+		});
+
+		await chrome.contextMenus.update(VIEW_ACTIVITIES_CONTEXT_MENU_ID, {
+			title: texts.viewActivities,
+		});
+
+		await chrome.contextMenus.update(OPEN_PLATFORM_CONTEXT_MENU_ID, {
+			title: texts.openPlatform,
+		});
+
+		await chrome.contextMenus.update(OPEN_DOCUMENTS_CONTEXT_MENU_ID, {
+			title: texts.openDocuments,
+		});
+
+		logInfo(`✅ Context menu text updated to ${currentLanguage}`);
+	} catch (error) {
+		logError("❌ Failed to update context menu text:", error);
+	}
+}
+
+// Listen for language changes in storage
+chrome.storage.onChanged.addListener((changes, namespace) => {
+	if (namespace === "local" && changes[LANGUAGE_STORAGE_KEY]) {
+		const newLanguage = changes[LANGUAGE_STORAGE_KEY].newValue;
+		if (newLanguage && (newLanguage === "en" || newLanguage === "vn")) {
+			currentLanguage = newLanguage;
+			logInfo(`🔄 Language changed to: ${currentLanguage}`);
+			updateContextMenuText();
+		}
+	}
+});
+
+const init = async () => {
+	// CRITICAL: Only run ONCE - prevent duplicate initialization in offscreen context
+	// Use chrome.storage.session as shared flag across all extension contexts
+	const INIT_FLAG_KEY = "__memorall_background_init_done__";
+
+	try {
+		// Check if already initialized
+		const result = await chrome.storage.session.get(INIT_FLAG_KEY);
+
+		if (result[INIT_FLAG_KEY]) {
+			console.warn(
+				"⚠️ [BACKGROUND] init() already completed - SKIPPING duplicate execution",
+			);
+			return;
+		}
+
+		// Set flag IMMEDIATELY to prevent race conditions
+		await chrome.storage.session.set({ [INIT_FLAG_KEY]: true });
+		console.log(
+			"[BACKGROUND] ✅ Init flag set - proceeding with initialization",
+		);
+	} catch (storageError) {
+		console.error("[BACKGROUND] Failed to check/set init flag:", storageError);
+		// Continue anyway - better to potentially duplicate than fail completely
+	}
+
+	try {
+		logInfo("[BACKGROUND] Init - running in service worker context");
 		// Initialize shared storage service early
 		await sharedStorageService.initialize();
-		logInfo("✅ Shared storage service initialized");
+		logInfo("✅[BACKGROUND] Shared storage service initialized");
 
 		// Initialize background job queue
 		await backgroundJob.initialize();
@@ -246,23 +300,46 @@ logInfo("🔄 Service Worker loaded, initializing core services...");
 
 		// Initialize message relay for job notifications
 		backgroundJobMessageForwarder.initialize();
-		logInfo("✅ Background job message relay initialized");
+		logInfo("✅[BACKGROUND] Background job message relay initialized");
 
-		// Initialize Port bridge for database RPC (popup ↔ offscreen)
-		portBridge.initialize();
-		logInfo("✅ Port bridge initialized for database RPC");
+		// NOW initialize Port bridge (after offscreen services are fully ready)
+		// portBridge.initialize({
+		// 	proxyOptions: {
+		// 		channelName: 'postgres-rpc'
+		// 	}
+		// });
+		// logInfo("✅[BACKGROUND] Port bridge initialized for database RPC");
 
-		// Initialize offscreen document
+		// CRITICAL: Initialize offscreen document FIRST (it hosts the actual database)
+		logInfo("🔄[BACKGROUND] Creating offscreen document...");
 		await ensureOffscreenDocument();
+		logInfo("✅[BACKGROUND] Offscreen document created");
+
+		// WAIT for offscreen SERVICES to fully initialize (same pattern as App.tsx)
+		logInfo("🔄[BACKGROUND] Waiting for offscreen services to initialize...");
+		const progressStream = await backgroundJob.initializeServices();
+
+		for await (const progress of progressStream) {
+			logInfo(
+				`🚀[BACKGROUND] Offscreen services progress: ${progress.progress}% - ${progress.status}`,
+			);
+
+			if (progress.status === "completed") {
+				logInfo("✅[BACKGROUND] Offscreen services fully initialized");
+				break;
+			}
+		}
 
 		// Load current language
 		await loadCurrentLanguage();
 
-		logInfo("✅ Immediate initialization completed");
+		logInfo("✅[BACKGROUND] Immediate initialization completed");
 	} catch (error) {
-		logError("❌ Failed immediate initialization:", error);
+		logError("❌[BACKGROUND] Failed immediate initialization:", error);
 	}
-})();
+};
+
+init();
 
 // Create context menus on install
 chrome.runtime.onInstalled.addListener(async () => {
@@ -276,6 +353,12 @@ chrome.runtime.onInstalled.addListener(async () => {
 			id: SAVE_PAGE_CONTEXT_MENU_ID,
 			title: texts.savePage,
 			contexts: ["page", "selection"],
+		});
+
+		chrome.contextMenus.create({
+			id: CONVERT_TO_KNOWLEDGE_CONTEXT_MENU_ID,
+			title: texts.convertToKnowledge,
+			contexts: ["selection"],
 		});
 
 		chrome.contextMenus.create({
@@ -338,15 +421,6 @@ chrome.runtime.onInstalled.addListener(async () => {
 			title: texts.openDocuments,
 			contexts: ["page"],
 		});
-
-		ensureOffscreenDocument().catch((error) => {
-			logError(
-				"⚠️ Failed to create offscreen document during initialization:",
-				error,
-			);
-		});
-
-		await chrome.runtime.openOptionsPage?.();
 	} catch (error) {
 		logError("❌ Failed to initialize extension:", error);
 	}
@@ -540,6 +614,83 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 		return;
 	}
 
+	// Handle convert to knowledge context menu item
+	if (info.menuItemId === CONVERT_TO_KNOWLEDGE_CONTEXT_MENU_ID) {
+		if (!tab?.id) return;
+
+		try {
+			// Check if we can access the tab
+			if (
+				!tab.url ||
+				tab.url.startsWith("chrome://") ||
+				tab.url.startsWith("chrome-extension://")
+			) {
+				logError("❌ Cannot access this page type");
+				return;
+			}
+
+			// Ensure we have selected text
+			if (!info.selectionText || info.selectionText.trim().length === 0) {
+				createNotification(
+					"Convert to Knowledge",
+					"Please select some text to convert.",
+				);
+				return;
+			}
+
+			logInfo("🧠 Convert to knowledge clicked", {
+				selectionLength: info.selectionText.length,
+				pageUrl: tab.url,
+			});
+
+			// Show starting notification
+			createNotification(
+				"Converting to Knowledge",
+				"Processing your selected text...",
+			);
+
+			// Generate a unique identifier for this selection
+			const selectionId = `selection-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+			// Prepare the content with source info
+			const sourceInfo = `Selection from: ${tab.title || "Unknown"}\nOriginal URL: ${tab.url}\n\n`;
+			const fullContent = sourceInfo + info.selectionText;
+
+			// Convert directly to knowledge using the knowledge-graph job
+			// Use aggressive extraction mode for user-selected text
+			const result = await backgroundJob.execute(
+				"knowledge-graph",
+				{
+					filePath: selectionId,
+					content: fullContent,
+					isSpecificTextConversion: true, // Enable aggressive extraction
+					// No topicId - will use default
+				},
+				{ stream: false },
+			);
+
+			if ("promise" in result) {
+				await result.promise;
+			}
+
+			logInfo("✅ Selection converted to knowledge successfully", {
+				selectionId,
+			});
+
+			createNotification(
+				"Knowledge Conversion Complete",
+				"Your selected text has been converted to knowledge.",
+			);
+		} catch (error) {
+			logError("❌ Failed to convert selection to knowledge:", error);
+			createNotification(
+				"Conversion Failed",
+				"Failed to convert text to knowledge. Please try again.",
+			);
+		}
+		return;
+	}
+
 	if (!tab?.id) {
 		return;
 	}
@@ -624,7 +775,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		// Handle async topic loading for content script
 		(async () => {
 			try {
-				await ensureOffscreenDocument();
 				const getTopicJobResponse = await backgroundJob.execute(
 					"get-topics",
 					{},
@@ -793,10 +943,6 @@ chrome.runtime.onStartup.addListener(async () => {
 		logError("❌ Startup error:", error);
 	}
 });
-
-// ============================================================================
-// EXTENSION POPUP HANDLER
-// ============================================================================
 
 // Open the extension's action popup (if allowed)
 // Notes:

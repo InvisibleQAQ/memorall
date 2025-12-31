@@ -5,7 +5,11 @@ import {
 	type LogLevel,
 } from "./indexeddb-storage";
 
-const IS_DEVELOPMENT = true;
+// Detect production mode - disable all logging in production
+// Extension.js sets NODE_ENV through webpack DefinePlugin
+const IS_PRODUCTION =
+	typeof process !== "undefined" && process.env?.NODE_ENV === "production";
+const IS_DEVELOPMENT = !IS_PRODUCTION;
 
 interface LoggerConfig {
 	maxEntries: number;
@@ -173,7 +177,9 @@ class Logger {
 		const isKeyString = typeof key === "string";
 		const messageKey = isKeyString ? key : "";
 
-		logFunc(
+		// Use bound console method to preserve source map locations
+		const boundLog = logFunc.bind(console);
+		boundLog(
 			`${colorFunc(`${prefix} ${messageKey}`)}`,
 			...[isKeyString ? undefined : key, ...(rest?.length ? rest : [])].filter(
 				Boolean,
@@ -196,7 +202,9 @@ class Logger {
 		...args: unknown[]
 	): Promise<void> {
 		// Console output
-		this.logToConsole(prefix, colorFunc, logFunc, ...args);
+		if (IS_DEVELOPMENT) {
+			this.logToConsole(prefix, colorFunc, logFunc, ...args);
+		}
 
 		// Persistence
 		const message = args
@@ -369,19 +377,50 @@ class Logger {
 // Create singleton logger instance
 const logger = new Logger();
 
-// Export convenience functions that maintain backward compatibility
-export const logInfo = (...args: unknown[]) =>
+// Helper to format log output
+function formatLogArgs(
+	prefix: string,
+	colorFunc: (...text: unknown[]) => string,
+	args: unknown[],
+): unknown[] {
+	const [key, ...rest] = args;
+	const isKeyString = typeof key === "string";
+	const messageKey = isKeyString ? key : "";
+
+	return [
+		`${colorFunc(`${prefix} ${messageKey}`)}`,
+		...[isKeyString ? undefined : key, ...(rest?.length ? rest : [])].filter(
+			Boolean,
+		),
+	];
+}
+
+// Export convenience functions that call console directly to preserve source maps
+export const logInfo = (...args: unknown[]) => {
+	// Persist asynchronously without blocking
 	logger.info(undefined, undefined, ...args);
-export const logError = (...args: unknown[]) =>
+};
+
+export const logError = (...args: unknown[]) => {
+	// Persist asynchronously without blocking
 	logger.error(undefined, undefined, ...args);
-export const logWarn = (...args: unknown[]) =>
+};
+
+export const logWarn = (...args: unknown[]) => {
+	// Persist asynchronously without blocking
 	logger.warn(undefined, undefined, ...args);
-export const logDebug = (...args: unknown[]) =>
+};
+
+export const logDebug = (...args: unknown[]) => {
+	// Persist asynchronously without blocking
 	logger.debug(undefined, undefined, ...args);
+};
 
 // Keep logSilent for backward compatibility (maps to info level)
-export const logSilent = (...args: unknown[]) =>
+export const logSilent = (...args: unknown[]) => {
+	// Persist asynchronously without blocking
 	logger.info(undefined, undefined, ...args);
+};
 
 // Export logger instance for advanced usage
 export { logger };

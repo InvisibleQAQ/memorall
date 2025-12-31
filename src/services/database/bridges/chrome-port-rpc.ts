@@ -4,9 +4,10 @@
 
 import type { RpcRequest, RpcResponse, RpcTransport } from "./types";
 import { serializeForRpc } from "./serialization";
+import { logWarn } from "@/utils/logger";
 
 export interface ChromePortTransportOptions {
-	/** Port name; must match on the server side. Default: "pglite-rpc". */
+	/** Port name; must match on the server side */
 	channelName?: string;
 	/**
 	 * Ensure the Offscreen Document exists before connecting.
@@ -43,11 +44,7 @@ function isRpcResponse(value: unknown): value is RpcResponse {
 export async function createChromePortTransport(
 	options: ChromePortTransportOptions = {},
 ): Promise<RpcTransport> {
-	const {
-		channelName = "pglite-rpc",
-		ensureOffscreen,
-		reconnect = {},
-	} = options;
+	const { channelName, ensureOffscreen, reconnect = {} } = options;
 
 	const reconnectEnabled = reconnect.enabled ?? true;
 	const backoffInit = reconnect.initialDelayMs ?? 100;
@@ -97,7 +94,16 @@ export async function createChromePortTransport(
 				}
 			}
 
+			console.log(
+				`[ChromePortRPC] 🔌 CALLING chrome.runtime.connect with channel: ${channelName}`,
+				new Date().toISOString(),
+			);
 			const p = chrome.runtime.connect({ name: channelName });
+			console.log(
+				`[ChromePortRPC] ✅ Port object created:`,
+				{ portName: p.name, hasPort: !!p },
+				new Date().toISOString(),
+			);
 			p.onMessage.addListener(handleMessage);
 			p.onDisconnect.addListener(handleDisconnect);
 			port = p;
@@ -125,11 +131,12 @@ export async function createChromePortTransport(
 			if (port) {
 				try {
 					port.postMessage(serializedMsg);
-				} catch {
+				} catch (error) {
 					// If posting fails due to a race with disconnect, enqueue and reconnect.
 					queue.push(msg);
 					// eslint-disable-next-line @typescript-eslint/no-floating-promises
 					connect();
+					logWarn(`[ChromePortRPC] post error`, error);
 				}
 			} else {
 				queue.push(msg);

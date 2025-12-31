@@ -306,7 +306,10 @@ export class BackgroundJob {
 		};
 
 		// Set up message listener for initialization progress updates
-		const messageListener = (message: { type: string; currentProgress: any }) => {
+		const messageListener = (message: {
+			type: string;
+			currentProgress: any;
+		}) => {
 			if (message.type === "INITIAL_PROGRESS") {
 				// Forward currentProgress from offscreen
 				controller.enqueue({

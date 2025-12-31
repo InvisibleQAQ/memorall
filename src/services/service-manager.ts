@@ -207,17 +207,22 @@ export class ServiceManager {
 		mode: DatabaseMode;
 	}): Promise<void> {
 		try {
-			logInfo("📚 Initializing database...");
+			logInfo(`📚 Database "${options.mode}" initializing...`);
 			this.updateProgress(
 				"Setting up knowledge graph database",
 				10,
 				"database",
 			);
-			await this.databaseService.initialize(options);
+			await this.databaseService.initialize({
+				...options,
+				proxyOptions: {
+					channelName: "postgres-rpc",
+				},
+			});
 			this.serviceStatus.database = true;
-			logInfo("✅ Database initialized");
+			logInfo(`✅ Database "${options.mode}" initialized`);
 		} catch (error) {
-			logError("❌ Database initialization failed:", error);
+			logError(`❌ Database "${options.mode}" initialization failed:`, error);
 			throw new Error(
 				`Database initialization failed: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);

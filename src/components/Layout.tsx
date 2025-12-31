@@ -55,6 +55,7 @@ import { VietnamFlag, USFlag } from "@/components/atoms/flags";
 import manifest from "../../manifest.json";
 import { useAuth, useAuthActions } from "@/modules/supabase";
 import { backgroundJob } from "@/services/background-jobs/background-job";
+import { logError, logInfo } from "@/utils/logger";
 
 interface LayoutProps {
 	children: React.ReactNode;
@@ -161,7 +162,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 			try {
 				// Clear all embeddings from database
 				const result = await clearAllEmbeddings(serviceManager.databaseService);
-				console.log(
+				logInfo(
 					`Cleared ${result.total} embeddings (${result.nodes} nodes, ${result.edges} edges, ${result.messages} messages)`,
 				);
 			} catch (error) {
@@ -204,10 +205,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 				}
 			}
 
-			console.log(`✅ Embedding model reloaded to ${newSize}`);
+			logInfo(`✅ Embedding model reloaded to ${newSize}`);
 			setIsReloadingModel(false);
 		} catch (error) {
-			console.error("Failed to reload embedding model:", error);
+			logError("Failed to reload embedding model:", error);
 			setIsReloadingModel(false);
 			alert(
 				t("embedding.reloadError", {
@@ -489,7 +490,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 							/>
 						</div>
 						<p className="text-xs text-muted-foreground mt-2 text-center">
-							{reloadProgress.progress}%
+							{+reloadProgress.progress.toFixed(2)}%
 						</p>
 						<p className="text-xs text-muted-foreground mt-4">
 							{t("embedding.pleaseWait", {

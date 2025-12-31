@@ -113,12 +113,14 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 				);
 
 				// Convert directly to knowledge using the knowledge-graph job
+				// Use aggressive extraction for selections
 				const result = await backgroundJob.execute(
 					"knowledge-graph",
 					{
 						filePath: selectionId, // Use unique ID as filePath
 						content: fullContent,
 						topicId: saveContentData.topicId,
+						isSpecificTextConversion: true, // Enable aggressive extraction for selections
 					},
 					{ stream: false },
 				);

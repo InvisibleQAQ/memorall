@@ -36,6 +36,12 @@ export class DatabaseRpcHandler {
 	private processedRequests = new Map<number, ProcessedRequest>();
 	private readonly requestCacheTimeout = 60000; // 60 seconds - longer than proxy timeout
 
+	// Track listener registration to prevent duplicates
+	private isListening: boolean = false;
+	private currentChannelName: string | null = null;
+	private connectionListener: ((port: chrome.runtime.Port) => void) | null =
+		null;
+
 	static getInstance(): DatabaseRpcHandler {
 		if (!DatabaseRpcHandler.instance) {
 			DatabaseRpcHandler.instance = new DatabaseRpcHandler();
@@ -44,26 +50,58 @@ export class DatabaseRpcHandler {
 	}
 
 	// Start listening for RPC connections
-	startListening(channelName: string = "pglite-rpc"): void {
-		if (!isMainMode()) {
-			logError("❌ RPC handler can only run in main mode");
+	startListening(channelName: string): void {
+		// Prevent duplicate listeners
+		if (this.isListening && this.currentChannelName === channelName) {
+			logInfo(`📡 RPC handler already listening on channel: ${channelName}`);
 			return;
 		}
 
-		chrome.runtime.onConnect.addListener((port) => {
+		// Remove existing listener if channel changed
+		if (this.isListening && this.connectionListener) {
+			try {
+				chrome.runtime.onConnect.removeListener(this.connectionListener);
+				logInfo(
+					`📡 Removed previous RPC listener for channel: ${this.currentChannelName}`,
+				);
+			} catch (error) {
+				logError("⚠️ Failed to remove previous listener:", error);
+			}
+		}
+
+		// Create and store the listener
+		this.connectionListener = (port: chrome.runtime.Port) => {
+			logInfo(`📡 RPC connection established: ${channelName}`, {
+				hasExistingPort: !!this.port,
+				queuedResponses: this.responseQueue.length,
+				portName: port.name,
+				channelName: channelName,
+			});
 			if (port.name === channelName) {
-				logInfo(`📡 RPC connection established: ${channelName}`);
 				this.port = port;
 				port.onMessage.addListener(this.handleMessage.bind(this));
 				port.onDisconnect.addListener(() => {
-					logInfo("📡 RPC connection disconnected");
+					logInfo(`📡 RPC connection disconnected: ${channelName}`, {
+						queuedResponses: this.responseQueue.length,
+					});
 					this.port = null;
 				});
 
 				// Flush any queued responses when port reconnects
 				this.flushResponseQueue();
 			}
-		});
+		};
+
+		try {
+			chrome.runtime.onConnect.addListener(this.connectionListener);
+			logInfo(`✅ RPC listener registered for channel: ${channelName}`);
+		} catch (error) {
+			logError("🔍 RPC HANDLER: ERROR adding listener:", error);
+			throw error;
+		}
+
+		this.isListening = true;
+		this.currentChannelName = channelName;
 	}
 
 	// Handle incoming RPC messages
@@ -74,7 +112,9 @@ export class DatabaseRpcHandler {
 		const cached = this.processedRequests.get(id);
 		if (cached) {
 			const age = Date.now() - cached.timestamp;
-			logInfo(`♻️ Returning cached response for duplicate request ${id} (age: ${age}ms)`);
+			logInfo(
+				`♻️ Returning cached response for duplicate request ${id} (age: ${age}ms)`,
+			);
 			this.sendResponse(cached.response);
 			return;
 		}
@@ -201,13 +241,17 @@ export class DatabaseRpcHandler {
 		if (this.port) {
 			try {
 				this.port.postMessage(response);
-				logInfo(`✅ Response sent for request ${response.id}`);
 			} catch (error) {
-				logError(`❌ Failed to send response for request ${response.id}:`, error);
+				logError(
+					`❌ Failed to send response for request ${response.id}:`,
+					error,
+				);
 				this.queueResponse(response);
 			}
 		} else {
-			logError(`⚠️ No RPC port available, queueing response for request ${response.id}`);
+			logError(
+				`⚠️ No RPC port available, queueing response for request ${response.id}`,
+			);
 			this.queueResponse(response);
 		}
 	}
@@ -219,7 +263,9 @@ export class DatabaseRpcHandler {
 
 		// Check queue size limit
 		if (this.responseQueue.length >= this.maxQueueSize) {
-			logError(`❌ Response queue full (${this.maxQueueSize}), dropping oldest response`);
+			logError(
+				`❌ Response queue full (${this.maxQueueSize}), dropping oldest response`,
+			);
 			this.responseQueue.shift();
 		}
 
@@ -241,7 +287,9 @@ export class DatabaseRpcHandler {
 		this.responseQueue = this.responseQueue.filter((item) => {
 			const age = now - item.timestamp;
 			if (age > this.queueTimeout) {
-				logError(`❌ Response ${item.response.id} expired after ${age}ms, dropping`);
+				logError(
+					`❌ Response ${item.response.id} expired after ${age}ms, dropping`,
+				);
 				return false;
 			}
 			return true;
@@ -260,7 +308,10 @@ export class DatabaseRpcHandler {
 		}
 
 		// Exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms
-		const maxRetryCount = Math.max(...this.responseQueue.map(q => q.retryCount), 0);
+		const maxRetryCount = Math.max(
+			...this.responseQueue.map((q) => q.retryCount),
+			0,
+		);
 		const delay = Math.min(100 * Math.pow(2, maxRetryCount), 5000);
 
 		this.retryTimer = setTimeout(() => {
@@ -276,25 +327,36 @@ export class DatabaseRpcHandler {
 		}
 
 		if (!this.port) {
-			logError(`⚠️ Cannot flush queue: no RPC port available (${this.responseQueue.length} responses queued)`);
+			logError(
+				`⚠️ Cannot flush queue: no RPC port available (${this.responseQueue.length} responses queued)`,
+			);
 			this.scheduleRetry();
 			return;
 		}
 
-		logInfo(`🔄 Flushing response queue (${this.responseQueue.length} responses)`);
+		logInfo(
+			`🔄 Flushing response queue (${this.responseQueue.length} responses)`,
+		);
 		const failedResponses: QueuedResponse[] = [];
 
 		for (const queuedItem of this.responseQueue) {
 			try {
 				this.port.postMessage(queuedItem.response);
-				logInfo(`✅ Queued response ${queuedItem.response.id} sent successfully (retry ${queuedItem.retryCount})`);
+				logInfo(
+					`✅ Queued response ${queuedItem.response.id} sent successfully (retry ${queuedItem.retryCount})`,
+				);
 			} catch (error) {
 				queuedItem.retryCount++;
 
 				if (queuedItem.retryCount >= this.maxRetries) {
-					logError(`❌ Response ${queuedItem.response.id} failed after ${queuedItem.retryCount} retries, dropping`);
+					logError(
+						`❌ Response ${queuedItem.response.id} failed after ${queuedItem.retryCount} retries, dropping`,
+					);
 				} else {
-					logError(`⚠️ Failed to send queued response ${queuedItem.response.id} (retry ${queuedItem.retryCount}/${this.maxRetries}):`, error);
+					logError(
+						`⚠️ Failed to send queued response ${queuedItem.response.id} (retry ${queuedItem.retryCount}/${this.maxRetries}):`,
+						error,
+					);
 					failedResponses.push(queuedItem);
 				}
 			}
@@ -318,13 +380,17 @@ export class DatabaseRpcHandler {
 
 		// Clear response queue
 		if (this.responseQueue.length > 0) {
-			logError(`⚠️ Stopping RPC handler with ${this.responseQueue.length} queued responses`);
+			logError(
+				`⚠️ Stopping RPC handler with ${this.responseQueue.length} queued responses`,
+			);
 			this.responseQueue = [];
 		}
 
 		// Clear request cache
 		if (this.processedRequests.size > 0) {
-			logInfo(`🧹 Clearing ${this.processedRequests.size} cached requests on stop`);
+			logInfo(
+				`🧹 Clearing ${this.processedRequests.size} cached requests on stop`,
+			);
 			this.processedRequests.clear();
 		}
 

@@ -19,7 +19,6 @@ import {
 import { schema } from "./schema";
 import { DatabaseMode } from "./constants";
 import type {
-	DatabaseConfig,
 	DatabaseContext,
 	DatabaseStatus,
 } from "./interfaces/database-service.interface";
@@ -29,19 +28,18 @@ import { DatabaseRpcHandler } from "./bridges/rpc-handler";
 export class DatabaseServiceMain extends DatabaseServiceCore {
 	protected async initializeDatabase(): Promise<void> {
 		logInfo(
-			`📚 Initializing database service in ${this.config?.mode.toUpperCase()} mode...`,
+			`📚 Initializing database service in "MAIN" mode. Channel: "${this.config!.proxyOptions?.channelName}"`,
 		);
 
 		try {
+			// Start RPC handler FIRST (before database init) so listener is ready
+			// when popup tries to connect - prevents "Receiving end does not exist" errors
+
 			// db.ts handles both main and proxy modes correctly
 			await initDB(this.config!);
 
-			// Start RPC handler only in main mode
-			if (this.config!.mode === DatabaseMode.MAIN) {
-				const rpcHandler = DatabaseRpcHandler.getInstance();
-				rpcHandler.startListening(this.config!.proxyOptions?.channelName);
-				logInfo("📡 RPC handler started for proxy connections");
-			}
+			const rpcHandler = DatabaseRpcHandler.getInstance();
+			rpcHandler.startListening(this.config!.proxyOptions?.channelName!);
 
 			logInfo("✅ Database service initialized successfully");
 		} catch (error) {

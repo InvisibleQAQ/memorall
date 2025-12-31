@@ -121,11 +121,14 @@ export class WllamaLLM implements BaseLLM {
 	}
 
 	async getMaxModelTokens(model?: string): Promise<number> {
-		return 4096;
+		// Return a conservative estimate that works for most contexts
+		// The actual n_ctx is set to 65536 in the runner and auto-clamped to model max
+		// This value is used for chunking logic - we use a safe default
+		return 8192;
 	}
 
 	async getMaxResponseTokens(model?: string): Promise<number> {
-		return Math.round(4096 * 0.5);
+		return Math.round(8192 * 0.5);
 	}
 
 	async models(): Promise<ModelsResponse> {

@@ -81,10 +81,6 @@ export const useEmbeddingSettings = create<EmbeddingSettingsState>()(
 				// (It was already initialized by service-manager in offscreen thread)
 				const currentSize = await getCurrentEmbeddingSize();
 
-				console.log(
-					`[EmbeddingSettings] Initializing - getCurrentEmbeddingSize(): "${currentSize}"`,
-				);
-
 				// Detect existing data for UI display
 				await get().detectExistingData();
 

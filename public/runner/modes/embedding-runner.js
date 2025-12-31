@@ -49,13 +49,6 @@ function createProgressLogger(context, notify) {
 					notify && notify({ ...info, model, file, progress: pct });
 				} catch {}
 
-				console.log("[embedding-runner] download progress", {
-					model,
-					file,
-					progress: pct,
-					loaded: info?.loaded,
-					total: info?.total,
-				});
 				return;
 			}
 
@@ -63,10 +56,6 @@ function createProgressLogger(context, notify) {
 				try {
 					notify && notify({ ...info, model, file });
 				} catch {}
-				console.log("[embedding-runner] download started", {
-					model,
-					file,
-				});
 				return;
 			}
 

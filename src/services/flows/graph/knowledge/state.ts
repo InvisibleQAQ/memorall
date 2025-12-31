@@ -54,6 +54,7 @@ export interface KnowledgeGraphState extends BaseStateBase {
 	referenceTimestamp: string;
 	metadata?: Record<string, unknown>;
 	graphId?: string;
+	isSpecificTextConversion?: boolean; // If true, use aggressive extraction and skip empty resolutions
 
 	// Processing state
 	previousMessages?: string;
@@ -115,6 +116,10 @@ export const KnowledgeGraphAnnotation = Annotation.Root({
 	sourceId: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,
 		default: () => undefined,
+	}),
+	isSpecificTextConversion: Annotation<boolean | undefined>({
+		value: (x, y) => y ?? x,
+		default: () => false,
 	}),
 	previousMessages: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,

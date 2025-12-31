@@ -48,13 +48,11 @@ export async function initDB(configOrDataDir?: DatabaseConfig | string) {
 			await runMigrations(realPglite);
 			logInfo("✅ Database initialized in MAIN mode");
 		} else {
-			// Proxy mode: Create proxy instance
-			const transport = await createChromePortTransport({
-				channelName: config.proxyOptions?.channelName || "pglite-rpc",
-			});
-			pgliteInstance = new PGliteSharedProxy(transport);
-			await pgliteInstance.waitReady;
-			logInfo("✅ Database initialized in PROXY mode");
+			// Proxy mode should never reach here - it's handled by DatabaseServiceProxy
+			// This is just a safety check
+			throw new Error(
+				`PROXY mode should not initialize database here. Use DatabaseServiceProxy instead.`,
+			);
 		}
 
 		// Create Drizzle instance (type-safe - both implement compatible interfaces)

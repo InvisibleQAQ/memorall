@@ -110,65 +110,66 @@ const App: React.FC = () => {
 
 				// Initialize services through offscreen with progress streaming
 				const progressStream = await backgroundJob.initializeServices();
+				let startTime = Date.now();
 
-				let finished = false;
 				// Listen to initialization progress
 				for await (const progress of progressStream) {
-					console.log("🚀 App initialization progress:", progress);
-					if (finished) {
-						break;
-					}
+					logInfo("🚀 App initialization progress:", progress);
 					setUiProgress(progress.progress);
 
 					if (progress.status === "completed") {
 						setUiProgress(100);
-						// Small delay before showing app
-						await serviceManager.initialize({ proxy: true });
-
-						// Register all document editors
-						registerAllEditors();
-						logInfo("📝 Document editors registered");
-
-						// Check if current model requires authentication
-						try {
-							const currentModel =
-								await serviceManager.llmService.getCurrentModel();
-							if (
-								currentModel &&
-								(currentModel.provider === "openai" ||
-									currentModel.provider === "openrouter")
-							) {
-								// Check if provider needs passkey to restore
-								const needsRestore = await checkProviderNeedsRestore(
-									currentModel.provider,
-								);
-								if (needsRestore) {
-									logInfo(
-										`🔐 ${currentModel.provider} authentication required - waiting for passkey`,
-									);
-									setPasskeyProvider(currentModel.provider);
-									setServicesStatus("awaiting-passkey");
-									return;
-								}
-							}
-						} catch (error) {
-							logError(
-								"Failed to check auth provider restore - continuing anyway:",
-								error,
-							);
-							// Continue to ready state even if check fails
-						}
-
-						// Initialize embedding settings
-						await initializeEmbeddingSettings();
-
-						setTimeout(() => {
-							setServicesStatus("ready");
-							logInfo("✅ App initialization complete");
-						}, 100);
+						logInfo("✅ App initialization complete");
 						break;
 					}
 				}
+				const duration = Date.now() - startTime;
+
+				if (duration < 1000) {
+					await new Promise((resolve) => setTimeout(resolve, 5000 - duration));
+				}
+
+				// Small delay before showing app
+				await serviceManager.initialize({ proxy: true });
+
+				// Register all document editors
+				registerAllEditors();
+				logInfo("📝 Document editors registered");
+
+				// Check if current model requires authentication
+				try {
+					const currentModel =
+						await serviceManager.llmService.getCurrentModel();
+					if (
+						currentModel &&
+						(currentModel.provider === "openai" ||
+							currentModel.provider === "openrouter")
+					) {
+						// Check if provider needs passkey to restore
+						const needsRestore = await checkProviderNeedsRestore(
+							currentModel.provider,
+						);
+						if (needsRestore) {
+							logInfo(
+								`🔐 ${currentModel.provider} authentication required - waiting for passkey`,
+							);
+							setPasskeyProvider(currentModel.provider);
+							setServicesStatus("awaiting-passkey");
+							return;
+						}
+					}
+				} catch (error) {
+					logError(
+						"Failed to check auth provider restore - continuing anyway:",
+						error,
+					);
+					// Continue to ready state even if check fails
+				}
+
+				// Initialize embedding settings
+				await initializeEmbeddingSettings();
+				logInfo(`🚀 App initialization completed in ${duration}ms`);
+				setServicesStatus("ready");
 			} catch (error) {
 				logError("❌ App initialization failed:", error);
 				setServicesStatus("error");
@@ -270,11 +271,9 @@ const App: React.FC = () => {
 		} catch (error) {
 			logError("❌ App re-initialization failed:", error);
 			setServicesStatus("error");
-			setInitError(
-				error instanceof Error ? error.message : "Unknown error",
-			);
+			setInitError(error instanceof Error ? error.message : "Unknown error");
 		}
-	}
+	};
 
 	// Initial route is set before first render in popup.tsx based on storage flag
 

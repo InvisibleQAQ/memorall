@@ -84,6 +84,58 @@ Return a valid JSON array with this exact structure:
 
 REMEMBER: This is personal knowledge - extract comprehensively to build the user's complete knowledge graph!`;
 
+const SPECIFIC_TEXT_CONVERSION_PROMPT = `You are an expert entity extraction specialist focused on MAXIMUM KNOWLEDGE EXTRACTION from user-selected text. The user has specifically selected this text to convert to knowledge, so extract EVERYTHING possible.
+
+CRITICAL CONVERSION RULES:
+1. Convert first-person pronouns to represent the user:
+   - "I", "me", "my", "myself" → "Memorall User"
+   - Always create a "Memorall User" entity for user references
+   - Use nodeType "USER" for the main user entity
+
+2. EXTRACT ABSOLUTELY EVERYTHING - Maximum Extraction Mode:
+   - Every single person, organization, place, concept mentioned or implied
+   - All technologies, tools, methods, frameworks, libraries, platforms
+   - Abstract concepts, ideas, theories, principles, methodologies
+   - Feelings, opinions, preferences, attitudes, beliefs, values
+   - Temporal references (dates, times, events, periods, deadlines)
+   - Skills, competencies, experiences, achievements, qualifications, goals
+   - Objects, products, brands, services, features, capabilities
+   - Activities, hobbies, interests, projects, tasks, responsibilities
+   - Relationships, connections, influences, inspirations
+   - Problems, challenges, solutions, approaches, strategies
+   - Metrics, measurements, statistics, data points
+   - Documents, resources, references, sources
+   - Locations, venues, facilities, environments
+
+3. AGGRESSIVE EXTRACTION STRATEGIES:
+   - Extract implied entities (things mentioned indirectly)
+   - Extract contextual entities (background information)
+   - Extract related entities (associated concepts)
+   - Extract metadata entities (source, author, date if mentioned)
+   - Extract subjective entities (opinions, feelings, interpretations)
+   - Extract process entities (methods, workflows, procedures)
+   - Break down compound concepts into multiple entities
+   - Extract entities from examples, analogies, and metaphors
+
+4. QUALITY GUIDELINES:
+   - Use clean, specific names without descriptive wrappers
+   - Provide rich summaries with full context
+   - Use specific, descriptive nodeTypes
+   - Include all relevant attributes
+   - Disambiguate similar entities with context in summary
+
+Return a valid JSON array with this exact structure:
+[
+  {
+    "name": "Clean Entity Name",
+    "summary": "Comprehensive description with full context, relevance, and relationships",
+    "nodeType": "SPECIFIC_DESCRIPTIVE_TYPE",
+    "attributes": {"key": "value"}
+  }
+]
+
+MAXIMIZE EXTRACTION - The user selected this text specifically to preserve knowledge. Extract everything that could be valuable!`;
+
 export class EntityExtractionFlow {
 	constructor(private services: AllServices) {}
 
@@ -97,15 +149,25 @@ export class EntityExtractionFlow {
 				throw new Error("LLM service is not ready");
 			}
 
-			// Determine if this is user input that should be remembered
+			// Determine which prompt to use based on context
+			const isSpecificConversion = state.isSpecificTextConversion === true;
 			const isUserInput = state.sourceType === "user_input";
-			const promptToUse = isUserInput
-				? USER_INPUT_ENTITY_EXTRACTION_PROMPT
-				: ENTITY_EXTRACTION_SYSTEM_PROMPT;
 
-			logInfo(
-				`[ENTITY_EXTRACTION] Starting entity extraction (${isUserInput ? "USER_INPUT" : "STANDARD"} mode)`,
-			);
+			let promptToUse: string;
+			let mode: string;
+
+			if (isSpecificConversion) {
+				promptToUse = SPECIFIC_TEXT_CONVERSION_PROMPT;
+				mode = "SPECIFIC_TEXT_CONVERSION";
+			} else if (isUserInput) {
+				promptToUse = USER_INPUT_ENTITY_EXTRACTION_PROMPT;
+				mode = "USER_INPUT";
+			} else {
+				promptToUse = ENTITY_EXTRACTION_SYSTEM_PROMPT;
+				mode = "STANDARD";
+			}
+
+			logInfo(`[ENTITY_EXTRACTION] Starting entity extraction (${mode} mode)`);
 
 			// Format content based on available information
 			let formattedContent = `<CONTENT>\n${state.currentMessage}\n</CONTENT>`;
@@ -123,8 +185,10 @@ export class EntityExtractionFlow {
 				formattedContent = `<METADATA>\n${metadata.join("\n")}\n</METADATA>\n\n${formattedContent}`;
 			}
 
-			// Add special instruction for user input
-			if (isUserInput) {
+			// Add special instruction based on mode
+			if (isSpecificConversion) {
+				formattedContent += `\n\n<INSTRUCTION>\nThe user specifically selected this text to convert to knowledge. Extract MAXIMUM entities - be extremely comprehensive. Convert "I/me/my" references to "Memorall User".\n</INSTRUCTION>`;
+			} else if (isUserInput) {
 				formattedContent += `\n\n<INSTRUCTION>\nThis is user input that the user wants to remember. Extract maximum knowledge and convert "I/me/my" references to "Memorall User".\n</INSTRUCTION>`;
 			}
 
@@ -138,8 +202,8 @@ export class EntityExtractionFlow {
 			const cleanEntityName = (name: string): string => {
 				let cleaned = name.trim();
 
-				// Special handling for user input - convert first-person pronouns
-				if (isUserInput) {
+				// Special handling for user input or specific conversion - convert first-person pronouns
+				if (isUserInput || isSpecificConversion) {
 					// Convert first-person pronouns to "Memorall User"
 					if (/^(i|me|my|myself)$/i.test(cleaned)) {
 						return "Memorall User";

@@ -259,7 +259,10 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 			// Build system message with knowledge context
 			const systemMessage: ChatMessage = {
 				role: "system",
-				content: RESPONSE_GENERATION_PROMPT.replace("{context}", state.knowledgeContext),
+				content: RESPONSE_GENERATION_PROMPT.replace(
+					"{context}",
+					state.knowledgeContext,
+				),
 			};
 
 			// Use full multimodal messages from input, prepending system message

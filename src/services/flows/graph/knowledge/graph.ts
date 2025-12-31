@@ -88,14 +88,74 @@ export class KnowledgeGraphFlow extends GraphBase<
 			this.workflow.addNode("extract_temporal", this.extractTemporalNode);
 		}
 
-		// Define the flow based on configuration
+		// Define the flow with conditional logic
 		this.workflow.addEdge(START, "extract_entities");
-		this.workflow.addEdge("extract_entities", "load_entities");
+
+		// After entity extraction: conditionally skip resolution if no entities
+		this.workflow.addConditionalEdges("extract_entities", (state) => {
+			const hasEntities =
+				state.extractedEntities && state.extractedEntities.length > 0;
+			if (!hasEntities) {
+				logInfo(
+					"[FLOW] No entities extracted, skipping entity resolution and going to save",
+				);
+				return "save_to_database";
+			}
+			return "load_entities";
+		});
+
 		this.workflow.addEdge("load_entities", "resolve_entities");
 		this.workflow.addEdge("resolve_entities", "extract_facts");
-		this.workflow.addEdge("extract_facts", "load_facts");
+
+		// After fact extraction: conditionally skip resolution if no facts
+		this.workflow.addConditionalEdges("extract_facts", (state) => {
+			const hasFacts = state.extractedFacts && state.extractedFacts.length > 0;
+			if (!hasFacts) {
+				logInfo(
+					"[FLOW] No facts extracted, skipping fact resolution and edge enrichment",
+				);
+				if (this.config.enableTemporalExtraction) {
+					return "extract_temporal";
+				}
+				return "save_to_database";
+			}
+			return "load_facts";
+		});
+
 		this.workflow.addEdge("load_facts", "resolve_facts");
-		this.workflow.addEdge("resolve_facts", "enrich_edges");
+
+		// After fact resolution: conditionally run edge enrichment only if there are isolated entities
+		this.workflow.addConditionalEdges("resolve_facts", (state) => {
+			// Check if there are entities without any edges
+			const entityIds = new Set(
+				(state.resolvedEntities || []).map((e) => e.uuid),
+			);
+			const connectedEntityIds = new Set<string>();
+
+			// Mark entities that have connections
+			for (const fact of state.resolvedFacts || []) {
+				connectedEntityIds.add(fact.sourceEntityId);
+				connectedEntityIds.add(fact.destinationEntityId);
+			}
+
+			// Find isolated entities (entities without connections)
+			const isolatedEntities = Array.from(entityIds).filter(
+				(id) => !connectedEntityIds.has(id),
+			);
+
+			if (isolatedEntities.length > 0) {
+				logInfo(
+					`[FLOW] Found ${isolatedEntities.length} isolated entities, running edge enrichment`,
+				);
+				return "enrich_edges";
+			}
+
+			logInfo("[FLOW] No isolated entities, skipping edge enrichment");
+			if (this.config.enableTemporalExtraction) {
+				return "extract_temporal";
+			}
+			return "save_to_database";
+		});
 
 		if (this.config.enableTemporalExtraction) {
 			// With temporal extraction: enrich_edges -> extract_temporal -> save_to_database

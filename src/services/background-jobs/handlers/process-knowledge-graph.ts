@@ -17,6 +17,7 @@ export interface KnowledgeGraphPayload {
 	filePath: string;
 	content: string;
 	topicId?: string; // undefined means default (no topic)
+	isSpecificTextConversion?: boolean; // If true, use aggressive extraction
 }
 
 // Define result types that handlers return
@@ -121,6 +122,7 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 					pageData.filePath,
 					pageData.content,
 					pageData.topicId, // Pass the topicId (undefined for default)
+					pageData.isSpecificTextConversion, // Pass the aggressive extraction flag
 				);
 
 				await dependencies.logger.info(

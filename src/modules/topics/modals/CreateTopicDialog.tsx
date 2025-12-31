@@ -39,7 +39,7 @@ export const CreateTopicDialog = NiceModal.create(() => {
 	}, [modal.visible]);
 
 	const handleCreate = async () => {
-		if (!topicName.trim() || !topicDescription.trim()) return;
+		if (!topicName.trim() || !topicDescription.trim() || creating) return;
 
 		try {
 			setCreating(true);
@@ -70,8 +70,11 @@ export const CreateTopicDialog = NiceModal.create(() => {
 			(e.ctrlKey || e.metaKey) &&
 			e.key === "Enter" &&
 			topicName.trim() &&
-			topicDescription.trim()
+			topicDescription.trim() &&
+			!creating
 		) {
+			e.preventDefault();
+			e.stopPropagation();
 			handleCreate();
 		}
 	};
@@ -129,6 +132,7 @@ export const CreateTopicDialog = NiceModal.create(() => {
 
 				<DialogFooter className="px-6 pb-6">
 					<Button
+						type="button"
 						variant="outline"
 						onClick={() => modal.hide()}
 						disabled={creating}
@@ -136,6 +140,7 @@ export const CreateTopicDialog = NiceModal.create(() => {
 						{t("create.cancel")}
 					</Button>
 					<Button
+						type="button"
 						onClick={handleCreate}
 						disabled={!topicName.trim() || !topicDescription.trim() || creating}
 					>

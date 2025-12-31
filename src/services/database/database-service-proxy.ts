@@ -33,12 +33,14 @@ export class DatabaseServiceProxy extends DatabaseServiceCore {
 	private db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 	protected async initializeDatabase(): Promise<void> {
-		logInfo("📚 Initializing database service in PROXY mode (popup thread)");
+		logInfo(
+			`📚 Initializing database service in PROXY mode. Channel: "${this.config?.proxyOptions?.channelName}"`,
+		);
 
 		try {
 			// Create Chrome Port transport
 			const transport = await createChromePortTransport({
-				channelName: this.config?.proxyOptions?.channelName || "pglite-rpc",
+				channelName: this.config?.proxyOptions?.channelName,
 			});
 
 			// Create PGlite proxy - lightweight RPC client only

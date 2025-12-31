@@ -23,26 +23,72 @@ class PortBridge {
 	 * Initialize the Port bridge
 	 * Listens for Port connections from popup and relays them to offscreen
 	 */
-	initialize(): void {
+	initialize({
+		proxyOptions,
+	}: {
+		proxyOptions: {
+			channelName: string;
+		};
+	}): void {
+		logInfo("🌉 RPC Port bridge initializing...", {
+			channelName: proxyOptions.channelName,
+		});
+
 		chrome.runtime.onConnect.addListener((popupPort) => {
+			logInfo("🔍 RPC PORT BRIDGE: onConnect event fired", {
+				portName: popupPort.name,
+				expectedChannel: proxyOptions.channelName,
+				hasSender: !!popupPort.sender,
+				senderInfo: popupPort.sender
+					? {
+							id: popupPort.sender.id,
+							url: popupPort.sender.url,
+							origin: popupPort.sender.origin,
+						}
+					: null,
+				timestamp: new Date().toISOString(),
+			});
+
 			// Only handle pglite-rpc connections
-			if (popupPort.name !== "pglite-rpc") {
+			if (popupPort.name !== proxyOptions.channelName) {
+				logInfo("🔍 PORT BRIDGE: Ignoring - channel name mismatch", {
+					received: popupPort.name,
+					expected: proxyOptions.channelName,
+				});
 				return;
 			}
 
 			// Only handle connections from popup, not from background itself
 			// popupPort.sender will be undefined if the connection is from the same context (background)
 			if (!popupPort.sender) {
+				logInfo(
+					"🔍 PORT BRIDGE: Ignoring - no sender (background self-connection)",
+				);
 				return;
 			}
 
 			logInfo("🌉 Port bridge: Popup connected, creating bridge to offscreen", {
 				portName: popupPort.name,
+				timestamp: new Date().toISOString(),
 			});
 
 			try {
+				logInfo(
+					"🔍 PORT BRIDGE: Calling chrome.runtime.connect to create offscreen port...",
+					{
+						channelName: popupPort.name,
+						timestamp: new Date().toISOString(),
+					},
+				);
+
 				// Create matching Port connection to offscreen document
 				const offscreenPort = chrome.runtime.connect({ name: popupPort.name });
+
+				logInfo("🔍 PORT BRIDGE: Offscreen port created successfully", {
+					portName: offscreenPort.name,
+					hasPort: !!offscreenPort,
+					timestamp: new Date().toISOString(),
+				});
 
 				// Store the bridge
 				const bridgeId = `${popupPort.name}-${Date.now()}`;
@@ -54,6 +100,7 @@ class PortBridge {
 				logInfo("✅ Port bridge established", {
 					bridgeId,
 					portName: popupPort.name,
+					timestamp: new Date().toISOString(),
 				});
 			} catch (error) {
 				logError("❌ Failed to create port bridge to offscreen:", error);

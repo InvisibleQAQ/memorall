@@ -14,7 +14,6 @@ const getSupabaseConfig = async (): Promise<{
 		]);
 
 		if (stored?.supabaseUrl && stored?.supabaseAnonKey) {
-			console.log("✅ Supabase config from chrome.storage");
 			return {
 				url: stored.supabaseUrl,
 				anonKey: stored.supabaseAnonKey,
@@ -33,12 +32,6 @@ const getSupabaseConfig = async (): Promise<{
 		import.meta?.env?.EXTENSION_PUBLIC_SUPABASE_ANON_KEY ||
 		import.meta?.env?.VITE_SUPABASE_ANON_KEY ||
 		"";
-
-	console.log("🔍 Supabase config from .env:", {
-		hasUrl: !!envUrl,
-		hasKey: !!envKey,
-		url: envUrl ? `${envUrl.substring(0, 20)}...` : "MISSING",
-	});
 
 	return {
 		url: envUrl,

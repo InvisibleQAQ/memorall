@@ -7,6 +7,7 @@ import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { Node } from "@/services/database/entities/nodes";
 import { logInfo, logError } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
+import { UuidMapper } from "./utils/uuid-mapping";
 
 const ENTITY_RESOLUTION_SYSTEM_PROMPT = `Given the EXISTING NODES and NEW NODES, determine for EACH NEW NODE whether it represents the same real-world entity as any existing node.
 
@@ -173,6 +174,9 @@ ${entitiesText}
 				final_name?: string;
 			}
 
+			// Create UUID mapper for this resolution session
+			const uuidMapper = new UuidMapper();
+
 			const parseResolutions = (content: string): ResolvedEntity[] => {
 				let cleaned = content.trim();
 				if (cleaned.startsWith("```json"))
@@ -200,19 +204,50 @@ ${entitiesText}
 							final_name: entity.name,
 						};
 
+						const finalName = resolution.final_name || entity.name;
+						const isDuplicate = resolution.is_duplicate || false;
+
+						// Use UUID mapper to get correct UUID
+						const mappingResult = uuidMapper.mapEntityUuid(
+							entity.name,
+							resolution.existing_id,
+							finalName,
+							state.existingNodes,
+						);
+
+						// If LLM said it's a duplicate but mapper couldn't find a match,
+						// the mapper will have generated a new UUID and marked isExisting=false
+						if (isDuplicate && !mappingResult.isExisting) {
+							logInfo(
+								`[ENTITY_RESOLUTION] LLM marked entity "${entity.name}" as duplicate but could not find matching node. Created new entity with UUID: ${mappingResult.correctUuid}`,
+							);
+						}
+
 						results.push({
 							...entity,
-							isExisting: resolution.is_duplicate || false,
-							existingId: resolution.existing_id,
-							finalName: resolution.final_name || entity.name,
+							uuid: mappingResult.correctUuid,
+							isExisting: mappingResult.isExisting,
+							existingId: mappingResult.isExisting
+								? mappingResult.correctUuid
+								: undefined,
+							finalName: mappingResult.finalName || finalName,
 						});
 					}
 
 					// Handle any remaining entities that weren't in the response
 					for (let i = parsedArray.length; i < needsAIResolution.length; i++) {
 						const entity = needsAIResolution[i];
+						// Generate new UUID for entities without resolution
+						const mappingResult = uuidMapper.mapEntityUuid(
+							entity.name,
+							undefined,
+							entity.name,
+							state.existingNodes,
+						);
+
 						results.push({
 							...entity,
+							uuid: mappingResult.correctUuid,
 							isExisting: false,
 							finalName: entity.name,
 						});
@@ -225,12 +260,22 @@ ${entitiesText}
 						parseError,
 					);
 
-					// Fallback: assume all AI-resolution entities are new
-					return needsAIResolution.map((entity) => ({
-						...entity,
-						isExisting: false,
-						finalName: entity.name,
-					}));
+					// Fallback: assume all AI-resolution entities are new with generated UUIDs
+					return needsAIResolution.map((entity) => {
+						const mappingResult = uuidMapper.mapEntityUuid(
+							entity.name,
+							undefined,
+							entity.name,
+							state.existingNodes,
+						);
+
+						return {
+							...entity,
+							uuid: mappingResult.correctUuid,
+							isExisting: false,
+							finalName: entity.name,
+						};
+					});
 				}
 			};
 
