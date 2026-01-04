@@ -11,11 +11,9 @@ import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "./constants/language";
 import type { Language } from "./constants/language";
 import { activityTrackingManager } from "./background/activity-tracking-manager";
 
-// Global flag to prevent duplicate initialization
-type BackgroundGlobal = typeof globalThis & {
-	__memorallBackgroundInitDone__?: boolean;
-};
-const backgroundGlobal = globalThis as BackgroundGlobal;
+// Initialization state
+let initializationInProgress = false;
+let initialized = false;
 
 // Language management
 let currentLanguage: Language = DEFAULT_LANGUAGE;
@@ -67,9 +65,6 @@ const OPEN_DOCUMENTS_CONTEXT_MENU_ID = "open-documents";
 let offscreenCreated = false;
 let offscreenInitPromise: Promise<void> | null = null;
 
-// Loading state management
-let activeJobs = 0;
-
 // ============================================================================
 // CRITICAL: Register port-bridge listener IMMEDIATELY in global scope
 // This MUST happen synchronously at module load time, NOT in async functions
@@ -89,6 +84,56 @@ console.log(
 	"🔥 [BACKGROUND] Port-bridge listener registered successfully",
 	new Date().toISOString(),
 );
+
+// Close existing offscreen document if it exists
+async function closeOffscreenDocument(): Promise<void> {
+	try {
+		// Check if offscreen API is available
+		if (!chrome.offscreen) {
+			logInfo("⚠️ Chrome offscreen API not available");
+			return;
+		}
+
+		// Check for existing offscreen documents
+		const contexts = await chrome.runtime.getContexts({
+			contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+		});
+
+		if (contexts.length > 0) {
+			logInfo(`🗑️ Closing ${contexts.length} existing offscreen document(s)...`);
+			await chrome.offscreen.closeDocument();
+			logInfo("✅ Offscreen document(s) closed");
+		} else {
+			logInfo("ℹ️ No existing offscreen documents to close");
+		}
+
+		// CRITICAL: Clear the offscreen initialization status from shared storage
+		// This ensures the offscreen will be re-initialized properly
+		logInfo("🧹 Clearing offscreen initialization status from shared storage...");
+		await sharedStorageService.set("offscreenProgress", {
+			done: false,
+			progress: 0,
+			status: "Pending",
+		});
+
+		// Reset state flags
+		offscreenCreated = false;
+		offscreenInitPromise = null;
+	} catch (error) {
+		logError("⚠️ Error closing offscreen document:", error);
+		// Reset state flags anyway to allow fresh creation
+		offscreenCreated = false;
+		offscreenInitPromise = null;
+		// Try to clear shared storage even if close failed
+		try {
+			await sharedStorageService.set("offscreenProgress", {
+				done: false,
+				progress: 0,
+				status: "Pending",
+			});
+		} catch {}
+	}
+}
 
 // Ensure offscreen document is created and ready
 async function ensureOffscreenDocument(): Promise<void> {
@@ -155,34 +200,6 @@ async function ensureOffscreenDocument(): Promise<void> {
 		}
 	})();
 	return offscreenInitPromise;
-}
-
-// Update extension icon loading state
-function updateIconLoadingState() {
-	if (activeJobs > 0) {
-		// Show loading state
-		chrome.action.setBadgeText({ text: "..." });
-		chrome.action.setBadgeBackgroundColor({ color: "#4285f4" });
-		chrome.action.setTitle({ title: "Processing..." });
-	} else {
-		// Clear loading state
-		chrome.action.setBadgeText({ text: "" });
-		chrome.action.setTitle({ title: "Memorall" });
-	}
-}
-
-// Start loading indicator
-function startLoading() {
-	activeJobs++;
-	updateIconLoadingState();
-	logInfo(`🔄 Started loading (${activeJobs} active jobs)`);
-}
-
-// Stop loading indicator
-function stopLoading() {
-	activeJobs = Math.max(0, activeJobs - 1);
-	updateIconLoadingState();
-	logInfo(`✅ Stopped loading (${activeJobs} active jobs)`);
 }
 
 // Helper to create notifications with proper icon
@@ -275,8 +292,27 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 const init = async () => {
+	// Prevent duplicate initialization
+	if (initializationInProgress) {
+		logInfo("⏸️ Initialization already in progress, skipping...");
+		return;
+	}
+
+	if (initialized) {
+		logInfo("✅ Already initialized, skipping...");
+		return;
+	}
+
+	initializationInProgress = true;
+
 	try {
 		logInfo("[BACKGROUND] Init - running in service worker context");
+
+		// CRITICAL: Close any existing offscreen document first to ensure clean state
+		logInfo("🔄[BACKGROUND] Closing any existing offscreen document...");
+		await closeOffscreenDocument();
+		logInfo("✅[BACKGROUND] Offscreen cleanup completed");
+
 		// Initialize shared storage service early
 		await sharedStorageService.initialize();
 		logInfo("✅[BACKGROUND] Shared storage service initialized");
@@ -298,7 +334,7 @@ const init = async () => {
 		// logInfo("✅[BACKGROUND] Port bridge initialized for database RPC");
 
 		// CRITICAL: Initialize offscreen document FIRST (it hosts the actual database)
-		logInfo("🔄[BACKGROUND] Creating offscreen document...");
+		logInfo("🔄[BACKGROUND] Creating fresh offscreen document...");
 		await ensureOffscreenDocument();
 		logInfo("✅[BACKGROUND] Offscreen document created");
 
@@ -320,17 +356,24 @@ const init = async () => {
 		// Load current language
 		await loadCurrentLanguage();
 
-		logInfo("✅[BACKGROUND] Immediate initialization completed");
+		initialized = true;
+		logInfo("✅[BACKGROUND] Initialization completed successfully");
 	} catch (error) {
-		logError("❌[BACKGROUND] Failed immediate initialization:", error);
+		logError("❌[BACKGROUND] Failed initialization:", error);
+		// Don't set initialized = true on error, allow retry
+	} finally {
+		initializationInProgress = false;
 	}
 };
 
-init();
-
 // Create context menus on install
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
 	try {
+		logInfo(`🎉 Extension installed/updated: ${details.reason}`);
+
+		// Initialize on install or update
+		await init();
+
 		// Load current language first
 		await loadCurrentLanguage();
 		const texts = CONTEXT_MENU_TEXTS[currentLanguage];
@@ -858,8 +901,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		// Handle async processing
 		(async () => {
 			try {
-				// Queue the page for background save (offscreen will process)
-				startLoading(); // Show loading indicator
 				const saveResponse = await backgroundJob.execute(
 					"remember-save",
 					message.data,
@@ -888,8 +929,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				};
 				logInfo("📨 Sending error response to content script:", errorResponse);
 				sendResponse(errorResponse);
-			} finally {
-				stopLoading(); // Hide loading indicator
 			}
 		})();
 
@@ -920,12 +959,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 });
 
-// Handle extension startup
+// Handle browser startup
 chrome.runtime.onStartup.addListener(async () => {
 	try {
-		logInfo("🚀 Memorall extension startup - services already initialized");
-		// Note: Core services are initialized immediately when Service Worker loads
-		// This event is just for startup-specific tasks if needed in the future
+		logInfo("🚀 Browser startup detected - initializing extension");
+
+		// Initialize when browser starts
+		await init();
+
+		logInfo("✅ Extension ready for browser session");
 	} catch (error) {
 		logError("❌ Startup error:", error);
 	}

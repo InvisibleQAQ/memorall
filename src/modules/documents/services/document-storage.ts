@@ -243,53 +243,62 @@ class DocumentStorageService {
 
 		if (segments.length === 0) return;
 
-		// Reconstruct normalized path
-		const normalizedPath = "/" + segments.join("/");
+		// Create directories one by one from root to target
+		// This is more reliable than relying on {recursive: true} in ZenFS
+		let currentPath = "";
+		for (const segment of segments) {
+			currentPath += "/" + segment;
 
-		try {
-			// Try to stat the path first
-			const stat = await fs.promises.stat(normalizedPath);
+			try {
+				const stat = await fs.promises.stat(currentPath);
 
-			// If exists but is NOT directory → error
-			if (!stat.isDirectory()) {
-				throw new Error(
-					`Path exists but is not a directory: ${normalizedPath}`,
-				);
-			}
-
-			// Directory already exists, we're done
-			return;
-		} catch (err) {
-			// Check if it's a filesystem error with ENOENT code
-			const isNotFound =
-				err &&
-				typeof err === "object" &&
-				"code" in err &&
-				err.code === "ENOENT";
-
-			// If directory doesn't exist, create it recursively
-			if (isNotFound) {
-				try {
-					await fs.promises.mkdir(normalizedPath, { recursive: true });
-					logInfo(`📁 Created directory: ${normalizedPath}`);
-				} catch (mkdirErr) {
-					// Ignore if directory was just created by another process
-					const isDirExists =
-						mkdirErr &&
-						typeof mkdirErr === "object" &&
-						"code" in mkdirErr &&
-						mkdirErr.code === "EEXIST";
-
-					if (!isDirExists) {
-						logError(`Failed to create directory ${normalizedPath}:`, mkdirErr);
-						throw mkdirErr;
-					}
+				// If exists but is NOT directory → error
+				if (!stat.isDirectory()) {
+					throw new Error(
+						`Path exists but is not a directory: ${currentPath}`,
+					);
 				}
-			} else {
-				// Other error, rethrow
-				throw err;
+
+				// Directory already exists, continue to next segment
+				continue;
+			} catch (err) {
+				// Check if it's a filesystem error with ENOENT code
+				const isNotFound =
+					err &&
+					typeof err === "object" &&
+					"code" in err &&
+					err.code === "ENOENT";
+
+				// If directory doesn't exist, create it
+				if (isNotFound) {
+					try {
+						await fs.promises.mkdir(currentPath);
+						logInfo(`📁 Created directory segment: ${currentPath}`);
+					} catch (mkdirErr) {
+						// Ignore if directory was just created by another process
+						const isDirExists =
+							mkdirErr &&
+							typeof mkdirErr === "object" &&
+							"code" in mkdirErr &&
+							mkdirErr.code === "EEXIST";
+
+						if (!isDirExists) {
+							logError(
+								`Failed to create directory ${currentPath}:`,
+								mkdirErr,
+							);
+							throw mkdirErr;
+						}
+					}
+				} else {
+					// Other error, rethrow
+					logError(`Error checking directory ${currentPath}:`, err);
+					throw err;
+				}
 			}
 		}
+
+		logInfo(`✅ Directory path ensured: ${fullPath}`);
 	}
 
 	/**
@@ -383,22 +392,46 @@ class DocumentStorageService {
 			await this.ensureDirectory(dirPath);
 			logInfo(`✅ Directory verified, writing file: ${fullPath}`);
 
-			// Write file to filesystem (directory already ensured above)
-			try {
-				await fs.promises.writeFile(fullPath, uint8Array);
-				logInfo(`✅ File written successfully: ${fullPath}`);
-			} catch (writeErr) {
-				logError(`❌ Failed to write file ${fullPath}:`, writeErr);
-				// Try to provide more diagnostic info
+			// Write file to filesystem with retry logic (ZenFS can be finicky)
+			let writeAttempts = 0;
+			const maxWriteAttempts = 3;
+			let lastWriteError: unknown = null;
+
+			while (writeAttempts < maxWriteAttempts) {
 				try {
-					const dirStat = await fs.promises.stat(dirPath);
+					await fs.promises.writeFile(fullPath, uint8Array);
 					logInfo(
-						`Directory ${dirPath} exists: ${dirStat.isDirectory()}, size: ${dirStat.size}`,
+						`✅ File written successfully: ${fullPath} (attempt ${writeAttempts + 1})`,
 					);
-				} catch (dirStatErr) {
-					logError(`Directory ${dirPath} stat failed:`, dirStatErr);
+					break; // Success!
+				} catch (writeErr) {
+					writeAttempts++;
+					lastWriteError = writeErr;
+
+					logError(
+						`⚠️ Failed to write file ${fullPath} (attempt ${writeAttempts}/${maxWriteAttempts}):`,
+						writeErr,
+					);
+
+					if (writeAttempts < maxWriteAttempts) {
+						// Retry: ensure directory exists again before next attempt
+						logInfo(`🔄 Retrying write after ensuring directory...`);
+						await this.ensureDirectory(dirPath);
+						// Small delay before retry
+						await new Promise((resolve) => setTimeout(resolve, 100));
+					} else {
+						// Final attempt failed, provide diagnostics
+						try {
+							const dirStat = await fs.promises.stat(dirPath);
+							logError(
+								`Directory ${dirPath} status: exists=${dirStat.isDirectory()}, size=${dirStat.size}`,
+							);
+						} catch (dirStatErr) {
+							logError(`Directory ${dirPath} stat failed:`, dirStatErr);
+						}
+						throw lastWriteError;
+					}
 				}
-				throw writeErr;
 			}
 
 			// Create file metadata (use path as ID for consistency)

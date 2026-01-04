@@ -43,11 +43,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 		} else if (get().currentConversation) {
 			conversationId = get().currentConversation!.id;
 		}
+
+		// Generate ID first, then spread messageData, ensuring we don't use a duplicate ID
+		const messageId = messageData.id || v4();
+
 		const message = {
-			id: v4(),
+			...messageData,
+			id: messageId,
 			timestamp: new Date(),
 			conversationId,
-			...messageData,
 		} as Message;
 		if (!message.role || !message.conversationId) {
 			throw new Error("Message must have a role and conversationId");
@@ -58,10 +62,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 			messages: [...state.messages, message],
 		}));
 
-		// Save to database
+		// Save to database with conflict handling
 		try {
 			await serviceManager.databaseService.use(({ db, schema }) =>
-				db.insert(schema.messages).values(message),
+				db.insert(schema.messages).values(message).onConflictDoNothing(),
 			);
 		} catch (error) {
 			logError("Failed to save message to database:", error);
