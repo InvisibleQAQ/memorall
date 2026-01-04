@@ -76,6 +76,7 @@ export class DatabaseRpcHandler {
 				queuedResponses: this.responseQueue.length,
 				portName: port.name,
 				channelName: channelName,
+				timestamp: new Date().toISOString(),
 			});
 			if (port.name === channelName) {
 				this.port = port;
@@ -83,12 +84,25 @@ export class DatabaseRpcHandler {
 				port.onDisconnect.addListener(() => {
 					logInfo(`📡 RPC connection disconnected: ${channelName}`, {
 						queuedResponses: this.responseQueue.length,
+						timestamp: new Date().toISOString(),
 					});
 					this.port = null;
+
+					// Log warning if there are queued responses
+					if (this.responseQueue.length > 0) {
+						logError(
+							`⚠️ Port disconnected with ${this.responseQueue.length} responses still queued. Waiting for reconnection...`,
+						);
+					}
 				});
 
 				// Flush any queued responses when port reconnects
-				this.flushResponseQueue();
+				if (this.responseQueue.length > 0) {
+					logInfo(
+						`🔄 Port reconnected, flushing ${this.responseQueue.length} queued responses`,
+					);
+					this.flushResponseQueue();
+				}
 			}
 		};
 
@@ -250,7 +264,7 @@ export class DatabaseRpcHandler {
 			}
 		} else {
 			logError(
-				`⚠️ No RPC port available, queueing response for request ${response.id}`,
+				`⚠️ No RPC port available, queueing response for request ${response.id}. Client should reconnect automatically.`,
 			);
 			this.queueResponse(response);
 		}
@@ -328,9 +342,23 @@ export class DatabaseRpcHandler {
 
 		if (!this.port) {
 			logError(
-				`⚠️ Cannot flush queue: no RPC port available (${this.responseQueue.length} responses queued)`,
+				`⚠️ Cannot flush queue: no RPC port available (${this.responseQueue.length} responses queued). Waiting for client reconnection...`,
 			);
-			this.scheduleRetry();
+			// Check if any responses have exceeded max retries while waiting
+			const now = Date.now();
+			this.responseQueue = this.responseQueue.filter((item) => {
+				if (item.retryCount >= this.maxRetries) {
+					logError(
+						`❌ Response ${item.response.id} exceeded max retries while waiting for port, dropping`,
+					);
+					return false;
+				}
+				return true;
+			});
+
+			if (this.responseQueue.length > 0) {
+				this.scheduleRetry();
+			}
 			return;
 		}
 

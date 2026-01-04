@@ -104,18 +104,30 @@ async function ensureOffscreenDocument(): Promise<void> {
 		}
 
 		// Check if offscreen document already exists
+		// Filter to only the main offscreen document (frameId: 0) to exclude iframes
+		const offscreenUrl = chrome.runtime.getURL("offscreen.html");
 		const contexts = await chrome.runtime.getContexts({
 			contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
 		});
 
-		if (contexts.length > 0) {
+		const mainOffscreenDoc = contexts.find(
+			(ctx) => ctx.documentUrl === offscreenUrl && ctx.frameId === 0,
+		);
+
+		if (mainOffscreenDoc) {
 			offscreenCreated = true;
-			logInfo("✅ Offscreen document already exists", contexts);
+			logInfo("✅ Offscreen document already exists", mainOffscreenDoc);
 			return;
 		}
 
+		if (contexts.length > 0 && !mainOffscreenDoc) {
+			logInfo(
+				"⚠️ Found offscreen contexts but no main offscreen.html - they are likely iframes",
+				contexts,
+			);
+		}
+
 		// Create offscreen document
-		const offscreenUrl = chrome.runtime.getURL("offscreen.html");
 		logInfo("🔄 Creating offscreen document", { url: offscreenUrl });
 
 		try {
@@ -263,31 +275,6 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 const init = async () => {
-	// CRITICAL: Only run ONCE - prevent duplicate initialization in offscreen context
-	// Use chrome.storage.session as shared flag across all extension contexts
-	const INIT_FLAG_KEY = "__memorall_background_init_done__";
-
-	try {
-		// Check if already initialized
-		const result = await chrome.storage.session.get(INIT_FLAG_KEY);
-
-		if (result[INIT_FLAG_KEY]) {
-			console.warn(
-				"⚠️ [BACKGROUND] init() already completed - SKIPPING duplicate execution",
-			);
-			return;
-		}
-
-		// Set flag IMMEDIATELY to prevent race conditions
-		await chrome.storage.session.set({ [INIT_FLAG_KEY]: true });
-		console.log(
-			"[BACKGROUND] ✅ Init flag set - proceeding with initialization",
-		);
-	} catch (storageError) {
-		console.error("[BACKGROUND] Failed to check/set init flag:", storageError);
-		// Continue anyway - better to potentially duplicate than fail completely
-	}
-
 	try {
 		logInfo("[BACKGROUND] Init - running in service worker context");
 		// Initialize shared storage service early

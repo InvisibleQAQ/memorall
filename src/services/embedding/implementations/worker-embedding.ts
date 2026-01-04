@@ -103,8 +103,12 @@ export class WorkerEmbedding implements BaseEmbedding {
 			});
 
 			logInfo("🔤 WorkerEmbedding sending init to runner...");
+			const initStartTime = Date.now();
 			await this.send("init", { modelName: this.modelName }, { timeoutMs: 0 });
-			logInfo("🔤 WorkerEmbedding init completed");
+			const initDuration = Date.now() - initStartTime;
+			logInfo(
+				`🔤 WorkerEmbedding init completed (took ${Math.round(initDuration / 1000)}s)`,
+			);
 
 			// Get model info to set dimensions (embedding models typically have known dimensions)
 			this.dimensions = 768; // Default for most embedding models, will be updated if needed

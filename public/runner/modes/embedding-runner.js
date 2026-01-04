@@ -140,7 +140,7 @@ async function ensureTransformers(modelName, notifyProgress) {
 		const hasWebGPU =
 			typeof navigator !== "undefined" && typeof navigator.gpu !== "undefined";
 		const pipelineStartedAt = nowMs();
-		const device = hasWebGPU ? "webgpu" : "wasm";
+		let device = hasWebGPU ? "webgpu" : "wasm";
 		const progress_callback = createProgressLogger(
 			{ model: embeddingModel },
 			notifyProgress,
@@ -148,10 +148,12 @@ async function ensureTransformers(modelName, notifyProgress) {
 		console.log("[embedding-runner] creating pipeline", {
 			embeddingModel,
 			device,
+			hasWebGPU,
 		});
+
+		console.log("[embedding-runner] attempting pipeline creation with:", device);
 		hfPipeline = await HF.pipeline("feature-extraction", embeddingModel, {
 			device,
-			// dtype: "fp32",
 			progress_callback,
 		});
 		console.log("[embedding-runner] ensureTransformers: pipeline created", {
@@ -209,12 +211,19 @@ window.addEventListener("message", async (event) => {
 		switch (type) {
 			case "init": {
 				const requestedModel = payload?.modelName || embeddingModel;
+				console.log("[embedding-runner] init handler starting", {
+					messageId,
+					requestedModel,
+					origin,
+				});
 				const notifyProgress = (info) => {
 					try {
 						reply(src, origin, messageId, "progress", info);
 					} catch {}
 				};
+				console.log("[embedding-runner] calling ensureTransformers...");
 				await ensureTransformers(requestedModel, notifyProgress);
+				console.log("[embedding-runner] ensureTransformers returned successfully");
 				console.log("[embedding-runner] init complete, replying", {
 					messageId,
 					origin,
@@ -230,6 +239,7 @@ window.addEventListener("message", async (event) => {
 					mode: "embedding",
 					model: requestedModel,
 				});
+				console.log("[embedding-runner] init handler completed successfully");
 				break;
 			}
 			case "models": {

@@ -395,7 +395,7 @@ export class BackgroundJob {
 					}
 				}
 			});
-		}, 1000);
+		}, 10000);
 
 		// Convert ReadableStream to AsyncIterable
 		return {

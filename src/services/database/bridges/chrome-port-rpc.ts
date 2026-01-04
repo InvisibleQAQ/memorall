@@ -21,6 +21,8 @@ export interface ChromePortTransportOptions {
 		maxDelayMs?: number; // default 2000
 		factor?: number; // default 2
 	};
+	/** Heartbeat interval in ms to detect dead connections (default: 30000, 0 disables) */
+	heartbeatIntervalMs?: number;
 }
 
 /** Type guard to validate RpcResponse shape at runtime. */
@@ -44,7 +46,7 @@ function isRpcResponse(value: unknown): value is RpcResponse {
 export async function createChromePortTransport(
 	options: ChromePortTransportOptions = {},
 ): Promise<RpcTransport> {
-	const { channelName, ensureOffscreen, reconnect = {} } = options;
+	const { channelName, ensureOffscreen, reconnect = {}, heartbeatIntervalMs = 30000 } = options;
 
 	const reconnectEnabled = reconnect.enabled ?? true;
 	const backoffInit = reconnect.initialDelayMs ?? 100;
@@ -54,6 +56,7 @@ export async function createChromePortTransport(
 	let port: chrome.runtime.Port | null = null;
 	let disposed = false;
 	let connecting: Promise<void> | null = null;
+	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
 	const subscribers = new Set<(msg: RpcResponse) => void>();
 	const queue: RpcRequest[] = [];
@@ -67,7 +70,44 @@ export async function createChromePortTransport(
 		subscribers.forEach((fn) => fn(msg));
 	};
 
+	const stopHeartbeat = (): void => {
+		if (heartbeatTimer) {
+			clearInterval(heartbeatTimer);
+			heartbeatTimer = null;
+		}
+	};
+
+	const startHeartbeat = (): void => {
+		stopHeartbeat();
+		if (heartbeatIntervalMs <= 0) return;
+
+		heartbeatTimer = setInterval(() => {
+			if (!port || disposed) {
+				stopHeartbeat();
+				return;
+			}
+
+			// Send a health check ping
+			try {
+				const pingRequest: RpcRequest = {
+					id: -Math.floor(Math.random() * 1000000), // Negative ID for heartbeat
+					op: "health",
+					payload: {},
+				};
+				port.postMessage(serializeForRpc(pingRequest));
+			} catch (error) {
+				console.warn(
+					`[ChromePortRPC] ⚠️ Heartbeat ping failed, connection may be dead:`,
+					error,
+				);
+				// Trigger reconnection
+				handleDisconnect();
+			}
+		}, heartbeatIntervalMs);
+	};
+
 	const handleDisconnect = (): void => {
+		stopHeartbeat();
 		if (port) {
 			port.onMessage.removeListener(handleMessage);
 			port.onDisconnect.removeListener(handleDisconnect);
@@ -77,6 +117,9 @@ export async function createChromePortTransport(
 
 		const delay = backoff;
 		backoff = Math.min(backoff * backoffFactor, backoffMax);
+		console.log(
+			`[ChromePortRPC] 🔄 Port disconnected, reconnecting in ${delay}ms (backoff: ${backoff}ms)`,
+		);
 		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		setTimeout(connect, delay);
 	};
@@ -86,36 +129,70 @@ export async function createChromePortTransport(
 		if (connecting) return connecting;
 
 		connecting = (async () => {
-			if (ensureOffscreen) {
-				try {
-					await ensureOffscreen();
-				} catch {
-					// Offscreen may already exist; ignore.
+			try {
+				if (ensureOffscreen) {
+					try {
+						await ensureOffscreen();
+					} catch {
+						// Offscreen may already exist; ignore.
+					}
+				}
+
+				console.log(
+					`[ChromePortRPC] 🔌 CALLING chrome.runtime.connect with channel: ${channelName}`,
+					new Date().toISOString(),
+				);
+				const p = chrome.runtime.connect({ name: channelName });
+				console.log(
+					`[ChromePortRPC] ✅ Port object created:`,
+					{ portName: p.name, hasPort: !!p },
+					new Date().toISOString(),
+				);
+				p.onMessage.addListener(handleMessage);
+				p.onDisconnect.addListener(handleDisconnect);
+				port = p;
+
+				// Flush queued messages
+				while (queue.length > 0 && port) {
+					const m = queue.shift()!;
+					const serializedM = serializeForRpc(m);
+					try {
+						port.postMessage(serializedM);
+					} catch (error) {
+						// If posting fails, put it back in queue
+						queue.unshift(m);
+						console.warn(
+							`[ChromePortRPC] ⚠️ Failed to send queued message, keeping in queue`,
+							error,
+						);
+						break;
+					}
+				}
+
+				backoff = backoffInit;
+				console.log(
+					`[ChromePortRPC] ✅ Connection established successfully (${queue.length} messages still queued)`,
+				);
+
+				// Start heartbeat to monitor connection health
+				startHeartbeat();
+			} catch (error) {
+				console.error(
+					`[ChromePortRPC] ❌ Connection failed, will retry:`,
+					error,
+				);
+				port = null;
+				// Trigger reconnection on error
+				if (reconnectEnabled && !disposed) {
+					const delay = backoff;
+					backoff = Math.min(backoff * backoffFactor, backoffMax);
+					console.log(
+						`[ChromePortRPC] 🔄 Retrying connection in ${delay}ms...`,
+					);
+					// eslint-disable-next-line @typescript-eslint/no-misused-promises
+					setTimeout(connect, delay);
 				}
 			}
-
-			console.log(
-				`[ChromePortRPC] 🔌 CALLING chrome.runtime.connect with channel: ${channelName}`,
-				new Date().toISOString(),
-			);
-			const p = chrome.runtime.connect({ name: channelName });
-			console.log(
-				`[ChromePortRPC] ✅ Port object created:`,
-				{ portName: p.name, hasPort: !!p },
-				new Date().toISOString(),
-			);
-			p.onMessage.addListener(handleMessage);
-			p.onDisconnect.addListener(handleDisconnect);
-			port = p;
-
-			// Flush queued messages
-			while (queue.length > 0 && port) {
-				const m = queue.shift()!;
-				const serializedM = serializeForRpc(m);
-				port.postMessage(serializedM);
-			}
-
-			backoff = backoffInit;
 		})();
 
 		await connecting;
