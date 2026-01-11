@@ -64,9 +64,10 @@ export const ChatPage: React.FC = () => {
 				isLoading={false}
 				inProgressMessage={null}
 				defaultCollapsed={true}
+				selectedTopic={selectedTopic}
 			/>
 		));
-	}, [completedGroupsIds]); // Only re-render when completed groups change
+	}, [completedGroupsIds, selectedTopic]); // Only re-render when completed groups change
 
 	// Fetch topics when knowledge mode is selected
 	useEffect(() => {
@@ -140,6 +141,7 @@ export const ChatPage: React.FC = () => {
 							isLoading={true}
 							inProgressMessage={inProgressMessage}
 							defaultCollapsed={false}
+							selectedTopic={selectedTopic}
 						/>
 					) : undefined}
 				</ConversationContent>

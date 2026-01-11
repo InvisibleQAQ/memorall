@@ -341,22 +341,117 @@ export class FactExtractionFlowV2 {
 		llm: ILLMService,
 		maxModelTokens: number,
 		maxResponseTokens: number,
+		reducedMode: boolean = false,
 	): Promise<ExtractedFact[]> {
+		try {
+			return await this.extractFactsForEntityBatchInternal(
+				batch,
+				allEntities,
+				formattedContent,
+				nameToId,
+				llm,
+				maxModelTokens,
+				maxResponseTokens,
+				reducedMode,
+			);
+		} catch (error) {
+			// Check if error is related to JSON parsing or context limit
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			const isJsonParseError =
+				errorMessage.includes("JSON") ||
+				errorMessage.includes("parse") ||
+				errorMessage.includes("Unexpected token") ||
+				errorMessage.includes("SyntaxError");
+
+			// If JSON parse error and not already in reduced mode, retry with reduced information
+			if (isJsonParseError && !reducedMode) {
+				logWarn(
+					`[FACT_EXTRACTION_V2] JSON parse failed for batch ${batch.startIndex}-${batch.endIndex}, retrying with reduced information`,
+				);
+
+				return await this.extractFactsForEntityBatchInternal(
+					batch,
+					allEntities,
+					formattedContent,
+					nameToId,
+					llm,
+					maxModelTokens,
+					maxResponseTokens,
+					true, // Enable reduced mode
+				);
+			}
+
+			// If still failing or already in reduced mode, return empty array
+			logError(
+				`[FACT_EXTRACTION_V2] Failed to extract facts for batch ${batch.startIndex}-${batch.endIndex} even with reduced mode`,
+				error,
+			);
+			return [];
+		}
+	}
+
+	private async extractFactsForEntityBatchInternal(
+		batch: EntityBatch,
+		allEntities: Array<{
+			uuid: string;
+			finalName: string;
+			summary?: string;
+			nodeType: string;
+		}>,
+		formattedContent: string,
+		nameToId: Map<string, string>,
+		llm: ILLMService,
+		maxModelTokens: number,
+		maxResponseTokens: number,
+		reducedMode: boolean = false,
+	): Promise<ExtractedFact[]> {
+		// In reduced mode: truncate summaries and limit entity list
+		const formatEntityText = (entity: {
+			finalName: string;
+			summary?: string;
+		}): string => {
+			if (reducedMode) {
+				// No summaries in reduced mode to save tokens
+				return `- ${entity.finalName}`;
+			}
+			return `- ${entity.finalName}: ${entity.summary || "No description"}`;
+		};
+
+		// In reduced mode, only include target entities and a limited subset of all entities
+		let entitiesToInclude = allEntities;
+		if (reducedMode) {
+			const batchEntityIds = new Set(batch.entities.map((e) => e.uuid));
+			// Include only batch entities + a small sample of other entities (max 20)
+			const otherEntities = allEntities
+				.filter((e) => !batchEntityIds.has(e.uuid))
+				.slice(0, 20);
+			entitiesToInclude = [...batch.entities, ...otherEntities];
+
+			logInfo(
+				`[FACT_EXTRACTION_V2] Reduced mode: using ${entitiesToInclude.length} entities (from ${allEntities.length})`,
+			);
+		}
+
 		// Format ALL entities list (for reference)
-		const allEntitiesText = allEntities
-			.map(
-				(entity) =>
-					`- ${entity.finalName}: ${entity.summary || "No description"}`,
-			)
-			.join("\n");
+		const allEntitiesText = entitiesToInclude.map(formatEntityText).join("\n");
 
 		// Format TARGET entities (focus entities for this batch)
-		const targetEntitiesText = batch.entities
-			.map(
-				(entity) =>
-					`- ${entity.finalName}: ${entity.summary || "No description"}`,
-			)
-			.join("\n");
+		const targetEntitiesText = batch.entities.map(formatEntityText).join("\n");
+
+		// In reduced mode, truncate content to reduce context size
+		let contentToUse = formattedContent;
+		if (reducedMode) {
+			const maxContentLength = 4000; // Significantly reduce content size
+			if (formattedContent.length > maxContentLength) {
+				contentToUse =
+					formattedContent.substring(0, maxContentLength) +
+					"\n[Content truncated to reduce context size]";
+				logInfo(
+					`[FACT_EXTRACTION_V2] Reduced mode: truncated content from ${formattedContent.length} to ${contentToUse.length} chars`,
+				);
+			}
+		}
 
 		interface ParsedFact {
 			source_entity?: string;
@@ -468,12 +563,12 @@ export class FactExtractionFlowV2 {
 				return prompt;
 			},
 			parseFacts,
-			formattedContent,
+			contentToUse,
 			{
 				maxModelTokens,
 				maxResponseTokens,
 				temperature: 0.1,
-				maxRetries: 2,
+				maxRetries: reducedMode ? 1 : 2, // Reduce retries in reduced mode to fail faster
 				overlapTokens: 64,
 				dedupeBy: (f) =>
 					`${f.sourceEntityId}|${f.relationType}|${f.destinationEntityId}|${f.factText.toLowerCase()}`,
@@ -554,20 +649,113 @@ export class FactExtractionFlowV2 {
 		llm: ILLMService,
 		maxModelTokens: number,
 		maxResponseTokens: number,
+		reducedMode: boolean = false,
 	): Promise<ExtractedFact[]> {
-		const allEntitiesText = allEntities
-			.map(
-				(entity) =>
-					`- ${entity.finalName}: ${entity.summary || "No description"}`,
-			)
-			.join("\n");
+		try {
+			return await this.extractUnconnectedBatchInternal(
+				batch,
+				allEntities,
+				formattedContent,
+				nameToId,
+				llm,
+				maxModelTokens,
+				maxResponseTokens,
+				reducedMode,
+			);
+		} catch (error) {
+			// Check if error is related to JSON parsing or context limit
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			const isJsonParseError =
+				errorMessage.includes("JSON") ||
+				errorMessage.includes("parse") ||
+				errorMessage.includes("Unexpected token") ||
+				errorMessage.includes("SyntaxError");
 
-		const targetEntitiesText = batch.entities
-			.map(
-				(entity) =>
-					`- ${entity.finalName}: ${entity.summary || "No description"}`,
-			)
-			.join("\n");
+			// If JSON parse error and not already in reduced mode, retry with reduced information
+			if (isJsonParseError && !reducedMode) {
+				logWarn(
+					`[FACT_EXTRACTION_V2] JSON parse failed for unconnected batch, retrying with reduced information`,
+				);
+
+				return await this.extractUnconnectedBatchInternal(
+					batch,
+					allEntities,
+					formattedContent,
+					nameToId,
+					llm,
+					maxModelTokens,
+					maxResponseTokens,
+					true, // Enable reduced mode
+				);
+			}
+
+			// If still failing or already in reduced mode, return empty array
+			logError(
+				`[FACT_EXTRACTION_V2] Failed to extract facts for unconnected batch even with reduced mode`,
+				error,
+			);
+			return [];
+		}
+	}
+
+	private async extractUnconnectedBatchInternal(
+		batch: EntityBatch,
+		allEntities: Array<{
+			uuid: string;
+			finalName: string;
+			summary?: string;
+			nodeType: string;
+		}>,
+		formattedContent: string,
+		nameToId: Map<string, string>,
+		llm: ILLMService,
+		maxModelTokens: number,
+		maxResponseTokens: number,
+		reducedMode: boolean = false,
+	): Promise<ExtractedFact[]> {
+		// In reduced mode: truncate summaries and limit entity list
+		const formatEntityText = (entity: {
+			finalName: string;
+			summary?: string;
+		}): string => {
+			if (reducedMode) {
+				return `- ${entity.finalName}`;
+			}
+			return `- ${entity.finalName}: ${entity.summary || "No description"}`;
+		};
+
+		// In reduced mode, limit entity list
+		let entitiesToInclude = allEntities;
+		if (reducedMode) {
+			const batchEntityIds = new Set(batch.entities.map((e) => e.uuid));
+			const otherEntities = allEntities
+				.filter((e) => !batchEntityIds.has(e.uuid))
+				.slice(0, 15); // Even smaller for unconnected extraction
+			entitiesToInclude = [...batch.entities, ...otherEntities];
+
+			logInfo(
+				`[FACT_EXTRACTION_V2] Reduced mode (unconnected): using ${entitiesToInclude.length} entities (from ${allEntities.length})`,
+			);
+		}
+
+		const allEntitiesText = entitiesToInclude.map(formatEntityText).join("\n");
+
+		const targetEntitiesText = batch.entities.map(formatEntityText).join("\n");
+
+		// In reduced mode, truncate content
+		let contentToUse = formattedContent;
+		if (reducedMode) {
+			const maxContentLength = 3000; // Even smaller for unconnected extraction
+			if (formattedContent.length > maxContentLength) {
+				contentToUse =
+					formattedContent.substring(0, maxContentLength) +
+					"\n[Content truncated to reduce context size]";
+				logInfo(
+					`[FACT_EXTRACTION_V2] Reduced mode (unconnected): truncated content from ${formattedContent.length} to ${contentToUse.length} chars`,
+				);
+			}
+		}
 
 		const targetEntityIds = new Set(batch.entities.map((e) => e.uuid));
 
@@ -648,12 +836,12 @@ export class FactExtractionFlowV2 {
 					return prompt;
 				},
 				parseFacts,
-				formattedContent,
+				contentToUse,
 				{
 					maxModelTokens: Math.floor(maxModelTokens * 0.8),
 					maxResponseTokens,
 					temperature: 0.2, // Slightly higher creativity for finding implicit relationships
-					maxRetries: 2,
+					maxRetries: reducedMode ? 1 : 2, // Reduce retries in reduced mode
 					dedupeBy: (f) =>
 						`${f.sourceEntityId}|${f.relationType}|${f.destinationEntityId}`,
 					onError: (error, attempt) => {

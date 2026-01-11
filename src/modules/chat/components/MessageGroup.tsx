@@ -11,10 +11,11 @@ interface MessageGroupProps {
 	isLoading?: boolean;
 	inProgressMessage?: InProgressMessage | null;
 	defaultCollapsed?: boolean;
+	selectedTopic?: string;
 }
 
 export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
-	({ group, inProgressMessage, defaultCollapsed = false }) => {
+	({ group, inProgressMessage, defaultCollapsed = false, selectedTopic }) => {
 		const { t } = useTranslation("chat");
 		const [isCollapsed, setIsCollapsed] = useState(
 			defaultCollapsed && !group.isLatest,
@@ -51,10 +52,12 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 						index={index}
 						isLastMessage={false}
 						isStreaming={false}
+						groupMessages={group.messages}
+						selectedTopic={selectedTopic}
 					/>
 				) : undefined,
 			);
-		}, [group.messages]);
+		}, [group.messages, selectedTopic]);
 
 		const inProgressMessageData = useMemo(() => {
 			if (!inProgressMessage) return null;

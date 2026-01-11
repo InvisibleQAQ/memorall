@@ -1,4 +1,11 @@
-import React, { useRef, lazy, Suspense, useMemo, useCallback } from "react";
+import React, {
+	useRef,
+	lazy,
+	Suspense,
+	useMemo,
+	useCallback,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
 	Network,
@@ -6,6 +13,7 @@ import {
 	Search,
 	Sparkles,
 	ChevronDown,
+	ChevronUp,
 	PenLine,
 	Database,
 	Brain,
@@ -13,6 +21,9 @@ import {
 	Clock,
 	Gauge,
 	Box,
+	Copy,
+	Check,
+	Lightbulb,
 	type LucideIcon,
 } from "lucide-react";
 import dayjs from "dayjs";
@@ -30,6 +41,7 @@ import {
 } from "@/popup/components/ui/shadcn-io/ai/task";
 import { MermaidRenderer } from "@/popup/components/atoms/MermaidRenderer";
 import type { Message as DBMessage } from "@/services/database/types";
+import { backgroundJob } from "@/services/background-jobs/background-job";
 
 import { MessageKnowledgeGraph } from "./MessageKnowledgeGraph";
 
@@ -288,15 +300,23 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 	},
 );
 
-interface ModelMetadataProps {
+// Combined Message Footer Component (Actions + Metadata)
+interface MessageFooterProps {
+	message: DBMessage;
+	groupMessages: DBMessage[];
+	selectedTopic?: string;
 	metadata: MessageMetadata;
 }
 
-const ModelMetadata: React.FC<ModelMetadataProps> = React.memo(
-	({ metadata }) => {
-		const { model, provider, timeToAnswer, tokensPerSecond } = metadata;
+const MessageFooter: React.FC<MessageFooterProps> = React.memo(
+	({ message, groupMessages, selectedTopic, metadata }) => {
+		const { t } = useTranslation("chat");
+		const [copied, setCopied] = useState(false);
+		const [saving, setSaving] = useState(false);
+		const [saved, setSaved] = useState(false);
+		const [showFullInfo, setShowFullInfo] = useState(false);
 
-		if (!model && !provider) return null;
+		const { model, provider, timeToAnswer, tokensPerSecond } = metadata;
 
 		const formatTime = (seconds?: number) => {
 			if (!seconds) return "-";
@@ -313,44 +333,173 @@ const ModelMetadata: React.FC<ModelMetadataProps> = React.memo(
 			return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
 		};
 
+		const getModelBadgeColor = () => {
+			return "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20";
+		};
+
 		const getProviderLabel = (provider?: string) => {
 			return provider || "Unknown";
 		};
 
+		const handleCopy = useCallback(async () => {
+			try {
+				await navigator.clipboard.writeText(message.content);
+				setCopied(true);
+				setTimeout(() => setCopied(false), 2000);
+			} catch (error) {
+				console.error("Failed to copy message:", error);
+			}
+		}, [message.content]);
+
+		const handleSaveToRemembered = useCallback(async () => {
+			if (saving) return;
+
+			setSaving(true);
+			try {
+				// Format entire conversation group as dialogue
+				const conversationText = groupMessages
+					.filter((msg) => msg.type !== "separator" && msg.content)
+					.map((msg) => {
+						const role = msg.role === "user" ? "User" : "Assistant";
+						return `${role}: ${msg.content}`;
+					})
+					.join("\n\n");
+
+				// Generate a unique identifier for this conversation
+				const conversationId = `conversation-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+				// Prepare the content with source info
+				const sourceInfo = `Conversation from chat\nDate: ${dayjs().format("MMM D, YYYY h:mm A")}\n\n`;
+				const fullContent = sourceInfo + conversationText;
+
+				// Convert directly to knowledge using the knowledge-graph job
+				const result = await backgroundJob.execute(
+					"knowledge-graph",
+					{
+						filePath: conversationId,
+						content: fullContent,
+						isSpecificTextConversion: true, // Enable aggressive extraction
+						topicId: selectedTopic || undefined,
+					},
+					{ stream: false },
+				);
+
+				if ("promise" in result) {
+					await result.promise;
+				}
+
+				setSaved(true);
+				setTimeout(() => setSaved(false), 3000);
+			} catch (error) {
+				console.error("Failed to save to remembered content:", error);
+			} finally {
+				setSaving(false);
+			}
+		}, [saving, groupMessages, selectedTopic]);
+
 		return (
-			<div className="mt-3 pt-3 border-t border-border/40 flex flex-wrap items-center gap-2 text-xs">
-				{/* Provider Badge */}
-				{provider && (
-					<div
-						className={`flex items-center gap-1.5 px-2 py-1 rounded-md border font-medium ${getProviderBadgeColor()}`}
-					>
-						<Sparkles className="w-3.5 h-3.5" />
-						<span>{getProviderLabel(provider)}</span>
-					</div>
-				)}
-				{/* Model Name */}
-				{model && (
-					<div className="flex items-center gap-1.5 px-0 rounded-md bg-muted/50 border border-border/40">
-						<Box className="w-3.5 h-3.5 text-muted-foreground" />
-						<span className="font-medium text-foreground/80">{model}</span>
-					</div>
-				)}
+			<div className="mt-3 pt-3 border-t border-border/40">
+				{/* Main inline footer */}
+				<div className="flex items-center justify-between gap-2 text-xs">
+					{/* Left: Action buttons */}
+					<div className="flex items-center gap-1">
+						<button
+							onClick={handleCopy}
+							className="p-1.5 rounded hover:bg-accent transition-colors"
+							title={
+								copied
+									? t("messages.copied", "Copied!")
+									: t("messages.copy", "Copy message")
+							}
+						>
+							{copied ? (
+								<Check className="w-4 h-4 text-green-500" />
+							) : (
+								<Copy className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+							)}
+						</button>
 
-				{/* Time to Answer */}
-				{timeToAnswer !== undefined && (
-					<div className="flex items-center gap-1.5 px-0 py-1 rounded-md bg-muted/50 border border-border/40 text-muted-foreground">
-						<Clock className="w-3.5 h-3.5" />
-						<span>{formatTime(timeToAnswer)}</span>
+						<button
+							onClick={handleSaveToRemembered}
+							className="p-1.5 rounded hover:bg-accent transition-colors"
+							title={
+								saved
+									? t("messages.saved", "Saved!")
+									: saving
+										? t("messages.saving", "Saving...")
+										: t("messages.remember", "Save to remembered content")
+							}
+							disabled={saving}
+						>
+							{saved ? (
+								<Check className="w-4 h-4 text-green-500" />
+							) : (
+								<Lightbulb className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+							)}
+						</button>
 					</div>
-				)}
 
-				{/* Tokens per Second */}
-				{tokensPerSecond !== undefined && (
-					<div className="flex items-center gap-1.5 px-0 py-1 rounded-md bg-muted/50 border border-border/40 text-muted-foreground">
-						<Gauge className="w-3.5 h-3.5" />
-						<span>{formatTokensPerSecond(tokensPerSecond)}</span>
+					{/* Right: Metadata and info */}
+					<div className="flex items-center gap-2">
+						{/* Provider Badge */}
+						{provider && (
+							<div
+								className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium ${getProviderBadgeColor()}`}
+							>
+								<Sparkles className="w-3 h-3" />
+								<span>{getProviderLabel(provider)}</span>
+							</div>
+						)}
+
+						{/* Tokens per Second */}
+						{tokensPerSecond !== undefined && (
+							<div className="flex items-center gap-1 text-muted-foreground">
+								<Gauge className="w-3 h-3" />
+								<span>{formatTokensPerSecond(tokensPerSecond)}</span>
+							</div>
+						)}
+
+						{/* Toggle button */}
+						<button
+							onClick={() => setShowFullInfo(!showFullInfo)}
+							className="p-1.5 rounded hover:bg-accent transition-colors"
+							title={showFullInfo ? "Hide details" : "Show details"}
+						>
+							{showFullInfo ? (
+								<ChevronUp className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
+							) : (
+								<ChevronDown className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
+							)}
+						</button>
 					</div>
-				)}
+				</div>
+
+				{/* Expanded info with animation */}
+				<div
+					className={`overflow-hidden transition-all duration-200 ease-in-out ${
+						showFullInfo ? "max-h-20 opacity-100 mt-2" : "max-h-0 opacity-0"
+					}`}
+				>
+					<div className="pt-2 border-t border-border/40 flex flex-wrap items-center gap-2 text-xs">
+						{/* Model Name Badge */}
+						{model && (
+							<div
+								className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium ${getModelBadgeColor()}`}
+							>
+								<Box className="w-3 h-3" />
+								<span>{model}</span>
+							</div>
+						)}
+
+						{/* Time to Answer */}
+						{timeToAnswer !== undefined && (
+							<div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/50 border border-border/40 text-muted-foreground">
+								<Clock className="w-3 h-3" />
+								<span>{formatTime(timeToAnswer)}</span>
+							</div>
+						)}
+					</div>
+				</div>
 			</div>
 		);
 	},
@@ -361,10 +510,12 @@ interface MessageRendererProps {
 	index: number;
 	isLastMessage: boolean;
 	isStreaming: boolean;
+	groupMessages?: DBMessage[];
+	selectedTopic?: string;
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
-	({ message, isLastMessage, isStreaming }) => {
+	({ message, isLastMessage, isStreaming, groupMessages, selectedTopic }) => {
 		const formattedDate = useMemo(
 			() => dayjs(message.createdAt).format("MMM D, YYYY h:mm A"),
 			[message.createdAt],
@@ -437,8 +588,15 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 											/>
 										</>
 									)}
-									{!isStreaming && message.metadata ? (
-										<ModelMetadata
+									{!isStreaming &&
+									message.role === "assistant" &&
+									message.metadata &&
+									groupMessages &&
+									groupMessages.length > 0 ? (
+										<MessageFooter
+											message={message}
+											groupMessages={groupMessages}
+											selectedTopic={selectedTopic}
 											metadata={message.metadata as MessageMetadata}
 										/>
 									) : null}
