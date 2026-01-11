@@ -1,3 +1,4 @@
+import { logWarn } from "@/utils/logger";
 import React from "react";
 
 export interface EmbeddedMarkdownProps {
@@ -37,7 +38,7 @@ const parseToolCalls = (
 			}
 		} catch (e) {
 			// Skip invalid JSON
-			console.error("Failed to parse tool call:", e);
+			logWarn("Failed to parse tool call:", e);
 		}
 	}
 

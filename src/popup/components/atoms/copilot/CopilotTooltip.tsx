@@ -179,7 +179,6 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 				nextStep();
 			}
 		} catch (error) {
-			console.error("Error in copilot handleNext:", error);
 			endTour(); // Emergency close
 		}
 	};

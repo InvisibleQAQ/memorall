@@ -9,6 +9,7 @@ import type {
 	ReadableContent,
 	ExtractedPageData,
 } from "./types";
+import { logError, logWarn } from "@/utils/logger";
 
 // Clean HTML element to keep only tag structure
 function cleanHTMLElement(
@@ -266,7 +267,7 @@ ${bodyStructure}
   </body>
 </html>`;
 	} catch (error) {
-		console.error("Failed to extract HTML structure:", error);
+		logWarn("Failed to extract HTML structure:", error);
 		return "<html><body><!-- Failed to extract structure --></body></html>";
 	}
 }
@@ -445,7 +446,7 @@ export async function extractPDFContent(url: string): Promise<ReadableContent> {
 			siteName: window.location.hostname,
 		};
 	} catch (error) {
-		console.error("Failed to extract PDF content:", error);
+		logError("Failed to extract PDF content:", error);
 		throw error;
 	}
 }

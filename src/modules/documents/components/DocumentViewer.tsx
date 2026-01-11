@@ -93,7 +93,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					const url = URL.createObjectURL(blob);
 					setPreviewUrl(url);
 				} catch (error) {
-					console.error("Failed to load preview:", error);
+					logError("Failed to load preview:", error);
 				} finally {
 					setLoading(false);
 				}
@@ -105,7 +105,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					const text = textDecoder.decode(content);
 					setTextContent(text);
 				} catch (error) {
-					console.error("Failed to load text content:", error);
+					logError("Failed to load text content:", error);
 				} finally {
 					setLoading(false);
 				}

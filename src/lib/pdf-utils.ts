@@ -41,7 +41,6 @@ export async function selectAndReadPDF(): Promise<PDFDocumentContent | null> {
 
 		return await readPDFFile(file);
 	} catch (error) {
-		console.error("Error reading PDF file:", error);
 		throw error;
 	}
 }
@@ -88,7 +87,6 @@ export async function readPDFWithProgress(
 
 		return content;
 	} catch (error) {
-		console.error("Error reading PDF with progress:", error);
 		throw error;
 	}
 }

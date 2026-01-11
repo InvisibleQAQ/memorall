@@ -1,5 +1,6 @@
 import type { IDatabaseService } from "@/services/database";
 import type { Node, Edge } from "@/services/database/types";
+import { logWarn } from "./logger";
 
 export interface TrigramSearchResult<T> {
 	item: Partial<T>;
@@ -82,7 +83,7 @@ export async function trigramSearchNodes(
 			})) || []
 		);
 	} catch (error) {
-		console.warn(
+		logWarn(
 			"Trigram search for nodes failed, falling back to empty results:",
 			error,
 		);
@@ -180,7 +181,7 @@ export async function trigramSearchEdges(
 			})) || []
 		);
 	} catch (error) {
-		console.warn(
+		logWarn(
 			"Trigram search for edges failed, falling back to empty results:",
 			error,
 		);

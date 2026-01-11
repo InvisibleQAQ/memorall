@@ -1,6 +1,7 @@
 // Pragmatic utility to convert Drizzle schemas to SQL
 // Uses type assertions to work with Drizzle's internal structure
 
+import { logWarn } from "@/utils/logger";
 import type { PgTable } from "drizzle-orm/pg-core";
 
 // Helper function to safely access Drizzle internal symbols
@@ -236,7 +237,7 @@ export function toCreateTableSQL(table: PgTable): string {
 		const allDefinitions = [...columnDefinitions, ...foreignKeys];
 		return `CREATE TABLE IF NOT EXISTS ${tableName} (\n  ${allDefinitions.join(",\n  ")}\n);`;
 	} catch (error) {
-		console.warn("Failed to generate CREATE TABLE SQL:", error);
+		logWarn("Failed to generate CREATE TABLE SQL:", error);
 		return "-- Failed to generate table SQL";
 	}
 }

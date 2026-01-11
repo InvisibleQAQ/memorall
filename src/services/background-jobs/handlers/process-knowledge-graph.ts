@@ -11,6 +11,7 @@ import type { ILLMService } from "@/services/llm/interfaces/llm-service.interfac
 import { serviceManager } from "@/services";
 import { backgroundProcessFactory } from "./process-factory";
 import { and, eq } from "drizzle-orm";
+import { logWarn } from "@/utils/logger";
 
 // Knowledge graph payload - file path, content, and optional topicId
 export interface KnowledgeGraphPayload {
@@ -168,10 +169,7 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 			});
 		} catch (error) {
 			// Log but don't fail the job
-			console.error(
-				`Failed to update source status for file ${filePath}:`,
-				error,
-			);
+			logWarn(`Failed to update source status for file ${filePath}:`, error);
 		}
 	}
 

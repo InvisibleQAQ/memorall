@@ -68,7 +68,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 			const pdfContent = await readPDFFile(arrayBuffer);
 			setPages(pdfContent.pages);
 		} catch (error) {
-			console.error("Failed to load PDF pages:", error);
+			logError("Failed to load PDF pages:", error);
 		} finally {
 			setLoading(false);
 		}

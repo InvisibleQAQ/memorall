@@ -15,7 +15,7 @@ import {
 	setCurrentEmbeddingSize,
 } from "@/utils/embedding-size-config";
 import { serviceManager } from "@/services";
-import { logInfo } from "@/utils/logger";
+import { logInfo, logWarn } from "@/utils/logger";
 
 export interface EmbeddingSettingsState {
 	// State
@@ -66,7 +66,7 @@ export const useEmbeddingSettings = create<EmbeddingSettingsState>()(
 
 				set({ hasExistingData: hasData });
 			} catch (error) {
-				console.warn("Failed to detect existing data:", error);
+				logWarn("Failed to detect existing data:", error);
 				set({ hasExistingData: false });
 			} finally {
 				set({ isDetecting: false });
@@ -87,7 +87,7 @@ export const useEmbeddingSettings = create<EmbeddingSettingsState>()(
 				set({ embeddingSize: currentSize });
 				logInfo(`Embedding settings loaded: ${currentSize}`);
 			} catch (error) {
-				console.error("Failed to load embedding settings:", error);
+				logWarn("Failed to load embedding settings:", error);
 				// Fallback to saved or default
 				const savedSize = await getCurrentEmbeddingSize();
 				set({

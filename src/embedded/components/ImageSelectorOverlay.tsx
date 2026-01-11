@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import { captureScreenshotWithFallback } from "../utils/screenshot-helpers";
+import { logWarn } from "@/utils/logger";
 
 interface ImageSelectorProps {
 	onImageSelected: (selectedImageData: string) => void;
@@ -25,7 +26,6 @@ const ImageSelectorOverlay: React.FC<ImageSelectorProps> = ({
 	useEffect(() => {
 		const captureScreen = async () => {
 			try {
-				console.log("Capturing viewport screenshot...");
 				const canvas = await captureScreenshotWithFallback(
 					document.documentElement,
 					{
@@ -46,7 +46,7 @@ const ImageSelectorOverlay: React.FC<ImageSelectorProps> = ({
 				setCapturedImage(base64Image);
 				setIsCapturing(false);
 			} catch (error) {
-				console.error("Failed to capture screenshot:", error);
+				logWarn("Failed to capture screenshot:", error);
 				onCancel();
 			}
 		};
@@ -116,7 +116,7 @@ const ImageSelectorOverlay: React.FC<ImageSelectorProps> = ({
 			// Send the cropped image
 			onImageSelected(croppedImageData);
 		} catch (error) {
-			console.error("Failed to crop image:", error);
+			logWarn("Failed to crop image:", error);
 		}
 	}, [isSelecting, startPos, endPos, onImageSelected]);
 

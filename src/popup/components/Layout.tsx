@@ -167,7 +167,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 					`Cleared ${result.total} embeddings (${result.nodes} nodes, ${result.edges} edges, ${result.messages} messages)`,
 				);
 			} catch (error) {
-				console.error("Failed to clear embeddings:", error);
 				alert(
 					t("embedding.clearError", {
 						defaultValue: "Failed to clear embeddings. Please try again.",

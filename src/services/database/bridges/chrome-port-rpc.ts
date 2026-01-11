@@ -4,7 +4,7 @@
 
 import type { RpcRequest, RpcResponse, RpcTransport } from "./types";
 import { serializeForRpc } from "./serialization";
-import { logWarn } from "@/utils/logger";
+import { logError, logInfo, logWarn } from "@/utils/logger";
 
 export interface ChromePortTransportOptions {
 	/** Port name; must match on the server side */
@@ -101,7 +101,7 @@ export async function createChromePortTransport(
 				};
 				port.postMessage(serializeForRpc(pingRequest));
 			} catch (error) {
-				console.warn(
+				logWarn(
 					`[ChromePortRPC] ⚠️ Heartbeat ping failed, connection may be dead:`,
 					error,
 				);
@@ -122,7 +122,7 @@ export async function createChromePortTransport(
 
 		const delay = backoff;
 		backoff = Math.min(backoff * backoffFactor, backoffMax);
-		console.log(
+		logInfo(
 			`[ChromePortRPC] 🔄 Port disconnected, reconnecting in ${delay}ms (backoff: ${backoff}ms)`,
 		);
 		// eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -143,16 +143,7 @@ export async function createChromePortTransport(
 					}
 				}
 
-				console.log(
-					`[ChromePortRPC] 🔌 CALLING chrome.runtime.connect with channel: ${channelName}`,
-					new Date().toISOString(),
-				);
 				const p = chrome.runtime.connect({ name: channelName });
-				console.log(
-					`[ChromePortRPC] ✅ Port object created:`,
-					{ portName: p.name, hasPort: !!p },
-					new Date().toISOString(),
-				);
 				p.onMessage.addListener(handleMessage);
 				p.onDisconnect.addListener(handleDisconnect);
 				port = p;
@@ -166,7 +157,7 @@ export async function createChromePortTransport(
 					} catch (error) {
 						// If posting fails, put it back in queue
 						queue.unshift(m);
-						console.warn(
+						logWarn(
 							`[ChromePortRPC] ⚠️ Failed to send queued message, keeping in queue`,
 							error,
 						);
@@ -175,25 +166,16 @@ export async function createChromePortTransport(
 				}
 
 				backoff = backoffInit;
-				console.log(
-					`[ChromePortRPC] ✅ Connection established successfully (${queue.length} messages still queued)`,
-				);
 
 				// Start heartbeat to monitor connection health
 				startHeartbeat();
 			} catch (error) {
-				console.error(
-					`[ChromePortRPC] ❌ Connection failed, will retry:`,
-					error,
-				);
+				logError(`[ChromePortRPC] ❌ Connection failed, will retry:`, error);
 				port = null;
 				// Trigger reconnection on error
 				if (reconnectEnabled && !disposed) {
 					const delay = backoff;
 					backoff = Math.min(backoff * backoffFactor, backoffMax);
-					console.log(
-						`[ChromePortRPC] 🔄 Retrying connection in ${delay}ms...`,
-					);
 					// eslint-disable-next-line @typescript-eslint/no-misused-promises
 					setTimeout(connect, delay);
 				}

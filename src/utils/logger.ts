@@ -4,12 +4,7 @@ import {
 	type LogEntry,
 	type LogLevel,
 } from "./indexeddb-storage";
-
-// Detect production mode - disable all logging in production
-// Extension.js sets NODE_ENV through webpack DefinePlugin
-const IS_PRODUCTION =
-	typeof process !== "undefined" && process.env?.NODE_ENV === "production";
-const IS_DEVELOPMENT = !IS_PRODUCTION;
+import { MAX_LOG_STORED, SHOW_LOG } from "@/constants/log";
 
 interface LoggerConfig {
 	maxEntries: number;
@@ -20,17 +15,19 @@ interface LoggerConfig {
 class Logger {
 	private storage: IndexedDBLogStorage;
 	private config: LoggerConfig;
-	private isDevelopment: boolean;
+	private isShowLog: boolean;
 
 	constructor(config: Partial<LoggerConfig> = {}) {
 		this.config = {
-			maxEntries: 200,
+			maxEntries: MAX_LOG_STORED,
 			enableConsoleOutput: true,
 			enablePersistence: true,
 			...config,
 		};
 
-		this.isDevelopment = IS_DEVELOPMENT;
+		console.log(`[Logger] init isShowLog: ${SHOW_LOG}`);
+
+		this.isShowLog = SHOW_LOG;
 
 		this.storage = new IndexedDBLogStorage();
 
@@ -202,7 +199,7 @@ class Logger {
 		...args: unknown[]
 	): Promise<void> {
 		// Console output
-		if (IS_DEVELOPMENT) {
+		if (this.isShowLog) {
 			this.logToConsole(prefix, colorFunc, logFunc, ...args);
 		}
 
@@ -225,7 +222,7 @@ class Logger {
 			"info",
 			"🔵 INFO:",
 			chalk.blueBright,
-			this.isDevelopment ? console.log : undefined,
+			this.isShowLog ? console.log : undefined,
 			context,
 			source,
 			...args,
@@ -257,7 +254,7 @@ class Logger {
 			"warn",
 			"🔶 WARN:",
 			chalk.yellowBright,
-			console.warn,
+			this.isShowLog ? console.warn : undefined,
 			context,
 			source,
 			...args,
@@ -273,7 +270,7 @@ class Logger {
 			"debug",
 			"⚪ DEBUG:",
 			chalk.greenBright,
-			this.isDevelopment ? console.debug : undefined,
+			this.isShowLog ? console.debug : undefined,
 			context,
 			source,
 			...args,

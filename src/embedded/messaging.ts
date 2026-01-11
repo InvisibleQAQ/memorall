@@ -1,3 +1,4 @@
+import { logError, logWarn } from "@/utils/logger";
 import type { BackgroundMessage, MessageResponse } from "./types";
 
 // Send message to background script with typed response
@@ -8,7 +9,7 @@ export async function sendMessageToBackground<T = MessageResponse>(
 		const response = await chrome.runtime.sendMessage(message);
 		return response as T;
 	} catch (error) {
-		console.error("Failed to send message to background:", error);
+		logError("Failed to send message to background:", error);
 		throw error;
 	}
 }
@@ -35,7 +36,7 @@ export function storeRememberContext(
 		}
 		chrome.storage?.session?.set?.(storageData);
 	} catch (error) {
-		console.error("Failed to store remember context:", error);
+		logWarn("Failed to store remember context:", error);
 	}
 }
 
@@ -54,7 +55,7 @@ export async function getTopicsForSelector(): Promise<
 			throw new Error(response.error || "No topics found");
 		}
 	} catch (error) {
-		console.error("Failed to load topics:", error);
+		logError("Failed to load topics:", error);
 		throw error;
 	}
 }

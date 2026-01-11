@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BACKGROUND_EVENTS } from '@/constants/events';
+
 import './src/globals.css';
 import App from './src/popup/App';
 
 // Popup-specific wrapper component
 const PopupApp: React.FC = () => {
+  useEffect(() => {
+    chrome.runtime.sendMessage({
+      type: BACKGROUND_EVENTS.POPUP_OPENED,
+    });
+  }, [])
   return (
     <div style={{
       width: '100%',

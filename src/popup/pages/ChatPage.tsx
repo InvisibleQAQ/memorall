@@ -83,7 +83,6 @@ export const ChatPage: React.FC = () => {
 						})),
 					);
 				} catch (error) {
-					console.error("Failed to fetch topics:", error);
 					setTopics([]);
 				} finally {
 					setIsLoadingTopics(false);

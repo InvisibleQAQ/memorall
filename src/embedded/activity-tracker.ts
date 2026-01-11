@@ -21,6 +21,7 @@ import { VideoTracker } from "./trackers/video-tracker";
 import { VideoCallTracker } from "./trackers/video-call-tracker";
 import { DEFAULT_CAPTURE_CONFIG } from "@/types/activity-tracking";
 import type { ActivityCaptureConfig } from "@/types/activity-tracking";
+import { logError } from "@/utils/logger";
 
 /**
  * Get XPath for an element
@@ -349,7 +350,6 @@ class ActivityTracker {
 	 */
 	start(): void {
 		if (this.isActive) {
-			console.log("Activity tracker already active");
 			return;
 		}
 
@@ -363,8 +363,6 @@ class ActivityTracker {
 		if (this.config.trackTextReading) {
 			this.startTextCaptureTimer();
 		}
-
-		console.log("🎯 Activity tracker started on:", window.location.href);
 	}
 
 	/**
@@ -381,7 +379,6 @@ class ActivityTracker {
 		this.cleanupSpecializedTrackers();
 		this.stopPeriodicCapture();
 		this.stopTextCaptureTimer();
-		console.log("⏹️ Activity tracker stopped");
 	}
 
 	/**
@@ -607,7 +604,7 @@ class ActivityTracker {
 				timestamp: Date.now(),
 			});
 		} catch (error) {
-			console.error("Failed to send activity to background:", error);
+			logError("Failed to send activity to background:", error);
 		}
 	}
 
@@ -615,11 +612,6 @@ class ActivityTracker {
 	 * Initialize specialized trackers based on page type
 	 */
 	private initializeSpecializedTrackers(): void {
-		console.log(
-			"[ActivityTracker] Initializing specialized trackers on:",
-			window.location.href,
-		);
-
 		// Initialize content reading tracker (for most pages)
 		if (this.config.trackContentReading) {
 			try {
@@ -629,15 +621,10 @@ class ActivityTracker {
 
 				// SMART: Register scroll-stop callback for intelligent capture
 				this.contentReadingTracker.setScrollStopCallback(() => {
-					console.log("[ActivityTracker] User stopped scrolling");
 					this.onUserStoppedScrolling();
 				});
-
-				console.log(
-					"✅ [ActivityTracker] Content reading tracker initialized with scroll-stop detection",
-				);
 			} catch (error) {
-				console.error(
+				logError(
 					"❌ [ActivityTracker] Failed to init content reading tracker:",
 					error,
 				);
@@ -649,12 +636,8 @@ class ActivityTracker {
 			try {
 				this.youtubeTracker = new YouTubeTracker();
 				this.youtubeTracker.start();
-				console.log("✅ [ActivityTracker] YouTube tracker initialized");
 			} catch (error) {
-				console.error(
-					"❌ [ActivityTracker] Failed to init YouTube tracker:",
-					error,
-				);
+				logError("❌ [ActivityTracker] Failed to init YouTube tracker:", error);
 			}
 		}
 
@@ -668,12 +651,9 @@ class ActivityTracker {
 						window.location.href,
 					);
 					this.videoCallTracker.start(this.config.videoCalls.captureCaptions);
-					console.log(
-						`✅ [ActivityTracker] Video call tracker initialized (${platform})`,
-					);
 				}
 			} catch (error) {
-				console.error(
+				logError(
 					"❌ [ActivityTracker] Failed to init video call tracker:",
 					error,
 				);
@@ -685,10 +665,7 @@ class ActivityTracker {
 			try {
 				this.initializeVideoTrackers();
 			} catch (error) {
-				console.error(
-					"❌ [ActivityTracker] Failed to init video trackers:",
-					error,
-				);
+				logError("❌ [ActivityTracker] Failed to init video trackers:", error);
 			}
 		}
 	}
@@ -704,7 +681,6 @@ class ActivityTracker {
 				const tracker = new VideoTracker(video);
 				tracker.start();
 				this.videoTrackers.set(video, tracker);
-				console.log("✅ [ActivityTracker] Video tracker initialized");
 			}
 		});
 
@@ -718,7 +694,6 @@ class ActivityTracker {
 							const tracker = new VideoTracker(video);
 							tracker.start();
 							this.videoTrackers.set(video, tracker);
-							console.log("✅ [ActivityTracker] New video tracker initialized");
 						}
 					});
 				}
@@ -823,12 +798,6 @@ class ActivityTracker {
 				const data = this.contentReadingTracker.capture();
 				if (data) {
 					this.sendToBackground("content_reading", data);
-					console.log(
-						"✅ Content captured (backup):",
-						`${data.contentMetadata.wordCount} words,`,
-						`${(data.readingMetrics.viewDuration / 1000).toFixed(1)}s`,
-					);
-
 					// DEDUPLICATION: Mark this content as captured
 					this.contentReadingTracker.markContentAsCaptured();
 
@@ -844,11 +813,6 @@ class ActivityTracker {
 			);
 			if (data && data.watchDuration >= this.config.youTube.minWatchDuration) {
 				this.sendToBackground("youtube_video", data);
-				console.log(
-					"▶️ YouTube video captured:",
-					data.title,
-					`(${data.watchDuration}s watched)`,
-				);
 			}
 		}
 
@@ -860,7 +824,6 @@ class ActivityTracker {
 					const data = tracker.capture();
 					if (data) {
 						this.sendToBackground("video_watching", data);
-						console.log("🎬 Video watching captured");
 					}
 				}
 			});
@@ -884,12 +847,6 @@ class ActivityTracker {
 			const data = this.contentReadingTracker.capture();
 			if (data) {
 				this.sendToBackground("content_reading", data);
-				console.log(
-					"✅ Content captured:",
-					`${data.contentMetadata.wordCount} words,`,
-					`${(data.readingMetrics.viewDuration / 1000).toFixed(1)}s`,
-				);
-
 				// DEDUPLICATION: Mark this content as captured
 				this.contentReadingTracker.markContentAsCaptured();
 
@@ -926,7 +883,6 @@ class ActivityTracker {
 			const data = this.videoCallTracker.capture();
 			if (data) {
 				this.sendToBackground("video_call", data);
-				console.log("📹 Video call captured:", data.platform);
 			}
 		}
 
@@ -1032,7 +988,6 @@ class ActivityTracker {
 
 			if (!visibleText || visibleText.length < 50) {
 				// Not enough text to capture, might be an image-heavy page
-				console.log("Not enough text content to capture");
 				return;
 			}
 
@@ -1068,11 +1023,8 @@ class ActivityTracker {
 			};
 
 			this.sendToBackground("text_reading", data);
-			console.log(
-				`📖 Captured ${textLength} characters of visible text after ${(viewDuration / 1000).toFixed(1)}s`,
-			);
 		} catch (error) {
-			console.error("Failed to capture visible text:", error);
+			logError("Failed to capture visible text:", error);
 		}
 	}
 

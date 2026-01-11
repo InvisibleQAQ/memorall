@@ -1,3 +1,4 @@
+import { logError } from "@/utils/logger";
 import * as pdfjsLib from "pdfjs-dist";
 import type {
 	TextItem,
@@ -111,7 +112,7 @@ export async function readPDFFile(
 			fullText,
 		};
 	} catch (error) {
-		console.error("Error reading PDF file:", error);
+		logError("Error reading PDF file:", error);
 		throw new Error(
 			`Failed to read PDF: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);
@@ -158,7 +159,7 @@ export async function readPDFPages(
 
 		return pages;
 	} catch (error) {
-		console.error("Error reading PDF pages:", error);
+		logError("Error reading PDF pages:", error);
 		throw new Error(
 			`Failed to read PDF pages: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);
@@ -191,7 +192,7 @@ export async function readPDFFromUrl(url: string): Promise<PDFDocumentContent> {
 		const arrayBuffer = await response.arrayBuffer();
 		return await readPDFFile(arrayBuffer);
 	} catch (error) {
-		console.error("Error fetching PDF from URL:", error);
+		logError("Error fetching PDF from URL:", error);
 		throw new Error(
 			`Failed to fetch PDF: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);

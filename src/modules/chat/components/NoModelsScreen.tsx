@@ -53,6 +53,7 @@ import { useDownloadedModels } from "@/modules/llm/hooks/use-downloaded-models";
 import { useDownloadProgress } from "@/modules/llm/hooks/use-download-progress";
 import { useCurrentModel } from "@/popup/hooks/use-current-model";
 import { serviceManager } from "@/services";
+import { logError } from "@/utils/logger";
 
 interface NoModelsScreenProps {
 	onModelLoaded: (modelId: string, provider: ServiceProvider) => void;
@@ -138,7 +139,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 					return;
 				}
 			} catch (error) {
-				console.error("Failed to check existing providers:", error);
+				logError("Failed to check existing providers:", error);
 			}
 		};
 

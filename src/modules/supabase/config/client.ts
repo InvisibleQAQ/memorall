@@ -1,3 +1,4 @@
+import { logError } from "@/utils/logger";
 import { createClient } from "@supabase/supabase-js";
 
 // Supabase configuration
@@ -100,7 +101,7 @@ export const updateSupabaseConfig = async (url: string, anonKey: string) => {
 		// Reset client to force recreation with new config
 		supabaseClient = null;
 	} catch (error) {
-		console.error("Failed to update Supabase config:", error);
+		logError("Failed to update Supabase config:", error);
 		throw error;
 	}
 };
@@ -111,7 +112,7 @@ export const clearSupabaseConfig = async () => {
 		await chrome.storage?.local?.remove?.(["supabaseUrl", "supabaseAnonKey"]);
 		supabaseClient = null;
 	} catch (error) {
-		console.error("Failed to clear Supabase config:", error);
+		logError("Failed to clear Supabase config:", error);
 		throw error;
 	}
 };

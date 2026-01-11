@@ -6,6 +6,7 @@ import { Loader } from "./Icons";
 import { captureScreenshotWithFallback } from "../utils/screenshot-helpers";
 import { EMBEDDED_TRANSLATIONS } from "../language";
 import { DEFAULT_LANGUAGE } from "@/constants/language";
+import { logWarn } from "@/utils/logger";
 
 export const EmbeddedContextSections: React.FC<{
 	pageUrl: string;
@@ -83,7 +84,6 @@ export const EmbeddedContextSections: React.FC<{
 					});
 					try {
 						if (contextItem.type === "viewport_screenshot") {
-							console.log("Capturing viewport screenshot...");
 							// Capture only visible viewport - use current scroll position
 							const canvas = await captureScreenshotWithFallback(
 								document.documentElement,
@@ -114,7 +114,6 @@ export const EmbeddedContextSections: React.FC<{
 							// Add to selected with the captured screenshot
 							setSelectedContexts((prev) => [...prev, updatedContextItem]);
 						} else {
-							console.log("Capturing full page screenshot...");
 							// Capture full page in chunks of 1500px height
 							const fullHeight = document.documentElement.scrollHeight;
 							const fullWidth = document.documentElement.scrollWidth;
@@ -167,7 +166,7 @@ export const EmbeddedContextSections: React.FC<{
 							setSelectedContexts((prev) => [...prev, updatedContextItem]);
 						}
 					} catch (e) {
-						console.error("Failed to capture screenshot:", e);
+						logWarn("Failed to capture screenshot:", e);
 					} finally {
 						setIsCapturingScreenshot(false);
 					}

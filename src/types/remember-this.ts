@@ -1,4 +1,4 @@
-import type { CONTENT_BACKGROUND_EVENTS } from "@/constants/content-background";
+import type { BACKGROUND_EVENTS } from "@/constants/events";
 
 export type ContentSourceType =
 	| "webpage"
@@ -82,7 +82,7 @@ export interface NewRememberedContent {
 }
 
 export interface RememberThisMessage {
-	type: typeof CONTENT_BACKGROUND_EVENTS.REMEMBER_THIS;
+	type: typeof BACKGROUND_EVENTS.REMEMBER_THIS;
 	tabId: number;
 	url: string;
 }
@@ -102,7 +102,7 @@ export interface LetRememberMessage {
 }
 
 export interface ContentExtractedMessage {
-	type: typeof CONTENT_BACKGROUND_EVENTS.CONTENT_EXTRACTED;
+	type: typeof BACKGROUND_EVENTS.CONTENT_EXTRACTED;
 	tabId: number;
 	data: {
 		html: string;
@@ -115,7 +115,7 @@ export interface ContentExtractedMessage {
 }
 
 export interface SelectionExtractedMessage {
-	type: typeof CONTENT_BACKGROUND_EVENTS.SELECTION_EXTRACTED;
+	type: typeof BACKGROUND_EVENTS.SELECTION_EXTRACTED;
 	tabId: number;
 	data: {
 		selectedText: string;

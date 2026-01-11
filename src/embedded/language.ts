@@ -3,6 +3,7 @@ import {
 	LANGUAGE_STORAGE_KEY,
 	type Language,
 } from "@/constants/language";
+import { logWarn } from "@/utils/logger";
 
 // Centralized translation texts for all embedded components
 export const EMBEDDED_TRANSLATIONS = {
@@ -136,7 +137,7 @@ export async function loadLanguageFromStorage(): Promise<Language> {
 			return savedLanguage;
 		}
 	} catch (error) {
-		console.error("Failed to load language:", error);
+		logWarn("Failed to load language:", error);
 	}
 	return DEFAULT_LANGUAGE;
 }

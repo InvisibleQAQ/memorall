@@ -30,6 +30,7 @@ import { EmbeddedMessageRenderer } from "../components/EmbeddedMessageRenderer";
 import { EmbeddedChatInput } from "../components/EmbeddedChatInput";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { customStyles } from "../styles/customStyles";
+import { logError, logInfo } from "@/utils/logger";
 
 // Chat mode type
 type ChatMode = "general" | "knowledge";
@@ -143,6 +144,8 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 				}
 				const jobResult = await result.promise;
 
+				logInfo("[EmbeddedChat] Initialize model", jobResult);
+
 				if (jobResult.status === "completed" && jobResult.result) {
 					const modelInfo = jobResult.result.modelInfo;
 					if (
@@ -159,7 +162,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					}
 				}
 			} catch (error) {
-				console.error("Failed to initialize model:", error);
+				logError("[EmbeddedChat] Initialize model failed", error);
 				setModelAvailable(false);
 			}
 		};
@@ -198,7 +201,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					}
 				}
 			} catch (error) {
-				console.error("Failed to load topics:", error);
+				logError("Failed to load topics:", error);
 			} finally {
 				setTopicsLoading(false);
 			}
@@ -389,7 +392,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 						);
 					},
 					onError: (error: string) => {
-						console.error("Chat error:", error);
+						logError("Chat error:", error);
 
 						// Update message with error
 						setMessages((prev) =>
@@ -411,7 +414,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					},
 				});
 			} catch (error) {
-				console.error("Chat submission error:", error);
+				logError("Chat submission error:", error);
 
 				// Update message with error
 				setMessages((prev) =>

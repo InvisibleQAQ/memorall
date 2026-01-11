@@ -11,6 +11,7 @@ import {
 import { useAuth, useAuthActions } from "../hooks";
 import { LogIn, LogOut, User as UserIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { logError } from "@/utils/logger";
 
 export const AuthCard: React.FC = () => {
 	const navigate = useNavigate();
@@ -31,7 +32,7 @@ export const AuthCard: React.FC = () => {
 		try {
 			await signOut();
 		} catch (error) {
-			console.error("Sign out failed:", error);
+			logError("Sign out failed:", error);
 		}
 	};
 

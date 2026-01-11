@@ -3,6 +3,7 @@
  * Handles PDF operations without content script (for Chrome's PDF viewer)
  */
 
+import { logError } from "@/utils/logger";
 import * as pdfjsLib from "pdfjs-dist";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 
@@ -110,7 +111,7 @@ export async function fetchAndReadPDF(
 
 		return result;
 	} catch (error) {
-		console.error("❌ Failed to fetch and read PDF:", error);
+		logError("❌ Failed to fetch and read PDF:", error);
 		throw new Error(
 			`Failed to read PDF: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);

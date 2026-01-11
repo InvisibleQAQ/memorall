@@ -6,6 +6,7 @@ import { customStyles } from "../styles/customStyles";
 import { DEFAULT_LANGUAGE } from "@/constants/language";
 import type { Language } from "@/constants/language";
 import { loadLanguageFromStorage, EMBEDDED_TRANSLATIONS } from "../language";
+import { logWarn } from "@/utils/logger";
 
 interface Topic {
 	id: string;
@@ -56,7 +57,7 @@ const TopicSelector: React.FC<EmbeddedTopicSelectorProps> = ({
 			const loadedTopics = await getTopicsForSelector();
 			setTopics(loadedTopics);
 		} catch (error) {
-			console.error("Failed to load topics:", error);
+			logWarn("Failed to load topics:", error);
 		} finally {
 			setLoading(false);
 		}
@@ -76,7 +77,7 @@ const TopicSelector: React.FC<EmbeddedTopicSelectorProps> = ({
 				onClose();
 			}, 1500);
 		} catch (error) {
-			console.error("Failed to save content with topic:", error);
+			logWarn("Failed to save content with topic:", error);
 			setSaving(false);
 			// Reset selection on error
 			setSelectedTopic(null);

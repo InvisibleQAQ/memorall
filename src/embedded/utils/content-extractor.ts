@@ -34,11 +34,8 @@ export function extractMainContent(): ExtractedContent {
 		cacheUrl === currentUrl &&
 		now - cacheTimestamp < CACHE_DURATION_MS
 	) {
-		console.log("[ContentExtractor] Using cached content");
 		return cachedContent;
 	}
-
-	console.log("[ContentExtractor] Extracting fresh content...");
 
 	const result: ExtractedContent = {
 		mainContent: "",

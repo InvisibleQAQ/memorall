@@ -2,6 +2,7 @@ import type { BaseEmbedding } from "@/services/embedding/interfaces/base-embeddi
 import type { IDatabaseService } from "@/services/database";
 import type { Node, Edge } from "@/services/database/types";
 import { getCurrentEmbeddingColumns } from "@/utils/embedding-size-config";
+import { logWarn } from "./logger";
 
 export interface VectorSearchResult<T> {
 	item: T;
@@ -103,7 +104,7 @@ export async function vectorSearchNodes(
 			})) || []
 		);
 	} catch (error) {
-		console.warn("Vector search failed, falling back to empty results:", error);
+		logWarn("Vector search failed, falling back to empty results:", error);
 		return [];
 	}
 }
@@ -202,7 +203,7 @@ export async function vectorSearchEdges(
 			})) || []
 		);
 	} catch (error) {
-		console.warn(
+		logWarn(
 			"Vector search for edges failed, falling back to empty results:",
 			error,
 		);

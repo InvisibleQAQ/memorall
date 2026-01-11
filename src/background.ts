@@ -6,10 +6,14 @@ import { backgroundJob } from "./services/background-jobs/background-job";
 import { backgroundJobMessageForwarder } from "./background/message-forwarder";
 import { portBridge } from "./background/port-bridge";
 import { sharedStorageService } from "./services/shared-storage";
-import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
+import { BACKGROUND_EVENTS } from "./constants/events";
 import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "./constants/language";
 import type { Language } from "./constants/language";
 import { activityTrackingManager } from "./background/activity-tracking-manager";
+
+// Offscreen watchdog
+const OFFSCREEN_WATCHDOG_INTERVAL_MS = 60_000; // 1 minute (safe)
+let offscreenWatchdogTimer: number | null = null;
 
 // Initialization state
 let initializationInProgress = false;
@@ -491,7 +495,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 			// Send message to content script to show chat modal
 			const chatResponse = await chrome.tabs.sendMessage(tab.id, {
-				type: CONTENT_BACKGROUND_EVENTS.SHOW_CHAT_MODAL,
+				type: BACKGROUND_EVENTS.SHOW_CHAT_MODAL,
 				tabId: tab.id,
 				url: tab.url,
 				selectedText: info.selectionText || "",
@@ -521,7 +525,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 			// Send message to content script to show image selection overlay
 			const imageResponse = await chrome.tabs.sendMessage(tab.id, {
-				type: CONTENT_BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR,
+				type: BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR,
 				tabId: tab.id,
 				url: tab.url,
 			});
@@ -623,7 +627,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 			// Always show topic selector UI with default option (topic undefined)
 			logInfo("💾 Save page clicked - showing topic selector");
 			const topicSelectorResponse = await chrome.tabs.sendMessage(tab.id, {
-				type: CONTENT_BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR,
+				type: BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR,
 				tabId: tab.id,
 				url: tab.url,
 				context: info.selectionText || "",
@@ -770,7 +774,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Handle messages from content scripts and UI
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	if (message.type === "ACTIVITY_CAPTURED") {
+	if (message.type === BACKGROUND_EVENTS.POPUP_OPENED) {
+		logInfo("🪟 Popup opened");
+
+		// Safe place to verify offscreen
+		offscreenWatchdogCheck();
+	} else if (message.type === BACKGROUND_EVENTS.ACTIVITY_CAPTURED) {
 		// Handle activity data from content script
 		(async () => {
 			try {
@@ -795,7 +804,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			}
 		})();
 		return true;
-	} else if (message.type === "GET_TOPICS_FOR_SELECTOR") {
+	} else if (message.type === BACKGROUND_EVENTS.GET_TOPICS_FOR_SELECTOR) {
 		// Handle async topic loading for content script
 		(async () => {
 			try {
@@ -829,7 +838,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			}
 		})();
 		return true;
-	} else if (message.type === "OPEN_FULL_PAGE") {
+	} else if (message.type === BACKGROUND_EVENTS.OPEN_FULL_PAGE) {
 		// Handle opening full page from embedded chat
 		(async () => {
 			try {
@@ -841,7 +850,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			}
 		})();
 		return true;
-	} else if (message.type === "OPEN_SAVE_PAGE") {
+	} else if (message.type === BACKGROUND_EVENTS.OPEN_SAVE_PAGE) {
 		// Handle opening documents page from content script
 		try {
 			chrome.storage?.session?.set?.({ navigateTo: "documents" });
@@ -852,7 +861,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			sendResponse({ success: false, error: "Failed to open documents page" });
 		}
 		return true;
-	} else if (message.type === "SAVE_CONTENT_WITH_TOPIC") {
+	} else if (message.type === BACKGROUND_EVENTS.SAVE_CONTENT_WITH_TOPIC) {
 		// Handle direct content saving with topic
 		(async () => {
 			try {
@@ -868,7 +877,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				const extractionResponse = await chrome.tabs.sendMessage(
 					sender.tab.id,
 					{
-						type: CONTENT_BACKGROUND_EVENTS.REMEMBER_THIS,
+						type: BACKGROUND_EVENTS.REMEMBER_THIS,
 						tabId: sender.tab.id,
 						topicId: message.topicId,
 					},
@@ -891,7 +900,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			}
 		})();
 		return true;
-	} else if (message.type === CONTENT_BACKGROUND_EVENTS.CONTENT_EXTRACTED) {
+	} else if (message.type === BACKGROUND_EVENTS.CONTENT_EXTRACTED) {
 		// Handle async processing
 		(async () => {
 			try {
@@ -928,7 +937,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 		// Return true to indicate async response
 		return true;
-	} else if (message.type === CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED) {
+	} else if (message.type === BACKGROUND_EVENTS.FILESYSTEM_CHANGED) {
 		// Relay filesystem change notifications to ALL contexts
 		// This ensures popup/UI receives updates even from offscreen document
 		logInfo("🔁 Relaying FILESYSTEM_CHANGED to all contexts");
@@ -936,7 +945,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		// Broadcast to all extension contexts (popup, options page, etc.)
 		chrome.runtime
 			.sendMessage({
-				type: CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
+				type: BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
 			})
 			.catch((err: Error) => {
 				// Ignore "no receiver" errors (normal when popup is closed)
@@ -991,4 +1000,50 @@ async function openExtensionPopup(): Promise<void> {
 			"Click the Memorall toolbar icon to open the popup.",
 		);
 	}
+}
+
+async function offscreenWatchdogCheck(): Promise<void> {
+	try {
+		// Do not interfere with active initialization
+		if (initializationInProgress) {
+			return;
+		}
+
+		// Offscreen API not supported
+		if (!chrome.offscreen) {
+			return;
+		}
+
+		const offscreenUrl = chrome.runtime.getURL("offscreen.html");
+
+		const contexts = await chrome.runtime.getContexts({
+			contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+		});
+
+		const hasMainOffscreen = contexts.some(
+			(ctx) => ctx.documentUrl === offscreenUrl && ctx.frameId === 0,
+		);
+
+		if (!hasMainOffscreen) {
+			logInfo("🩺 Offscreen watchdog: offscreen missing → reinitializing");
+
+			// Reset internal flags so ensureOffscreenDocument can run cleanly
+			offscreenCreated = false;
+			offscreenInitPromise = null;
+
+			await ensureOffscreenDocument();
+
+			logInfo("✅ Offscreen watchdog: offscreen restored");
+		}
+	} catch (error) {
+		logError("⚠️ Offscreen watchdog check failed:", error);
+	}
+}
+
+if (!offscreenWatchdogTimer) {
+	offscreenWatchdogTimer = setInterval(() => {
+		offscreenWatchdogCheck();
+	}, OFFSCREEN_WATCHDOG_INTERVAL_MS) as unknown as number;
+
+	logInfo("🩺 Offscreen watchdog started");
 }

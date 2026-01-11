@@ -11,7 +11,7 @@ import type {
 	DocumentTreeNode,
 	DocumentType,
 } from "@/types/document-library";
-import { CONTENT_BACKGROUND_EVENTS } from "@/constants/content-background";
+import { BACKGROUND_EVENTS } from "@/constants/events";
 
 const DOCUMENTS_ROOT = "/home/documents";
 
@@ -107,7 +107,7 @@ class DocumentStorageService {
 			// IMPORTANT: In MV3, messages from offscreen/background may not reach popup
 			// reliably, so we also send to background worker explicitly
 			const message = {
-				type: CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
+				type: BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
 			};
 
 			chrome.runtime.sendMessage(message).catch((err: Error) => {
@@ -182,7 +182,7 @@ class DocumentStorageService {
 			message &&
 			typeof message === "object" &&
 			"type" in message &&
-			message.type === CONTENT_BACKGROUND_EVENTS.FILESYSTEM_CHANGED
+			message.type === BACKGROUND_EVENTS.FILESYSTEM_CHANGED
 		) {
 			logInfo(
 				`📢 Received FILESYSTEM_CHANGED from ${sender.id || "unknown"} (${this.changeListeners.size} listeners)`,

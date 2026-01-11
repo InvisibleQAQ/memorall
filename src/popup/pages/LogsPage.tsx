@@ -31,7 +31,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/popup/components/ui/tooltip";
-import { logger, type LogEntry, type LogLevel } from "@/utils/logger";
+import { logError, logger, type LogEntry, type LogLevel } from "@/utils/logger";
 import type { LogFilter } from "@/utils/indexeddb-storage";
 
 interface LogsPageProps {}
@@ -94,7 +94,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 						: undefined,
 			});
 		} catch (error) {
-			console.error("Failed to load logs:", error);
+			logError("Failed to load logs:", error);
 		} finally {
 			setLoading(false);
 		}
@@ -134,7 +134,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 			document.body.removeChild(a);
 			URL.revokeObjectURL(url);
 		} catch (error) {
-			console.error("Failed to export logs:", error);
+			logError("Failed to export logs:", error);
 		}
 	};
 
@@ -144,7 +144,7 @@ export const LogsPage: React.FC<LogsPageProps> = () => {
 				await logger.clearLogs();
 				await loadLogs();
 			} catch (error) {
-				console.error("Failed to clear logs:", error);
+				logError("Failed to clear logs:", error);
 			}
 		}
 	};

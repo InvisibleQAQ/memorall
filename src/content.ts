@@ -1,7 +1,7 @@
 // Content script for Memorall extension
 // Uses modular embedded components structure
 
-import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
+import { BACKGROUND_EVENTS } from "./constants/events";
 import "./embedded/activity-tracker"; // Initialize activity tracker
 import {
 	extractSelection,
@@ -21,6 +21,7 @@ import type {
 	MessageResponse,
 	ExtractedSelectionData,
 } from "./embedded/types";
+import { logInfo } from "./utils/logger";
 
 // Track mouse position for UI positioning
 let lastMouseX = 0;
@@ -37,27 +38,27 @@ chrome.runtime.onMessage.addListener(
 	async (message: BackgroundMessage, _sender, sendResponse) => {
 		try {
 			switch (message.type) {
-				case CONTENT_BACKGROUND_EVENTS.REMEMBER_THIS:
+				case BACKGROUND_EVENTS.REMEMBER_THIS:
 					await handleRememberThis(message, sendResponse);
 					return true;
 
-				case CONTENT_BACKGROUND_EVENTS.REMEMBER_CONTENT:
+				case BACKGROUND_EVENTS.REMEMBER_CONTENT:
 					await handleRememberContent(message, sendResponse);
 					return true;
 
-				case CONTENT_BACKGROUND_EVENTS.LET_REMEMBER:
+				case BACKGROUND_EVENTS.LET_REMEMBER:
 					handleLetRemember(message, sendResponse);
 					return true;
 
-				case CONTENT_BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR:
+				case BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR:
 					handleShowTopicSelector(message, sendResponse);
 					return true;
 
-				case CONTENT_BACKGROUND_EVENTS.SHOW_CHAT_MODAL:
+				case BACKGROUND_EVENTS.SHOW_CHAT_MODAL:
 					handleShowChatModal(message, sendResponse);
 					return true;
 
-				case CONTENT_BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR:
+				case BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR:
 					handleShowImageSelector(message, sendResponse);
 					return true;
 
@@ -91,7 +92,7 @@ async function handleRememberThis(
 
 		// Send extracted content back to background script
 		const payload: BackgroundMessage = {
-			type: CONTENT_BACKGROUND_EVENTS.CONTENT_EXTRACTED,
+			type: BACKGROUND_EVENTS.CONTENT_EXTRACTED,
 			tabId: message.tabId,
 			data: extractedData,
 		};
@@ -138,7 +139,7 @@ async function handleRememberContent(
 
 		// Send extracted selection back to background script
 		const payload: BackgroundMessage = {
-			type: CONTENT_BACKGROUND_EVENTS.SELECTION_EXTRACTED,
+			type: BACKGROUND_EVENTS.SELECTION_EXTRACTED,
 			tabId: message.tabId,
 			data: selectionData,
 		};
@@ -412,4 +413,4 @@ function handleShowImageSelector(
 }
 
 // Initialize content script
-console.log("🚀 Memorall content script loaded on:", window.location.href);
+logInfo("🚀 Memorall content script loaded on:", window.location.href);

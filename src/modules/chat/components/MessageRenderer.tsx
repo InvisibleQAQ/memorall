@@ -44,6 +44,7 @@ import type { Message as DBMessage } from "@/services/database/types";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 
 import { MessageKnowledgeGraph } from "./MessageKnowledgeGraph";
+import { logError } from "@/utils/logger";
 
 const USE_STREAMDOWN = false;
 const Streamdown = lazy(() => import("./MessageStreamDown"));
@@ -347,7 +348,7 @@ const MessageFooter: React.FC<MessageFooterProps> = React.memo(
 				setCopied(true);
 				setTimeout(() => setCopied(false), 2000);
 			} catch (error) {
-				console.error("Failed to copy message:", error);
+				logError("Failed to copy message:", error);
 			}
 		}, [message.content]);
 
@@ -391,7 +392,7 @@ const MessageFooter: React.FC<MessageFooterProps> = React.memo(
 				setSaved(true);
 				setTimeout(() => setSaved(false), 3000);
 			} catch (error) {
-				console.error("Failed to save to remembered content:", error);
+				logError("Failed to save to remembered content:", error);
 			} finally {
 				setSaving(false);
 			}

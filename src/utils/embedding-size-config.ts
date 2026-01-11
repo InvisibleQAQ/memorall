@@ -12,6 +12,7 @@ import {
 	getModelId,
 } from "@/config/embedding-models";
 import { sharedStorageService } from "@/services/shared-storage/shared-storage-service";
+import { logInfo, logWarn } from "./logger";
 
 const STORAGE_KEY = "embeddingSize";
 
@@ -26,7 +27,7 @@ export async function getCurrentEmbeddingSize(): Promise<EmbeddingSize> {
 			return saved;
 		}
 	} catch (error) {
-		console.warn("Failed to get embedding size from shared storage:", error);
+		logWarn("Failed to get embedding size from shared storage:", error);
 	}
 	return DEFAULT_EMBEDDING_SIZE;
 }
@@ -41,7 +42,7 @@ export async function setCurrentEmbeddingSize(
 	try {
 		await sharedStorageService.set(STORAGE_KEY, size);
 	} catch (error) {
-		console.warn("Failed to set embedding size in shared storage:", error);
+		logWarn("Failed to set embedding size in shared storage:", error);
 	}
 }
 
@@ -212,7 +213,7 @@ export async function initializeEmbeddingSize(databaseService?: {
 
 	if (hasSavedPreference) {
 		// Already has a saved preference, use it
-		console.log(`✅ Using saved embedding size preference: ${savedValue}`);
+		logInfo(`✅ Using saved embedding size preference: ${savedValue}`);
 		return savedValue;
 	}
 
@@ -283,13 +284,10 @@ export async function initializeEmbeddingSize(databaseService?: {
 			});
 
 			await setCurrentEmbeddingSize(detectedSize);
-			console.log(`✅ Detected embedding size from database: ${detectedSize}`);
+			logInfo(`✅ Detected embedding size from database: ${detectedSize}`);
 			return detectedSize;
 		} catch (error) {
-			console.warn(
-				"Failed to detect existing embeddings, using default:",
-				error,
-			);
+			logWarn("Failed to detect existing embeddings, using default:", error);
 			// On error, use medium for safety (backward compatible)
 			await setCurrentEmbeddingSize("medium");
 			return "medium";

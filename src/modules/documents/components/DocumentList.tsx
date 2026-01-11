@@ -40,6 +40,7 @@ import type { Topic } from "@/services/database/types";
 import { useProcessMonitor } from "@/popup/stores/process-monitor";
 
 import type { SourceStatus } from "../hooks/useSourceStatus";
+import { logError } from "@/utils/logger";
 
 interface DocumentListProps {
 	items: DocumentLibraryItem[];
@@ -160,7 +161,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 				// The useEffect below will handle clearing when the name actually changes
 			} catch (error) {
 				// If rename fails, clear the editing state
-				console.error("Rename failed:", error);
+				logError("Rename failed:", error);
 				setEditingItem(null);
 				setEditingName("");
 			}

@@ -27,6 +27,7 @@ import {
 } from "@/popup/components/ui/popover";
 import { serviceManager } from "@/services";
 import { eq } from "drizzle-orm";
+import { logError } from "@/utils/logger";
 
 // Performance optimization: Define plugins and components outside component
 const remarkPlugins = [remarkGfm, remarkMath];
@@ -114,7 +115,7 @@ const Citation: React.FC<CitationProps> = React.memo(
 					}
 				});
 			} catch (error) {
-				console.error("Failed to load citation data:", error);
+				logError("Failed to load citation data:", error);
 			} finally {
 				setLoading(false);
 			}

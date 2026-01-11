@@ -6,6 +6,7 @@ import { Loader } from "./Icons";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "@/constants/language";
 import type { Language } from "@/constants/language";
+import { logWarn } from "@/utils/logger";
 
 // Translation map for action names
 const ACTION_TRANSLATIONS = {
@@ -178,7 +179,7 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 			setCopiedSection(label);
 			setTimeout(() => setCopiedSection(null), 2000);
 		} catch (error) {
-			console.error("Failed to copy content:", error);
+			logWarn("Failed to copy content:", error);
 		}
 	};
 
@@ -406,7 +407,7 @@ const MessageActions: React.FC<{
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		} catch (error) {
-			console.error("Failed to copy message:", error);
+			logWarn("Failed to copy message:", error);
 		}
 	};
 
@@ -460,7 +461,7 @@ const MessageActions: React.FC<{
 			setSaved(true);
 			setTimeout(() => setSaved(false), 3000);
 		} catch (error) {
-			console.error("Failed to save to remembered content:", error);
+			logWarn("Failed to save to remembered content:", error);
 		} finally {
 			setSaving(false);
 		}
@@ -573,7 +574,7 @@ export const EmbeddedMessageRenderer: React.FC<
 					setLanguage(savedLanguage);
 				}
 			} catch (error) {
-				console.error("Failed to load language:", error);
+				logWarn("Failed to load language:", error);
 				// Keep default language
 			}
 		};

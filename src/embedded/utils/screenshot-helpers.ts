@@ -3,6 +3,7 @@
  * Performance-optimized helpers for html2canvas with progressive fallback
  */
 
+import { logError } from "@/utils/logger";
 import html2canvas from "html2canvas";
 
 // Cache for elements that have been checked for unsupported colors
@@ -87,17 +88,9 @@ export const captureScreenshotWithFallback = async (
 
 	try {
 		// FAST MODE: Try without color checking first
-		console.log("📸 Attempting fast screenshot capture...");
 		const canvas = await html2canvas(element, baseConfig);
-		console.log("✅ Fast screenshot capture successful!");
 		return canvas;
 	} catch (error) {
-		// SAFE MODE: Retry with color checking
-		console.log(
-			"⚠️ Fast capture failed, retrying with color filtering...",
-			error,
-		);
-
 		try {
 			// Preserve original ignoreElements function if it exists
 			const originalIgnoreElements = config.ignoreElements;
@@ -116,10 +109,9 @@ export const captureScreenshotWithFallback = async (
 			};
 
 			const canvas = await html2canvas(element, safeConfig);
-			console.log("✅ Safe screenshot capture successful!");
 			return canvas;
 		} catch (fallbackError) {
-			console.error("❌ Screenshot capture failed:", fallbackError);
+			logError("❌ Screenshot capture failed:", fallbackError);
 			throw fallbackError;
 		}
 	}
@@ -132,5 +124,4 @@ export const captureScreenshotWithFallback = async (
 export const clearColorCheckCache = (): void => {
 	// WeakMap doesn't have a clear method, but we can't really clear it
 	// The garbage collector will handle it when elements are removed
-	console.log("Color check cache relies on garbage collection");
 };

@@ -49,7 +49,6 @@ export class ContentReadingTracker {
 		let visibleContent = this.analyzer.getAccumulatedContent();
 
 		if (!visibleContent || visibleContent.trim().length === 0) {
-			console.log("Content reading: No visible content found");
 			return null;
 		}
 
