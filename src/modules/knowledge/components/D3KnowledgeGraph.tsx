@@ -75,6 +75,7 @@ interface D3KnowledgeGraphProps {
 	width?: number;
 	height?: number;
 	onNodeDeleted?: () => void;
+	onNodeSelect?: (nodeId: string | null) => void;
 }
 
 // Color palette for dynamic node coloring
@@ -635,6 +636,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	width = 800,
 	height = 600,
 	onNodeDeleted,
+	onNodeSelect,
 }) => {
 	const { t } = useTranslation("knowledge");
 	const svgRef = useRef<SVGSVGElement>(null);
@@ -675,6 +677,48 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 		[uniqueNodeTypes, isDark],
 	);
 
+	const nodeMap = useMemo(() => {
+		const map = new Map<string, D3Node>();
+		graphData.nodes.forEach((node) => map.set(node.id, node));
+		return map;
+	}, [graphData.nodes]);
+
+	const getConnectedEdges = useCallback(
+		(node: D3Node): ConnectedEdge[] => {
+			const connected: ConnectedEdge[] = [];
+
+			graphData.edges.forEach((edge) => {
+				const sourceId =
+					typeof edge.source === "string" ? edge.source : edge.source.id;
+				const targetId =
+					typeof edge.target === "string" ? edge.target : edge.target.id;
+
+				if (sourceId === node.id) {
+					const targetNode = nodeMap.get(targetId);
+					if (targetNode) {
+						connected.push({
+							edge,
+							connectedNode: targetNode,
+							direction: "outgoing",
+						});
+					}
+				} else if (targetId === node.id) {
+					const sourceNode = nodeMap.get(sourceId);
+					if (sourceNode) {
+						connected.push({
+							edge,
+							connectedNode: sourceNode,
+							direction: "incoming",
+						});
+					}
+				}
+			});
+
+			return connected;
+		},
+		[graphData.edges, nodeMap],
+	);
+
 	useEffect(() => {
 		return () => {
 			if (simulationRef.current) {
@@ -695,6 +739,17 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 			renderGraph();
 		}
 	}, [graphData, width, height, isDark]);
+
+	// Handle external node selection (from list click)
+	useEffect(() => {
+		if (selectedNodeId && graphData.nodes.length > 0) {
+			const node = graphData.nodes.find((n) => n.id === selectedNodeId);
+			if (node) {
+				setSelectedNode(node);
+				setConnectedEdges(getConnectedEdges(node));
+			}
+		}
+	}, [selectedNodeId, graphData.nodes, getConnectedEdges]);
 
 	// Update styling when selection or hover changes
 	useEffect(() => {
@@ -869,60 +924,20 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 		}
 	}, [selectedPageId, externalGraphData]);
 
-	const nodeMap = useMemo(() => {
-		const map = new Map<string, D3Node>();
-		graphData.nodes.forEach((node) => map.set(node.id, node));
-		return map;
-	}, [graphData.nodes]);
-
-	const getConnectedEdges = useCallback(
-		(node: D3Node): ConnectedEdge[] => {
-			const connected: ConnectedEdge[] = [];
-
-			graphData.edges.forEach((edge) => {
-				const sourceId =
-					typeof edge.source === "string" ? edge.source : edge.source.id;
-				const targetId =
-					typeof edge.target === "string" ? edge.target : edge.target.id;
-
-				if (sourceId === node.id) {
-					const targetNode = nodeMap.get(targetId);
-					if (targetNode) {
-						connected.push({
-							edge,
-							connectedNode: targetNode,
-							direction: "outgoing",
-						});
-					}
-				} else if (targetId === node.id) {
-					const sourceNode = nodeMap.get(sourceId);
-					if (sourceNode) {
-						connected.push({
-							edge,
-							connectedNode: sourceNode,
-							direction: "incoming",
-						});
-					}
-				}
-			});
-
-			return connected;
-		},
-		[graphData.edges, nodeMap],
-	);
-
 	const handleNodeClick = useCallback(
 		(node: D3Node) => {
 			setSelectedNode((prev) => {
 				if (prev?.id === node.id) {
 					setConnectedEdges([]);
+					onNodeSelect?.(null);
 					return null;
 				}
 				setConnectedEdges(getConnectedEdges(node));
+				onNodeSelect?.(node.id);
 				return node;
 			});
 		},
-		[getConnectedEdges],
+		[getConnectedEdges, onNodeSelect],
 	);
 
 	const handleNodeHover = useCallback((node: D3Node | null) => {
@@ -1389,6 +1404,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 					onClose={() => {
 						setSelectedNode(null);
 						setConnectedEdges([]);
+						onNodeSelect?.(null);
 					}}
 					onDelete={handleDeleteNode}
 					deleting={deleting}

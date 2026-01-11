@@ -270,6 +270,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 								graphData={{ nodes, edges }}
 								selectedNodeId={selectedNodeId || undefined}
 								onNodeDeleted={handleNodeDeleted}
+								onNodeSelect={setSelectedNodeId}
 							/>
 						</div>
 					)}
