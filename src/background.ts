@@ -71,19 +71,11 @@ let offscreenInitPromise: Promise<void> | null = null;
 // Chrome extensions: chrome.runtime.onConnect listeners must be registered
 // before any connection attempts, or they will never fire!
 // ============================================================================
-console.log(
-	"🔥🔥🔥 [BACKGROUND] Registering port-bridge listener at module load",
-	new Date().toISOString(),
-);
 portBridge.initialize({
 	proxyOptions: {
 		channelName: "postgres-rpc",
 	},
 });
-console.log(
-	"🔥 [BACKGROUND] Port-bridge listener registered successfully",
-	new Date().toISOString(),
-);
 
 // Close existing offscreen document if it exists
 async function closeOffscreenDocument(): Promise<void> {
@@ -109,7 +101,9 @@ async function closeOffscreenDocument(): Promise<void> {
 
 		// CRITICAL: Clear the offscreen initialization status from shared storage
 		// This ensures the offscreen will be re-initialized properly
-		logInfo("🧹 Clearing offscreen initialization status from shared storage...");
+		logInfo(
+			"🧹 Clearing offscreen initialization status from shared storage...",
+		);
 		await sharedStorageService.set("offscreenProgress", {
 			done: false,
 			progress: 0,

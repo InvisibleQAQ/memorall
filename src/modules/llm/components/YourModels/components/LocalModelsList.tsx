@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/popup/components/ui/button";
+import { Input } from "@/popup/components/ui/input";
 import { Loader2, Play, Square, Search } from "lucide-react";
 import { type ModelInfo } from "@/services/llm";
 import { serviceManager } from "@/services";
 import { DEFAULT_SERVICES } from "@/services/llm/constants";
 import { logInfo } from "@/utils/logger";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
-import type { CurrentModel } from "@/hooks/use-current-model";
+import type { CurrentModel } from "@/popup/hooks/use-current-model";
 
 interface LocalModelsListProps {
 	localModels: ModelInfo[];

@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Progress } from "@/components/ui/progress";
+import { Progress } from "@/popup/components/ui/progress";
 
 interface ProgressData {
 	loaded: number;

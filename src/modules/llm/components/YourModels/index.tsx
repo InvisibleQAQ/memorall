@@ -6,8 +6,8 @@ import { LocalOpenAITab } from "@/modules/llm/components/LocalOpenAITab";
 import { useTranslation } from "react-i18next";
 
 // Hooks
-import { useProviderConfig } from "@/hooks/use-provider-config";
-import { useCurrentModel } from "@/hooks/use-current-model";
+import { useProviderConfig } from "@/popup/hooks/use-provider-config";
+import { useCurrentModel } from "@/popup/hooks/use-current-model";
 import { useLocalModels } from "@/modules/llm/hooks/use-local-models";
 import { useDownloadProgress } from "@/modules/llm/hooks/use-download-progress";
 import { useDownloadedModels } from "@/modules/llm/hooks/use-downloaded-models";

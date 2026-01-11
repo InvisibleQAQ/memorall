@@ -8,7 +8,6 @@ export {
 	ChevronRightIcon,
 	CloseIcon,
 } from "./Icons";
-export { createShadcnEmbeddedChatModal } from "./ShadcnEmbeddedChat";
 
 // Re-export types
 export type { EmbeddedMarkdownProps } from "./EmbeddedMarkdown";

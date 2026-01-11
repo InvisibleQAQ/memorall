@@ -15,7 +15,7 @@ import {
 	File,
 } from "lucide-react";
 import type { DocumentTreeNode, DocumentType } from "@/types/document-library";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/popup/components/ui/scroll-area";
 
 interface DocumentTreeProps {
 	tree: DocumentTreeNode[];

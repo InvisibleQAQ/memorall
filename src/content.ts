@@ -1,7 +1,6 @@
 // Content script for Memorall extension
 // Uses modular embedded components structure
 
-import "@/i18n/config"; // Initialize i18n for content script
 import { CONTENT_BACKGROUND_EVENTS } from "./constants/content-background";
 import "./embedded/activity-tracker"; // Initialize activity tracker
 import {
@@ -16,7 +15,7 @@ import {
 	extractFullPageHTMLStructure,
 	createImageSelectorOverlay,
 } from "./embedded";
-import { createShadcnEmbeddedChatModal } from "./embedded/components/ShadcnEmbeddedChat";
+import { createEmbeddedChatModal } from "./embedded/pages/EmbeddedChat";
 import type {
 	BackgroundMessage,
 	MessageResponse,
@@ -330,7 +329,7 @@ async function handleShowChatModal(
 		});
 
 		// Create new chat modal
-		createShadcnEmbeddedChatModal({
+		createEmbeddedChatModal({
 			mode: message.mode || "general",
 			pageUrl: window.location.href,
 			pageTitle: document.title,
@@ -385,7 +384,7 @@ function handleShowImageSelector(
 				];
 
 				// Create chat modal with the selected image pre-loaded
-				createShadcnEmbeddedChatModal({
+				createEmbeddedChatModal({
 					mode: "general",
 					pageUrl: window.location.href,
 					pageTitle: document.title,

@@ -5,14 +5,19 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@/popup/components/ui/card";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
+} from "@/popup/components/ui/select";
 import { PlayCircle, CheckCircle } from "lucide-react";
 import type { Activity, ActivityType } from "@/types/activity-tracking";
 import { ActivityCard } from "./ActivityCard";

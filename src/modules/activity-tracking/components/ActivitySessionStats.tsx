@@ -5,9 +5,14 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@/popup/components/ui/card";
+import { Badge } from "@/popup/components/ui/badge";
+import { Separator } from "@/popup/components/ui/separator";
 import type { ActivityStats } from "@/types/activity-tracking";
 
 interface ActivitySessionStatsProps {

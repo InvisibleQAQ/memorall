@@ -16,16 +16,29 @@ const parseToolCalls = (
 	text: string,
 ): { toolCalls: ToolCall[]; cleanText: string } => {
 	const toolCalls: ToolCall[] = [];
-	const toolCallRegex =
-		/<jtr_tool_call><jtr_tool_name>(.*?)<\/jtr_tool_name><jtr_tool_call_id>(.*?)<\/jtr_tool_call_id><jtr_tool_call_args>(.*?)<\/jtr_tool_call_args><\/jtr_tool_call>/g;
+	// Match code blocks with 'tool_call' language identifier
+	// Format: ```tool_call\n{JSON}\n``` or ```tool_call\n{JSON}```
+	const toolCallRegex = /```tool_call\s*\n([\s\S]*?)```/g;
 
 	let match;
 	while ((match = toolCallRegex.exec(text)) !== null) {
-		toolCalls.push({
-			name: match[1],
-			id: match[2],
-			args: match[3],
-		});
+		try {
+			const jsonStr = match[1].trim();
+			const parsed = JSON.parse(jsonStr);
+
+			// Expected format: { name, params, id }
+			if (parsed.name && parsed.id) {
+				toolCalls.push({
+					name: parsed.name,
+					id: parsed.id,
+					// Stringify params to maintain compatibility with renderToolCall
+					args: JSON.stringify(parsed.params || {}),
+				});
+			}
+		} catch (e) {
+			// Skip invalid JSON
+			console.error("Failed to parse tool call:", e);
+		}
 	}
 
 	// Remove tool calls from text
@@ -36,17 +49,16 @@ const parseToolCalls = (
 
 // Render tool call as HTML
 const renderToolCall = (toolCall: ToolCall): string => {
-	// Decode URL-encoded args
-	const decodedArgs = decodeURIComponent(toolCall.args);
+	// Parse args (already JSON stringified from parseToolCalls)
 	let parsedArgs: Record<string, unknown> = {};
 	try {
-		const parsed: unknown = JSON.parse(decodedArgs);
+		const parsed: unknown = JSON.parse(toolCall.args);
 		parsedArgs =
 			typeof parsed === "object" && parsed !== null
 				? (parsed as Record<string, unknown>)
-				: { raw: decodedArgs };
+				: { raw: toolCall.args };
 	} catch (e) {
-		parsedArgs = { raw: decodedArgs };
+		parsedArgs = { raw: toolCall.args };
 	}
 
 	const argsJson = JSON.stringify(parsedArgs, null, 2);

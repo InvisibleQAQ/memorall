@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/popup/components/ui/button";
+import { Input } from "@/popup/components/ui/input";
 import { Search } from "lucide-react";
 import { RECOMMENDATION_WALLAMA_LLMS } from "@/constants/wllama";
 import {
@@ -10,7 +10,7 @@ import {
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
+} from "@/popup/components/ui/select";
 
 interface FileInfo {
 	name: string;

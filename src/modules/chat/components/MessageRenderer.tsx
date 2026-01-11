@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import {
 	Network,
 	FileText,
-	GitBranch,
 	Search,
 	Sparkles,
 	ChevronDown,
@@ -16,18 +15,23 @@ import {
 	Box,
 	type LucideIcon,
 } from "lucide-react";
-import { ThreeDotsLoader } from "@/components/atoms/ThreeDotsLoader";
-import { Message, MessageContent } from "@/components/ui/shadcn-io/ai/message";
+import dayjs from "dayjs";
+
+import { ThreeDotsLoader } from "@/popup/components/atoms/ThreeDotsLoader";
+import {
+	Message,
+	MessageContent,
+} from "@/popup/components/ui/shadcn-io/ai/message";
 import {
 	Task,
 	TaskContent,
 	TaskItem,
 	TaskTrigger,
-} from "@/components/ui/shadcn-io/ai/task";
-import { MermaidRenderer } from "@/components/atoms/MermaidRenderer";
-import { MessageKnowledgeGraph } from "./MessageKnowledgeGraph";
+} from "@/popup/components/ui/shadcn-io/ai/task";
+import { MermaidRenderer } from "@/popup/components/atoms/MermaidRenderer";
 import type { Message as DBMessage } from "@/services/database/types";
-import dayjs from "dayjs";
+
+import { MessageKnowledgeGraph } from "./MessageKnowledgeGraph";
 
 const USE_STREAMDOWN = false;
 const Streamdown = lazy(() => import("./MessageStreamDown"));

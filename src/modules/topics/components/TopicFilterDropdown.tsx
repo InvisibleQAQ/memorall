@@ -6,16 +6,16 @@
 import React, { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown, Plus, Search, Tags, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/popup/components/ui/button";
+import { Input } from "@/popup/components/ui/input";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/popup/components/ui/dropdown-menu";
+import { ScrollArea } from "@/popup/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { Topic } from "@/services/database/types";
 

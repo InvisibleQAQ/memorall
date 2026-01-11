@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { chatService } from "@/modules/chat/services/chat-service";
 import type { ChatMode } from "@/modules/chat/services/chat-service";
 import type { ChatMessage } from "@/types/openai";
-import { useChatStore } from "@/stores/chat";
+import { useChatStore } from "@/popup/stores/chat";
 import type { ChatStatus } from "ai";
 import { logError, logInfo } from "@/utils/logger";
 import { serviceManager } from "@/services";

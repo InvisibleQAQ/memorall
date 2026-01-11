@@ -2,18 +2,16 @@
  * Upload Progress Dialog Modal
  * Shows progress for file uploads using nice-modal
  */
-
-import React from "react";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
-import { Loader2 } from "lucide-react";
+
 import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
+} from "@/popup/components/ui/dialog";
+import { Progress } from "@/popup/components/ui/progress";
 import type { DocumentUploadProgress } from "@/types/document-library";
 
 interface UploadProgressDialogProps {

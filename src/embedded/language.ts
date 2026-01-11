@@ -4,6 +4,128 @@ import {
 	type Language,
 } from "@/constants/language";
 
+// Centralized translation texts for all embedded components
+export const EMBEDDED_TRANSLATIONS = {
+	en: {
+		// Chat translations
+		chat: {
+			defaultTopic: "Default",
+			recallKnowledge: "Recall Knowledge",
+			recallDescription:
+				"Ask me anything about your saved knowledge and I'll help you recall relevant information.",
+			context: "Context",
+			closeChat: "Close chat?",
+			closeConfirmation:
+				"You have unsaved messages or input. Are you sure you want to close?",
+			cancel: "Cancel",
+			closeAnyway: "Close anyway",
+			contextFromPage: "Context from page:",
+			tellMeAboutTopics: "Tell me about topics related to:",
+			whatDoYouKnow: "What do you know about:",
+			errorMessage:
+				"Sorry, I encountered an error while processing your request. Please try again.",
+		},
+		// Topic selector translations
+		topicSelector: {
+			loading: "Loading...",
+			chooseATopic: "Choose a topic...",
+			savedToTopic: "Saved to Topic",
+			contentSaved: "Content saved to",
+		},
+		// Input translations
+		input: {
+			noModelAvailable: "No model available...",
+			typeMessage: "Type your message...",
+			clearChat: "Clear chat",
+			noTopics: "No topics",
+			loadingTopics: "Loading topics...",
+			allTopics: "All Topics",
+			selectTopic: "Select Topic",
+			modeGeneral: "General",
+			modeKnowledge: "Knowledge",
+			selectMode: "Select chat mode",
+		},
+		// Context section translations
+		contextSection: {
+			selectContext: "Select context:",
+			clearAll: "Clear all",
+			hideContextSection: "Hide context section",
+			showContextSection: "Show context section",
+			sendWithContext: "Send with context",
+		},
+		// Message control translations
+		messageControl: {
+			reasoning: "💭 Reasoning",
+			sources: "🔗 Sources",
+			stop: "Stop",
+			send: "Send",
+			recall: "Recall",
+			noModel: "No model",
+			openFullVersion: "Open full version",
+			close: "Close",
+		},
+	},
+	vn: {
+		// Chat translations
+		chat: {
+			defaultTopic: "Mặc định",
+			recallKnowledge: "Gợi nhớ kiến thức",
+			recallDescription:
+				"Hỏi tôi bất cứ điều gì về kiến thức đã lưu và tôi sẽ giúp bạn gợi nhớ thông tin liên quan.",
+			context: "Ngữ cảnh",
+			closeChat: "Đóng cuộc trò chuyện?",
+			closeConfirmation:
+				"Bạn có tin nhắn hoặc đầu vào chưa lưu. Bạn có chắc chắn muốn đóng không?",
+			cancel: "Hủy",
+			closeAnyway: "Vẫn đóng",
+			contextFromPage: "Ngữ cảnh từ trang:",
+			tellMeAboutTopics: "Hãy nói cho tôi biết về các chủ đề liên quan đến:",
+			whatDoYouKnow: "Bạn biết gì về:",
+			errorMessage:
+				"Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.",
+		},
+		// Topic selector translations
+		topicSelector: {
+			loading: "Đang tải...",
+			chooseATopic: "Chọn một chủ đề...",
+			savedToTopic: "Đã lưu vào chủ đề",
+			contentSaved: "Nội dung đã được lưu vào",
+		},
+		// Input translations
+		input: {
+			noModelAvailable: "Không có mô hình khả dụng...",
+			typeMessage: "Nhập tin nhắn của bạn...",
+			clearChat: "Xóa cuộc trò chuyện",
+			noTopics: "Không có chủ đề",
+			loadingTopics: "Đang tải chủ đề...",
+			allTopics: "Tất cả chủ đề",
+			selectTopic: "Chọn chủ đề",
+			modeGeneral: "Tổng quát",
+			modeKnowledge: "Kiến thức",
+			selectMode: "Chọn chế độ trò chuyện",
+		},
+		// Context section translations
+		contextSection: {
+			selectContext: "Chọn ngữ cảnh:",
+			clearAll: "Xóa tất cả",
+			hideContextSection: "Ẩn phần ngữ cảnh",
+			showContextSection: "Hiển thị phần ngữ cảnh",
+			sendWithContext: "Gửi với ngữ cảnh",
+		},
+		// Message control translations
+		messageControl: {
+			reasoning: "💭 Lý luận",
+			sources: "🔗 Nguồn",
+			stop: "Dừng",
+			send: "Gửi",
+			recall: "Gợi nhớ",
+			noModel: "Không có mô hình",
+			openFullVersion: "Mở phiên bản đầy đủ",
+			close: "Đóng",
+		},
+	},
+};
+
 // Helper function to load language from storage
 export async function loadLanguageFromStorage(): Promise<Language> {
 	try {

@@ -8,9 +8,11 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 import * as d3 from "d3";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { inArray, eq, and } from "drizzle-orm";
+
+import { Card } from "@/popup/components/ui/card";
+import { Badge } from "@/popup/components/ui/badge";
+import { Button } from "@/popup/components/ui/button";
 import {
 	Loader2,
 	ArrowRight,
@@ -21,12 +23,16 @@ import {
 	Maximize2,
 	Package,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@/popup/components/ui/tabs";
 import { serviceManager } from "@/services";
 import type { Node, Edge } from "@/services/database/types";
 import { logError, logInfo } from "@/utils/logger";
-import { inArray, eq, and } from "drizzle-orm";
-import { useTheme } from "@/components/molecules/ThemeContext";
+import { useTheme } from "@/popup/components/molecules/ThemeContext";
 import { cn } from "@/lib/utils";
 
 // D3 Node and Edge types

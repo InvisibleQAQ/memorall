@@ -1,30 +1,8 @@
 import { Loader } from "lucide-react";
 import React, { type FormEventHandler } from "react";
 import { CloseIcon } from "./Icons";
-
-// Translation map for message controls
-export const MESSAGE_CONTROL_TEXTS = {
-	en: {
-		reasoning: "💭 Reasoning",
-		sources: "🔗 Sources",
-		stop: "Stop",
-		send: "Send",
-		recall: "Recall",
-		noModel: "No model",
-		openFullVersion: "Open full version",
-		close: "Close",
-	},
-	vn: {
-		reasoning: "💭 Lý luận",
-		sources: "🔗 Nguồn",
-		stop: "Dừng",
-		send: "Gửi",
-		recall: "Gợi nhớ",
-		noModel: "Không có mô hình",
-		openFullVersion: "Mở phiên bản đầy đủ",
-		close: "Đóng",
-	},
-};
+import { EMBEDDED_TRANSLATIONS } from "../language";
+import { DEFAULT_LANGUAGE } from "@/constants/language";
 
 // Workflow type (matches api-types from workflows module)
 export interface Workflow {
@@ -108,8 +86,8 @@ export const Reasoning: React.FC<{
 );
 
 export const ReasoningTrigger: React.FC<{
-	texts?: typeof MESSAGE_CONTROL_TEXTS.en;
-}> = ({ texts = MESSAGE_CONTROL_TEXTS.en }) => (
+	texts?: typeof EMBEDDED_TRANSLATIONS.en.messageControl;
+}> = ({ texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].messageControl }) => (
 	<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
 		<svg
 			className="w-3 h-3 group-open:rotate-90 transition-transform"
@@ -143,8 +121,11 @@ export const Sources: React.FC<{ children: React.ReactNode }> = ({
 
 export const SourcesTrigger: React.FC<{
 	count: number;
-	texts?: typeof MESSAGE_CONTROL_TEXTS.en;
-}> = ({ count, texts = MESSAGE_CONTROL_TEXTS.en }) => (
+	texts?: typeof EMBEDDED_TRANSLATIONS.en.messageControl;
+}> = ({
+	count,
+	texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].messageControl,
+}) => (
 	<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
 		<svg
 			className="w-3 h-3 group-open:rotate-90 transition-transform"
@@ -296,8 +277,13 @@ export const PromptInputSubmit: React.FC<{
 	disabled: boolean;
 	status: "ready" | "streaming";
 	onStop?: () => void;
-	texts?: typeof MESSAGE_CONTROL_TEXTS.en;
-}> = ({ disabled, status, onStop, texts = MESSAGE_CONTROL_TEXTS.en }) => (
+	texts?: typeof EMBEDDED_TRANSLATIONS.en.messageControl;
+}> = ({
+	disabled,
+	status,
+	onStop,
+	texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].messageControl,
+}) => (
 	<button
 		type={status === "streaming" ? "button" : "submit"}
 		disabled={disabled}
@@ -323,7 +309,7 @@ interface ChatHeaderProps {
 	modelId?: string;
 	provider?: string;
 	modelAvailable?: boolean;
-	texts?: typeof MESSAGE_CONTROL_TEXTS.en;
+	texts?: typeof EMBEDDED_TRANSLATIONS.en.messageControl;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -333,7 +319,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 	modelId,
 	provider,
 	modelAvailable,
-	texts = MESSAGE_CONTROL_TEXTS.en,
+	texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].messageControl,
 }) => {
 	return (
 		<div className="border-b bg-muted/50 px-4 py-3 flex-shrink-0">

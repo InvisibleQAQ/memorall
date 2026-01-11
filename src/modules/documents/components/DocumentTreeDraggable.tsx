@@ -16,8 +16,6 @@ import {
 	File,
 	Home,
 } from "lucide-react";
-import type { DocumentTreeNode, DocumentType } from "@/types/document-library";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
 	DndContext,
 	closestCenter,
@@ -32,6 +30,9 @@ import {
 	useDraggable,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+
+import type { DocumentTreeNode, DocumentType } from "@/types/document-library";
+import { ScrollArea } from "@/popup/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 interface DocumentTreeProps {

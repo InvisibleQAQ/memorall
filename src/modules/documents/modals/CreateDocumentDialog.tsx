@@ -3,29 +3,30 @@
  * Modal for creating new documents with type selection
  */
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
+import { FileText } from "lucide-react";
+
 import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
 	DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/popup/components/ui/dialog";
+import { Button } from "@/popup/components/ui/button";
+import { Input } from "@/popup/components/ui/input";
+import { Label } from "@/popup/components/ui/label";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
-import { FileText } from "lucide-react";
-import { editorRegistry } from "../editors";
+} from "@/popup/components/ui/select";
 import type { DocumentType } from "@/types/document-library";
+import { editorRegistry } from "../editors";
 
 export interface CreateDocumentDialogResult {
 	name: string;

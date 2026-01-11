@@ -1,15 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
-	Card,
-	CardHeader,
-	CardTitle,
-	CardDescription,
-	CardContent,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
 	Loader2,
 	Cpu,
 	MemoryStick,
@@ -19,8 +10,17 @@ import {
 	CheckCircle2,
 	AlertCircle,
 	Search,
-	ArrowUpDown,
 } from "lucide-react";
+
+import {
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "@/popup/components/ui/card";
+import { Button } from "@/popup/components/ui/button";
+import { Input } from "@/popup/components/ui/input";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { generateAllRecommendations } from "../utils/model-recommendations";
 import type {
@@ -29,7 +29,6 @@ import type {
 	RecommendationSet,
 	ModelRecommendation,
 } from "../types/system-specs";
-import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 
 interface MagicSetupProps {
 	onModelSelected: (

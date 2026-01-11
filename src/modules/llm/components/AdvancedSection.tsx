@@ -1,14 +1,15 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { Settings } from "lucide-react";
+
 import {
 	Card,
 	CardHeader,
 	CardTitle,
 	CardDescription,
 	CardContent,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+} from "@/popup/components/ui/card";
+import { Button } from "@/popup/components/ui/button";
 import { ProgressSection } from "./ProgressSection";
 import { ProviderTabs } from "./ProviderTabs";
 import { WllamaTab } from "./WllamaTab";

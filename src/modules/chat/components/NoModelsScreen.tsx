@@ -11,47 +11,48 @@ import {
 	Gift,
 	Sliders,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { eq } from "drizzle-orm";
+
+import { Button } from "@/popup/components/ui/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
+} from "@/popup/components/ui/card";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/popup/components/ui/tooltip";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/popup/components/ui/popover";
 import { YourModels } from "@/modules/llm/components/YourModels";
 import { ExternalProvidersConfig } from "@/modules/llm/components/ExternalProvidersConfig";
 import { MagicSetup } from "@/modules/llm/components/MagicSetup";
 import { useAuth, useAuthActions } from "@/modules/supabase";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { Input } from "@/popup/components/ui/input";
+import { Label } from "@/popup/components/ui/label";
 import type {
 	ModelRecommendation,
 	ModelPreference,
 } from "@/modules/llm/types/system-specs";
-import { useTranslation } from "react-i18next";
 import { QUICK_TRANSFORMER_MODELS } from "@/constants/transformer";
 import { QUICK_WALLAMA_LLMS } from "@/constants/wllama";
 import { QUICK_WEBLLM_LLMS } from "@/constants/webllm";
 import { useModelOperations } from "@/modules/llm/hooks/use-model-operations";
 import { useDownloadedModels } from "@/modules/llm/hooks/use-downloaded-models";
 import { useDownloadProgress } from "@/modules/llm/hooks/use-download-progress";
-import { useCurrentModel } from "@/hooks/use-current-model";
+import { useCurrentModel } from "@/popup/hooks/use-current-model";
 import { serviceManager } from "@/services";
-import { eq } from "drizzle-orm";
 
 interface NoModelsScreenProps {
 	onModelLoaded: (modelId: string, provider: ServiceProvider) => void;

@@ -16,8 +16,8 @@ import {
 } from "../handlers/excel-extraction";
 import NiceModal from "@ebay/nice-modal-react";
 import { TopicPickerDialog } from "@/modules/topics/modals";
-import { useProcessMonitor } from "@/stores/process-monitor";
-import type { ProcessingSource } from "@/stores/process-monitor";
+import { useProcessMonitor } from "@/popup/stores/process-monitor";
+import type { ProcessingSource } from "@/popup/stores/process-monitor";
 
 /**
  * Shared function for converting documents to knowledge graphs with topic selection

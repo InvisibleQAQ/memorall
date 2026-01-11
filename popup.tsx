@@ -1,18 +1,10 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './src/globals.css';
-import App from './src/App';
+import App from './src/popup/App';
 
 // Popup-specific wrapper component
 const PopupApp: React.FC = () => {
-  React.useEffect(() => {
-    try {
-      chrome.runtime?.sendMessage?.({ type: 'POPUP_READY' });
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
   return (
     <div style={{
       width: '100%',

@@ -1,14 +1,14 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/popup/components/ui/button";
+import { Input } from "@/popup/components/ui/input";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
+} from "@/popup/components/ui/select";
 import { Search, Target, CheckCircle, XCircle, Hash } from "lucide-react";
 import type { VectorTableConfig } from "../utils/vector-table-config";
 

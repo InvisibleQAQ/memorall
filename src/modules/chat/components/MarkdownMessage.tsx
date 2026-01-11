@@ -9,22 +9,22 @@ import {
 	oneDark,
 	oneLight,
 } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { MermaidRenderer } from "@/components/atoms/MermaidRenderer";
+import { MermaidRenderer } from "@/popup/components/atoms/MermaidRenderer";
 import {
 	Task,
 	TaskContent,
 	TaskTrigger,
 	TaskItem,
-} from "@/components/ui/shadcn-io/ai/task";
+} from "@/popup/components/ui/shadcn-io/ai/task";
 import { Brain, ChevronDownIcon, Network, Link2, Sparkles } from "lucide-react";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/components/molecules/ThemeContext";
+import { useTheme } from "@/popup/components/molecules/ThemeContext";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/popup/components/ui/popover";
 import { serviceManager } from "@/services";
 import { eq } from "drizzle-orm";
 

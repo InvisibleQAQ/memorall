@@ -5,8 +5,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import * as XLSX from "xlsx";
+import { Loader2, Sheet, Check } from "lucide-react";
+
+import { Button } from "@/popup/components/ui/button";
+import { ScrollArea } from "@/popup/components/ui/scroll-area";
 import {
 	Dialog,
 	DialogContent,
@@ -14,16 +17,14 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Sheet, Check } from "lucide-react";
+} from "@/popup/components/ui/dialog";
+import { Badge } from "@/popup/components/ui/badge";
 import type { DocumentFile } from "@/types/document-library";
 import { documentStorageService } from "@/modules/documents/services/document-storage";
 import {
 	parseExcelFile,
 	sheetToMarkdown,
 } from "@/modules/documents/handlers/excel-extraction";
-import * as XLSX from "xlsx";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { logError, logInfo } from "@/utils/logger";
 

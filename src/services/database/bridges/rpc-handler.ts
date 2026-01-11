@@ -42,6 +42,9 @@ export class DatabaseRpcHandler {
 	private connectionListener: ((port: chrome.runtime.Port) => void) | null =
 		null;
 
+	// Track reconnection state to prevent log spam
+	private isWaitingForReconnection: boolean = false;
+
 	static getInstance(): DatabaseRpcHandler {
 		if (!DatabaseRpcHandler.instance) {
 			DatabaseRpcHandler.instance = new DatabaseRpcHandler();
@@ -71,38 +74,46 @@ export class DatabaseRpcHandler {
 
 		// Create and store the listener
 		this.connectionListener = (port: chrome.runtime.Port) => {
+			if (port.name !== channelName) return;
+
+			const wasReconnecting = this.isWaitingForReconnection;
+			const queuedCount = this.responseQueue.length;
+
 			logInfo(`📡 RPC connection established: ${channelName}`, {
 				hasExistingPort: !!this.port,
-				queuedResponses: this.responseQueue.length,
+				queuedResponses: queuedCount,
 				portName: port.name,
 				channelName: channelName,
+				wasReconnecting,
 				timestamp: new Date().toISOString(),
 			});
-			if (port.name === channelName) {
-				this.port = port;
-				port.onMessage.addListener(this.handleMessage.bind(this));
-				port.onDisconnect.addListener(() => {
-					logInfo(`📡 RPC connection disconnected: ${channelName}`, {
-						queuedResponses: this.responseQueue.length,
-						timestamp: new Date().toISOString(),
-					});
-					this.port = null;
 
-					// Log warning if there are queued responses
-					if (this.responseQueue.length > 0) {
-						logError(
-							`⚠️ Port disconnected with ${this.responseQueue.length} responses still queued. Waiting for reconnection...`,
-						);
-					}
+			this.port = port;
+			this.isWaitingForReconnection = false;
+
+			port.onMessage.addListener(this.handleMessage.bind(this));
+			port.onDisconnect.addListener(() => {
+				logInfo(`📡 RPC connection disconnected: ${channelName}`, {
+					queuedResponses: this.responseQueue.length,
+					timestamp: new Date().toISOString(),
 				});
+				this.port = null;
+				this.isWaitingForReconnection = true;
 
-				// Flush any queued responses when port reconnects
+				// Log warning once when port disconnects with queued responses
 				if (this.responseQueue.length > 0) {
-					logInfo(
-						`🔄 Port reconnected, flushing ${this.responseQueue.length} queued responses`,
+					logError(
+						`⚠️ Port disconnected with ${this.responseQueue.length} responses still queued. Waiting for client reconnection...`,
 					);
-					this.flushResponseQueue();
 				}
+			});
+
+			// Flush any queued responses when port reconnects
+			if (queuedCount > 0) {
+				logInfo(
+					`🔄 Port reconnected successfully, flushing ${queuedCount} queued responses`,
+				);
+				this.flushResponseQueue();
 			}
 		};
 
@@ -263,9 +274,14 @@ export class DatabaseRpcHandler {
 				this.queueResponse(response);
 			}
 		} else {
-			logError(
-				`⚠️ No RPC port available, queueing response for request ${response.id}. Client should reconnect automatically.`,
-			);
+			// Only log the first queued response when port is unavailable
+			// to avoid spamming logs with the same message
+			if (!this.isWaitingForReconnection) {
+				this.isWaitingForReconnection = true;
+				logError(
+					`⚠️ No RPC port available, queueing response for request ${response.id}. Client should reconnect automatically.`,
+				);
+			}
 			this.queueResponse(response);
 		}
 	}
@@ -341,9 +357,15 @@ export class DatabaseRpcHandler {
 		}
 
 		if (!this.port) {
-			logError(
-				`⚠️ Cannot flush queue: no RPC port available (${this.responseQueue.length} responses queued). Waiting for client reconnection...`,
-			);
+			// Only log the first time we detect port unavailability
+			// Subsequent retries will be silent to avoid log spam
+			if (!this.isWaitingForReconnection) {
+				this.isWaitingForReconnection = true;
+				logError(
+					`⚠️ Cannot flush queue: no RPC port available (${this.responseQueue.length} responses queued). Waiting for client reconnection...`,
+				);
+			}
+
 			// Check if any responses have exceeded max retries while waiting
 			const now = Date.now();
 			this.responseQueue = this.responseQueue.filter((item) => {
@@ -421,6 +443,9 @@ export class DatabaseRpcHandler {
 			);
 			this.processedRequests.clear();
 		}
+
+		// Reset reconnection flag
+		this.isWaitingForReconnection = false;
 
 		// Disconnect port
 		if (this.port) {

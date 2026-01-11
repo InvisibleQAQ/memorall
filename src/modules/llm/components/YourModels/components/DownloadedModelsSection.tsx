@@ -1,11 +1,11 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/popup/components/ui/button";
+import { Badge } from "@/popup/components/ui/badge";
 import { Loader2, Download, Play, Square, Bot } from "lucide-react";
 import type { ModelInfo } from "@/services/llm";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
-import type { CurrentModel } from "@/hooks/use-current-model";
+import type { CurrentModel } from "@/popup/hooks/use-current-model";
 
 interface DownloadedModelsSectionProps {
 	downloadedOnly: ModelInfo[];

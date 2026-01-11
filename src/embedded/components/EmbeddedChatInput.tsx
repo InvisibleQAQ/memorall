@@ -6,8 +6,8 @@ import {
 	PromptInputToolbar,
 	PromptInputTools,
 } from "./MessageControl";
-import { MESSAGE_CONTROL_TEXTS } from "./MessageControl";
 import type { Language } from "@/constants/language";
+import { EMBEDDED_TRANSLATIONS } from "../language";
 
 // Chat mode type
 type ChatMode = "general" | "knowledge";
@@ -87,34 +87,6 @@ const ChevronDownIcon: React.FC<{ size?: number }> = ({ size = 10 }) => (
 	</svg>
 );
 
-// Translation texts for input
-const EMBEDDED_INPUT_TEXTS = {
-	en: {
-		noModelAvailable: "No model available...",
-		typeMessage: "Type your message...",
-		clearChat: "Clear chat",
-		noTopics: "No topics",
-		loadingTopics: "Loading topics...",
-		allTopics: "All Topics",
-		selectTopic: "Select Topic",
-		modeGeneral: "General",
-		modeKnowledge: "Knowledge",
-		selectMode: "Select chat mode",
-	},
-	vn: {
-		noModelAvailable: "Không có mô hình khả dụng...",
-		typeMessage: "Nhập tin nhắn của bạn...",
-		clearChat: "Xóa cuộc trò chuyện",
-		noTopics: "Không có chủ đề",
-		loadingTopics: "Đang tải chủ đề...",
-		allTopics: "Tất cả chủ đề",
-		selectTopic: "Chọn chủ đề",
-		modeGeneral: "Tổng quát",
-		modeKnowledge: "Kiến thức",
-		selectMode: "Chọn chế độ trò chuyện",
-	},
-};
-
 interface EmbeddedChatInputProps {
 	inputValue: string;
 	setInputValue: (value: string) => void;
@@ -152,8 +124,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 	onStop,
 	language,
 }) => {
-	const texts = EMBEDDED_INPUT_TEXTS[language];
-	const messageControlTexts = MESSAGE_CONTROL_TEXTS[language];
+	const texts = EMBEDDED_TRANSLATIONS[language];
 
 	// Helper functions for chat mode
 	const getModeIcon = (mode: ChatMode) => {
@@ -172,7 +143,9 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 					value={inputValue}
 					onChange={(e) => setInputValue(e.target.value)}
 					placeholder={
-						!modelAvailable ? texts.noModelAvailable : texts.typeMessage
+						!modelAvailable
+							? texts.input.noModelAvailable
+							: texts.input.typeMessage
 					}
 					disabled={isTyping || !modelAvailable}
 				/>
@@ -200,7 +173,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 												: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 										}
 									`}
-									title={texts.selectMode}
+									title={texts.input.selectMode}
 								>
 									<div
 										className={`
@@ -228,7 +201,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 											onKeyPress={(e) => e.stopPropagation()}
 										>
 											{topicsLoading ? (
-												<option value="">{texts.loadingTopics}</option>
+												<option value="">{texts.input.loadingTopics}</option>
 											) : (
 												<>
 													<option value="">Default</option>
@@ -245,7 +218,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 
 								{!hasTopics && chatMode === "knowledge" && (
 									<span className="text-xs text-muted-foreground px-3 py-1.5">
-										{texts.noTopics}
+										{texts.input.noTopics}
 									</span>
 								)}
 							</PromptInputTools>
@@ -260,7 +233,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 									onKeyDown={(e) => e.stopPropagation()}
 									onKeyUp={(e) => e.stopPropagation()}
 									onKeyPress={(e) => e.stopPropagation()}
-									title={texts.clearChat}
+									title={texts.input.clearChat}
 								>
 									<svg
 										className="w-4 h-4"
@@ -281,7 +254,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 								disabled={!inputValue.trim() || isTyping || !modelAvailable}
 								status={isTyping ? "streaming" : "ready"}
 								onStop={onStop}
-								texts={messageControlTexts}
+								texts={texts.messageControl}
 							/>
 						</div>
 					</div>

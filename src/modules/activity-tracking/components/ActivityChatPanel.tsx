@@ -6,12 +6,12 @@
 import React, { useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/popup/components/ui/button";
 import {
 	Conversation,
 	ConversationContent,
 	ConversationScrollButton,
-} from "@/components/ui/shadcn-io/ai/conversation";
+} from "@/popup/components/ui/shadcn-io/ai/conversation";
 import { ChatInput, useCurrentModel, useChat } from "@/modules/chat/components";
 import { MessageGroup } from "@/modules/chat/components/MessageGroup";
 import { groupMessagesBySeparators } from "@/modules/chat/utils/message-grouping";

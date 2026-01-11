@@ -378,12 +378,16 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 export interface EmbeddedMessageRendererProps {
 	message: ChatMessage;
 	isLoading: boolean;
+	allMessages: ChatMessage[];
+	selectedTopic?: string;
 }
 
 // Message Actions Component
 const MessageActions: React.FC<{
 	message: ChatMessage;
-}> = ({ message }) => {
+	allMessages: ChatMessage[];
+	selectedTopic?: string;
+}> = ({ message, allMessages, selectedTopic }) => {
 	const [copied, setCopied] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [saved, setSaved] = useState(false);
@@ -411,42 +415,46 @@ const MessageActions: React.FC<{
 
 		setSaving(true);
 		try {
-			// Extract text content for saving
-			const textContent =
-				typeof message.content === "string"
-					? message.content
-					: message.content
-							.filter((part) => part.type === "text")
-							.map((part) => part.text)
-							.join("\n");
+			// Format entire conversation as dialogue
+			const conversationText = allMessages
+				.map((msg) => {
+					// Extract text content from message
+					const content =
+						typeof msg.content === "string"
+							? msg.content
+							: msg.content
+									.filter((part) => part.type === "text")
+									.map((part) => part.text)
+									.join("\n");
 
-			const pageData = {
-				sourceType: "text" as const,
-				sourceUrl: window.location.href,
-				originalUrl: window.location.href,
-				title: document.title || "Untitled",
-				rawContent: textContent,
-				cleanContent: textContent,
-				textContent: textContent,
-				sourceMetadata: {
-					pageUrl: window.location.href,
-					pageTitle: document.title || "Untitled",
-					savedAt: message.timestamp.toISOString(),
-				},
-				extractionMetadata: {
-					extractedAt: new Date().toISOString(),
-					length: textContent.length,
-					excerpt: textContent, // Full content, no truncation
-				},
-			};
+					// Format as: "User: <message>" or "Assistant: <message>"
+					const role = msg.role === "user" ? "User" : "Assistant";
+					return `${role}: ${content}`;
+				})
+				.join("\n\n");
 
-			const jobResponse = await backgroundJob.execute(
-				"remember-save",
-				pageData,
+			// Generate a unique identifier for this conversation
+			const conversationId = `conversation-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+			// Prepare the content with source info (similar to CONVERT_TO_KNOWLEDGE_CONTEXT_MENU_ID)
+			const sourceInfo = `Direct content save\nWeb Title: ${document.title || "Untitled"}\nWeb URL: ${window.location.href}\n\n`;
+			const fullContent = sourceInfo + conversationText;
+
+			// Convert directly to knowledge using the knowledge-graph job
+			// Use aggressive extraction mode for user-saved conversations
+			const result = await backgroundJob.execute(
+				"knowledge-graph",
+				{
+					filePath: conversationId,
+					content: fullContent,
+					isSpecificTextConversion: true, // Enable aggressive extraction
+					topicId: selectedTopic || undefined, // Use currently selected topic
+				},
 				{ stream: false },
 			);
-			if ("promise" in jobResponse) {
-				await jobResponse.promise;
+
+			if ("promise" in result) {
+				await result.promise;
 			}
 
 			setSaved(true);
@@ -547,7 +555,7 @@ const MessageActions: React.FC<{
 // Enhanced Message Renderer with Actions
 export const EmbeddedMessageRenderer: React.FC<
 	EmbeddedMessageRendererProps
-> = ({ message, isLoading }) => {
+> = ({ message, isLoading, allMessages, selectedTopic }) => {
 	const actions = message.metadata?.actions || [];
 	const [language, setLanguage] = useState<Language>(DEFAULT_LANGUAGE);
 
@@ -632,7 +640,13 @@ export const EmbeddedMessageRenderer: React.FC<
 								}
 								isStreaming={isLoading && message.role === "assistant"}
 							/>
-							{!isLoading && <MessageActions message={message} />}
+							{!isLoading && (
+								<MessageActions
+									message={message}
+									allMessages={allMessages}
+									selectedTopic={selectedTopic}
+								/>
+							)}
 						</>
 					)}
 				</>

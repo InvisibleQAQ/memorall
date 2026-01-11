@@ -6,7 +6,7 @@ import {
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
+} from "@/popup/components/ui/select";
 
 interface WebLLMTabProps {
 	model: string;

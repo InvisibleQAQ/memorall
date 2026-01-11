@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Globe, Sparkles, type LucideIcon } from "lucide-react";
+
 import {
 	Card,
 	CardHeader,
 	CardTitle,
 	CardDescription,
-} from "@/components/ui/card";
-import { Globe, Sparkles, type LucideIcon } from "lucide-react";
+} from "@/popup/components/ui/card";
 import { OpenAITab } from "./OpenAITab";
 import { OpenRouterTab } from "./OpenRouterTab";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";

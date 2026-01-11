@@ -11,7 +11,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { marked } from "marked";
 import TurndownService from "turndown";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/popup/components/ui/button";
 import {
 	Save,
 	Loader2,

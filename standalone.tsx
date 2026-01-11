@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './src/globals.css';
-import App from './src/App';
+import App from './src/popup/App';
 
 // Standalone page wrapper component
 const StandaloneApp: React.FC = () => {

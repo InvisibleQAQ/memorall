@@ -46,7 +46,12 @@ function isRpcResponse(value: unknown): value is RpcResponse {
 export async function createChromePortTransport(
 	options: ChromePortTransportOptions = {},
 ): Promise<RpcTransport> {
-	const { channelName, ensureOffscreen, reconnect = {}, heartbeatIntervalMs = 30000 } = options;
+	const {
+		channelName,
+		ensureOffscreen,
+		reconnect = {},
+		heartbeatIntervalMs = 30000,
+	} = options;
 
 	const reconnectEnabled = reconnect.enabled ?? true;
 	const backoffInit = reconnect.initialDelayMs ?? 100;

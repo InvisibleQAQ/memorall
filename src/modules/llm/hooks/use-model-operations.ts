@@ -8,7 +8,7 @@ import { QUICK_OPENAI_LLMS } from "@/constants/openai";
 import { logError, logInfo } from "@/utils/logger";
 import type { DownloadProgress } from "./use-download-progress";
 import { PROVIDER_TO_SERVICE } from "@/services/llm/constants";
-import type { CurrentModel } from "@/hooks/use-current-model";
+import type { CurrentModel } from "@/popup/hooks/use-current-model";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 
 interface UseModelOperationsProps {

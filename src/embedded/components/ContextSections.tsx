@@ -4,26 +4,10 @@ import { nanoid } from "nanoid";
 import type { ChatMessage } from "../types";
 import { Loader } from "./Icons";
 import { captureScreenshotWithFallback } from "../utils/screenshot-helpers";
+import { EMBEDDED_TRANSLATIONS } from "../language";
+import { DEFAULT_LANGUAGE } from "@/constants/language";
 
-// Translation map for context sections
-export const CONTEXT_SECTIONS_TEXTS = {
-	en: {
-		selectContext: "Select context:",
-		clearAll: "Clear all",
-		hideContextSection: "Hide context section",
-		showContextSection: "Show context section",
-		sendWithContext: "Send with context",
-	},
-	vn: {
-		selectContext: "Chọn ngữ cảnh:",
-		clearAll: "Xóa tất cả",
-		hideContextSection: "Ẩn phần ngữ cảnh",
-		showContextSection: "Hiển thị phần ngữ cảnh",
-		sendWithContext: "Gửi với ngữ cảnh",
-	},
-};
-
-export const ShadcnEmbeddedContextSections: React.FC<{
+export const EmbeddedContextSections: React.FC<{
 	pageUrl: string;
 	pageTitle: string;
 	contextOptions?: Array<{ type: string; label: string; content: string }>;
@@ -36,7 +20,7 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 	>;
 	showContextSection: boolean;
 	onToggleContextSection: () => void;
-	texts?: typeof CONTEXT_SECTIONS_TEXTS.en;
+	texts?: typeof EMBEDDED_TRANSLATIONS.en.contextSection;
 }> = ({
 	pageUrl,
 	pageTitle,
@@ -46,7 +30,7 @@ export const ShadcnEmbeddedContextSections: React.FC<{
 	setSelectedContexts,
 	showContextSection,
 	onToggleContextSection,
-	texts = CONTEXT_SECTIONS_TEXTS.en,
+	texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].contextSection,
 }) => {
 	const [availableContexts, setAvailableContexts] = useState<
 		Array<{ type: string; label: string; content: string }>

@@ -21,9 +21,11 @@ import type { AllServices } from "../../interfaces/tool";
 import type { Node, Edge } from "@/services/database";
 import { flowRegistry } from "../../flow-registry";
 import type { PgColumn } from "drizzle-orm/pg-core";
+import { FactExtractionFlowV2 } from "./fact-extraction-v2";
 
 export interface KnowledgeGraphConfig {
 	enableTemporalExtraction?: boolean;
+	disableFactExtractionV2?: boolean;
 }
 
 export class KnowledgeGraphFlow extends GraphBase<
@@ -41,7 +43,7 @@ export class KnowledgeGraphFlow extends GraphBase<
 > {
 	private entityExtraction: EntityExtractionFlow;
 	private entityResolution: EntityResolutionFlow;
-	private factExtraction: FactExtractionFlow;
+	private factExtraction: FactExtractionFlow | FactExtractionFlowV2;
 	private factResolution: FactResolutionFlow;
 	private edgeEnrichment: EdgeEnrichmentFlow;
 	private temporalExtraction: TemporalExtractionFlow;
@@ -67,7 +69,9 @@ export class KnowledgeGraphFlow extends GraphBase<
 		// Initialize sub-flows
 		this.entityExtraction = new EntityExtractionFlow(services);
 		this.entityResolution = new EntityResolutionFlow(services);
-		this.factExtraction = new FactExtractionFlow(services);
+		this.factExtraction = !config.disableFactExtractionV2
+			? new FactExtractionFlowV2(services)
+			: new FactExtractionFlow(services);
 		this.factResolution = new FactResolutionFlow(services);
 		this.edgeEnrichment = new EdgeEnrichmentFlow(services);
 		this.temporalExtraction = new TemporalExtractionFlow(services);

@@ -18,17 +18,18 @@ import {
 	Tag,
 	Tags,
 } from "lucide-react";
+import { eq, inArray } from "drizzle-orm";
+
 import { logInfo, logError } from "@/utils/logger";
 import { serviceManager } from "@/services";
-import { eq, inArray } from "drizzle-orm";
 import { TopicBadgeList } from "@/modules/topics/components";
-import { useIsProcessing } from "@/stores/process-monitor";
+import { useIsProcessing } from "@/popup/stores/process-monitor";
 import type { DocumentFile } from "@/types/document-library";
 import type { Topic } from "@/services/database/types";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/popup/components/ui/scroll-area";
+import { Button } from "@/popup/components/ui/button";
+import { Badge } from "@/popup/components/ui/badge";
+import { Separator } from "@/popup/components/ui/separator";
 import { documentStorageService } from "@/modules/documents/services/document-storage";
 
 import { PDFPageSelector } from "./PDFPageSelector";

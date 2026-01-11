@@ -6,7 +6,8 @@
 
 import React from "react";
 import { Brain } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+
+import { Progress } from "@/popup/components/ui/progress";
 import type { DownloadProgress } from "../hooks/use-download-progress";
 
 interface ModelDownloadingScreenProps {

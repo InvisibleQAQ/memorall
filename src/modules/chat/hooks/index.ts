@@ -1,2 +1,2 @@
-export { useCurrentModel } from "@/hooks/use-current-model";
+export { useCurrentModel } from "@/popup/hooks/use-current-model";
 export { useChat } from "./use-chat";

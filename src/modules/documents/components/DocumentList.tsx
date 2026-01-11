@@ -23,21 +23,23 @@ import type {
 	DocumentType,
 	DocumentFile,
 } from "@/types/document-library";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
+import { ScrollArea } from "@/popup/components/ui/scroll-area";
+import { Badge } from "@/popup/components/ui/badge";
+import { Button } from "@/popup/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 	DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+} from "@/popup/components/ui/dropdown-menu";
+import { Input } from "@/popup/components/ui/input";
 import { TopicBadgeList } from "@/modules/topics/components";
 import type { Topic } from "@/services/database/types";
+import { useProcessMonitor } from "@/popup/stores/process-monitor";
+
 import type { SourceStatus } from "../hooks/useSourceStatus";
-import { useProcessMonitor } from "@/stores/process-monitor";
 
 interface DocumentListProps {
 	items: DocumentLibraryItem[];

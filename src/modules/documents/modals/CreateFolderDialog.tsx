@@ -13,10 +13,10 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/popup/components/ui/dialog";
+import { Button } from "@/popup/components/ui/button";
+import { Input } from "@/popup/components/ui/input";
+import { Label } from "@/popup/components/ui/label";
 
 interface CreateFolderDialogProps {
 	onCreateFolder: (folderName: string) => Promise<void>;

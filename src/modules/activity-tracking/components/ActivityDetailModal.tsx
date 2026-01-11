@@ -11,8 +11,8 @@ import {
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@/popup/components/ui/dialog";
+import { Button } from "@/popup/components/ui/button";
 import { Sparkles, Info, MessageSquare } from "lucide-react";
 import type { Activity } from "@/types/activity-tracking";
 import { ActivityDetails } from "./ActivityDetails";

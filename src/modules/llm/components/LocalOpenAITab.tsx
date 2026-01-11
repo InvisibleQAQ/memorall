@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { serviceManager } from "@/services";
 import { eq } from "drizzle-orm";
 import { Loader2, Shield, CheckCircle, Trash2 } from "lucide-react";
+
+import { Input } from "@/popup/components/ui/input";
+import { Button } from "@/popup/components/ui/button";
+import { serviceManager } from "@/services";
 import { LOCAL_SERVER_LLM_CONFIG_KEYS } from "@/config/local-server-llm";
 import { logWarn } from "@/utils/logger";
 import type { NewConfiguration } from "@/services/database/types";

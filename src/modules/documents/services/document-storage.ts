@@ -254,9 +254,7 @@ class DocumentStorageService {
 
 				// If exists but is NOT directory → error
 				if (!stat.isDirectory()) {
-					throw new Error(
-						`Path exists but is not a directory: ${currentPath}`,
-					);
+					throw new Error(`Path exists but is not a directory: ${currentPath}`);
 				}
 
 				// Directory already exists, continue to next segment
@@ -283,10 +281,7 @@ class DocumentStorageService {
 							mkdirErr.code === "EEXIST";
 
 						if (!isDirExists) {
-							logError(
-								`Failed to create directory ${currentPath}:`,
-								mkdirErr,
-							);
+							logError(`Failed to create directory ${currentPath}:`, mkdirErr);
 							throw mkdirErr;
 						}
 					}

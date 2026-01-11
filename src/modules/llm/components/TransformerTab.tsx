@@ -7,7 +7,7 @@ import {
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
+} from "@/popup/components/ui/select";
 
 interface TransformerTabProps {
 	model: string;

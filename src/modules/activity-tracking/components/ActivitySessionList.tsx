@@ -5,10 +5,15 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@/popup/components/ui/card";
+import { Button } from "@/popup/components/ui/button";
+import { Badge } from "@/popup/components/ui/badge";
+import { ScrollArea } from "@/popup/components/ui/scroll-area";
 import type { ActivitySession } from "@/types/activity-tracking";
 import { formatTimestamp, formatDuration } from "../utils";
 

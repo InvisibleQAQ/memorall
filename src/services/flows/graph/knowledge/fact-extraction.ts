@@ -288,6 +288,7 @@ export class FactExtractionFlow {
 			};
 
 			const maxModelTokens = await this.services.llm.getMaxModelTokens();
+			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
 
 			const extractedFacts = await mapRefine<ExtractedFact>(
 				llm,
@@ -318,7 +319,7 @@ export class FactExtractionFlow {
 				fullText,
 				{
 					maxModelTokens,
-					maxResponseTokens: 4096,
+					maxResponseTokens,
 					temperature: 0.1,
 					maxRetries: 2,
 					dedupeBy: (f) =>

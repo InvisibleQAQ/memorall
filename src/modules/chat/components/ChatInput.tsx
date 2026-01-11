@@ -16,20 +16,20 @@ import {
 	PromptInputTextarea,
 	PromptInputToolbar,
 	PromptInputTools,
-} from "@/components/ui/shadcn-io/ai/prompt-input";
-import { Button } from "@/components/ui/button";
+} from "@/popup/components/ui/shadcn-io/ai/prompt-input";
+import { Button } from "@/popup/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/popup/components/ui/dropdown-menu";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/popup/components/ui/tooltip";
 import type { ChatStatus } from "ai";
 import type { ChatMode } from "@/modules/chat/services/chat-service";
 

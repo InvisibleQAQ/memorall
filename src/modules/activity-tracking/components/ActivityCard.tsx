@@ -5,7 +5,7 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/popup/components/ui/badge";
 import { Info } from "lucide-react";
 import type { Activity } from "@/types/activity-tracking";
 import {

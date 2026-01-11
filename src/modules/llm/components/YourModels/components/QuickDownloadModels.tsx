@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/popup/components/ui/button";
 import { Loader2, Download, Play, Square } from "lucide-react";
 import { QUICK_WALLAMA_LLMS } from "@/constants/wllama";
 import { QUICK_WEBLLM_LLMS } from "@/constants/webllm";
@@ -8,7 +8,7 @@ import { QUICK_TRANSFORMER_MODELS } from "@/constants/transformer";
 import { QUICK_OPENAI_LLMS } from "@/constants/openai";
 import { type ModelInfo } from "@/services/llm";
 import { serviceManager } from "@/services";
-import type { CurrentModel } from "@/hooks/use-current-model";
+import type { CurrentModel } from "@/popup/hooks/use-current-model";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 
 interface QuickDownloadModelsProps {

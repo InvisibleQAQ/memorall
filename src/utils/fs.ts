@@ -46,7 +46,9 @@ const refreshFsCache = async (): Promise<void> => {
 	refreshInProgress = true;
 
 	try {
-		logInfo("🔄 Refreshing ZenFS cache (unmounting and reconfiguring filesystem)");
+		logInfo(
+			"🔄 Refreshing ZenFS cache (unmounting and reconfiguring filesystem)",
+		);
 
 		// Reset state to force reconfiguration
 		fsReady = false;
