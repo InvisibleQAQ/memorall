@@ -4,7 +4,7 @@
  */
 
 import fs, { initializeFs, refreshFsCache } from "@/utils/fs";
-import { logInfo, logError } from "@/utils/logger";
+import { logInfo, logError, logDebug } from "@/utils/logger";
 import type {
 	DocumentFile,
 	DocumentFolder,
@@ -246,8 +246,11 @@ class DocumentStorageService {
 		// Create directories one by one from root to target
 		// This is more reliable than relying on {recursive: true} in ZenFS
 		let currentPath = "";
-		for (const segment of segments) {
+		for (let i = 0; i < segments.length; i++) {
+			const segment = segments[i];
 			currentPath += "/" + segment;
+
+			logDebug(`📂 Checking directory segment ${i + 1}/${segments.length}: ${currentPath}`);
 
 			try {
 				const stat = await fs.promises.stat(currentPath);
@@ -258,6 +261,7 @@ class DocumentStorageService {
 				}
 
 				// Directory already exists, continue to next segment
+				logDebug(`✓ Directory exists: ${currentPath}`);
 				continue;
 			} catch (err) {
 				// Check if it's a filesystem error with ENOENT code
@@ -269,8 +273,10 @@ class DocumentStorageService {
 
 				// If directory doesn't exist, create it
 				if (isNotFound) {
+					logDebug(`📁 Directory not found, creating: ${currentPath}`);
 					try {
-						await fs.promises.mkdir(currentPath);
+						// Use recursive option as fallback safety measure
+						await fs.promises.mkdir(currentPath, { recursive: true });
 						logInfo(`📁 Created directory segment: ${currentPath}`);
 					} catch (mkdirErr) {
 						// Ignore if directory was just created by another process
@@ -282,12 +288,17 @@ class DocumentStorageService {
 
 						if (!isDirExists) {
 							logError(`Failed to create directory ${currentPath}:`, mkdirErr);
+							logError(`Full path being ensured: ${fullPath}`);
+							logError(`Current segment: ${i + 1}/${segments.length}`);
 							throw mkdirErr;
+						} else {
+							logDebug(`✓ Directory already exists (race condition): ${currentPath}`);
 						}
 					}
 				} else {
 					// Other error, rethrow
 					logError(`Error checking directory ${currentPath}:`, err);
+					logError(`Full path being ensured: ${fullPath}`);
 					throw err;
 				}
 			}

@@ -4,11 +4,11 @@ import React, {
 	useState,
 	type FormEventHandler,
 } from "react";
-import { createRoot } from "react-dom/client";
 import { nanoid } from "nanoid";
-import type { ChatModalProps, ChatMessage, ChatAction } from "../types";
-import { embeddedChatService } from "../chat-service";
 import { DEFAULT_LANGUAGE, type Language } from "@/constants/language";
+import { logError, logInfo } from "@/utils/logger";
+
+import { backgroundJob } from "@/services/background-jobs/background-job";
 import {
 	ChatHeader,
 	Conversation,
@@ -22,15 +22,15 @@ import {
 	Sources,
 	SourcesContent,
 	SourcesTrigger,
-} from "../components/MessageControl";
-
-import { EmbeddedContextSections } from "../components/ContextSections";
-import { loadLanguageFromStorage, EMBEDDED_TRANSLATIONS } from "../language";
-import { EmbeddedMessageRenderer } from "../components/EmbeddedMessageRenderer";
-import { EmbeddedChatInput } from "../components/EmbeddedChatInput";
-import { backgroundJob } from "@/services/background-jobs/background-job";
-import { customStyles } from "../styles/customStyles";
-import { logError, logInfo } from "@/utils/logger";
+} from "@/embedded/components/MessageControl";
+import type { ChatModalProps, ChatMessage, ChatAction } from "@/embedded/types";
+import { embeddedChatService } from "@/embedded/chat-service";
+import { EmbeddedContextSections } from "@/embedded/components/ContextSections";
+import { loadLanguageFromStorage, EMBEDDED_TRANSLATIONS } from "@/embedded/language";
+import { EmbeddedMessageRenderer } from "@/embedded/components/EmbeddedMessageRenderer";
+import { EmbeddedChatInput } from "@/embedded/components/EmbeddedChatInput";
+import { customStyles } from "@/embedded/styles/customStyles";
+import { createShadowPage } from "@/embedded/utils/create-shadow-page";
 
 // Chat mode type
 type ChatMode = "general" | "knowledge";
@@ -674,33 +674,12 @@ export async function createEmbeddedChatModal(
 ): Promise<() => void> {
 	// Load language once at creation time
 	const language = await loadLanguageFromStorage();
-	// Create container element
-	const container = document.createElement("div");
-	container.id = "memorall-embedded-chat-modal";
-
-	// Create Shadow DOM for complete CSS isolation
-	const shadowRoot = container.attachShadow({ mode: "closed" });
-
-	// Create the actual content container inside shadow DOM
-	const shadowContainer = document.createElement("div");
-	shadowContainer.className = "memorall-chat-container";
-
-	// Inject Tailwind CSS only within the Shadow DOM
-	const tailwindStyle = document.createElement("link");
-	tailwindStyle.rel = "stylesheet";
-	tailwindStyle.href = chrome.runtime.getURL("action/default_popup.css");
-
-	// Add CSS custom properties for proper theming within Shadow DOM
-	const customPropsStyle = document.createElement("style");
-	customPropsStyle.textContent = customStyles;
-
-	// Add styles to shadow DOM in correct order
-	shadowRoot.appendChild(customPropsStyle);
-	shadowRoot.appendChild(tailwindStyle);
-	shadowRoot.appendChild(shadowContainer);
-
-	// Create root and render inside shadow DOM
-	const root = createRoot(shadowContainer);
+	const {
+		root,
+		container,
+	} = createShadowPage({
+		customStyles
+	})
 
 	const cleanupModal = () => {
 		root.unmount();

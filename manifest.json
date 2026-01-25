@@ -46,14 +46,14 @@
       "resources": [
         "src/workers/*.worker.js",
         "src/workers/*.worker.ts",
-        "example.worker.js",
         "vendors/transformers/*",
         "vendors/pdfjs/*",
-        "vendors/mozilla-readability/Readability.js",
         "offscreen.html",
         "logo.png",
         "*.js",
-        "*.css"
+        "*.css",
+        "action/*.css",
+        "action/*.js"
       ],
       "matches": ["<all_urls>"]
     }

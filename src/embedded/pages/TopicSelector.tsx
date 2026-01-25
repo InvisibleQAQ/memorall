@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { createRoot } from "react-dom/client";
-import type { TopicSelectorProps } from "../types";
-import { getTopicsForSelector, sendContentWithTopic } from "../messaging";
-import { customStyles } from "../styles/customStyles";
+import { logWarn } from "@/utils/logger";
 import { DEFAULT_LANGUAGE } from "@/constants/language";
 import type { Language } from "@/constants/language";
-import { loadLanguageFromStorage, EMBEDDED_TRANSLATIONS } from "../language";
-import { logWarn } from "@/utils/logger";
+
+import type { TopicSelectorProps } from "@/embedded/types";
+import { getTopicsForSelector, sendContentWithTopic } from "@/embedded/messaging";
+import { customStyles } from "@/embedded/styles/customStyles";
+import { loadLanguageFromStorage, EMBEDDED_TRANSLATIONS } from "@/embedded/language";
+
+import { createShadowPage } from "@/embedded/utils/create-shadow-page";
 
 interface Topic {
 	id: string;
@@ -196,33 +198,12 @@ export async function createEmbeddedTopicSelector(
 ): Promise<() => void> {
 	// Load language once at creation time
 	const language = await loadLanguageFromStorage();
-	// Create container element
-	const container = document.createElement("div");
-	container.id = "memorall-embedded-topic-selector";
-
-	// Create Shadow DOM for complete CSS isolation
-	const shadowRoot = container.attachShadow({ mode: "closed" });
-
-	// Create the actual content container inside shadow DOM
-	const shadowContainer = document.createElement("div");
-	shadowContainer.className = "memorall-topic-selector-container";
-
-	// Inject Tailwind CSS only within the Shadow DOM
-	const tailwindStyle = document.createElement("link");
-	tailwindStyle.rel = "stylesheet";
-	tailwindStyle.href = chrome.runtime.getURL("action/default_popup.css");
-
-	// Add CSS custom properties for proper theming within Shadow DOM
-	const customPropsStyle = document.createElement("style");
-	customPropsStyle.textContent = customStyles;
-
-	// Add styles to shadow DOM in correct order
-	shadowRoot.appendChild(customPropsStyle);
-	shadowRoot.appendChild(tailwindStyle);
-	shadowRoot.appendChild(shadowContainer);
-
-	// Create root and render inside shadow DOM
-	const root = createRoot(shadowContainer);
+	const {
+		root,
+		container,
+	} = createShadowPage({
+		customStyles
+	})
 
 	const cleanupModal = () => {
 		root.unmount();

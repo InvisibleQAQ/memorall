@@ -33,48 +33,53 @@ document.addEventListener("contextmenu", (e) => {
 	lastMouseY = e.clientY;
 });
 
-// Main message listener for background script communications
-chrome.runtime.onMessage.addListener(
-	async (message: BackgroundMessage, _sender, sendResponse) => {
-		try {
-			switch (message.type) {
-				case BACKGROUND_EVENTS.REMEMBER_THIS:
-					await handleRememberThis(message, sendResponse);
-					return true;
+// Message listener handler
+const messageListener = async (
+	message: BackgroundMessage,
+	_sender: chrome.runtime.MessageSender,
+	sendResponse: (response: MessageResponse) => void,
+): Promise<boolean> => {
+	try {
+		switch (message.type) {
+			case BACKGROUND_EVENTS.REMEMBER_THIS:
+				await handleRememberThis(message, sendResponse);
+				return true;
 
-				case BACKGROUND_EVENTS.REMEMBER_CONTENT:
-					await handleRememberContent(message, sendResponse);
-					return true;
+			case BACKGROUND_EVENTS.REMEMBER_CONTENT:
+				await handleRememberContent(message, sendResponse);
+				return true;
 
-				case BACKGROUND_EVENTS.LET_REMEMBER:
-					handleLetRemember(message, sendResponse);
-					return true;
+			case BACKGROUND_EVENTS.LET_REMEMBER:
+				handleLetRemember(message, sendResponse);
+				return true;
 
-				case BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR:
-					handleShowTopicSelector(message, sendResponse);
-					return true;
+			case BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR:
+				handleShowTopicSelector(message, sendResponse);
+				return true;
 
-				case BACKGROUND_EVENTS.SHOW_CHAT_MODAL:
-					handleShowChatModal(message, sendResponse);
-					return true;
+			case BACKGROUND_EVENTS.SHOW_CHAT_MODAL:
+				handleShowChatModal(message, sendResponse);
+				return true;
 
-				case BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR:
-					handleShowImageSelector(message, sendResponse);
-					return true;
+			case BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR:
+				handleShowImageSelector(message, sendResponse);
+				return true;
 
-				default:
-					sendResponse({ success: false, error: "Unknown message type" });
-					return true;
-			}
-		} catch (error) {
-			sendResponse({
-				success: false,
-				error: error instanceof Error ? error.message : "Unknown error",
-			});
-			return true;
+			default:
+				sendResponse({ success: false, error: "Unknown message type" });
+				return true;
 		}
-	},
-);
+	} catch (error) {
+		sendResponse({
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+		return true;
+	}
+};
+
+// Main message listener for background script communications
+chrome.runtime.onMessage.addListener(messageListener);
 
 // Handle REMEMBER_THIS message - extract full page content
 async function handleRememberThis(
@@ -414,3 +419,13 @@ function handleShowImageSelector(
 
 // Initialize content script
 logInfo("🚀 Memorall content script loaded on:", window.location.href);
+
+// Default export for Extension.js development mode
+export default function main() {
+	// Return cleanup function
+	return () => {
+		// Remove message listener
+		chrome.runtime.onMessage.removeListener(messageListener);
+		logInfo("🧹 Memorall content script cleaned up");
+	};
+}

@@ -461,3 +461,11 @@ if (!offscreenGlobal.__memorallOffscreenProcessor__) {
 		"♻️ OffscreenProcessor already initialized; reusing existing instance.",
 	);
 }
+
+// Default export for Extension.js development mode
+export default function main() {
+	// Return cleanup function
+	return () => {
+		logInfo("🧹 Offscreen document cleaned up");
+	};
+}
