@@ -1,21 +1,21 @@
 // Embedding Runner - Text embeddings via @huggingface/transformers
 import { reply, sendReady } from "../utils/common.js";
+import { ModelLifecycleManager } from "../utils/model-lifecycle.js";
 
 // Read model from query params if provided
 const params = new URLSearchParams(self.location ? self.location.search : "");
 
 let HF;
-let hfPipeline;
-let embeddingModel = params.get("model");
+let defaultEmbeddingModel = params.get("model");
 
-if (embeddingModel) {
-	embeddingModel = decodeURIComponent(embeddingModel);
+if (defaultEmbeddingModel) {
+	defaultEmbeddingModel = decodeURIComponent(defaultEmbeddingModel);
 } else {
-	embeddingModel = "nomic-ai/nomic-embed-text-v1.5";
+	defaultEmbeddingModel = "nomic-ai/nomic-embed-text-v1.5";
 }
 
 console.log("[embedding-runner] startup", {
-	embeddingModel,
+	defaultEmbeddingModel,
 });
 
 function nowMs() {
@@ -87,99 +87,104 @@ function createProgressLogger(context, notify) {
 	};
 }
 
-async function ensureTransformers(modelName, notifyProgress) {
-	const startedAt = nowMs();
-	console.log("[embedding-runner] ensureTransformers start", {
-		modelName,
-		embeddingModel,
-		hasPipeline: !!hfPipeline,
-		hasHF: !!HF,
+async function ensureHFLibrary() {
+	if (HF) return;
+
+	const importStartedAt = nowMs();
+	console.log("[embedding-runner] importing transformers...");
+	HF = await import("../libs/transformers.js");
+	console.log("[embedding-runner] transformers imported", {
+		duration: formatMs(nowMs() - importStartedAt),
+		hasPipelineExport: !!HF?.pipeline,
 	});
-	if (!HF) {
-		const importStartedAt = nowMs();
-		console.log("[embedding-runner] ensureTransformers: importing transformers...", {
-			modelName,
-		});
-		HF = await import("../libs/transformers.js");
-		console.log("[embedding-runner] ensureTransformers: transformers imported", {
-			modelName,
-			duration: formatMs(nowMs() - importStartedAt),
-			hasPipelineExport: !!HF?.pipeline,
-		});
-		if (!HF || !HF.pipeline)
-			throw new Error("Failed to load @huggingface/transformers");
-		try {
-			if (HF.env) {
-				const configStartedAt = nowMs();
 
-				// Enable browser cache for models
-				HF.env.useBrowserCache = true;
-				HF.env.allowLocalModels = false;
+	if (!HF || !HF.pipeline) {
+		throw new Error("Failed to load @huggingface/transformers");
+	}
 
-				// Configure WASM paths
-				if (HF.env.backends?.onnx?.wasm) {
-					const wasmPath =
-						typeof chrome !== "undefined" && chrome.runtime?.getURL
-							? chrome.runtime.getURL("vendors/transformers/")
-							: "../../../vendors/transformers/";
-					HF.env.backends.onnx.wasm.wasmPaths = wasmPath;
-					HF.env.backends.onnx.wasm.proxy = false;
-					console.log("[embedding-runner] configured wasmPaths", wasmPath);
-				}
+	try {
+		if (HF.env) {
+			HF.env.useBrowserCache = true;
+			HF.env.allowLocalModels = false;
 
-				console.log("[embedding-runner] cache and env configured", {
-					useBrowserCache: HF.env.useBrowserCache,
-					allowLocalModels: HF.env.allowLocalModels,
-					duration: formatMs(nowMs() - configStartedAt),
-				});
+			if (HF.env.backends?.onnx?.wasm) {
+				const wasmPath =
+					typeof chrome !== "undefined" && chrome.runtime?.getURL
+						? chrome.runtime.getURL("vendors/transformers/")
+						: "../../../vendors/transformers/";
+				HF.env.backends.onnx.wasm.wasmPaths = wasmPath;
+				HF.env.backends.onnx.wasm.proxy = false;
+				console.log("[embedding-runner] configured wasmPaths", wasmPath);
 			}
-		} catch {}
-	}
-	if (!hfPipeline || (modelName && modelName !== embeddingModel)) {
-		embeddingModel = modelName || embeddingModel;
-		const hasWebGPU =
-			typeof navigator !== "undefined" && typeof navigator.gpu !== "undefined";
-		const pipelineStartedAt = nowMs();
-		let device = hasWebGPU ? "webgpu" : "wasm";
-		const progress_callback = createProgressLogger(
-			{ model: embeddingModel },
-			notifyProgress,
-		);
-		console.log("[embedding-runner] creating pipeline", {
-			embeddingModel,
-			device,
-			hasWebGPU,
-		});
+		}
+	} catch {}
+}
 
-		console.log("[embedding-runner] attempting pipeline creation with:", device);
-		hfPipeline = await HF.pipeline("feature-extraction", embeddingModel, {
-			device,
-			progress_callback,
-		});
-		console.log("[embedding-runner] ensureTransformers: pipeline created", {
-			embeddingModel,
-			device,
-			duration: formatMs(nowMs() - pipelineStartedAt),
-		});
-		// Warmup
-		try {
-			const warmupStartedAt = nowMs();
-			console.log("[embedding-runner] ensureTransformers: warmup start", {
-				embeddingModel,
-			});
-			await hfPipeline(["test"], { pooling: "mean", normalize: true });
-			console.log("[embedding-runner] ensureTransformers: warmup done", {
-				embeddingModel,
-				duration: formatMs(nowMs() - warmupStartedAt),
-			});
-		} catch {}
-	}
-	console.log("[embedding-runner] ensureTransformers done", {
-		embeddingModel,
-		hasPipeline: !!hfPipeline,
+/**
+ * Load embedding pipeline for a specific model
+ * @param {string} modelName
+ * @param {Function} [notifyProgress]
+ * @returns {Promise<any>} - The HF pipeline
+ */
+async function loadEmbeddingPipeline(modelName, notifyProgress) {
+	const startedAt = nowMs();
+	await ensureHFLibrary();
+
+	const hasWebGPU =
+		typeof navigator !== "undefined" && typeof navigator.gpu !== "undefined";
+	const device = hasWebGPU ? "webgpu" : "wasm";
+	const progress_callback = createProgressLogger({ model: modelName }, notifyProgress);
+
+	console.log("[embedding-runner] creating pipeline", {
+		modelName,
+		device,
+		hasWebGPU,
+	});
+
+	const pipeline = await HF.pipeline("feature-extraction", modelName, {
+		device,
+		progress_callback,
+	});
+
+	console.log("[embedding-runner] pipeline created", {
+		modelName,
+		device,
 		duration: formatMs(nowMs() - startedAt),
 	});
+
+	// Warmup
+	try {
+		const warmupStartedAt = nowMs();
+		await pipeline(["test"], { pooling: "mean", normalize: true });
+		console.log("[embedding-runner] warmup done", {
+			modelName,
+			duration: formatMs(nowMs() - warmupStartedAt),
+		});
+	} catch {}
+
+	return pipeline;
 }
+
+/**
+ * Unload embedding pipeline - dispose resources
+ * @param {any} pipeline
+ */
+async function unloadEmbeddingPipeline(pipeline) {
+	try {
+		if (pipeline && typeof pipeline.dispose === "function") {
+			await pipeline.dispose();
+		}
+	} catch (err) {
+		console.warn("[embedding-runner] dispose error:", err);
+	}
+}
+
+// Model lifecycle manager - handles caching and auto-unload after 5 min idle
+const embeddingManager = new ModelLifecycleManager({
+	name: "embedding-runner",
+	loadFn: loadEmbeddingPipeline,
+	unloadFn: unloadEmbeddingPipeline,
+});
 
 window.addEventListener("message", async (event) => {
 	const src = event.source;
@@ -210,7 +215,7 @@ window.addEventListener("message", async (event) => {
 	try {
 		switch (type) {
 			case "init": {
-				const requestedModel = payload?.modelName || embeddingModel;
+				const requestedModel = payload?.modelName || defaultEmbeddingModel;
 				console.log("[embedding-runner] init handler starting", {
 					messageId,
 					requestedModel,
@@ -221,14 +226,9 @@ window.addEventListener("message", async (event) => {
 						reply(src, origin, messageId, "progress", info);
 					} catch {}
 				};
-				console.log("[embedding-runner] calling ensureTransformers...");
-				await ensureTransformers(requestedModel, notifyProgress);
-				console.log("[embedding-runner] ensureTransformers returned successfully");
-				console.log("[embedding-runner] init complete, replying", {
-					messageId,
-					origin,
-					model: requestedModel,
-				});
+
+				await embeddingManager.load(requestedModel, notifyProgress);
+
 				console.log("[embedding-runner] reply(init) ->", {
 					messageId,
 					targetOrigin: origin,
@@ -239,17 +239,17 @@ window.addEventListener("message", async (event) => {
 					mode: "embedding",
 					model: requestedModel,
 				});
-				console.log("[embedding-runner] init handler completed successfully");
 				break;
 			}
 			case "models": {
+				const status = embeddingManager.getStatus();
 				const modelInfo = {
 					object: "list",
 					data: [
 						{
-							id: embeddingModel,
-							name: embeddingModel,
-							loaded: !!hfPipeline,
+							id: status.modelId || defaultEmbeddingModel,
+							name: status.modelId || defaultEmbeddingModel,
+							loaded: status.isLoaded,
 							object: "model",
 							created: Date.now(),
 							owned_by: "local",
@@ -267,34 +267,46 @@ window.addEventListener("message", async (event) => {
 			case "embeddings": {
 				const { input, model } = payload || {};
 				if (!input) throw new Error("input is required");
-				await ensureTransformers(model || embeddingModel);
+
+				const targetModel = model || embeddingManager.modelId || defaultEmbeddingModel;
 				const texts = Array.isArray(input) ? input : [input];
 				const processed = texts.map((t) =>
 					typeof t === "string" ? t.replace(/\n/g, " ") : String(t),
 				);
-				const result = await hfPipeline(processed, {
-					pooling: "mean",
-					normalize: true,
+
+				const response = await embeddingManager.withModel(targetModel, async (pipeline) => {
+					const result = await pipeline(processed, {
+						pooling: "mean",
+						normalize: true,
+					});
+					const list =
+						typeof result.tolist === "function" ? result.tolist() : result;
+					return {
+						object: "list",
+						data: list.map((vec, idx) => ({
+							object: "embedding",
+							embedding: vec,
+							index: idx,
+						})),
+						model: targetModel,
+						usage: { prompt_tokens: -1, total_tokens: -1 },
+					};
 				});
-				const list =
-					typeof result.tolist === "function" ? result.tolist() : result;
-				const response = {
-					object: "list",
-					data: list.map((vec, idx) => ({
-						object: "embedding",
-						embedding: vec,
-						index: idx,
-					})),
-					model: model || embeddingModel,
-					usage: { prompt_tokens: -1, total_tokens: -1 },
-				};
+
 				console.log("[embedding-runner] reply(embeddings) ->", {
 					messageId,
 					targetOrigin: origin,
 					hasSource: !!src,
-					count: Array.isArray(processed) ? processed.length : 1,
+					count: processed.length,
 				});
 				reply(src, origin, messageId, "complete", response);
+				break;
+			}
+			case "unload": {
+				await embeddingManager.unload();
+				reply(src, origin, messageId, "complete", {
+					status: "unloaded",
+				});
 				break;
 			}
 			default:
@@ -317,5 +329,5 @@ window.addEventListener("message", async (event) => {
 	}
 });
 
-const endpoints = ["init", "models", "embeddings"];
+const endpoints = ["init", "models", "embeddings", "unload"];
 sendReady("embedding", endpoints);

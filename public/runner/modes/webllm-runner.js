@@ -1,13 +1,12 @@
 // WebLLM Runner - WebGPU-accelerated chat completions via WebLLM
 import { reply, generateId, sendReady } from "../utils/common.js";
+import { ModelLifecycleManager } from "../utils/model-lifecycle.js";
 
 // Scoped state
 let WebLLMEngine;
 let WebLLMMod;
 let prebuiltAppConfig;
-let webllmEngine;
-const loadedModels = new Map();
-let loadedModel;
+const loadedModelsCache = new Map(); // Cache model metadata
 const activeOperations = new Map(); // Track active operations for abort support
 
 // Query downloaded status via WebLLM engine APIs when available
@@ -16,8 +15,9 @@ async function isDownloaded(modelId) {
 		if (WebLLMMod && typeof WebLLMMod.hasModelInCache === "function") {
 			return await WebLLMMod.hasModelInCache(modelId);
 		}
-		if (webllmEngine && typeof webllmEngine.hasModelInCache === "function") {
-			return await webllmEngine.hasModelInCache(modelId);
+		const engine = webllmManager.model;
+		if (engine && typeof engine.hasModelInCache === "function") {
+			return await engine.hasModelInCache(modelId);
 		}
 	} catch (e) {
 		console.warn("[downloaded] hasModelInCache error:", e?.message || e);
@@ -48,16 +48,78 @@ async function ensureWebLLM() {
 			mod.prebuiltConfig ||
 			null;
 		if (!prebuiltAppConfig) {
-			// Build a minimal config if not available
 			prebuiltAppConfig = { model_list: [] };
 		}
-
-		// Do not create engine here; create per-serve with progress callback
 	} catch (e) {
 		console.error("WebLLM load error:", e);
 		throw e;
 	}
 }
+
+// Stored progress callback for current load operation
+let currentProgressCallback = null;
+
+/**
+ * Load a WebLLM model
+ * @param {string} modelId
+ * @param {Function} [notifyProgress]
+ * @returns {Promise<any>} - The WebLLM engine with model loaded
+ */
+async function loadWebLLMModel(modelId, notifyProgress) {
+	await ensureWebLLM();
+
+	// Validate against prebuilt config if present
+	const modelEntry = (prebuiltAppConfig?.model_list || []).find((m) => {
+		const id = m.model_id || m.model || m.name;
+		return id === modelId;
+	});
+
+	if (!modelEntry && prebuiltAppConfig?.model_list?.length) {
+		throw new Error(`Model ${modelId} not found in WebLLM prebuilt config`);
+	}
+
+	currentProgressCallback = notifyProgress;
+
+	const engine = new WebLLMEngine({
+		initProgressCallback: (progressData) => {
+			const { progress, text } = progressData || {};
+			if (currentProgressCallback) {
+				const percent = Math.max(0, Math.min(100, Math.round(progress * 100)));
+				currentProgressCallback({ loaded: progress, total: 1, percent, text });
+			}
+		},
+	});
+
+	if (typeof engine.reload !== "function") {
+		throw new Error("MLCEngine.reload is not available");
+	}
+
+	await engine.reload(modelId);
+	currentProgressCallback = null;
+
+	return engine;
+}
+
+/**
+ * Unload WebLLM engine
+ * @param {any} engine
+ */
+async function unloadWebLLMModel(engine) {
+	try {
+		if (engine && typeof engine.unload === "function") {
+			await engine.unload();
+		}
+	} catch (e) {
+		console.warn("[webllm-runner] unload error:", e?.message || e);
+	}
+}
+
+// Model lifecycle manager - handles caching and auto-unload after 5 min idle
+const webllmManager = new ModelLifecycleManager({
+	name: "webllm-runner",
+	loadFn: loadWebLLMModel,
+	unloadFn: unloadWebLLMModel,
+});
 
 window.addEventListener("message", async (event) => {
 	const src = event.source;
@@ -85,6 +147,7 @@ window.addEventListener("message", async (event) => {
 			case "models": {
 				await ensureWebLLM();
 				const list = prebuiltAppConfig?.model_list || [];
+				const currentModelId = webllmManager.modelId;
 				const models = await Promise.all(
 					list.map(async (m) => {
 						const id = m.model_id || m.model || m.name || "unknown";
@@ -97,7 +160,7 @@ window.addEventListener("message", async (event) => {
 							permission: [],
 							root: id,
 							parent: null,
-							loaded: loadedModels.get(id)?.loaded || false,
+							loaded: id === currentModelId && webllmManager.isLoaded,
 							downloaded,
 						};
 					}),
@@ -109,67 +172,20 @@ window.addEventListener("message", async (event) => {
 				break;
 			}
 			case "serve": {
-				await ensureWebLLM();
 				const { model } = payload || {};
 				if (!model) throw new Error("Model name is required");
 
-				// Validate against prebuilt config if present
-				const modelEntry = (prebuiltAppConfig?.model_list || []).find((m) => {
-					const id = m.model_id || m.model || m.name;
-					return id === model;
-				});
-
-				if (!modelEntry && prebuiltAppConfig?.model_list?.length) {
-					throw new Error(`Model ${model} not found in WebLLM prebuilt config`);
-				}
-
-				// Prepare progress reporting
 				let lastPercent = 0;
-				const reportProgress = (loaded, total, text) => {
-					const percent = Math.max(
-						0,
-						Math.min(100, Math.round((loaded / (total || 1)) * 100)),
-					);
-					if (percent !== lastPercent) {
+				const notifyProgress = (info) => {
+					const { percent, text } = info || {};
+					if (typeof percent === "number" && percent !== lastPercent) {
 						lastPercent = percent;
-						reply(src, origin, messageId, "progress", {
-							loaded,
-							total,
-							percent,
-							text,
-						});
+						reply(src, origin, messageId, "progress", info);
 					}
 				};
 
 				try {
-					// Clean current engine if exists
-					if (webllmEngine && typeof webllmEngine.unload === "function") {
-						try {
-							await webllmEngine.unload();
-						} catch (e) {
-							console.warn(
-								"[serve] unload previous engine error:",
-								e?.message || e,
-							);
-						}
-					}
-
-					// Create a fresh engine with progress callback and load model
-					webllmEngine = new WebLLMEngine({
-						initProgressCallback: (progressData) => {
-							const { progress, text } = progressData || {};
-							reportProgress(progress, 1, text);
-						},
-					});
-					if (typeof webllmEngine.reload !== "function") {
-						const caps = {
-							hasReload: typeof webllmEngine.reload,
-							hasUnload: typeof webllmEngine.unload,
-						};
-						console.error("MLCEngine lacks reload. Capabilities:", caps);
-						throw new Error("MLCEngine.reload is not available");
-					}
-					await webllmEngine.reload(model);
+					await webllmManager.load(model, notifyProgress);
 
 					const modelInfo = {
 						id: model,
@@ -182,8 +198,7 @@ window.addEventListener("message", async (event) => {
 						loaded: true,
 						downloaded: await isDownloaded(model),
 					};
-					loadedModel = model;
-					loadedModels.set(model, modelInfo);
+					loadedModelsCache.set(model, modelInfo);
 					reply(src, origin, messageId, "complete", modelInfo);
 				} catch (error) {
 					console.error("[serve] load error:", error);
@@ -198,10 +213,6 @@ window.addEventListener("message", async (event) => {
 				break;
 			}
 			case "chat/completions": {
-				await ensureWebLLM();
-				if (!webllmEngine)
-					throw new Error("WebLLM engine not initialized or incompatible");
-
 				const {
 					messages,
 					model,
@@ -213,46 +224,51 @@ window.addEventListener("message", async (event) => {
 
 				if (!messages) throw new Error("Messages are required");
 
+				const targetModel = model || webllmManager.modelId;
+				if (!targetModel) {
+					throw new Error("No model specified and no model loaded. Call serve first.");
+				}
+
 				// Create abort controller for this operation
 				const abortController = new AbortController();
 				activeOperations.set(messageId, { abortController });
 
-				const requestOptions = {
-					messages,
-					model: model || loadedModel,
-					temperature,
-					top_p,
-					max_tokens,
-					signal: abortController.signal,
-				};
-
 				try {
-					if (stream) {
-						const completionStream = await webllmEngine.chat.completions.create({
-							...requestOptions,
-							stream: true,
-						});
-						let lastChunk;
+					await webllmManager.withModel(targetModel, async (engine) => {
+						const requestOptions = {
+							messages,
+							model: targetModel,
+							temperature,
+							top_p,
+							max_tokens,
+							signal: abortController.signal,
+						};
 
-						for await (const chunk of completionStream) {
-							lastChunk = chunk
-							if (abortController.signal.aborted) {
-								throw new Error("Operation aborted");
+						if (stream) {
+							const completionStream = await engine.chat.completions.create({
+								...requestOptions,
+								stream: true,
+							});
+							let lastChunk;
+
+							for await (const chunk of completionStream) {
+								lastChunk = chunk;
+								if (abortController.signal.aborted) {
+									throw new Error("Operation aborted");
+								}
+								reply(src, origin, messageId, "chunk", chunk);
 							}
 
-							reply(src, origin, messageId, "chunk", chunk);
+							lastChunk.content = await engine.getMessage();
+							reply(src, origin, messageId, "end", lastChunk);
+						} else {
+							const completion = await engine.chat.completions.create({
+								...requestOptions,
+								stream: false,
+							});
+							reply(src, origin, messageId, "complete", completion);
 						}
-
-						lastChunk.content = await webllmEngine.getMessage()
-
-						reply(src, origin, messageId, "end", lastChunk);
-					} else {
-						const completion = await webllmEngine.chat.completions.create({
-							...requestOptions,
-							stream: false,
-						});
-						reply(src, origin, messageId, "complete", completion);
-					}
+					});
 				} catch (error) {
 					console.error("WebLLM error:", error);
 					throw error;
@@ -263,37 +279,38 @@ window.addEventListener("message", async (event) => {
 			}
 			case "unload": {
 				const { model } = payload || {};
-				if (!model) throw new Error("Model name is required");
-				if (!loadedModels.has(model))
+				const currentModel = webllmManager.modelId;
+
+				if (model && model !== currentModel) {
 					throw new Error(`Model ${model} is not loaded`);
-				try {
-					webllmEngine = new WebLLMEngine();
-				} catch (error) {
-					console.error("Error reinitializing WebLLM engine:", error);
 				}
-				const modelInfo = loadedModels.get(model);
-				if (modelInfo) {
-					modelInfo.loaded = false;
-					loadedModels.set(model, modelInfo);
+
+				await webllmManager.unload();
+
+				if (currentModel) {
+					const modelInfo = loadedModelsCache.get(currentModel);
+					if (modelInfo) {
+						modelInfo.loaded = false;
+						loadedModelsCache.set(currentModel, modelInfo);
+					}
 				}
-				loadedModel = undefined;
+
 				reply(src, origin, messageId, "complete", {
 					status: "unloaded",
-					model,
+					model: model || currentModel,
 				});
 				break;
 			}
 			case "delete": {
 				const { model } = payload || {};
 				if (!model) throw new Error("Model name is required");
-				if (loadedModels.has(model)) {
-					try {
-						webllmEngine = new WebLLMEngine();
-					} catch (error) {
-						console.error("Error reinitializing WebLLM engine:", error);
-					}
+
+				// If this model is currently loaded, unload it first
+				if (webllmManager.modelId === model) {
+					await webllmManager.unload();
 				}
-				loadedModels.delete(model);
+
+				loadedModelsCache.delete(model);
 				reply(src, origin, messageId, "complete", { status: "deleted", model });
 				break;
 			}

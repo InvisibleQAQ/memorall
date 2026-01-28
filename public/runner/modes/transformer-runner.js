@@ -1,14 +1,15 @@
 // Transformer Runner - Local LLM inference via HuggingFace Transformers.js with WebGPU
 import { reply, generateId, sendReady } from "../utils/common.js";
+import { ModelLifecycleManager } from "../utils/model-lifecycle.js";
 
 // Scoped state
 let AutoTokenizer;
 let AutoModelForCausalLM;
 let transformers;
-let currentModel = null;
-let currentTokenizer = null;
-let activeModelId = null;
-const loadedModels = new Map();
+const loadedModelsCache = new Map();
+
+// Progress callback for current load operation
+let currentProgressCallback = null;
 
 async function ensureTransformers() {
 	if (transformers) return;
@@ -63,6 +64,150 @@ async function ensureTransformers() {
 	}
 }
 
+/**
+ * @typedef {Object} TransformerModelBundle
+ * @property {any} model - The loaded model
+ * @property {any} tokenizer - The loaded tokenizer
+ * @property {string} dtype - The quantization type used
+ */
+
+/**
+ * Load a transformer model and tokenizer
+ * @param {string} modelId
+ * @param {Function} [notifyProgress]
+ * @returns {Promise<TransformerModelBundle>}
+ */
+async function loadTransformerModel(modelId, notifyProgress) {
+	await ensureTransformers();
+
+	const hasWebGPU =
+		typeof navigator !== "undefined" && typeof navigator.gpu !== "undefined";
+	let device = hasWebGPU ? "webgpu" : "wasm";
+
+	console.log("[transformer-runner] device selection", {
+		hasWebGPU,
+		initialDevice: device,
+		model: modelId,
+	});
+
+	let currentDtype = "q4";
+
+	const progressCallback = (progress) => {
+		if (progress.status === "progress" && progress.file?.endsWith(".onnx_data")) {
+			const loaded = progress.loaded || 0;
+			const total = progress.total || 1;
+			const percent = Math.min(100, Math.round((loaded / total) * 100));
+			const dtypeInfo = currentDtype ? ` (${currentDtype})` : "";
+			if (notifyProgress) {
+				notifyProgress({
+					loaded,
+					total,
+					percent,
+					text: `Downloading model${dtypeInfo}... ${percent}%`,
+				});
+			}
+		}
+	};
+
+	// Load tokenizer
+	console.log("[transformer-runner] loading tokenizer for", modelId);
+	const tokenizer = await AutoTokenizer.from_pretrained(modelId, {
+		progress_callback: progressCallback,
+	});
+	console.log("[transformer-runner] tokenizer loaded successfully");
+
+	// Try multiple configurations: device (WebGPU → WASM) and threads (4 → 1)
+	let model = null;
+	let loadError = null;
+	const devicesToTry = device === "webgpu" ? ["webgpu", "wasm"] : ["wasm"];
+	const threadsToTry = [4, 1];
+
+	for (const tryDevice of devicesToTry) {
+		for (const numThreads of threadsToTry) {
+			try {
+				if (transformers.env?.backends?.onnx?.wasm) {
+					transformers.env.backends.onnx.wasm.numThreads = numThreads;
+				}
+
+				console.log(
+					`[transformer-runner] loading model with dtype: ${currentDtype}, device: ${tryDevice}, threads: ${numThreads}`,
+				);
+
+				model = await AutoModelForCausalLM.from_pretrained(modelId, {
+					dtype: currentDtype,
+					device: tryDevice,
+					progress_callback: progressCallback,
+				});
+
+				device = tryDevice;
+				console.log(
+					`[transformer-runner] model loaded successfully with dtype: ${currentDtype}, device: ${device}, threads: ${numThreads}`,
+				);
+				break;
+			} catch (err) {
+				loadError = err;
+				const errorMsg = err instanceof Error ? err.message : String(err);
+				console.warn(
+					`[transformer-runner] failed to load with device ${tryDevice}, threads ${numThreads}: ${errorMsg}`,
+				);
+
+				if (numThreads === 4 && threadsToTry.length > 1) {
+					console.log("[transformer-runner] falling back to single-thread...");
+					continue;
+				}
+
+				if (tryDevice === "webgpu" && devicesToTry.length > 1) {
+					console.log("[transformer-runner] falling back to WASM...");
+					break;
+				}
+
+				throw err;
+			}
+		}
+
+		if (model) break;
+	}
+
+	if (!model) {
+		// Dispose tokenizer on failure
+		try {
+			tokenizer.dispose?.();
+		} catch {}
+		const errorMsg = loadError instanceof Error ? loadError.message : String(loadError);
+		throw new Error(`Failed to load model: ${errorMsg}`);
+	}
+
+	return { model, tokenizer, dtype: currentDtype };
+}
+
+/**
+ * Unload transformer model and tokenizer
+ * @param {TransformerModelBundle} bundle
+ */
+async function unloadTransformerModel(bundle) {
+	if (bundle.model) {
+		try {
+			bundle.model.dispose?.();
+		} catch (e) {
+			console.warn("[transformer-runner] error disposing model:", e);
+		}
+	}
+	if (bundle.tokenizer) {
+		try {
+			bundle.tokenizer.dispose?.();
+		} catch (e) {
+			console.warn("[transformer-runner] error disposing tokenizer:", e);
+		}
+	}
+}
+
+// Model lifecycle manager - handles caching and auto-unload after 5 min idle
+const transformerManager = new ModelLifecycleManager({
+	name: "transformer-runner",
+	loadFn: loadTransformerModel,
+	unloadFn: unloadTransformerModel,
+});
+
 window.addEventListener("message", async (event) => {
 	const src = event.source;
 	const origin = event.origin;
@@ -96,8 +241,9 @@ window.addEventListener("message", async (event) => {
 						}
 					});
 
+					const currentModelId = transformerManager.modelId;
 					const downloadedModels = Array.from(modelIds).map((modelId) => {
-						const isLoaded = activeModelId === modelId;
+						const isLoaded = currentModelId === modelId && transformerManager.isLoaded;
 						return {
 							id: modelId,
 							name: modelId,
@@ -124,144 +270,23 @@ window.addEventListener("message", async (event) => {
 			}
 
 			case "serve": {
-				if (!transformers)
-					throw new Error("Transformers not initialized. Call init first.");
-
 				const { model } = payload || {};
 				if (!model) throw new Error("Model ID is required");
-				const hasWebGPU =
-					typeof navigator !== "undefined" && typeof navigator.gpu !== "undefined";
 
-				// Try WebGPU first, but will fallback to WASM if it fails
-				let device = hasWebGPU ? "webgpu" : "wasm";
-				console.log("[transformer-runner] device selection", {
-					hasWebGPU,
-					initialDevice: device,
-					model,
-				});
-
-				// Progress callback for model loading
-				let currentDtype = null;
-				const progressCallback = (progress) => {
-					if (
-						progress.status === "progress" &&
-						progress.file?.endsWith(".onnx_data")
-					) {
-						const loaded = progress.loaded || 0;
-						const total = progress.total || 1;
-						const percent = Math.min(100, Math.round((loaded / total) * 100));
-						const dtypeInfo = currentDtype ? ` (${currentDtype})` : "";
-						reply(src, origin, messageId, "progress", {
-							loaded,
-							total,
-							percent,
-							text: `Downloading model${dtypeInfo}... ${percent}%`,
-						});
-					}
+				const notifyProgress = (info) => {
+					reply(src, origin, messageId, "progress", info);
 				};
 
 				try {
-					// Unload previous model if any
-					if (currentModel) {
-						console.log("[transformer-runner] disposing previous model");
-						try {
-							currentModel.dispose?.();
-						} catch (e) {
-							console.warn("Error disposing model:", e);
-						}
-						currentModel = null;
-					}
-					if (currentTokenizer) {
-						try {
-							currentTokenizer.dispose?.();
-						} catch (e) {
-							console.warn("Error disposing tokenizer:", e);
-						}
-						currentTokenizer = null;
-					}
-
-					// Load tokenizer
-					console.log("[transformer-runner] loading tokenizer for", model);
-					currentTokenizer = await AutoTokenizer.from_pretrained(model, {
-						progress_callback: progressCallback,
-					});
-					console.log("[transformer-runner] tokenizer loaded successfully");
-
-					// Use smallest quantization for browser performance (q4 = 4-bit, most aggressive)
-					currentDtype = "q4";
-
-					// Try multiple configurations: device (WebGPU → WASM) and threads (4 → 1)
-					let loadError = null;
-					const devicesToTry = device === "webgpu" ? ["webgpu", "wasm"] : ["wasm"];
-					const threadsToTry = [4, 1]; // Try multi-thread first for performance, fallback to single-thread
-
-					for (const tryDevice of devicesToTry) {
-						for (const numThreads of threadsToTry) {
-							try {
-								// Set thread count for this attempt
-								if (transformers.env?.backends?.onnx?.wasm) {
-									transformers.env.backends.onnx.wasm.numThreads = numThreads;
-								}
-
-								console.log(
-									`[transformer-runner] loading model with dtype: ${currentDtype}, device: ${tryDevice}, threads: ${numThreads}`,
-								);
-
-								currentModel = await AutoModelForCausalLM.from_pretrained(model, {
-									dtype: currentDtype,
-									device: tryDevice,
-									progress_callback: progressCallback,
-								});
-
-								device = tryDevice; // Update to successful device
-								console.log(
-									`[transformer-runner] ✅ model loaded successfully with dtype: ${currentDtype}, device: ${device}, threads: ${numThreads}`,
-								);
-								break; // Success, exit inner loop
-							} catch (err) {
-								loadError = err;
-								const errorMsg = err instanceof Error ? err.message : String(err);
-								console.warn(
-									`[transformer-runner] failed to load with device ${tryDevice}, threads ${numThreads}: ${errorMsg}`,
-								);
-
-								// If this was multi-thread and we have single-thread fallback, continue
-								if (numThreads === 4 && threadsToTry.length > 1) {
-									console.log("[transformer-runner] falling back to single-thread...");
-									continue;
-								}
-
-								// If we've tried all thread counts for this device and this was WebGPU, try WASM
-								if (tryDevice === "webgpu" && devicesToTry.length > 1) {
-									console.log("[transformer-runner] falling back to WASM...");
-									break; // Exit thread loop, continue to next device
-								}
-
-								// No more fallbacks, throw error
-								throw err;
-							}
-						}
-
-						// If model loaded successfully, exit device loop
-						if (currentModel) break;
-					}
-
-					if (!currentModel) {
-						// Convert error to string if it's not an Error object
-						const errorMsg = loadError instanceof Error ? loadError.message : String(loadError);
-						throw new Error(`Failed to load model: ${errorMsg}`);
-					}
-
-					activeModelId = model;
+					const bundle = await transformerManager.load(model, notifyProgress);
 
 					// Include quantization info in model metadata
-					const usedDtype = currentDtype || "unknown";
 					const quantizationInfo = {
 						q4: "4-bit (smallest, fastest)",
 						q4f16: "4-bit weights + fp16 activations",
 						fp16: "16-bit floating point",
 						q8: "8-bit quantization",
-					}[usedDtype] || usedDtype;
+					}[bundle.dtype] || bundle.dtype;
 
 					console.log(`[transformer-runner] model serving with ${quantizationInfo}`);
 
@@ -272,42 +297,21 @@ window.addEventListener("message", async (event) => {
 						owned_by: "transformer",
 						loaded: true,
 						downloaded: true,
-						dtype: usedDtype, // Include dtype in response
+						dtype: bundle.dtype,
 					};
 
-					loadedModels.set(model, modelInfo);
+					loadedModelsCache.set(model, modelInfo);
 					reply(src, origin, messageId, "complete", modelInfo);
 				} catch (error) {
 					console.error("[transformer-runner] model loading failed:", error);
 
-					// Clean up on error
-					if (currentModel) {
-						try {
-							currentModel.dispose?.();
-						} catch (e) {
-							console.warn("Error disposing model after failure:", e);
-						}
-						currentModel = null;
-					}
-					if (currentTokenizer) {
-						try {
-							currentTokenizer.dispose?.();
-						} catch (e) {
-							console.warn("Error disposing tokenizer after failure:", e);
-						}
-						currentTokenizer = null;
-					}
-					activeModelId = null;
-
-					// Handle both Error objects and primitive values (numbers, strings)
 					const errorStr = error instanceof Error ? error.message : String(error);
 					const isMemoryError =
 						errorStr.includes("Aborted") ||
 						errorStr.includes("abort") ||
 						errorStr.includes("memory") ||
-						/^\d+$/.test(errorStr); // Numeric error codes often indicate WASM/memory issues
+						/^\d+$/.test(errorStr);
 
-					// Provide helpful error message
 					let errorMessage = `Failed to load model: ${errorStr || "Unknown error"}`;
 					if (isMemoryError) {
 						errorMessage +=
@@ -328,11 +332,9 @@ window.addEventListener("message", async (event) => {
 			}
 
 			case "chat/completions": {
-				if (!currentModel || !currentTokenizer)
-					throw new Error("No model loaded. Call serve first.");
-
 				const {
 					messages,
+					model,
 					stream = false,
 					max_tokens,
 					temperature = 0,
@@ -342,214 +344,193 @@ window.addEventListener("message", async (event) => {
 
 				if (!messages) throw new Error("Messages are required");
 
+				const targetModel = model || transformerManager.modelId;
+				if (!targetModel) {
+					throw new Error("No model specified and no model loaded. Call serve first.");
+				}
+
 				try {
-					// Apply chat template
-					const input = currentTokenizer.apply_chat_template(messages, {
-						add_generation_prompt: true,
-						return_dict: true,
-					});
+					await transformerManager.withModel(targetModel, async (bundle) => {
+						const { model: currentModel, tokenizer: currentTokenizer } = bundle;
 
-					const promptLength = input.input_ids?.dims?.[1] || 0;
-					const tokenizerMaxRaw =
-						typeof currentTokenizer?.model_max_length === "number"
-							? currentTokenizer.model_max_length
-							: undefined;
-					const tokenizerMax =
-						typeof tokenizerMaxRaw === "number" &&
-							Number.isFinite(tokenizerMaxRaw) &&
-							tokenizerMaxRaw > 0 &&
-							tokenizerMaxRaw <= 1_000_000
-							? tokenizerMaxRaw
-							: undefined;
+						// Apply chat template
+						const input = currentTokenizer.apply_chat_template(messages, {
+							add_generation_prompt: true,
+							return_dict: true,
+						});
 
-					const cfg = currentModel?.config || {};
-					const modelMaxRaw =
-						typeof cfg.max_position_embeddings === "number"
-							? cfg.max_position_embeddings
-							: typeof cfg.n_positions === "number"
-								? cfg.n_positions
-								: typeof cfg.context_length === "number"
-									? cfg.context_length
-									: typeof cfg.max_seq_len === "number"
-										? cfg.max_seq_len
-										: typeof cfg.n_ctx === "number"
-											? cfg.n_ctx
-											: typeof cfg.seq_length === "number"
-												? cfg.seq_length
-												: undefined;
-					const modelMax =
-						typeof modelMaxRaw === "number" &&
-							Number.isFinite(modelMaxRaw) &&
-							modelMaxRaw > 0 &&
-							modelMaxRaw <= 1_000_000
-							? modelMaxRaw
-							: undefined;
-
-					const maxContextTokens =
-						typeof tokenizerMax === "number"
-							? tokenizerMax
-							: typeof modelMax === "number"
-								? modelMax
+						const promptLength = input.input_ids?.dims?.[1] || 0;
+						const tokenizerMaxRaw =
+							typeof currentTokenizer?.model_max_length === "number"
+								? currentTokenizer.model_max_length
 								: undefined;
-					const maxNewTokensLimit =
-						typeof maxContextTokens === "number"
-							? Math.max(0, maxContextTokens - promptLength)
-							: undefined;
-
-					// If caller doesn't set max_tokens, we use the maximum allowed by model context.
-					// If context window is unknown, we do NOT set max_new_tokens at all.
-					const requestedMaxTokens =
-						typeof max_tokens === "number" && Number.isFinite(max_tokens)
-							? max_tokens
-							: typeof maxNewTokensLimit === "number"
-								? maxNewTokensLimit
+						const tokenizerMax =
+							typeof tokenizerMaxRaw === "number" &&
+								Number.isFinite(tokenizerMaxRaw) &&
+								tokenizerMaxRaw > 0 &&
+								tokenizerMaxRaw <= 1_000_000
+								? tokenizerMaxRaw
 								: undefined;
 
-					if (
-						typeof max_tokens !== "number" &&
-						typeof maxNewTokensLimit === "number"
-					) {
-						console.log("[transformer-runner] auto max_new_tokens", {
-							auto: true,
-							max_new_tokens: requestedMaxTokens,
-							promptLength,
-							maxContextTokens,
-							tokenizerMaxRaw,
-							modelMaxRaw,
-						});
-					}
-					if (
-						typeof max_tokens !== "number" &&
-						typeof maxNewTokensLimit !== "number"
-					) {
-						console.log("[transformer-runner] max_new_tokens unset", {
-							reason: "unknown_context_window",
-							promptLength,
-							tokenizerMaxRaw,
-							modelMaxRaw,
-							configKeys: Object.keys(cfg || {}).slice(0, 50),
-						});
-					}
+						const cfg = currentModel?.config || {};
+						const modelMaxRaw =
+							typeof cfg.max_position_embeddings === "number"
+								? cfg.max_position_embeddings
+								: typeof cfg.n_positions === "number"
+									? cfg.n_positions
+									: typeof cfg.context_length === "number"
+										? cfg.context_length
+										: typeof cfg.max_seq_len === "number"
+											? cfg.max_seq_len
+											: typeof cfg.n_ctx === "number"
+												? cfg.n_ctx
+												: typeof cfg.seq_length === "number"
+													? cfg.seq_length
+													: undefined;
+						const modelMax =
+							typeof modelMaxRaw === "number" &&
+								Number.isFinite(modelMaxRaw) &&
+								modelMaxRaw > 0 &&
+								modelMaxRaw <= 1_000_000
+								? modelMaxRaw
+								: undefined;
 
-					const effectiveMaxNewTokens =
-						typeof maxNewTokensLimit === "number" &&
-						typeof requestedMaxTokens === "number"
-							? Math.min(requestedMaxTokens, maxNewTokensLimit)
-							: requestedMaxTokens;
+						const maxContextTokens =
+							typeof tokenizerMax === "number"
+								? tokenizerMax
+								: typeof modelMax === "number"
+									? modelMax
+									: undefined;
+						const maxNewTokensLimit =
+							typeof maxContextTokens === "number"
+								? Math.max(0, maxContextTokens - promptLength)
+								: undefined;
 
-					if (
-						typeof maxNewTokensLimit === "number" &&
-						maxNewTokensLimit <= 0
-					) {
-						throw new Error(
-							`Prompt is too long for the model context window (promptLength=${promptLength}, maxContextTokens=${maxContextTokens})`,
-						);
-					}
+						const requestedMaxTokens =
+							typeof max_tokens === "number" && Number.isFinite(max_tokens)
+								? max_tokens
+								: typeof maxNewTokensLimit === "number"
+									? maxNewTokensLimit
+									: undefined;
 
-					if (stream) {
-						// Streaming response
-						const { TextStreamer } = transformers;
-						const chunks = [];
-
-						const streamer = new TextStreamer(currentTokenizer, {
-							skip_prompt: true,
-							skip_special_tokens: true,
-							callback_function: (token) => {
-								const chunk = {
-									id: `chatcmpl-${generateId()}`,
-									object: "chat.completion.chunk",
-									created: Math.floor(Date.now() / 1000),
-									model: activeModelId,
-									choices: [
-										{
-											index: 0,
-											delta: { content: token },
-											finish_reason: null,
-										},
-									],
-								};
-								chunks.push(token);
-								reply(src, origin, messageId, "stream_chunk", chunk);
-							},
-						});
-
-						// Generate with streaming
-						await currentModel.generate({
-							...input,
-							...(typeof effectiveMaxNewTokens === "number"
-								? { max_new_tokens: effectiveMaxNewTokens }
-								: {}),
-							do_sample: temperature > 0,
-							streamer,
-							return_dict_in_generate: true,
-							temperature,
-							top_p,
-							top_k,
-						});
-
-						// Send final chunk with finish_reason
-						const finalChunk = {
-							id: `chatcmpl-${generateId()}`,
-							object: "chat.completion.chunk",
-							created: Math.floor(Date.now() / 1000),
-							model: activeModelId,
-							choices: [
-								{
-									index: 0,
-									delta: {},
-									finish_reason: "stop",
-								},
-							],
-						};
-						reply(src, origin, messageId, "stream_end", finalChunk);
-					} else {
-						// Non-streaming response
-						const generationResult = await currentModel.generate({
-							...input,
-							...(typeof effectiveMaxNewTokens === "number"
-								? { max_new_tokens: effectiveMaxNewTokens }
-								: {}),
-							do_sample: temperature > 0,
-							return_dict_in_generate: true,
-							temperature,
-							top_p,
-							top_k,
-						});
-
-						// Decode the generated sequence
-						let trimmedSeq = generationResult.sequences;
-						if (typeof generationResult.sequences?.slice === "function") {
-							trimmedSeq = generationResult.sequences.slice(null, [promptLength, null]);
+						if (typeof max_tokens !== "number" && typeof maxNewTokensLimit === "number") {
+							console.log("[transformer-runner] auto max_new_tokens", {
+								auto: true,
+								max_new_tokens: requestedMaxTokens,
+								promptLength,
+								maxContextTokens,
+							});
 						}
 
-						const decoded = currentTokenizer.batch_decode(trimmedSeq, {
-							skip_special_tokens: true,
-						})[0] || "";
+						const effectiveMaxNewTokens =
+							typeof maxNewTokensLimit === "number" && typeof requestedMaxTokens === "number"
+								? Math.min(requestedMaxTokens, maxNewTokensLimit)
+								: requestedMaxTokens;
 
-						const response = {
-							id: `chatcmpl-${generateId()}`,
-							object: "chat.completion",
-							created: Math.floor(Date.now() / 1000),
-							model: activeModelId,
-							choices: [
-								{
-									index: 0,
-									message: {
-										role: "assistant",
-										content: decoded,
-									},
-									finish_reason: "stop",
+						if (typeof maxNewTokensLimit === "number" && maxNewTokensLimit <= 0) {
+							throw new Error(
+								`Prompt is too long for the model context window (promptLength=${promptLength}, maxContextTokens=${maxContextTokens})`,
+							);
+						}
+
+						if (stream) {
+							const { TextStreamer } = transformers;
+
+							const streamer = new TextStreamer(currentTokenizer, {
+								skip_prompt: true,
+								skip_special_tokens: true,
+								callback_function: (token) => {
+									const chunk = {
+										id: `chatcmpl-${generateId()}`,
+										object: "chat.completion.chunk",
+										created: Math.floor(Date.now() / 1000),
+										model: targetModel,
+										choices: [
+											{
+												index: 0,
+												delta: { content: token },
+												finish_reason: null,
+											},
+										],
+									};
+									reply(src, origin, messageId, "stream_chunk", chunk);
 								},
-							],
-							usage: {
-								prompt_tokens: promptLength,
-								completion_tokens: (generationResult.sequences?.dims?.[1] || promptLength) - promptLength,
-								total_tokens: generationResult.sequences?.dims?.[1] || promptLength,
-							},
-						};
+							});
 
-						reply(src, origin, messageId, "complete", response);
-					}
+							await currentModel.generate({
+								...input,
+								...(typeof effectiveMaxNewTokens === "number"
+									? { max_new_tokens: effectiveMaxNewTokens }
+									: {}),
+								do_sample: temperature > 0,
+								streamer,
+								return_dict_in_generate: true,
+								temperature,
+								top_p,
+								top_k,
+							});
+
+							const finalChunk = {
+								id: `chatcmpl-${generateId()}`,
+								object: "chat.completion.chunk",
+								created: Math.floor(Date.now() / 1000),
+								model: targetModel,
+								choices: [
+									{
+										index: 0,
+										delta: {},
+										finish_reason: "stop",
+									},
+								],
+							};
+							reply(src, origin, messageId, "stream_end", finalChunk);
+						} else {
+							const generationResult = await currentModel.generate({
+								...input,
+								...(typeof effectiveMaxNewTokens === "number"
+									? { max_new_tokens: effectiveMaxNewTokens }
+									: {}),
+								do_sample: temperature > 0,
+								return_dict_in_generate: true,
+								temperature,
+								top_p,
+								top_k,
+							});
+
+							let trimmedSeq = generationResult.sequences;
+							if (typeof generationResult.sequences?.slice === "function") {
+								trimmedSeq = generationResult.sequences.slice(null, [promptLength, null]);
+							}
+
+							const decoded = currentTokenizer.batch_decode(trimmedSeq, {
+								skip_special_tokens: true,
+							})[0] || "";
+
+							const response = {
+								id: `chatcmpl-${generateId()}`,
+								object: "chat.completion",
+								created: Math.floor(Date.now() / 1000),
+								model: targetModel,
+								choices: [
+									{
+										index: 0,
+										message: {
+											role: "assistant",
+											content: decoded,
+										},
+										finish_reason: "stop",
+									},
+								],
+								usage: {
+									prompt_tokens: promptLength,
+									completion_tokens: (generationResult.sequences?.dims?.[1] || promptLength) - promptLength,
+									total_tokens: generationResult.sequences?.dims?.[1] || promptLength,
+								},
+							};
+
+							reply(src, origin, messageId, "complete", response);
+						}
+					});
 				} catch (error) {
 					reply(src, origin, messageId, "error", {
 						error: {
@@ -564,37 +545,34 @@ window.addEventListener("message", async (event) => {
 
 			case "unload": {
 				const { model } = payload || {};
-				if (model === activeModelId) {
-					if (currentModel) {
-						currentModel.dispose?.();
-						currentModel = null;
-					}
-					if (currentTokenizer) {
-						currentTokenizer.dispose?.();
-						currentTokenizer = null;
-					}
-					activeModelId = null;
-					loadedModels.delete(model);
+				const currentModel = transformerManager.modelId;
+
+				if (model && model !== currentModel) {
+					throw new Error(`Model ${model} is not loaded`);
 				}
-				reply(src, origin, messageId, "complete", { status: "unloaded" });
+
+				await transformerManager.unload();
+
+				if (currentModel) {
+					const modelInfo = loadedModelsCache.get(currentModel);
+					if (modelInfo) {
+						modelInfo.loaded = false;
+						loadedModelsCache.set(currentModel, modelInfo);
+					}
+				}
+
+				reply(src, origin, messageId, "complete", { status: "unloaded", model: model || currentModel });
 				break;
 			}
 
 			case "delete": {
-				// For transformers, delete means clearing from cache
 				const { model } = payload || {};
+				if (!model) throw new Error("Model name is required");
+
 				try {
 					// Unload first if it's the active model
-					if (model === activeModelId) {
-						if (currentModel) {
-							currentModel.dispose?.();
-							currentModel = null;
-						}
-						if (currentTokenizer) {
-							currentTokenizer.dispose?.();
-							currentTokenizer = null;
-						}
-						activeModelId = null;
+					if (transformerManager.modelId === model) {
+						await transformerManager.unload();
 					}
 
 					// Clear from cache
@@ -606,8 +584,8 @@ window.addEventListener("message", async (event) => {
 						}
 					}
 
-					loadedModels.delete(model);
-					reply(src, origin, messageId, "complete", { status: "deleted" });
+					loadedModelsCache.delete(model);
+					reply(src, origin, messageId, "complete", { status: "deleted", model });
 				} catch (error) {
 					reply(src, origin, messageId, "error", {
 						error: {
@@ -641,5 +619,12 @@ window.addEventListener("message", async (event) => {
 	}
 });
 
-// Signal that the runner is ready
-sendReady();
+const endpoints = [
+	"init",
+	"serve",
+	"models",
+	"chat/completions",
+	"unload",
+	"delete",
+];
+sendReady("transformer", endpoints);
