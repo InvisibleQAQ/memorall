@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BACKGROUND_EVENTS } from '@/constants/events';
 
-import './src/globals.css';
-import App from './src/main/App';
+import './globals.css';
+import App from './main/App';
 
 // Standalone page wrapper component
 const StandaloneApp: React.FC = () => {
