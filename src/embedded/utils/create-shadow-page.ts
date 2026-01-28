@@ -1,5 +1,24 @@
 import { createRoot } from "react-dom/client";
 
+const createStylesheet = (
+  href: string,
+  parent: ShadowRoot,
+  fallbackHref?: string
+): void => {
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = chrome.runtime.getURL(href);
+
+  if (fallbackHref) {
+    link.onerror = () => {
+      link.remove();
+      createStylesheet(fallbackHref, parent);
+    };
+  }
+
+  parent.appendChild(link);
+};
+
 export const createShadowPage = ({
   customStyles
 }: {
@@ -16,18 +35,14 @@ export const createShadowPage = ({
   const shadowContainer = document.createElement("div");
   shadowContainer.className = "memorall-chat-container";
 
-  // Inject Tailwind CSS only within the Shadow DOM
-  const tailwindStyle = document.createElement("link");
-  tailwindStyle.rel = "stylesheet";
-  tailwindStyle.href = chrome.runtime.getURL("action/index.css");
-
   // Add CSS custom properties for proper theming within Shadow DOM
   const customPropsStyle = document.createElement("style");
   customPropsStyle.textContent = customStyles;
-
-  // Add styles to shadow DOM in correct order
   shadowRoot.appendChild(customPropsStyle);
-  shadowRoot.appendChild(tailwindStyle);
+
+  // Inject Tailwind CSS with fallback
+  createStylesheet("action/index.css", shadowRoot, "action/default_popup.css");
+
   shadowRoot.appendChild(shadowContainer);
 
   // Create root and render inside shadow DOM
