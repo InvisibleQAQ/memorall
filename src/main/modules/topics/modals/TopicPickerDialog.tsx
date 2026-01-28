@@ -1,0 +1,177 @@
+/**
+ * TopicPickerDialog - Simple single topic selection
+ */
+
+import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import NiceModal, { useModal } from "@ebay/nice-modal-react";
+import { Tags, Loader2 } from "lucide-react";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/main/components/ui/dialog";
+import { Button } from "@/main/components/ui/button";
+import { cn } from "@/lib/utils";
+import { topicService } from "@/main/modules/topics/services/topic-service";
+import type { Topic } from "@/services/database/types";
+import { logError } from "@/utils/logger";
+
+interface TopicPickerDialogProps {
+	fileName: string;
+}
+
+export const TopicPickerDialog = NiceModal.create<TopicPickerDialogProps>(
+	({ fileName }) => {
+		const modal = useModal();
+		const { t } = useTranslation("topics");
+
+		const [loading, setLoading] = useState(false);
+		const [topics, setTopics] = useState<Topic[]>([]);
+		const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>(
+			undefined,
+		);
+
+		// Load topics when dialog opens
+		useEffect(() => {
+			if (modal.visible) {
+				loadTopics();
+			}
+		}, [modal.visible]);
+
+		const loadTopics = async () => {
+			try {
+				setLoading(true);
+				const allTopics = await topicService.getTopics();
+				setTopics(Array.isArray(allTopics) ? allTopics : []);
+			} catch (error) {
+				logError("Failed to load topics:", error);
+				setTopics([]);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		const handleSelect = () => {
+			modal.resolve(selectedTopicId);
+			modal.hide();
+		};
+
+		const handleCancel = () => {
+			modal.resolve(null);
+			modal.hide();
+		};
+
+		return (
+			<Dialog
+				open={modal.visible}
+				onOpenChange={(open) => !open && handleCancel()}
+			>
+				<DialogContent className="sm:max-w-[400px] max-h-[85vh] flex flex-col gap-0 p-0">
+					<DialogHeader className="px-6 pt-6">
+						<DialogTitle className="flex items-center gap-2">
+							<Tags className="h-5 w-5 text-primary" />
+							{t("picker.title")}
+						</DialogTitle>
+						<DialogDescription>
+							{t("picker.description", { fileName })}
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+						{loading ? (
+							<div className="flex items-center justify-center py-8">
+								<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+							</div>
+						) : (
+							<div className="border rounded-md max-h-[300px] overflow-y-auto">
+								<div className="p-2 space-y-1">
+									{/* Default option */}
+									<button
+										type="button"
+										onClick={() => setSelectedTopicId(undefined)}
+										className={cn(
+											"w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left",
+											"hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+											selectedTopicId === undefined && "bg-muted",
+										)}
+									>
+										<div
+											className={cn(
+												"h-4 w-4 border rounded-full flex items-center justify-center flex-shrink-0",
+												selectedTopicId === undefined
+													? "bg-primary border-primary"
+													: "border-input",
+											)}
+										>
+											{selectedTopicId === undefined && (
+												<div className="h-2 w-2 bg-primary-foreground rounded-full" />
+											)}
+										</div>
+										<div>
+											<div className="font-medium">{t("picker.default")}</div>
+											<div className="text-sm text-muted-foreground">
+												{t("picker.noTopicAssociation")}
+											</div>
+										</div>
+									</button>
+
+									{/* Topic options */}
+									{topics.length === 0 ? (
+										<div className="py-8 text-center text-sm text-muted-foreground">
+											{t("picker.noTopicsAvailable")}
+										</div>
+									) : (
+										topics.map((topic) => (
+											<button
+												key={topic.id}
+												type="button"
+												onClick={() => setSelectedTopicId(topic.id)}
+												className={cn(
+													"w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left",
+													"hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+													selectedTopicId === topic.id && "bg-muted",
+												)}
+											>
+												<div
+													className={cn(
+														"h-4 w-4 border rounded-full flex items-center justify-center flex-shrink-0",
+														selectedTopicId === topic.id
+															? "bg-primary border-primary"
+															: "border-input",
+													)}
+												>
+													{selectedTopicId === topic.id && (
+														<div className="h-2 w-2 bg-primary-foreground rounded-full" />
+													)}
+												</div>
+												<div>
+													<div className="font-medium">{topic.name}</div>
+													{topic.description && (
+														<div className="text-sm text-muted-foreground line-clamp-1">
+															{topic.description}
+														</div>
+													)}
+												</div>
+											</button>
+										))
+									)}
+								</div>
+							</div>
+						)}
+					</div>
+
+					<DialogFooter className="px-6 pb-6">
+						<Button variant="outline" onClick={handleCancel}>
+							{t("picker.cancel")}
+						</Button>
+						<Button onClick={handleSelect}>{t("picker.select")}</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		);
+	},
+);

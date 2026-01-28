@@ -6,7 +6,7 @@ import type {
 	BaseJob,
 	ItemHandlerResult,
 } from "./types";
-import { activityTrackingService } from "@/modules/activity-tracking/activity-tracking-service";
+import { activityTrackingService } from "@/main/modules/activity-tracking/activity-tracking-service";
 import type {
 	Activity,
 	ActivitySession,

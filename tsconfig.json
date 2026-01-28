@@ -20,11 +20,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@/popup/*": ["./src/popup/*"],
+      "@/main/*": ["src/main/*"],
       "@/lib/*": ["./src/lib/*"],
       "@/utils/*": ["./src/utils/*"],
       "@/ui/*": ["./src/components/ui/*"],
-      "@/modules/*": ["./src/modules/*"],
     }
   },
   "include": ["./"],

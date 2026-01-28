@@ -11,13 +11,12 @@
     "prefix": ""
   },
   "aliases": {
-    "components": "@/popup/components",
+    "components": "@/main/components",
     "utils": "@/lib/utils",
-    "ui": "@/popup/components/ui",
+    "ui": "@/main/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks",
-    "services": "@/services",
-    "modules": "@/modules"
+    "services": "@/services"
   },
   "iconLibrary": "@radix-ui/react-icons"
 }

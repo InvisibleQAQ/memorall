@@ -2,7 +2,7 @@ import { logInfo, logError } from "@/utils/logger";
 import { handlerRegistry } from "./handler-registry";
 import type { BaseJob, ProcessHandler, ItemHandlerResult } from "./types";
 import type { Topic } from "@/services/database";
-import { topicService } from "@/modules/topics/services/topic-service";
+import { topicService } from "@/main/modules/topics/services/topic-service";
 
 const JOB_NAMES = {
 	checkTopicsExist: "check-topics-exist",

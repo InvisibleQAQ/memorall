@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BACKGROUND_EVENTS } from '@/constants/events';
 
 import './src/globals.css';
-import App from './src/popup/App';
+import App from './src/main/App';
 
 // Popup-specific wrapper component
 const PopupApp: React.FC = () => {

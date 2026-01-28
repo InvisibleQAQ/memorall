@@ -1,4 +1,4 @@
-import type { ChatAction } from "@/modules/chat/services/chat-service";
+import type { ChatAction } from "@/main/modules/chat/services/chat-service";
 
 export type { ChatAction };
 

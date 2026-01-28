@@ -896,7 +896,7 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 
 		// Import detectSystemSpecs dynamically to run in offscreen context
 		const { detectSystemSpecs } = await import(
-			"@/modules/llm/utils/system-detection"
+			"@/main/modules/llm/utils/system-detection"
 		);
 
 		await updateJobProgress(jobId, {
