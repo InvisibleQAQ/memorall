@@ -8,12 +8,15 @@ import { serviceManager } from "@/services";
 import { eq, desc, asc } from "drizzle-orm";
 import { logError } from "@/utils/logger";
 import { v4 } from "@/utils/uuid";
+import type { ChatMode } from "@/main/modules/chat/services/chat-service";
 
 interface ChatStore {
 	// State
 	messages: Message[];
 	currentConversation: Conversation | null;
 	isLoading: boolean;
+	chatMode: ChatMode;
+	selectedTopic: string;
 
 	// Actions
 	addMessage: (message: Partial<Message>) => Promise<Message>;
@@ -25,6 +28,8 @@ interface ChatStore {
 	clearMessages: () => void;
 	deleteMessages: () => void;
 	setLoading: (loading: boolean) => void;
+	setChatMode: (mode: ChatMode) => void;
+	setSelectedTopic: (topicId: string) => void;
 
 	// Database sync
 	syncWithDB: () => Promise<void>;
@@ -34,6 +39,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 	messages: [],
 	currentConversation: null,
 	isLoading: false,
+	chatMode: "knowledge",
+	selectedTopic: "default",
 
 	addMessage: async (messageData) => {
 		let conversationId = messageData.conversationId;
@@ -240,6 +247,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
 	setLoading: (loading: boolean) => {
 		set({ isLoading: loading });
+	},
+
+	setChatMode: (mode: ChatMode) => {
+		set({ chatMode: mode });
+	},
+
+	setSelectedTopic: (topicId: string) => {
+		set({ selectedTopic: topicId });
 	},
 
 	syncWithDB: async () => {

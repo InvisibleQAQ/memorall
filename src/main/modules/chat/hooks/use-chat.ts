@@ -21,22 +21,25 @@ export interface InProgressMessage {
 export const useChat = (model: string) => {
 	const [inputValue, setInputValue] = useState("");
 	const [status, setStatus] = useState<ChatStatus>("ready");
-	const [chatMode, setChatMode] = useState<ChatMode>("knowledge");
-	const [selectedTopic, setSelectedTopic] = useState<string>("default");
 	const [abortController, setAbortController] =
 		useState<AbortController | null>(null);
 	const [inProgressMessage, setInProgressMessage] =
 		useState<InProgressMessage | null>(null);
 
-	const {
-		messages,
-		isLoading,
-		addMessage,
-		finalizeMessage,
-		setLoading,
-		ensureMainConversation,
-		deleteMessages,
-	} = useChatStore();
+	// State selectors - only re-render when specific value changes
+	const messages = useChatStore((state) => state.messages);
+	const isLoading = useChatStore((state) => state.isLoading);
+	const chatMode = useChatStore((state) => state.chatMode);
+	const selectedTopic = useChatStore((state) => state.selectedTopic);
+
+	// Action selectors - stable references, won't cause re-renders
+	const setChatMode = useChatStore((state) => state.setChatMode);
+	const setSelectedTopic = useChatStore((state) => state.setSelectedTopic);
+	const addMessage = useChatStore((state) => state.addMessage);
+	const finalizeMessage = useChatStore((state) => state.finalizeMessage);
+	const setLoading = useChatStore((state) => state.setLoading);
+	const ensureMainConversation = useChatStore((state) => state.ensureMainConversation);
+	const deleteMessages = useChatStore((state) => state.deleteMessages);
 
 	// Initialize conversation
 	useEffect(() => {
