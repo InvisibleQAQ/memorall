@@ -8,7 +8,12 @@ import type {
 	ChatCompletionChunk,
 	ChatCompletionRequest,
 	ChatCompletionResponse,
+	ChatCompletionMessageParam,
+	ChatCompletionChunkToolCall,
+	ChatCompletionFinishReason,
 } from "@/types/openai";
+import type { ToolCapabilityInfo } from "../interfaces/tool-capability";
+import { NATIVE_TOOL_SUPPORT } from "../interfaces/tool-capability";
 
 // Well-known model configurations with context window and max response tokens
 interface ModelConfig {
@@ -123,6 +128,42 @@ function findModelConfig(modelName: string): ModelConfig | null {
 		null
 	);
 }
+
+// Tool support patterns for OpenAI models
+const TOOL_SUPPORT_PATTERNS: Array<{
+	pattern: RegExp;
+	capability: ToolCapabilityInfo;
+}> = [
+	// GPT-4 family - full support
+	{ pattern: /^gpt-4/i, capability: NATIVE_TOOL_SUPPORT },
+	// GPT-3.5 - full support
+	{ pattern: /^gpt-3\.5/i, capability: NATIVE_TOOL_SUPPORT },
+	// o1/o3 models - limited parallel calls
+	{
+		pattern: /^o[134]/i,
+		capability: {
+			...NATIVE_TOOL_SUPPORT,
+			parallelCalls: false,
+			notes: "Reasoning models may have different tool behavior",
+		},
+	},
+	// GPT-5 - full support
+	{ pattern: /^gpt-5/i, capability: NATIVE_TOOL_SUPPORT },
+	// Claude models (via OpenRouter)
+	{ pattern: /claude/i, capability: NATIVE_TOOL_SUPPORT },
+	// Gemini models (via OpenRouter)
+	{ pattern: /gemini/i, capability: NATIVE_TOOL_SUPPORT },
+	// Llama models - support varies
+	{
+		pattern: /llama/i,
+		capability: { ...NATIVE_TOOL_SUPPORT, streamingToolCalls: false },
+	},
+	// Mistral models
+	{
+		pattern: /mistral/i,
+		capability: { ...NATIVE_TOOL_SUPPORT, streamingToolCalls: false },
+	},
+];
 
 // A lightweight OpenAI-compatible client using fetch/SSE.
 // Supports both OpenAI and local OpenAI-compatible servers (LM Studio, Ollama).
@@ -244,23 +285,49 @@ export class OpenAILLM implements BaseLLM {
 		}
 	}
 
+	private serializeMessages(
+		messages: ChatCompletionMessageParam[],
+	): Record<string, unknown>[] {
+		return messages.map((m) => {
+			const base: Record<string, unknown> = { role: m.role, content: m.content };
+			if (m.role === "assistant" && m.tool_calls) {
+				base.tool_calls = m.tool_calls;
+			}
+			if (m.role === "tool") {
+				base.tool_call_id = m.tool_call_id;
+			}
+			if ("name" in m && m.name) {
+				base.name = m.name;
+			}
+			return base;
+		});
+	}
+
 	private async createCompletion(
 		request: ChatCompletionRequest,
 	): Promise<ChatCompletionResponse> {
 		if (!this.ready) await this.initialize();
 
-		const body = {
+		const body: Record<string, unknown> = {
 			model: request.model,
-			messages: request.messages.map((m) => ({
-				role: m.role,
-				content: m.content,
-			})),
+			messages: this.serializeMessages(request.messages),
 			max_tokens: request.max_tokens,
 			temperature: request.temperature,
 			top_p: request.top_p,
 			stop: request.stop,
 			stream: false,
 		};
+
+		// Add tools if provided
+		if (request.tools?.length) {
+			body.tools = request.tools;
+			if (request.tool_choice) {
+				body.tool_choice = request.tool_choice;
+			}
+			if (request.parallel_tool_calls !== undefined) {
+				body.parallel_tool_calls = request.parallel_tool_calls;
+			}
+		}
 
 		const res = await fetch(`${this.baseURL}/chat/completions`, {
 			method: "POST",
@@ -287,11 +354,11 @@ export class OpenAILLM implements BaseLLM {
 				index: Number(choice.index ?? i),
 				message: {
 					role: "assistant",
-					content: String(
-						choice?.message?.content ?? choice?.delta?.content ?? "",
-					),
+					content: choice?.message?.content ?? null,
+					tool_calls: choice?.message?.tool_calls,
 				},
-				finish_reason: (choice.finish_reason || "stop") as "stop" | "length",
+				finish_reason: (choice.finish_reason ||
+					"stop") as ChatCompletionFinishReason,
 			})),
 			usage: {
 				prompt_tokens: Number(data?.usage?.prompt_tokens ?? 0),
@@ -306,18 +373,26 @@ export class OpenAILLM implements BaseLLM {
 	): AsyncIterableIterator<ChatCompletionChunk> {
 		if (!this.ready) await this.initialize();
 
-		const body = {
+		const body: Record<string, unknown> = {
 			model: request.model || "gpt-3.5-turbo",
-			messages: request.messages.map((m) => ({
-				role: m.role,
-				content: m.content,
-			})),
+			messages: this.serializeMessages(request.messages),
 			max_tokens: request.max_tokens,
 			temperature: request.temperature,
 			top_p: request.top_p,
 			stop: request.stop,
 			stream: true,
 		};
+
+		// Add tools if provided
+		if (request.tools?.length) {
+			body.tools = request.tools;
+			if (request.tool_choice) {
+				body.tool_choice = request.tool_choice;
+			}
+			if (request.parallel_tool_calls !== undefined) {
+				body.parallel_tool_calls = request.parallel_tool_calls;
+			}
+		}
 
 		const res = await fetch(`${this.baseURL}/chat/completions`, {
 			method: "POST",
@@ -369,6 +444,11 @@ export class OpenAILLM implements BaseLLM {
 						? json.choices[0]
 						: undefined;
 					if (!choice) continue;
+
+					// Handle tool_calls in streaming
+					const toolCalls: ChatCompletionChunkToolCall[] | undefined =
+						choice?.delta?.tool_calls;
+
 					const chunk: ChatCompletionChunk = {
 						id: String(json.id || `chatcmpl_${Date.now()}`),
 						object: "chat.completion.chunk",
@@ -380,11 +460,10 @@ export class OpenAILLM implements BaseLLM {
 								delta: {
 									role: choice?.delta?.role as "assistant" | undefined,
 									content: choice?.delta?.content ?? undefined,
+									tool_calls: toolCalls,
 								},
-								finish_reason: (choice.finish_reason ?? null) as
-									| "stop"
-									| "length"
-									| null,
+								finish_reason:
+									(choice.finish_reason ?? null) as ChatCompletionFinishReason,
 							},
 						],
 					};
@@ -403,6 +482,24 @@ export class OpenAILLM implements BaseLLM {
 	async delete(_modelId: string): Promise<void> {
 		// Deleting models isn't supported via the OpenAI-compatible API
 		throw new Error("Cannot delete OpenAI-compatible models");
+	}
+
+	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
+		const modelId = model || "gpt-4";
+
+		for (const { pattern, capability } of TOOL_SUPPORT_PATTERNS) {
+			if (pattern.test(modelId)) {
+				return capability;
+			}
+		}
+
+		// Default for OpenAI: assume native support for unknown models
+		return NATIVE_TOOL_SUPPORT;
+	}
+
+	async supportsTools(model?: string): Promise<boolean> {
+		const capability = await this.getToolCapabilities(model);
+		return capability.supported;
 	}
 
 	getInfo(): LLMInfo {

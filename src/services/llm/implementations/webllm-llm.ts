@@ -9,6 +9,12 @@ import type {
 	ChatCompletionRequest,
 	ChatCompletionResponse,
 } from "@/types/openai";
+import type { ToolCapabilityInfo } from "../interfaces/tool-capability";
+import { PROMPT_TOOL_SUPPORT } from "../interfaces/tool-capability";
+import {
+	injectToolsIntoSystemPrompt,
+	extractToolCallsFromResponse,
+} from "../tools/tool-adapter";
 import { LLM_RUNNER_URLS } from "@/config/llm-runner";
 import { waitForDOMReady } from "@/utils/dom";
 
@@ -168,8 +174,19 @@ export class WebLLMLLM implements BaseLLM {
 	): Promise<ChatCompletionResponse> {
 		if (!this.ready) await this.initialize();
 
-		// Remove signal from request payload (can't serialize AbortSignal)
-		const { signal, ...requestPayload } = request;
+		// Check if tools need prompt injection
+		const capability = await this.getToolCapabilities(request.model);
+		let processedRequest = request;
+		let usePromptInjection = false;
+
+		if (request.tools?.length && capability.supported) {
+			processedRequest = injectToolsIntoSystemPrompt(request);
+			usePromptInjection = true;
+		}
+
+		// Remove signal and tool fields from request payload (can't serialize)
+		const { signal, tools, tool_choice, parallel_tool_calls, ...requestPayload } =
+			processedRequest;
 
 		let signalId: string | undefined;
 		if (signal) {
@@ -178,10 +195,16 @@ export class WebLLMLLM implements BaseLLM {
 		}
 
 		try {
-			const response = await this.send("chat/completions", requestPayload, {
+			let response = (await this.send("chat/completions", requestPayload, {
 				signalId,
-			});
-			return response as ChatCompletionResponse;
+			})) as ChatCompletionResponse;
+
+			// Extract tool calls from text if using prompt injection
+			if (usePromptInjection) {
+				response = extractToolCallsFromResponse(response);
+			}
+
+			return response;
 		} finally {
 			if (signalId) {
 				this.signalMap.delete(signalId);
@@ -194,8 +217,17 @@ export class WebLLMLLM implements BaseLLM {
 	): AsyncIterableIterator<ChatCompletionChunk> {
 		if (!this.ready) await this.initialize();
 
-		// Remove signal from request payload (can't serialize AbortSignal)
-		const { signal, ...requestPayload } = request;
+		// Check if tools need prompt injection
+		const capability = await this.getToolCapabilities(request.model);
+		let processedRequest = request;
+
+		if (request.tools?.length && capability.supported) {
+			processedRequest = injectToolsIntoSystemPrompt(request);
+		}
+
+		// Remove signal and tool fields from request payload (can't serialize)
+		const { signal, tools, tool_choice, parallel_tool_calls, ...requestPayload } =
+			processedRequest;
 
 		let signalId: string | undefined;
 		if (signal) {
@@ -262,6 +294,16 @@ export class WebLLMLLM implements BaseLLM {
 		// WebLLM models use different validation - check against prebuiltAppConfig.model_list
 		const request: DeleteRequest = { model: modelId };
 		await this.send("delete", request);
+	}
+
+	async getToolCapabilities(_model?: string): Promise<ToolCapabilityInfo> {
+		// WebLLM models use prompt injection for tool support
+		return PROMPT_TOOL_SUPPORT;
+	}
+
+	async supportsTools(model?: string): Promise<boolean> {
+		const capability = await this.getToolCapabilities(model);
+		return capability.supported;
 	}
 
 	getInfo(): LLMInfo {

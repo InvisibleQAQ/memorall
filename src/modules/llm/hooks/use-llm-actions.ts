@@ -312,7 +312,7 @@ export const useLLMActions = ({
 			const response = (await serviceManager.llmService.chatCompletions(
 				request,
 			)) as ChatCompletionResponse;
-			const text = response.choices[0].message.content;
+			const text = response.choices[0].message.content ?? "";
 
 			setOutput(text);
 			setStatus("Done");

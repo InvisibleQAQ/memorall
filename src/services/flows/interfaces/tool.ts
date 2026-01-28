@@ -10,20 +10,39 @@ export interface AllServices {
 	database: IDatabaseService;
 }
 
-// Base tool interface with generic services
-export interface BaseTool<S = void> {
+// Base tool interface for runtime storage (no generic constraints)
+export interface BaseTool {
 	name: string;
 	description: string;
-	schema: z.ZodSchema<any>;
-	execute: S extends void
-		? (input: any) => Promise<string>
-		: (input: any, services: S) => Promise<string>;
+	schema: z.ZodSchema;
+	execute: (input: unknown) => Promise<string>;
 }
 
 // Typed tool interface for implementation
-export interface Tool<T = any, S = void> extends BaseTool<S> {
-	schema: z.ZodSchema<T>;
-	execute: S extends void
-		? (input: T) => Promise<string>
-		: (input: T, services: S) => Promise<string>;
+export interface Tool<TInput> extends Omit<BaseTool, 'schema' | 'execute'> {
+	schema: z.ZodSchema<TInput>;
+	execute: (input: TInput) => Promise<string>;
 }
+
+// Factory function type for creating tools with services bound
+export type ToolFactory<TInput, TServices = void> = TServices extends void
+	? () => Tool<TInput>
+	: (services: TServices) => Tool<TInput>;
+
+// ============================================================================
+// Utility types for deriving combined services from tool names
+// ============================================================================
+
+// Extract the keys from a Pick<AllServices, K> type
+type ServiceKeys<S> = S extends Pick<AllServices, infer K> ? K : never;
+
+// Get the union of service keys from multiple tool names
+type ToolServicesKeys<T extends readonly (keyof ToolTypeRegistry)[]> = {
+	[K in T[number]]: ServiceKeys<ToolTypeRegistry[K]["services"]>;
+}[T[number]];
+
+// Combine services from tool names + optional extra keys needed by the graph
+export type CombinedServices<
+	T extends readonly (keyof ToolTypeRegistry)[],
+	ExtraKeys extends keyof AllServices = never,
+> = Pick<AllServices, ToolServicesKeys<T> | ExtraKeys>;

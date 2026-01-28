@@ -5,6 +5,7 @@ import type {
 	ChatCompletionRequest,
 	ChatCompletionResponse,
 } from "@/types/openai";
+import type { ToolCapabilityInfo } from "./tool-capability";
 
 // Centralized LLM type definition
 export type LLMType =
@@ -95,4 +96,8 @@ export interface BaseLLM {
 
 	// Get LLM info
 	getInfo(): LLMInfo;
+
+	// Tool capabilities
+	getToolCapabilities(model?: string): Promise<ToolCapabilityInfo>;
+	supportsTools(model?: string): Promise<boolean>;
 }

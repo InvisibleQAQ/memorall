@@ -1,13 +1,20 @@
 import z from "zod";
-import type { Tool } from "../interfaces/tool";
+import type { Tool, ToolFactory } from "../interfaces/tool";
+import { toolRegistry } from "../tool-registry";
 
-export const currentTimeTool: Tool<{ timezone?: string }> = {
-	name: "current_time",
+const TOOL_NAME = "current_time" as const;
+
+const schema = z.object({
+	timezone: z.string().optional().describe("Timezone (default: UTC)"),
+});
+
+type Input = z.infer<typeof schema>;
+
+export const createCurrentTimeTool: ToolFactory<Input, undefined> = (): Tool<Input> => ({
+	name: TOOL_NAME,
 	description: "Get the current date and time",
-	schema: z.object({
-		timezone: z.string().optional().describe("Timezone (default: UTC)"),
-	}),
-	execute: async (input: { timezone?: string }) => {
+	schema,
+	execute: async (input) => {
 		const { timezone = "UTC" } = input;
 		const now = new Date();
 
@@ -17,4 +24,17 @@ export const currentTimeTool: Tool<{ timezone?: string }> = {
 			return `Current time in ${timezone}: ${now.toLocaleString("en-US", { timeZone: timezone })}`;
 		}
 	},
-};
+});
+
+// Self-register the tool
+toolRegistry.register(TOOL_NAME, createCurrentTimeTool);
+
+// Extend global ToolTypeRegistry for type-safe tool creation
+declare global {
+	interface ToolTypeRegistry {
+		[TOOL_NAME]: {
+			input: Input;
+			services: undefined;
+		};
+	}
+}

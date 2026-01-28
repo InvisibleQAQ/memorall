@@ -11,6 +11,8 @@ import type {
 	ChatCompletionResponse,
 	ChatMessage,
 } from "@/types/openai";
+import type { ToolCapabilityInfo } from "../interfaces/tool-capability";
+import { PROMPT_TOOL_SUPPORT } from "../interfaces/tool-capability";
 import {
 	AutoModelForCausalLM,
 	AutoTokenizer,
@@ -255,7 +257,12 @@ const WEBGPU_TRANSFORMER_MODELS: LFM2ModelDefinition[] = [
 	},
 ];
 
-function normalizeContent(content: ChatMessage["content"]): string {
+function normalizeContent(
+	content: ChatMessage["content"] | null | undefined,
+): string {
+	if (!content) {
+		return "";
+	}
 	if (typeof content === "string") {
 		return content;
 	}
@@ -361,6 +368,16 @@ export class TransformerDirectLLM implements BaseLLM {
 	async delete(modelId: string): Promise<void> {
 		// Local transformer models are streamed at runtime, so delete == unload
 		await this.unload(modelId);
+	}
+
+	async getToolCapabilities(_model?: string): Promise<ToolCapabilityInfo> {
+		// Transformer.js models use prompt injection for tool support
+		return PROMPT_TOOL_SUPPORT;
+	}
+
+	async supportsTools(model?: string): Promise<boolean> {
+		const capability = await this.getToolCapabilities(model);
+		return capability.supported;
 	}
 
 	getInfo(): LLMInfo {

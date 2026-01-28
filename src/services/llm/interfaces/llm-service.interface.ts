@@ -4,6 +4,7 @@ import type {
 	ChatCompletionChunk,
 } from "@/types/openai";
 import type { BaseLLM, ProgressEvent, ModelInfo } from "./base-llm";
+import type { ToolCapabilityInfo } from "./tool-capability";
 
 export interface CurrentModelInfo {
 	modelId: string;
@@ -94,4 +95,10 @@ export interface ILLMService {
 	unloadFor(name: string, modelId: string): Promise<void>;
 	deleteModel(modelId: string): Promise<void>;
 	deleteModelFor(name: string, modelId: string): Promise<void>;
+
+	// Tool capabilities - Implementation specific
+	getToolCapabilities(model?: string): Promise<ToolCapabilityInfo>;
+	getToolCapabilitiesFor(name: string, model?: string): Promise<ToolCapabilityInfo>;
+	supportsTools(model?: string): Promise<boolean>;
+	supportsToolsFor(name: string, model?: string): Promise<boolean>;
 }

@@ -8,6 +8,8 @@ import type {
 	CurrentModelInfo,
 	ServiceProvider,
 } from "./interfaces/llm-service.interface";
+import type { ToolCapabilityInfo } from "./interfaces/tool-capability";
+import { NO_TOOL_SUPPORT } from "./interfaces/tool-capability";
 import { CURRENT_MODEL_KEY } from "./constants";
 
 export abstract class LLMServiceCore {
@@ -400,6 +402,36 @@ export abstract class LLMServiceCore {
 		}
 
 		return await llm.getMaxResponseTokens(model || this.currentModel?.modelId);
+	}
+
+	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
+		if (!this.currentModel) {
+			return NO_TOOL_SUPPORT;
+		}
+
+		return this.getToolCapabilitiesFor(this.currentModel.serviceName, model);
+	}
+
+	async getToolCapabilitiesFor(
+		name: string,
+		model?: string,
+	): Promise<ToolCapabilityInfo> {
+		const llm = await this.get(name);
+		if (!llm) {
+			return NO_TOOL_SUPPORT;
+		}
+
+		return await llm.getToolCapabilities(model || this.currentModel?.modelId);
+	}
+
+	async supportsTools(model?: string): Promise<boolean> {
+		const capability = await this.getToolCapabilities(model);
+		return capability.supported;
+	}
+
+	async supportsToolsFor(name: string, model?: string): Promise<boolean> {
+		const capability = await this.getToolCapabilitiesFor(name, model);
+		return capability.supported;
 	}
 
 	// Abstract methods that must be implemented by concrete classes

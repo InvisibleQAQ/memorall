@@ -1,5 +1,5 @@
 import { Annotation } from "@langchain/langgraph/web";
-import type { ChatMessage } from "@/types/openai";
+import type { ChatMessage, ChatCompletionTool } from "@/types/openai";
 import {
 	type BaseStateBase,
 	BaseAnnotation,
@@ -8,6 +8,12 @@ import {
 export interface KnowledgeRAGConfig {
 	/** Retrieval mode: standard (LLM-based), quick (fast semantic), smart (hybrid - default) */
 	mode?: "standard" | "quick" | "smart";
+	/** Response mode: simple (single LLM call) or agent (tool calling loop) */
+	responseMode?: "simple" | "agent";
+	/** Tools available for agent mode */
+	tools?: ChatCompletionTool[];
+	/** Max iterations for agent mode (default: 10) */
+	maxIterations?: number;
 	maxGrowthLevels?: number;
 	searchLimit?: number;
 }
@@ -27,6 +33,11 @@ export interface KnowledgeRAGState extends BaseStateBase {
 
 	// Core context for general knowledge retrieval (topic name + description)
 	coreContext?: string;
+
+	// Agent config (from input)
+	tools?: ChatCompletionTool[];
+	maxIterations: number;
+	currentIteration: number;
 
 	// Query Analysis
 	extractedEntities: string[];
@@ -58,11 +69,11 @@ export interface KnowledgeRAGState extends BaseStateBase {
 	// Steps for tracking progress
 	steps: Array<{
 		role: "assistant" | "tool" | "user";
-		content: string;
+		content: string | null;
 		tool_calls?: Array<{
 			id: string;
-			name: string;
-			arguments: string;
+			type: "function";
+			function: { name: string; arguments: string };
 		}>;
 		tool_call_id?: string;
 	}>;
@@ -73,6 +84,8 @@ export interface KnowledgeRAGState extends BaseStateBase {
 		| "retrieve_knowledge"
 		| "build_context"
 		| "generate_response"
+		| "agent_response"
+		| "execute_tools"
 		| "citation";
 }
 
@@ -93,6 +106,18 @@ export const KnowledgeRAGAnnotation = {
 	coreContext: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,
 		default: () => undefined,
+	}),
+	tools: Annotation<ChatCompletionTool[] | undefined>({
+		value: (x, y) => y ?? x,
+		default: () => undefined,
+	}),
+	maxIterations: Annotation<number>({
+		value: (x, y) => y ?? x,
+		default: () => 10,
+	}),
+	currentIteration: Annotation<number>({
+		value: (x, y) => y ?? x,
+		default: () => 0,
 	}),
 	extractedEntities: Annotation<string[]>({
 		value: (x, y) => y ?? x ?? [],

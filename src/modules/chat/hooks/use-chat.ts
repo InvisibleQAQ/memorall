@@ -156,12 +156,18 @@ export const useChat = (model: string) => {
 					: allMessages;
 
 			// Filter out separator messages and map to the required format
-			const sendMessages = relevantMessages
+			// Note: Store messages are only user/assistant/system, not tool messages
+			const sendMessages: ChatMessage[] = relevantMessages
 				.filter((msg) => msg.type !== "separator")
-				.map((msg) => ({
-					role: msg.role as ChatMessage["role"],
-					content: msg.content,
-				}));
+				.map((msg) => {
+					const role = msg.role as "system" | "user" | "assistant";
+					if (role === "system") {
+						return { role, content: msg.content };
+					} else if (role === "user") {
+						return { role, content: msg.content };
+					}
+					return { role: "assistant" as const, content: msg.content };
+				});
 
 			// Create assistant message placeholder
 			assistantMessage = await addMessage({

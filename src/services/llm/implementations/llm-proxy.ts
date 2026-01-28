@@ -8,6 +8,8 @@ import type {
 	ProgressEvent,
 } from "../interfaces/base-llm";
 import type { ServiceProvider } from "../interfaces/llm-service.interface";
+import type { ToolCapabilityInfo } from "../interfaces/tool-capability";
+import { NO_TOOL_SUPPORT } from "../interfaces/tool-capability";
 import { LLM_DOWNLOAD_PROGRESS_EVENT } from "../constants";
 import type {
 	ChatCompletionChunk,
@@ -342,6 +344,17 @@ export class LLMProxy implements BaseLLM {
 		} catch (error) {
 			throw new Error(`Background job failed: ${error}`);
 		}
+	}
+
+	async getToolCapabilities(_model?: string): Promise<ToolCapabilityInfo> {
+		// Tool capabilities are handled at the service level, not through background jobs
+		// The proxy delegates to the actual LLM service which determines tool support
+		return NO_TOOL_SUPPORT;
+	}
+
+	async supportsTools(model?: string): Promise<boolean> {
+		const capability = await this.getToolCapabilities(model);
+		return capability.supported;
 	}
 
 	getInfo(): LLMInfo {

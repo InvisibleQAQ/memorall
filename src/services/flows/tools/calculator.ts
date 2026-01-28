@@ -1,18 +1,22 @@
 import z from "zod";
-import type { Tool } from "../interfaces/tool";
+import type { Tool, ToolFactory } from "../interfaces/tool";
+import { toolRegistry } from "../tool-registry";
 
-export const calculatorTool: Tool<
-	{ operation: string; a: number; b: number },
-	void
-> = {
-	name: "calculator",
+const TOOL_NAME = "calculator" as const;
+
+const schema = z.object({
+	operation: z.enum(["add", "subtract", "multiply", "divide"]),
+	a: z.number().describe("First number"),
+	b: z.number().describe("Second number"),
+});
+
+type Input = z.infer<typeof schema>;
+
+export const createCalculatorTool: ToolFactory<Input, undefined> = (): Tool<Input> => ({
+	name: TOOL_NAME,
 	description: "Perform basic mathematical calculations",
-	schema: z.object({
-		operation: z.enum(["add", "subtract", "multiply", "divide"]),
-		a: z.number().describe("First number"),
-		b: z.number().describe("Second number"),
-	}),
-	execute: async (input: { operation: string; a: number; b: number }) => {
+	schema,
+	execute: async (input) => {
 		const { operation, a, b } = input;
 		let result: number;
 
@@ -36,4 +40,17 @@ export const calculatorTool: Tool<
 
 		return `${a} ${operation} ${b} = ${result}`;
 	},
-};
+});
+
+// Self-register the tool
+toolRegistry.register(TOOL_NAME, createCalculatorTool);
+
+// Extend global ToolTypeRegistry for type-safe tool creation
+declare global {
+	interface ToolTypeRegistry {
+		[TOOL_NAME]: {
+			input: Input;
+			services: undefined;
+		};
+	}
+}

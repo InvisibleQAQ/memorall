@@ -1,39 +1,21 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import { AgentAnnotation, type AgentState } from "./state";
 
-import { GraphBase } from "../../interfaces/graph.base";
-import {
-	getTool,
-	availableTools,
-	generateToolInstructions,
-	parseToolCall,
-	executeToolByName,
-} from "../../tools";
-import type { AllServices } from "../../interfaces/tool";
-import type { ChatCompletionResponse, ChatMessage } from "@/types/openai";
+import { GraphBase } from "@/services/flows/interfaces/graph.base";
+import { toolRegistry, convertToolsToOpenAI } from "@/services/flows/tools";
+import type { AllServices, BaseTool } from "@/services/flows/interfaces/tool";
+import type { ChatCompletionResponse, ChatCompletionChunk, ChatMessage } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
-import { flowRegistry } from "../../flow-registry";
+import { flowRegistry } from "@/services/flows/flow-registry";
 
-const TOOLS = {
-	current_time: availableTools.current_time,
-};
+// Tool names available to this graph
+const TOOL_NAMES = ["current_time"] as const;
 
-const DECISION_SYSTEM_PROMPT = `
-You are an intelligent agent that can decide whether to use tools to help answer user questions or not. Below are the available tools you can use:
-${Object.values(TOOLS)
-	.map((tool) => `- ${tool.name}: ${tool.description}`)
-	.join("\n")}
-Important: Your answer must be one of the following exactly:
-- YES_USE_TOOL: if one of available tools can help answer the user's question.
-- NO: if <thought> section contains enough information to answer the user's question.
-`;
 const ANSWER_SYSTEM_PROMPT = `
 You are an intelligent assistant that can provide answers to user questions. Use your knowledge and reasoning skills to generate accurate and helpful responses.
 `;
 const AGENT_SYSTEM_PROMPT = `
-You are an intelligent assistant that can use tools to help answer user questions. Use the tools when appropriate to provide accurate and helpful responses.
-You will use the following tools to help you answer user questions:
-${generateToolInstructions(TOOLS)}
+You are an intelligent assistant that can use tools to help answer user questions. Use tools when needed to provide accurate answers.
 `;
 
 export class SimpleGraph extends GraphBase<
@@ -41,8 +23,15 @@ export class SimpleGraph extends GraphBase<
 	AgentState,
 	AllServices
 > {
+	private tools: BaseTool[];
+	private toolsMap: Map<string, BaseTool>;
+
 	constructor(services: AllServices) {
 		super(services);
+
+		// Create bound tools with services
+		this.tools = toolRegistry.getTools(TOOL_NAMES, services);
+		this.toolsMap = new Map(this.tools.map((t) => [t.name, t]));
 		this.workflow = new StateGraph(AgentAnnotation);
 
 		// Add nodes
@@ -167,10 +156,19 @@ export class SimpleGraph extends GraphBase<
 			throw new Error("LLM service is not ready");
 		}
 
+		// Build decision prompt dynamically from tools
+		const decisionSystemPrompt = `
+You are an intelligent agent that can decide whether to use tools to help answer user questions or not. Below are the available tools you can use:
+${this.tools.map((tool) => `- ${tool.name}: ${tool.description}`).join("\n")}
+Important: Your answer must be one of the following exactly:
+- YES_USE_TOOL: if one of available tools can help answer the user's question.
+- NO: if <thought> section contains enough information to answer the user's question.
+`;
+
 		const chainOfThoughtMessage = this.buildChainOfThought(state);
 		// Convert to messages for LLM
 		const messages: ChatMessage[] = [
-			{ role: "system" as const, content: DECISION_SYSTEM_PROMPT },
+			{ role: "system" as const, content: decisionSystemPrompt },
 			...(chainOfThoughtMessage ? [chainOfThoughtMessage] : []),
 			...state.messages,
 		];
@@ -230,84 +228,113 @@ export class SimpleGraph extends GraphBase<
 
 		try {
 			const chainOfThoughtMessage = this.buildChainOfThought(state);
-			// Convert to messages for LLM
 			const messages: ChatMessage[] = [
 				{ role: "system" as const, content: AGENT_SYSTEM_PROMPT },
 				...(chainOfThoughtMessage ? [chainOfThoughtMessage] : []),
 				...state.messages,
 			];
+			const tools = convertToolsToOpenAI(this.tools);
 
-			logInfo("[AGENT] LLM messages:", messages);
+			logInfo("[AGENT] LLM messages:", messages.length, "tools:", tools.length);
 
-			// Use actual LLM service instead of pattern matching
-			const llmResponse = (await llm.chatCompletions({
-				messages: messages,
-				max_tokens: 4096,
-				temperature: 0.1,
-				stream: false,
-			})) as ChatCompletionResponse;
-			const responseContent = llmResponse.choices[0].message.content || "";
-			logInfo("[AGENT] response:", responseContent);
+			// Use native OpenAI tool calling with streaming
+			const stream = llm.chatCompletions({
+				messages,
+				tools,
+				tool_choice: "auto",
+				stream: true,
+			}) as AsyncIterableIterator<ChatCompletionChunk>;
 
-			// Parse tool calls from LLM response
-			const toolCall = parseToolCall(responseContent);
-			let newStep;
+			// Accumulate response from stream
+			let content = "";
+			const toolCallsMap = new Map<number, {
+				id: string;
+				type: "function";
+				function: { name: string; arguments: string };
+			}>();
 
-			if (toolCall) {
-				// Create assistant step with tool call
-				const toolCalls = [
-					{
-						id: crypto.randomUUID(),
-						name: toolCall.name,
-						arguments: JSON.stringify(toolCall.arguments),
-					},
-				];
+			for await (const chunk of stream) {
+				const delta = chunk.choices[0]?.delta;
 
-				newStep = {
+				if (delta?.content) {
+					content += delta.content;
+					if (this.callbacks?.onNewChunk) {
+						this.callbacks.onNewChunk(chunk);
+					}
+				}
+
+				if (delta?.tool_calls) {
+					for (const tc of delta.tool_calls) {
+						const existing = toolCallsMap.get(tc.index);
+						if (existing) {
+							if (tc.function?.arguments) {
+								existing.function.arguments += tc.function.arguments;
+							}
+						} else {
+							toolCallsMap.set(tc.index, {
+								id: tc.id || crypto.randomUUID(),
+								type: "function",
+								function: {
+									name: tc.function?.name || "",
+									arguments: tc.function?.arguments || "",
+								},
+							});
+						}
+					}
+				}
+			}
+
+			const toolCalls = Array.from(toolCallsMap.values());
+			logInfo("[AGENT] Stream complete - content:", content.length, "tool_calls:", toolCalls.length);
+
+			if (toolCalls.length > 0) {
+				const newStep = {
 					role: "assistant" as const,
-					content: responseContent,
-					tool_calls: toolCalls,
+					content: content || "",
+					tool_calls: toolCalls.map((tc) => ({
+						id: tc.id,
+						name: tc.function.name,
+						arguments: tc.function.arguments,
+					})),
 				};
 
 				return {
 					steps: [newStep],
 					next: "tools",
-					actions: [
-						{
-							id: crypto.randomUUID(),
-							name: `Call "${toolCall.name}"`,
-							description: `Calling tool ${toolCall.name} with arguments ${JSON.stringify(toolCall.arguments)}`,
-							metadata: {},
-						},
-					],
-				};
-			} else {
-				// Create final assistant response step
-				newStep = {
-					role: "assistant" as const,
-					content: responseContent,
-				};
-
-				return {
-					steps: [newStep],
-					next: "decision",
-					actions: [
-						{
-							id: crypto.randomUUID(),
-							name: "Thinking next step",
-							description: "",
-							metadata: {},
-						},
-					],
+					actions: toolCalls.map((tc) => ({
+						id: crypto.randomUUID(),
+						name: `Calling "${tc.function.name}"`,
+						description: `Args: ${tc.function.arguments}`,
+						metadata: { tool: tc.function.name },
+					})),
 				};
 			}
+
+			// No tool calls - go back to decision
+			const newStep = {
+				role: "assistant" as const,
+				content,
+			};
+
+			return {
+				steps: [newStep],
+				next: "decision",
+				actions: [
+					{
+						id: crypto.randomUUID(),
+						name: "Thinking next step",
+						description: "",
+						metadata: {},
+					},
+				],
+			};
 		} catch (error) {
 			logError("Agent node error:", error);
 			throw error;
 		}
 	};
 
-	async toolsNode(state: AgentState): Promise<Partial<AgentState>> {
+	toolsNode = async (state: AgentState): Promise<Partial<AgentState>> => {
 		const lastStep = state.steps[state.steps.length - 1];
 
 		if (!lastStep?.tool_calls || lastStep.tool_calls.length === 0) {
@@ -318,7 +345,7 @@ export class SimpleGraph extends GraphBase<
 
 		// Execute each tool call
 		for (const toolCall of lastStep.tool_calls) {
-			const tool = getTool(toolCall.name);
+			const tool = this.toolsMap.get(toolCall.name);
 
 			if (!tool) {
 				toolResultSteps.push({
@@ -330,15 +357,12 @@ export class SimpleGraph extends GraphBase<
 			}
 
 			try {
-				// Parse tool arguments
+				// Parse and validate tool arguments
 				const args = JSON.parse(toolCall.arguments);
+				const validatedArgs = tool.schema.parse(args);
 
-				// Execute the tool with validation and type safety
-				const result = await executeToolByName(
-					toolCall.name,
-					args,
-					this.services,
-				);
+				// Execute the tool (services already bound via factory)
+				const result = await tool.execute(validatedArgs);
 
 				// Add tool result to steps
 				toolResultSteps.push({
@@ -369,7 +393,7 @@ export class SimpleGraph extends GraphBase<
 				},
 			],
 		};
-	}
+	};
 }
 
 // Self-register the flow

@@ -16,10 +16,10 @@ import { FactResolutionFlow } from "./fact-resolution";
 import { EdgeEnrichmentFlow } from "./edge-enrichment";
 import { TemporalExtractionFlow } from "./temporal-extraction";
 import { DatabaseSaveFlow } from "./database-save";
-import { GraphBase } from "../../interfaces/graph.base";
-import type { AllServices } from "../../interfaces/tool";
+import { GraphBase } from "@/services/flows/interfaces/graph.base";
+import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { Node, Edge } from "@/services/database";
-import { flowRegistry } from "../../flow-registry";
+import { flowRegistry } from "@/services/flows/flow-registry";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { FactExtractionFlowV2 } from "./fact-extraction-v2";
 

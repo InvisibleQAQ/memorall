@@ -64,14 +64,19 @@ export type ChatJob = BaseJob & {
 /**
  * Helper function to extract text content from OpenAI message content format
  */
-function extractTextContent(content: ChatMessage["content"]): string {
+function extractTextContent(
+	content: ChatMessage["content"] | null | undefined,
+): string {
+	if (!content) {
+		return "";
+	}
 	if (typeof content === "string") {
 		return content;
 	}
 	// For array content, concatenate all text parts
 	return content
 		.filter((part) => part.type === "text")
-		.map((part) => part.text)
+		.map((part) => (part as { type: "text"; text: string }).text)
 		.join("\n");
 }
 

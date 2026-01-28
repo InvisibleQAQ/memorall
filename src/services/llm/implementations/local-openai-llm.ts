@@ -9,7 +9,56 @@ import type {
 	ChatCompletionChunk,
 	ChatCompletionRequest,
 	ChatCompletionResponse,
+	ChatCompletionMessageParam,
+	ChatCompletionChunkToolCall,
+	ChatCompletionFinishReason,
 } from "@/types/openai";
+import type { ToolCapabilityInfo } from "../interfaces/tool-capability";
+import {
+	NATIVE_TOOL_SUPPORT,
+	PROMPT_TOOL_SUPPORT,
+	NO_TOOL_SUPPORT,
+} from "../interfaces/tool-capability";
+import {
+	injectToolsIntoSystemPrompt,
+	extractToolCallsFromResponse,
+} from "../tools/tool-adapter";
+
+// Model patterns for local servers
+const MODEL_TOOL_PATTERNS: Array<{
+	pattern: RegExp;
+	capability: ToolCapabilityInfo;
+}> = [
+	// Llama 3+ - native support in Ollama
+	{
+		pattern: /llama-?3/i,
+		capability: { ...NATIVE_TOOL_SUPPORT, streamingToolCalls: false },
+	},
+	{ pattern: /llama-?4/i, capability: NATIVE_TOOL_SUPPORT },
+	// Mistral - native support
+	{
+		pattern: /mistral/i,
+		capability: { ...NATIVE_TOOL_SUPPORT, streamingToolCalls: false },
+	},
+	// Qwen 2.5 - native support
+	{
+		pattern: /qwen.*2\.5/i,
+		capability: { ...NATIVE_TOOL_SUPPORT, streamingToolCalls: false },
+	},
+	// DeepSeek - native for v3/r1
+	{
+		pattern: /deepseek.*(v3|r1|coder)/i,
+		capability: {
+			...NATIVE_TOOL_SUPPORT,
+			parallelCalls: false,
+			streamingToolCalls: false,
+		},
+	},
+	// Phi - prompt injection only
+	{ pattern: /phi/i, capability: PROMPT_TOOL_SUPPORT },
+	// Small/quantized models - usually no support
+	{ pattern: /tiny|small|mini|nano/i, capability: NO_TOOL_SUPPORT },
+];
 
 // Local OpenAI-compatible LLM (works for LM Studio and Ollama /v1 endpoints)
 export class LocalOpenAICompatibleLLM implements BaseLLM {
@@ -94,23 +143,59 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 		}
 	}
 
+	private serializeMessages(
+		messages: ChatCompletionMessageParam[],
+	): Record<string, unknown>[] {
+		return messages.map((m) => {
+			const base: Record<string, unknown> = { role: m.role, content: m.content };
+			if (m.role === "assistant" && m.tool_calls) {
+				base.tool_calls = m.tool_calls;
+			}
+			if (m.role === "tool") {
+				base.tool_call_id = m.tool_call_id;
+			}
+			if ("name" in m && m.name) {
+				base.name = m.name;
+			}
+			return base;
+		});
+	}
+
 	private async createCompletion(
 		request: ChatCompletionRequest,
 	): Promise<ChatCompletionResponse> {
 		if (!this.ready) await this.initialize();
 
-		const body = {
-			model: request.model,
-			messages: request.messages.map((m) => ({
-				role: m.role,
-				content: m.content,
-			})),
-			max_tokens: request.max_tokens,
-			temperature: request.temperature,
-			top_p: request.top_p,
-			stop: request.stop,
+		// Check if model supports native tools or needs prompt injection
+		const capability = await this.getToolCapabilities(request.model);
+		let processedRequest = request;
+		let usePromptInjection = false;
+
+		if (request.tools?.length && capability.mode === "prompt_injection") {
+			processedRequest = injectToolsIntoSystemPrompt(request);
+			usePromptInjection = true;
+		}
+
+		const body: Record<string, unknown> = {
+			model: processedRequest.model,
+			messages: this.serializeMessages(processedRequest.messages),
+			max_tokens: processedRequest.max_tokens,
+			temperature: processedRequest.temperature,
+			top_p: processedRequest.top_p,
+			stop: processedRequest.stop,
 			stream: false,
 		};
+
+		// Add tools if native support and tools provided
+		if (request.tools?.length && capability.mode === "native") {
+			body.tools = request.tools;
+			if (request.tool_choice) {
+				body.tool_choice = request.tool_choice;
+			}
+			if (request.parallel_tool_calls !== undefined) {
+				body.parallel_tool_calls = request.parallel_tool_calls;
+			}
+		}
 
 		const res = await fetch(`${this.baseURL}/chat/completions`, {
 			method: "POST",
@@ -128,7 +213,7 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 		const created = Number(data.created || Math.floor(Date.now() / 1000));
 		const model = String(data.model || body.model);
 
-		return {
+		let response: ChatCompletionResponse = {
 			id: String(data.id || `chatcmpl_${created}`),
 			object: "chat.completion",
 			created,
@@ -137,9 +222,11 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 				index: Number(choice.index ?? i),
 				message: {
 					role: "assistant",
-					content: String(choice?.message?.content ?? ""),
+					content: choice?.message?.content ?? null,
+					tool_calls: choice?.message?.tool_calls,
 				},
-				finish_reason: (choice.finish_reason || "stop") as "stop" | "length",
+				finish_reason: (choice.finish_reason ||
+					"stop") as ChatCompletionFinishReason,
 			})),
 			usage: {
 				prompt_tokens: Number(data?.usage?.prompt_tokens ?? 0),
@@ -147,6 +234,13 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 				total_tokens: Number(data?.usage?.total_tokens ?? 0),
 			},
 		};
+
+		// Extract tool calls from text if using prompt injection
+		if (usePromptInjection) {
+			response = extractToolCallsFromResponse(response);
+		}
+
+		return response;
 	}
 
 	private async *createStreamingCompletion(
@@ -154,18 +248,34 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 	): AsyncIterableIterator<ChatCompletionChunk> {
 		if (!this.ready) await this.initialize();
 
-		const body = {
-			model: request.model || "local-model",
-			messages: request.messages.map((m) => ({
-				role: m.role,
-				content: m.content,
-			})),
-			max_tokens: request.max_tokens,
-			temperature: request.temperature,
-			top_p: request.top_p,
-			stop: request.stop,
+		// Check if model supports native tools or needs prompt injection
+		const capability = await this.getToolCapabilities(request.model);
+		let processedRequest = request;
+
+		if (request.tools?.length && capability.mode === "prompt_injection") {
+			processedRequest = injectToolsIntoSystemPrompt(request);
+		}
+
+		const body: Record<string, unknown> = {
+			model: processedRequest.model || "local-model",
+			messages: this.serializeMessages(processedRequest.messages),
+			max_tokens: processedRequest.max_tokens,
+			temperature: processedRequest.temperature,
+			top_p: processedRequest.top_p,
+			stop: processedRequest.stop,
 			stream: true,
 		};
+
+		// Add tools if native support and tools provided
+		if (request.tools?.length && capability.mode === "native") {
+			body.tools = request.tools;
+			if (request.tool_choice) {
+				body.tool_choice = request.tool_choice;
+			}
+			if (request.parallel_tool_calls !== undefined) {
+				body.parallel_tool_calls = request.parallel_tool_calls;
+			}
+		}
 
 		const res = await fetch(`${this.baseURL}/chat/completions`, {
 			method: "POST",
@@ -215,6 +325,11 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 						? json.choices[0]
 						: undefined;
 					if (!choice) continue;
+
+					// Handle tool_calls in streaming
+					const toolCalls: ChatCompletionChunkToolCall[] | undefined =
+						choice?.delta?.tool_calls;
+
 					const chunk: ChatCompletionChunk = {
 						id: String(json.id || `chatcmpl_${Date.now()}`),
 						object: "chat.completion.chunk",
@@ -226,11 +341,10 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 								delta: {
 									role: sentFirst ? undefined : ("assistant" as const),
 									content: choice?.delta?.content ?? undefined,
+									tool_calls: toolCalls,
 								},
-								finish_reason: (choice.finish_reason ?? null) as
-									| "stop"
-									| "length"
-									| null,
+								finish_reason:
+									(choice.finish_reason ?? null) as ChatCompletionFinishReason,
 							},
 						],
 					};
@@ -249,6 +363,41 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 
 	async delete(_modelId: string): Promise<void> {
 		throw new Error("Cannot delete local models via OpenAI-compatible API");
+	}
+
+	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
+		if (!model) {
+			return NO_TOOL_SUPPORT;
+		}
+
+		// Check model-specific patterns
+		for (const { pattern, capability } of MODEL_TOOL_PATTERNS) {
+			if (pattern.test(model)) {
+				return capability;
+			}
+		}
+
+		// Provider-specific defaults
+		if (this.providerType === "ollama") {
+			return {
+				...PROMPT_TOOL_SUPPORT,
+				notes: "Check Ollama model card for tool support",
+			};
+		}
+
+		if (this.providerType === "lmstudio") {
+			return {
+				...PROMPT_TOOL_SUPPORT,
+				notes: "Tool support depends on loaded model",
+			};
+		}
+
+		return NO_TOOL_SUPPORT;
+	}
+
+	async supportsTools(model?: string): Promise<boolean> {
+		const capability = await this.getToolCapabilities(model);
+		return capability.supported;
 	}
 
 	getInfo(): LLMInfo {

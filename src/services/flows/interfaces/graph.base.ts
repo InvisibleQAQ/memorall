@@ -72,6 +72,10 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 		return this.app;
 	}
 
+	setCallbacks(callbacks?: Callbacks) {
+		this.callbacks = callbacks
+	}
+
 	invoke(
 		input: Partial<T>,
 		options?: { callbacks?: Callbacks },
