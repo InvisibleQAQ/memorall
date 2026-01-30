@@ -380,24 +380,6 @@ export class SmartRetrievalFlow {
 				extractedEntities: result.queryComponents.map((c) => c.text),
 				queryIntent: "factual",
 				next: "build_context",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "smart_knowledge_retrieval",
-						description: this.formatRetrievalDescription(),
-						metadata: {
-							mode: "smart_hybrid",
-							stats: this.stats,
-							coverage: this.stats.phase3.coverage,
-							// Add growth metrics like quick-retrieval for graph rendering
-							initialNodeCount: this.stats.phase1.seedNodes,
-							initialEdgeCount: this.stats.phase1.seedEdges,
-							grownNodeCount: this.stats.phase4.finalNodes,
-							grownEdgeCount: this.stats.phase4.finalEdges,
-							growthLevels: this.stats.phase2.levelsExpanded,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[SMART_RETRIEVAL] Retrieval failed:", error);

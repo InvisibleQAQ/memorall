@@ -16,8 +16,8 @@ const getSupabaseConfig = async (): Promise<{
 
 		if (stored?.supabaseUrl && stored?.supabaseAnonKey) {
 			return {
-				url: stored.supabaseUrl,
-				anonKey: stored.supabaseAnonKey,
+				url: stored.supabaseUrl as string,
+				anonKey: stored.supabaseAnonKey as string,
 			};
 		}
 	} catch (error) {
@@ -64,7 +64,7 @@ export const getSupabaseClient = async () => {
 				getItem: async (key: string) => {
 					try {
 						const result = await chrome.storage?.local?.get?.(key);
-						return result?.[key] || null;
+						return (result?.[key] as string) || null;
 					} catch {
 						return null;
 					}

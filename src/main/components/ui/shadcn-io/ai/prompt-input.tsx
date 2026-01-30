@@ -10,7 +10,7 @@ import {
 } from "@/main/components/ui/select";
 import { Textarea } from "@/main/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { ChatStatus } from "ai";
+import type { ChatStatus } from "@/types/chat";
 import { Loader2Icon, SendIcon, SquareIcon, XIcon } from "lucide-react";
 import type {
 	ComponentProps,

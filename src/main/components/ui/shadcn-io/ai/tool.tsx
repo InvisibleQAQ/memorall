@@ -7,7 +7,7 @@ import {
 	CollapsibleTrigger,
 } from "@/main/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import type { ToolUIPart } from "ai";
+import type { ToolState } from "@/types/chat";
 import {
 	CheckCircleIcon,
 	ChevronDownIcon,
@@ -29,12 +29,12 @@ export const Tool = ({ className, ...props }: ToolProps) => (
 );
 
 export type ToolHeaderProps = {
-	type: ToolUIPart["type"];
-	state: ToolUIPart["state"];
+	type: string;
+	state: ToolState;
 	className?: string;
 };
 
-const getStatusBadge = (status: ToolUIPart["state"]) => {
+const getStatusBadge = (status: ToolState) => {
 	const labels = {
 		"input-streaming": "Pending",
 		"input-available": "Running",
@@ -92,7 +92,7 @@ export const ToolContent = ({ className, ...props }: ToolContentProps) => (
 );
 
 export type ToolInputProps = ComponentProps<"div"> & {
-	input: ToolUIPart["input"];
+	input: unknown;
 };
 
 export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
@@ -108,7 +108,7 @@ export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
 
 export type ToolOutputProps = ComponentProps<"div"> & {
 	output: ReactNode;
-	errorText: ToolUIPart["errorText"];
+	errorText?: string;
 };
 
 export const ToolOutput = ({

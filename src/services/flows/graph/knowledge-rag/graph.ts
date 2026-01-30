@@ -200,7 +200,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 			// 1. Build definitions section - entity names and summaries
 			const definitions = state.relevantNodes
-				.map((node) => `${node.name}: ${node.summary}.`)
+				.map((node) => `"${node.name}" (${node.nodeType || 'Unknow'}): ${node.summary}.`)
 				.join("\n");
 
 			// 2. Build facts section - entity connections with fact text
@@ -212,7 +212,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					const destName =
 						state.relevantNodes.find((n) => n.id === edge.destinationId)
 							?.name || "Unknown";
-					return `${sourceName} ${edge.edgeType} ${destName}, ${edge.factText}.`;
+					return `"${sourceName}" ${edge.edgeType} "${destName}", ${edge.factText}.`;
 				})
 				.join("\n");
 
@@ -301,14 +301,6 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 			return {
 				finalMessage: responseContent,
 				next: "citation",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "response_generation",
-						description: "Generated knowledge-based response",
-						metadata: { responseLength: responseContent.length },
-					},
-				],
 			};
 		} catch (error) {
 			logError("[KNOWLEDGE_RAG] Response generation failed:", error);

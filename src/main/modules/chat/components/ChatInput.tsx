@@ -30,7 +30,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/main/components/ui/tooltip";
-import type { ChatStatus } from "ai";
+import type { ChatStatus } from "@/types/chat";
 import type { ChatMode } from "@/main/modules/chat/services/chat-service";
 
 interface ChatInputProps {

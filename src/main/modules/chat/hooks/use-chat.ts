@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { chatService } from "@/main/modules/chat/services/chat-service";
-import type { ChatMode } from "@/main/modules/chat/services/chat-service";
 import type { ChatMessage } from "@/types/openai";
 import { useChatStore } from "@/main/stores/chat";
-import type { ChatStatus } from "ai";
+import type { ChatStatus } from "@/types/chat";
 import { logError, logInfo } from "@/utils/logger";
 import { serviceManager } from "@/services";
 
@@ -56,9 +55,10 @@ export const useChat = (model: string) => {
 		initializeConversation();
 	}, [model, ensureMainConversation]);
 
-	// Sync selectedTopic with last message's topic
+	// Sync selectedTopic with last message's topic only if no topic has been selected yet
 	useEffect(() => {
 		if (chatMode !== "knowledge") return;
+		if (selectedTopic !== "default") return;
 
 		// Find the last user or assistant message (skip separators)
 		const lastMessage = messages
@@ -66,13 +66,8 @@ export const useChat = (model: string) => {
 			.findLast((msg) => msg.role === "user" || msg.role === "assistant");
 
 		if (lastMessage?.topicId) {
-			// If last message has a topicId, use it
 			setSelectedTopic(lastMessage.topicId);
-		} else if (messages.length > 0 && !lastMessage?.topicId) {
-			// If there are messages but no topicId, use default
-			setSelectedTopic("default");
 		}
-		// If no messages, keep current selection (default)
 	}, [messages, chatMode]);
 
 	// Stop current chat request

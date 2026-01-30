@@ -53,7 +53,7 @@ export function useLanguage() {
 			areaName: string,
 		) => {
 			if (areaName === "local" && changes[LANGUAGE_STORAGE_KEY]) {
-				const newLanguage = changes[LANGUAGE_STORAGE_KEY].newValue;
+				const newLanguage = changes[LANGUAGE_STORAGE_KEY].newValue as string;
 				if (newLanguage && i18n.language !== newLanguage) {
 					i18n.changeLanguage(newLanguage);
 					logInfo(`Language changed from storage: ${newLanguage}`);

@@ -1,4 +1,5 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
+import type { ZodSchema } from "zod/v3";
 import type { BaseTool, Tool, ToolFactory } from "./interfaces/tool";
 import type { ChatCompletionTool } from "@/types/openai";
 
@@ -119,7 +120,7 @@ export function convertToolsToOpenAI(tools: BaseTool[]): ChatCompletionTool[] {
 		function: {
 			name: tool.name,
 			description: tool.description,
-			parameters: zodToJsonSchema(tool.schema, { target: "openAi" }),
+			parameters: zodToJsonSchema(tool.schema as unknown as ZodSchema, { target: "openAi" }),
 		},
 	}));
 }
