@@ -1,7 +1,10 @@
 import { logInfo, logError } from "@/utils/logger";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionResponse, ChatMessage } from "@/types/openai";
@@ -12,7 +15,11 @@ const STEP_NAME = "analyze-query" as const;
 // STEP-SPECIFIC TYPES
 // ============================================================================
 
-export type QueryIntent = "factual" | "relationship" | "summary" | "exploration";
+export type QueryIntent =
+	| "factual"
+	| "relationship"
+	| "summary"
+	| "exploration";
 
 export interface AnalyzeQueryInput {
 	query: string;
@@ -49,7 +56,11 @@ Respond in this exact JSON format:
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<AnalyzeQueryInput, AnalyzeQueryOutput, AllServices>({
+const definition = defineStep<
+	AnalyzeQueryInput,
+	AnalyzeQueryOutput,
+	AllServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		const llm = services.llm;
@@ -142,7 +153,9 @@ const definition = defineStep<AnalyzeQueryInput, AnalyzeQueryOutput, AllServices
 
 type AnalyzeQuerySpec = StepSpecFromDefinition<typeof definition>;
 
-export const createAnalyzeQueryStep: StepFactoryFromSpec<AnalyzeQuerySpec> = (services: AllServices) => bindStep(definition, services);
+export const createAnalyzeQueryStep: StepFactoryFromSpec<AnalyzeQuerySpec> = (
+	services: AllServices,
+) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createAnalyzeQueryStep);
 

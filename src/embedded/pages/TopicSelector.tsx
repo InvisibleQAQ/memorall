@@ -4,9 +4,15 @@ import { DEFAULT_LANGUAGE } from "@/constants/language";
 import type { Language } from "@/constants/language";
 
 import type { TopicSelectorProps } from "@/embedded/types";
-import { getTopicsForSelector, sendContentWithTopic } from "@/embedded/messaging";
+import {
+	getTopicsForSelector,
+	sendContentWithTopic,
+} from "@/embedded/messaging";
 import { customStyles } from "@/embedded/styles/customStyles";
-import { loadLanguageFromStorage, EMBEDDED_TRANSLATIONS } from "@/embedded/language";
+import {
+	loadLanguageFromStorage,
+	EMBEDDED_TRANSLATIONS,
+} from "@/embedded/language";
 
 import { createShadowPage } from "@/embedded/utils/create-shadow-page";
 
@@ -198,12 +204,9 @@ export async function createEmbeddedTopicSelector(
 ): Promise<() => void> {
 	// Load language once at creation time
 	const language = await loadLanguageFromStorage();
-	const {
-		root,
-		container,
-	} = createShadowPage({
-		customStyles
-	})
+	const { root, container } = createShadowPage({
+		customStyles,
+	});
 
 	const cleanupModal = () => {
 		root.unmount();

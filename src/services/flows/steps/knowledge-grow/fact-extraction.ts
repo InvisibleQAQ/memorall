@@ -2,7 +2,10 @@ import { logInfo, logError, logWarn } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
@@ -212,7 +215,11 @@ async function generateFactsForUnconnectedEntities(
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<FactExtractionInput, FactExtractionOutput, AllServices>({
+const definition = defineStep<
+	FactExtractionInput,
+	FactExtractionOutput,
+	AllServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		try {
@@ -540,7 +547,9 @@ const definition = defineStep<FactExtractionInput, FactExtractionOutput, AllServ
 
 type FactExtractionSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createFactExtractionStep: StepFactoryFromSpec<FactExtractionSpec> = (services: AllServices) => bindStep(definition, services);
+export const createFactExtractionStep: StepFactoryFromSpec<
+	FactExtractionSpec
+> = (services: AllServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createFactExtractionStep);
 

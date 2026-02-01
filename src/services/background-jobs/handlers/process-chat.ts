@@ -139,9 +139,151 @@ class StreamBuffer {
 	}
 }
 
+type KnowledgeStreamDeps = {
+	jobId: string;
+	model: string;
+	config: Required<ChatStreamConfig>;
+	dependencies: ProcessDependencies;
+	streamBuffer: StreamBuffer;
+	getProgress: () => number;
+};
+
+type StreamBufferDeps = {
+	jobId: string;
+	model: string;
+	config: Required<ChatStreamConfig>;
+	dependencies: ProcessDependencies;
+	onContent: (content: string) => void;
+	getProgress: () => number;
+};
+
 export class ChatHandler extends BaseProcessHandler<ChatJob> {
 	constructor() {
 		super();
+	}
+
+	private static createStreamBuffer(deps: StreamBufferDeps): StreamBuffer {
+		return new StreamBuffer(deps.config.minWordsToStream, (bufferedContent) => {
+			deps.onContent(bufferedContent);
+			deps.dependencies.updateJobProgress(deps.jobId, {
+				stage: "Receiving response...",
+				progress: deps.getProgress(),
+				result: {
+					type: "chunk",
+					chunk: {
+						id: `chunk-${Date.now()}`,
+						object: "chat.completion.chunk",
+						created: Math.floor(Date.now() / 1000),
+						model: deps.model,
+						choices: [
+							{
+								index: 0,
+								delta: { content: bufferedContent, role: "assistant" },
+								finish_reason: null,
+							},
+						],
+					},
+				} as ChatResult,
+			});
+		});
+	}
+
+	private static hasToolCalls(
+		delta: ChatCompletionChunk["choices"][number]["delta"] | undefined,
+	): boolean {
+		return Array.isArray(delta?.tool_calls) && delta.tool_calls.length > 0;
+	}
+
+	private static createHandleChunk(deps: KnowledgeStreamDeps) {
+		return async (chunk: ChatCompletionChunk) => {
+			const choice = chunk.choices?.[0];
+			if (!choice) {
+				return;
+			}
+
+			const delta = choice.delta;
+
+			if (
+				deps.config.streamToolCallsImmediately &&
+				ChatHandler.hasToolCalls(delta)
+			) {
+				await deps.dependencies.updateJobProgress(deps.jobId, {
+					stage: "Tool call in progress...",
+					progress: deps.getProgress(),
+					result: {
+						type: "chunk",
+						chunk,
+					} as ChatResult,
+				});
+				return;
+			}
+
+			const content = delta?.content ?? "";
+			if (content) {
+				deps.streamBuffer.add(content);
+			}
+
+			if (delta?.role || choice.finish_reason) {
+				const chunkToSend = content
+					? {
+							...chunk,
+							choices: [
+								{
+									...choice,
+									delta: {
+										...delta,
+										content: undefined,
+									},
+								},
+							],
+						}
+					: chunk;
+
+				await deps.dependencies.updateJobProgress(deps.jobId, {
+					stage: "Receiving response...",
+					progress: deps.getProgress(),
+					result: {
+						type: "chunk",
+						chunk: chunkToSend,
+					} as ChatResult,
+				});
+			}
+		};
+	}
+
+	private static createKnowledgeHandleActions(
+		dependencies: ProcessDependencies,
+		jobId: string,
+		actions: FlowAction[],
+	) {
+		return (next: FlowAction[]) => {
+			let added = false;
+			for (const action of next) {
+				if (!actions.find((a) => a.id === action.id)) {
+					actions.push(action);
+					added = true;
+				}
+			}
+			if (added) {
+				dependencies.updateJobProgress(jobId, {
+					stage: "Receiving response...",
+					progress: 10,
+					result: {
+						type: "action",
+						actions,
+					} as ChatResult,
+				});
+			}
+		};
+	}
+
+	private static async streamChatCompletions(
+		stream: AsyncIterableIterator<ChatCompletionChunk>,
+		handleChunk: (chunk: ChatCompletionChunk) => Promise<void>,
+	) {
+		for await (const chunk of stream) {
+			await handleChunk(chunk);
+		}
 	}
 
 	async process(
@@ -173,33 +315,16 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		const actions: FlowAction[] = [];
 
 		// Create stream buffer for content
-		const streamBuffer = new StreamBuffer(
-			config.minWordsToStream,
-			(bufferedContent) => {
+		const streamBuffer = ChatHandler.createStreamBuffer({
+			jobId,
+			model,
+			config,
+			dependencies,
+			onContent: (bufferedContent) => {
 				currentContent += bufferedContent;
-				// Emit buffered content as chunk
-				dependencies.updateJobProgress(jobId, {
-					stage: "Receiving response...",
-					progress: Math.min(80, 20 + currentContent.length / 10),
-					result: {
-						type: "chunk",
-						chunk: {
-							id: `chunk-${Date.now()}`,
-							object: "chat.completion.chunk",
-							created: Math.floor(Date.now() / 1000),
-							model: model,
-							choices: [
-								{
-									index: 0,
-									delta: { content: bufferedContent, role: "assistant" },
-									finish_reason: null,
-								},
-							],
-						},
-					} as ChatResult,
-				});
 			},
-		);
+			getProgress: () => Math.min(80, 20 + currentContent.length / 10),
+		});
 
 		try {
 			// Send initial progress update
@@ -210,11 +335,17 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 			if (mode === "knowledge") {
 				// Use KnowledgeRAGFlow for knowledge mode (following use-chat.ts pattern)
-				const graph = serviceManager.flowsService.createGraph("knowledge-rag", {
-					llm: serviceManager.llmService,
-					embedding: serviceManager.embeddingService,
-					database: serviceManager.databaseService,
-				});
+				const graph = serviceManager.flowsService.createGraph(
+					"knowledge-rag",
+					{
+						llm: serviceManager.llmService,
+						embedding: serviceManager.embeddingService,
+						database: serviceManager.databaseService,
+					},
+					{
+						responseMode: "agent",
+					},
+				);
 
 				await dependencies.updateJobProgress(jobId, {
 					stage: "Searching knowledge base...",
@@ -263,7 +394,6 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				}
 
 				let finalState: KnowledgeRAGState | null = null;
-				const seenModes = new Set<string>();
 
 				const stream = await graph.stream(
 					{
@@ -271,7 +401,6 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						query: queryText, // Use text-only query for search
 						graphId: topicId, // For scoping
 						coreContext, // For general context retrieval
-						steps: [],
 					},
 					{
 						streamMode: ["custom", "updates", "values"],
@@ -280,94 +409,22 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 				const responseProgress = () =>
 					Math.min(80, 20 + currentContent.length / 10);
-				const hasToolCalls = (
-					delta: ChatCompletionChunk["choices"][number]["delta"] | undefined,
-				) =>
-					Array.isArray(delta?.tool_calls) && delta.tool_calls.length > 0;
-
-				const handleChunk = async (chunk: ChatCompletionChunk) => {
-					const choice = chunk.choices?.[0];
-					if (!choice) {
-						return;
-					}
-
-					const delta = choice.delta;
-
-					if (config.streamToolCallsImmediately && hasToolCalls(delta)) {
-						await dependencies.updateJobProgress(jobId, {
-							stage: "Tool call in progress...",
-							progress: responseProgress(),
-							result: {
-								type: "chunk",
-								chunk,
-							} as ChatResult,
-						});
-						return;
-					}
-
-					const content = delta?.content ?? "";
-					if (content) {
-						streamBuffer.add(content);
-					}
-
-					if (delta?.role || choice.finish_reason) {
-						const chunkToSend = content
-							? {
-									...chunk,
-									choices: [
-										{
-											...choice,
-											delta: {
-												...delta,
-												content: undefined,
-											},
-										},
-									],
-								}
-							: chunk;
-
-						await dependencies.updateJobProgress(jobId, {
-							stage: "Receiving response...",
-							progress: responseProgress(),
-							result: {
-								type: "chunk",
-								chunk: chunkToSend,
-							} as ChatResult,
-						});
-					}
-				};
-
-				const handleActions = (next: FlowAction[]) => {
-					let added = false;
-					for (const action of next) {
-						if (!actions.find((a) => a.id === action.id)) {
-							actions.push(action);
-							added = true;
-						}
-					}
-					if (added) {
-						dependencies.updateJobProgress(jobId, {
-							stage: "Receiving response...",
-							progress: 10,
-							result: {
-								type: "action",
-								actions,
-							} as ChatResult,
-						});
-					}
-				};
+				const handleChunk = ChatHandler.createHandleChunk({
+					jobId,
+					model,
+					config,
+					dependencies,
+					streamBuffer,
+					getProgress: responseProgress,
+				});
+				const handleActions = ChatHandler.createKnowledgeHandleActions(
+					dependencies,
+					jobId,
+					actions,
+				);
 
 				for await (const partial of stream) {
 					const { mode, payload } = normalizeLangGraphStreamChunk(partial);
-
-					if (!seenModes.has(mode)) {
-						seenModes.add(mode);
-						await dependencies.logger.info(
-							"[CHAT_STREAM] mode sample",
-							{ mode, payload },
-							"offscreen",
-						);
-					}
 
 					if (mode === "custom" && isCustomChunkPayload(payload)) {
 						switch (payload.type) {
@@ -383,14 +440,6 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 								break;
 							case "execute-start":
 								if ("node" in payload) {
-									await dependencies.logger.info(
-										"[CHAT_STREAM] execute-start",
-										{
-											node: payload.node,
-											metadata: payload.metadata,
-										},
-										"offscreen",
-									);
 									dependencies.updateJobProgress(jobId, {
 										stage: "Executing...",
 										progress: 12,
@@ -439,7 +488,6 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				const request: ChatCompletionRequest = {
 					messages: messages,
 					model: model,
-					max_tokens: 4096,
 					temperature: 0.3,
 					stream: true,
 				};
@@ -456,64 +504,15 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						const stream = serviceManager.llmService.chatCompletions(
 							request,
 						) as AsyncIterableIterator<ChatCompletionChunk>;
-
-						for await (const chunk of stream) {
-							// Stream all chunk types immediately if it's a tool call
-							const hasToolCalls =
-								chunk.choices[0]?.delta &&
-								"tool_calls" in chunk.choices[0]?.delta &&
-								Array.isArray(chunk.choices[0]?.delta?.tool_calls) &&
-								chunk.choices[0]?.delta?.tool_calls?.length > 0;
-							if (hasToolCalls && config.streamToolCallsImmediately) {
-								await dependencies.updateJobProgress(jobId, {
-									stage: "Tool call in progress...",
-									progress: Math.min(80, 20 + currentContent.length / 10),
-									result: {
-										type: "chunk",
-										chunk,
-									} as ChatResult,
-								});
-								continue;
-							}
-
-							// Buffer content chunks
-							const content = chunk.choices[0]?.delta?.content;
-							if (content) {
-								streamBuffer.add(content);
-							}
-
-							// Stream other chunk types immediately (role, finish_reason, etc)
-							// But clear delta.content if it was already buffered to avoid duplication
-							if (
-								chunk.choices[0]?.delta?.role ||
-								chunk.choices[0]?.finish_reason
-							) {
-								// Create a copy of the chunk without delta.content if content was buffered
-								const chunkToSend = content
-									? {
-											...chunk,
-											choices: [
-												{
-													...chunk.choices[0],
-													delta: {
-														...chunk.choices[0].delta,
-														content: undefined, // Clear content since it's being buffered
-													},
-												},
-											],
-										}
-									: chunk;
-
-								await dependencies.updateJobProgress(jobId, {
-									stage: "Receiving response...",
-									progress: Math.min(80, 20 + currentContent.length / 10),
-									result: {
-										type: "chunk",
-										chunk: chunkToSend,
-									} as ChatResult,
-								});
-							}
-						}
+						const handleChunk = ChatHandler.createHandleChunk({
+							jobId,
+							model,
+							config,
+							dependencies,
+							streamBuffer,
+							getProgress: () => Math.min(80, 20 + currentContent.length / 10),
+						});
+						await ChatHandler.streamChatCompletions(stream, handleChunk);
 					}
 				} catch (streamError) {
 					throw streamError;

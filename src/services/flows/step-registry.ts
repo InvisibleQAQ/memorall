@@ -16,7 +16,10 @@ declare global {
 }
 
 // Internal factory storage type
-type StoredFactory = (services: unknown, config?: unknown) => BoundStep<unknown, unknown>;
+type StoredFactory = (
+	services: unknown,
+	config?: unknown,
+) => BoundStep<unknown, unknown>;
 
 // Registry class using singleton pattern
 export class StepRegistryManager {
@@ -45,14 +48,16 @@ export class StepRegistryManager {
 			StepTypeRegistry[T]["config"]
 		>,
 	): void {
-		const normalizedFactory: StoredFactory = (services: unknown, config?: unknown) => {
+		const normalizedFactory: StoredFactory = (
+			services: unknown,
+			config?: unknown,
+		) => {
 			if (factory.length === 0) {
 				return (factory as () => BoundStep<unknown, unknown>)();
 			}
-			return (factory as (s: unknown, c?: unknown) => BoundStep<unknown, unknown>)(
-				services,
-				config,
-			);
+			return (
+				factory as (s: unknown, c?: unknown) => BoundStep<unknown, unknown>
+			)(services, config);
 		};
 		this.factories.set(stepName as string, normalizedFactory);
 	}
@@ -64,7 +69,10 @@ export class StepRegistryManager {
 		stepName: T,
 		...args: StepTypeRegistry[T]["services"] extends undefined
 			? []
-			: [services: StepTypeRegistry[T]["services"], config?: StepTypeRegistry[T]["config"]]
+			: [
+					services: StepTypeRegistry[T]["services"],
+					config?: StepTypeRegistry[T]["config"],
+				]
 	): BoundStep<StepTypeRegistry[T]["input"], StepTypeRegistry[T]["output"]> {
 		const factory = this.factories.get(stepName as string);
 		if (!factory) {

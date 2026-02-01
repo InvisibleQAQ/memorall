@@ -12,7 +12,10 @@ const schema = z.object({
 
 type Input = z.infer<typeof schema>;
 
-export const createCalculatorTool: ToolFactory<Input, undefined> = (): Tool<Input> => ({
+export const createCalculatorTool: ToolFactory<
+	Input,
+	undefined
+> = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description: "Perform basic mathematical calculations",
 	schema,

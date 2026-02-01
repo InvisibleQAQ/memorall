@@ -8,7 +8,10 @@ import { schema } from "@/services/database/schema";
 import { getCurrentEmbeddingFields } from "@/utils/embedding-size-config";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 
@@ -67,7 +70,10 @@ export interface KnowledgeDatabaseSaveInput {
 	existingNodes?: ExistingNode[];
 }
 
-export type KnowledgeDatabaseSaveServices = Pick<AllServices, 'database' | 'embedding'>
+export type KnowledgeDatabaseSaveServices = Pick<
+	AllServices,
+	"database" | "embedding"
+>;
 
 // Inferred database types
 type SourceSelectType = InferSelectModel<typeof schema.sources>;
@@ -370,7 +376,10 @@ async function createEdges(
 					continue;
 				}
 
-				const allNodes = [...createdNodes, ...(input.existingNodes || [])] as Node[];
+				const allNodes = [
+					...createdNodes,
+					...(input.existingNodes || []),
+				] as Node[];
 				const sourceNodeId = getNodeId(sourceEntity, nodeNameToId, allNodes);
 				const destNodeId = getNodeId(destEntity, nodeNameToId, allNodes);
 
@@ -495,7 +504,11 @@ async function createEdges(
 // STEP DEFINITION
 // ============================================================================
 
-const definition = defineStep<KnowledgeDatabaseSaveInput, KnowledgeDatabaseSaveOutput, KnowledgeDatabaseSaveServices>({
+const definition = defineStep<
+	KnowledgeDatabaseSaveInput,
+	KnowledgeDatabaseSaveOutput,
+	KnowledgeDatabaseSaveServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		try {
@@ -515,24 +528,28 @@ const definition = defineStep<KnowledgeDatabaseSaveInput, KnowledgeDatabaseSaveO
 			}
 
 			// Get source from database
-			const createdSource = await databaseService.use(async ({ db, schema }) => {
-				const sources = await db
-					.select()
-					.from(schema.sources)
-					.where(eq(schema.sources.id, input.sourceId || ''))
-					.limit(1);
+			const createdSource = await databaseService.use(
+				async ({ db, schema }) => {
+					const sources = await db
+						.select()
+						.from(schema.sources)
+						.where(eq(schema.sources.id, input.sourceId || ""))
+						.limit(1);
 
-				if (!sources || sources.length === 0) {
-					throw new Error(`Source not found with id: ${input.sourceId}`);
-				}
+					if (!sources || sources.length === 0) {
+						throw new Error(`Source not found with id: ${input.sourceId}`);
+					}
 
-				return sources[0];
-			});
+					return sources[0];
+				},
+			);
 
 			logInfo(`[DATABASE_SAVE] Using source: ${createdSource.id}`);
 
 			// Create nodes
-			const newEntityCount = input.resolvedEntities.filter((e) => !e.isExisting).length;
+			const newEntityCount = input.resolvedEntities.filter(
+				(e) => !e.isExisting,
+			).length;
 			logInfo(`[DATABASE_SAVE] Creating ${newEntityCount} nodes...`);
 			const createdNodes = await createNodes(input, createdSource, services);
 			logInfo(`[DATABASE_SAVE] ${createdNodes.length} nodes created`);
@@ -543,7 +560,12 @@ const definition = defineStep<KnowledgeDatabaseSaveInput, KnowledgeDatabaseSaveO
 					? input.enrichedFacts.filter((f) => !f.isExisting).length
 					: (input.resolvedFacts || []).filter((f) => !f.isExisting).length;
 			logInfo(`[DATABASE_SAVE] Creating ${factsToProcess} edges...`);
-			const createdEdges = await createEdges(input, createdNodes, createdSource, services);
+			const createdEdges = await createEdges(
+				input,
+				createdNodes,
+				createdSource,
+				services,
+			);
 			logInfo(`[DATABASE_SAVE] ${createdEdges.length} edges created`);
 
 			logInfo(
@@ -589,9 +611,12 @@ const definition = defineStep<KnowledgeDatabaseSaveInput, KnowledgeDatabaseSaveO
 			return {
 				output: {
 					errors: [
-						error instanceof Error ? error.message : "Failed to save to database",
+						error instanceof Error
+							? error.message
+							: "Failed to save to database",
 					],
-					finalMessage: "Knowledge graph creation failed during database save operation.",
+					finalMessage:
+						"Knowledge graph creation failed during database save operation.",
 				},
 			};
 		}
@@ -600,7 +625,9 @@ const definition = defineStep<KnowledgeDatabaseSaveInput, KnowledgeDatabaseSaveO
 
 type KnowledgeDatabaseSaveSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createDatabaseSaveStep: StepFactoryFromSpec<KnowledgeDatabaseSaveSpec> = (services: KnowledgeDatabaseSaveServices) => bindStep(definition, services);
+export const createDatabaseSaveStep: StepFactoryFromSpec<
+	KnowledgeDatabaseSaveSpec
+> = (services: KnowledgeDatabaseSaveServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createDatabaseSaveStep);
 

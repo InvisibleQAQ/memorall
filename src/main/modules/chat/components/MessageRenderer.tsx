@@ -583,8 +583,13 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 				<Message key={message.id} from={message.role}>
 					<MessageContent className="relative">
 						{!message.content && isLastMessage && isStreaming ? (
-							<div className="py-2">
+							<div className="py-2 flex items-center gap-2">
 								<ThreeDotsLoader className="text-muted-foreground" />
+								{executionText ? (
+									<span className="text-muted-foreground animate-pulse">
+										{executionText}
+									</span>
+								) : null}
 							</div>
 						) : (
 							<Suspense

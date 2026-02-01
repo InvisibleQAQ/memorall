@@ -98,7 +98,10 @@ export interface ILLMService {
 
 	// Tool capabilities - Implementation specific
 	getToolCapabilities(model?: string): Promise<ToolCapabilityInfo>;
-	getToolCapabilitiesFor(name: string, model?: string): Promise<ToolCapabilityInfo>;
+	getToolCapabilitiesFor(
+		name: string,
+		model?: string,
+	): Promise<ToolCapabilityInfo>;
 	supportsTools(model?: string): Promise<boolean>;
 	supportsToolsFor(name: string, model?: string): Promise<boolean>;
 }

@@ -4,6 +4,9 @@ import type { GraphBase, BaseStateBase } from "./graph/graph.base";
 // Base interface for all flows - any class extending GraphBase
 export type BaseFlow = GraphBase<string, BaseStateBase, AllServices>;
 
+type FlowConfig<T extends keyof FlowTypeRegistry> =
+	FlowTypeRegistry[T] extends { config: infer C } ? C : undefined;
+
 // Global flow type registry for smart type inference
 // Flow modules extend this interface to register their flow types and required services
 declare global {
@@ -18,13 +21,17 @@ export interface FlowRegistration<T extends keyof FlowTypeRegistry> {
 	flowType: T;
 	factory: (
 		services: FlowTypeRegistry[T]["services"],
+		config?: FlowConfig<T>,
 	) => FlowTypeRegistry[T]["flow"];
 }
 
 // Registry class using singleton pattern
 export class FlowRegistryManager {
 	private static instance: FlowRegistryManager;
-	private factories = new Map<string, (services: AllServices) => BaseFlow>();
+	private factories = new Map<
+		string,
+		(services: AllServices, config?: unknown) => BaseFlow
+	>();
 
 	private constructor() {}
 
@@ -40,19 +47,26 @@ export class FlowRegistryManager {
 	): void {
 		this.factories.set(
 			registration.flowType as string,
-			registration.factory as (services: AllServices) => BaseFlow,
+			registration.factory as (
+				services: AllServices,
+				config?: unknown,
+			) => BaseFlow,
 		);
 	}
 
 	createFlow<T extends keyof FlowTypeRegistry>(
 		flowType: T,
 		services: FlowTypeRegistry[T]["services"],
+		config?: FlowConfig<T>,
 	): FlowTypeRegistry[T]["flow"] {
 		const factory = this.factories.get(flowType as string);
 		if (!factory) {
 			throw new Error(`No flow registered for type: ${String(flowType)}`);
 		}
-		return factory(services as AllServices) as FlowTypeRegistry[T]["flow"];
+		return factory(
+			services as AllServices,
+			config,
+		) as FlowTypeRegistry[T]["flow"];
 	}
 
 	getRegisteredFlowTypes(): string[] {

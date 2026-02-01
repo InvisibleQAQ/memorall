@@ -1,5 +1,4 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
-import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
 import {
 	KnowledgeRAGAnnotation,
 	type KnowledgeRAGConfig,
@@ -7,8 +6,7 @@ import {
 } from "./state";
 import { GraphBase } from "@/services/flows/graph/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
-import type { ChatMessage } from "@/types/openai";
-import { logError, logInfo } from "@/utils/logger";
+import { logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
 import { stepRegistry } from "@/services/flows/step-registry";
 
@@ -58,10 +56,19 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
 
-		const buildContextStep = stepRegistry.getStep('entities-facts-to-context', {})
-		const citationStep = stepRegistry.getStep('entities-facts-citation', services)
+		const buildContextStep = stepRegistry.getStep(
+			"entities-facts-to-context",
+			{},
+		);
+		const citationStep = stepRegistry.getStep(
+			"entities-facts-citation",
+			services,
+		);
 		this.chatCompletionStep = stepRegistry.getStep("chat-completion", services);
-		this.agentCompletionStep = stepRegistry.getStep("agent-completion", services);
+		this.agentCompletionStep = stepRegistry.getStep(
+			"agent-completion",
+			services,
+		);
 
 		// Add common nodes
 		this.workflow.addNode("build_context", buildContextStep.toNode());
@@ -73,15 +80,12 @@ export class KnowledgeRAGFlow extends GraphBase<
 				"agent_response",
 				this.agentCompletionStep.toNode<KnowledgeRAGState>({
 					mapInput: (state) => {
-						const systemMessage: ChatMessage = {
-							role: "system",
-							content: RESPONSE_GENERATION_PROMPT.replace(
-								"{context}",
-								state.knowledgeContext,
-							),
-						};
+						const systemMessage = RESPONSE_GENERATION_PROMPT.replace(
+							"{context}",
+							state.knowledgeContext,
+						);
 						return {
-							messages: [systemMessage, ...state.messages],
+							messages: this.chat.system(state.messages, systemMessage),
 							tools: state.tools ?? this.configTools,
 							maxIterations: state.maxIterations,
 						};
@@ -97,15 +101,12 @@ export class KnowledgeRAGFlow extends GraphBase<
 				"generate_response",
 				this.chatCompletionStep.toNode<KnowledgeRAGState>({
 					mapInput: (state) => {
-						const systemMessage: ChatMessage = {
-							role: "system",
-							content: RESPONSE_GENERATION_PROMPT.replace(
-								"{context}",
-								state.knowledgeContext,
-							),
-						};
+						const systemMessage = RESPONSE_GENERATION_PROMPT.replace(
+							"{context}",
+							state.knowledgeContext,
+						);
 						return {
-							messages: [systemMessage, ...state.messages],
+							messages: this.chat.system(state.messages, systemMessage),
 							temperature: 0.2,
 							stream: true,
 						};
@@ -120,7 +121,10 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		// Add retrieval nodes and edges based on mode
 		if (this.mode === "smart") {
-			const smartRetrieveContextStep = stepRegistry.getStep('smart-retrieve', services)
+			const smartRetrieveContextStep = stepRegistry.getStep(
+				"smart-retrieve",
+				services,
+			);
 			this.workflow.addNode(
 				"smart_retrieve",
 				smartRetrieveContextStep.toNode(),
@@ -128,7 +132,10 @@ export class KnowledgeRAGFlow extends GraphBase<
 			this.workflow.addEdge(START, "smart_retrieve");
 			this.workflow.addEdge("smart_retrieve", "build_context");
 		} else if (this.mode === "quick") {
-			const quickRetrieveContextStep = stepRegistry.getStep('quick-retrieve', services)
+			const quickRetrieveContextStep = stepRegistry.getStep(
+				"quick-retrieve",
+				services,
+			);
 			this.workflow.addNode(
 				"quick_retrieve",
 				quickRetrieveContextStep.toNode(),
@@ -136,16 +143,13 @@ export class KnowledgeRAGFlow extends GraphBase<
 			this.workflow.addEdge(START, "quick_retrieve");
 			this.workflow.addEdge("quick_retrieve", "build_context");
 		} else {
-			const analyzeQueryStep = stepRegistry.getStep('analyze-query', services)
-			const retrievalKnowledge = stepRegistry.getStep('retrieve-knowledge', services)
-			this.workflow.addNode(
-				"analyze_query",
-				analyzeQueryStep.toNode(),
+			const analyzeQueryStep = stepRegistry.getStep("analyze-query", services);
+			const retrievalKnowledge = stepRegistry.getStep(
+				"retrieve-knowledge",
+				services,
 			);
-			this.workflow.addNode(
-				"retrieve_knowledge",
-				retrievalKnowledge.toNode(),
-			);
+			this.workflow.addNode("analyze_query", analyzeQueryStep.toNode());
+			this.workflow.addNode("retrieve_knowledge", retrievalKnowledge.toNode());
 			this.workflow.addEdge(START, "analyze_query");
 			this.workflow.addEdge("analyze_query", "retrieve_knowledge");
 			this.workflow.addEdge("retrieve_knowledge", "build_context");
@@ -163,14 +167,16 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		this.compile();
 
-		logInfo(`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}, responseMode: ${this.responseMode}`);
+		logInfo(
+			`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}, responseMode: ${this.responseMode}`,
+		);
 	}
 }
 
 // Self-register the flow
 flowRegistry.register({
 	flowType: "knowledge-rag",
-	factory: (services) => new KnowledgeRAGFlow(services),
+	factory: (services, config) => new KnowledgeRAGFlow(services, config),
 });
 
 // Extend global FlowTypeRegistry for type-safe flow creation
@@ -178,6 +184,7 @@ declare global {
 	interface FlowTypeRegistry {
 		"knowledge-rag": {
 			services: AllServices;
+			config: KnowledgeRAGConfig;
 			flow: KnowledgeRAGFlow;
 		};
 	}

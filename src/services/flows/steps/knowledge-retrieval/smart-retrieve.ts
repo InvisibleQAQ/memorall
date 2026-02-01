@@ -18,7 +18,10 @@ import { getScopedGraphWhere } from "@/utils/scoped-graph-query";
 import type { Node, Edge } from "@/services/database/types";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 
@@ -323,7 +326,9 @@ function getMMRLambda(mmrConfig: MMRConfig): number {
 	return MMR_MODE_LAMBDAS[mmrConfig.mode];
 }
 
-function applyMMR<T extends { embedding: number[] | null; semanticScore: number }>(
+function applyMMR<
+	T extends { embedding: number[] | null; semanticScore: number },
+>(
 	candidates: T[],
 	queryEmbedding: number[],
 	targetCount: number,
@@ -352,11 +357,15 @@ function applyMMR<T extends { embedding: number[] | null; semanticScore: number 
 
 			for (const selectedItem of selected) {
 				if (!selectedItem.embedding) continue;
-				const similarity = cosineSimilarity(candidate.embedding, selectedItem.embedding);
+				const similarity = cosineSimilarity(
+					candidate.embedding,
+					selectedItem.embedding,
+				);
 				maxSimilarityToSelected = Math.max(maxSimilarityToSelected, similarity);
 			}
 
-			const mmrScore = lambda * relevance - (1 - lambda) * maxSimilarityToSelected;
+			const mmrScore =
+				lambda * relevance - (1 - lambda) * maxSimilarityToSelected;
 
 			if (mmrScore > bestMMRScore) {
 				bestMMRScore = mmrScore;
@@ -375,14 +384,58 @@ function applyMMR<T extends { embedding: number[] | null; semanticScore: number 
 }
 
 const STOP_WORDS = new Set([
-	"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of",
-	"with", "by", "from", "is", "are", "was", "were", "be", "been", "being",
-	"have", "has", "had", "do", "does", "did", "will", "would", "should", "could",
-	"may", "might", "can", "what", "when", "where", "who", "which", "how", "why",
-	"this", "that", "these", "those",
+	"the",
+	"a",
+	"an",
+	"and",
+	"or",
+	"but",
+	"in",
+	"on",
+	"at",
+	"to",
+	"for",
+	"of",
+	"with",
+	"by",
+	"from",
+	"is",
+	"are",
+	"was",
+	"were",
+	"be",
+	"been",
+	"being",
+	"have",
+	"has",
+	"had",
+	"do",
+	"does",
+	"did",
+	"will",
+	"would",
+	"should",
+	"could",
+	"may",
+	"might",
+	"can",
+	"what",
+	"when",
+	"where",
+	"who",
+	"which",
+	"how",
+	"why",
+	"this",
+	"that",
+	"these",
+	"those",
 ]);
 
-function extractQueryComponents(query: string, minComponentLength: number): QueryComponent[] {
+function extractQueryComponents(
+	query: string,
+	minComponentLength: number,
+): QueryComponent[] {
 	const words = query
 		.toLowerCase()
 		.split(/\s+/)
@@ -546,7 +599,9 @@ const definition = defineStep<
 
 			const nodeCandidates: EnhancedNode[] = nodeResults
 				.filter((result) => result.similarity >= config.seed.nodeThreshold)
-				.map((result) => toEnhancedNode(result.item, result.similarity, 0, "seed"));
+				.map((result) =>
+					toEnhancedNode(result.item, result.similarity, 0, "seed"),
+				);
 
 			let seedNodes: EnhancedNode[];
 			if (mmrConfig.enabled && nodeCandidates.length > config.seed.nodeLimit) {
@@ -562,9 +617,13 @@ const definition = defineStep<
 
 			const seedEdges: EnhancedEdge[] = edgeResults
 				.filter((result) => result.similarity >= config.seed.edgeThreshold)
-				.map((result) => toEnhancedEdge(result.item, result.similarity, 0, "seed"));
+				.map((result) =>
+					toEnhancedEdge(result.item, result.similarity, 0, "seed"),
+				);
 
-			logInfo(`[SMART_RETRIEVE] Phase 1: ${seedNodes.length} seed nodes, ${seedEdges.length} seed edges`);
+			logInfo(
+				`[SMART_RETRIEVE] Phase 1: ${seedNodes.length} seed nodes, ${seedEdges.length} seed edges`,
+			);
 
 			// Phase 2: Smart Graph Expansion
 			const allNodes = new Map<string, EnhancedNode>();
@@ -575,7 +634,9 @@ const definition = defineStep<
 
 			for (let level = 1; level <= config.expansion.maxLevels; level++) {
 				const threshold = config.expansion.levelThresholds[level - 1] ?? 0.2;
-				const currentLevelNodes = Array.from(allNodes.values()).filter((n) => n.level === level - 1);
+				const currentLevelNodes = Array.from(allNodes.values()).filter(
+					(n) => n.level === level - 1,
+				);
 
 				if (currentLevelNodes.length === 0) break;
 
@@ -591,7 +652,10 @@ const definition = defineStep<
 									inArray(schema.edges.sourceId, nodeIds),
 									inArray(schema.edges.destinationId, nodeIds),
 								),
-								getScopedGraphWhere({ graphId: input.graphId }, schema.edges.graph),
+								getScopedGraphWhere(
+									{ graphId: input.graphId },
+									schema.edges.graph,
+								),
 							),
 						)
 						.limit(config.expansion.maxEdgesPerLevel);
@@ -606,33 +670,53 @@ const definition = defineStep<
 						}
 					});
 
-					const newNodesArray = Array.from(newNodeIds).slice(0, config.expansion.maxNodesPerLevel);
+					const newNodesArray = Array.from(newNodeIds).slice(
+						0,
+						config.expansion.maxNodesPerLevel,
+					);
 					const connectedNodes =
 						newNodesArray.length > 0
-							? await db.select().from(schema.nodes).where(inArray(schema.nodes.id, newNodesArray))
+							? await db
+									.select()
+									.from(schema.nodes)
+									.where(inArray(schema.nodes.id, newNodesArray))
 							: [];
 
 					return { connectedEdges, connectedNodes };
 				});
 
 				for (const node of expansionResult.connectedNodes) {
-					const semanticScore = await calculateSemanticSimilarity(node, queryEmbedding);
+					const semanticScore = await calculateSemanticSimilarity(
+						node,
+						queryEmbedding,
+					);
 					if (semanticScore >= threshold && !allNodes.has(node.id)) {
-						allNodes.set(node.id, toEnhancedNode(node, semanticScore, level, "expansion"));
+						allNodes.set(
+							node.id,
+							toEnhancedNode(node, semanticScore, level, "expansion"),
+						);
 					}
 				}
 
 				expansionResult.connectedEdges.forEach((edge) => {
 					if (edge.sourceId && edge.destinationId && !allEdges.has(edge.id)) {
-						allEdges.set(edge.id, toEnhancedEdge(edge, 0.5, level, "expansion"));
+						allEdges.set(
+							edge.id,
+							toEnhancedEdge(edge, 0.5, level, "expansion"),
+						);
 					}
 				});
 			}
 
-			logInfo(`[SMART_RETRIEVE] Phase 2: ${allNodes.size} total nodes, ${allEdges.size} total edges`);
+			logInfo(
+				`[SMART_RETRIEVE] Phase 2: ${allNodes.size} total nodes, ${allEdges.size} total edges`,
+			);
 
 			// Phase 3: Completeness Verification
-			const queryComponents = extractQueryComponents(input.query, config.completeness.minComponentLength);
+			const queryComponents = extractQueryComponents(
+				input.query,
+				config.completeness.minComponentLength,
+			);
 			let currentNodes = Array.from(allNodes.values());
 			let iterations = 0;
 
@@ -656,7 +740,12 @@ const definition = defineStep<
 
 					gapResults.forEach((result) => {
 						if (!allNodes.has(result.item.id)) {
-							const node = toEnhancedNode(result.item, result.similarity, -1, "gap_filling");
+							const node = toEnhancedNode(
+								result.item,
+								result.similarity,
+								-1,
+								"gap_filling",
+							);
 							node.coverageContribution = 1.0;
 							allNodes.set(node.id, node);
 							currentNodes.push(node);
@@ -667,7 +756,9 @@ const definition = defineStep<
 				}
 			}
 
-			logInfo(`[SMART_RETRIEVE] Phase 3: ${allNodes.size} nodes after gap filling`);
+			logInfo(
+				`[SMART_RETRIEVE] Phase 3: ${allNodes.size} nodes after gap filling`,
+			);
 
 			// Phase 4: Re-Ranking
 			const nodes = Array.from(allNodes.values());
@@ -684,7 +775,12 @@ const definition = defineStep<
 					density * config.ranking.densityWeight +
 					node.coverageContribution * config.ranking.coverageWeight;
 
-				return { ...node, centralityScore: centrality, edgeDensity: density, finalScore };
+				return {
+					...node,
+					centralityScore: centrality,
+					edgeDensity: density,
+					finalScore,
+				};
 			});
 
 			scoredNodes.sort((a, b) => (b.finalScore ?? 0) - (a.finalScore ?? 0));
@@ -692,13 +788,16 @@ const definition = defineStep<
 			const topNodeIds = new Set(topNodes.map((n) => n.id));
 
 			const filteredEdges = edges.filter(
-				(edge) => topNodeIds.has(edge.sourceId) || topNodeIds.has(edge.destinationId),
+				(edge) =>
+					topNodeIds.has(edge.sourceId) || topNodeIds.has(edge.destinationId),
 			);
 
 			filteredEdges.sort((a, b) => b.semanticScore - a.semanticScore);
 			const topEdges = filteredEdges.slice(0, config.output.maxEdges);
 
-			logInfo(`[SMART_RETRIEVE] Phase 4: ${topNodes.length} final nodes, ${topEdges.length} final edges`);
+			logInfo(
+				`[SMART_RETRIEVE] Phase 4: ${topNodes.length} final nodes, ${topEdges.length} final edges`,
+			);
 
 			// Phase 5: Post-Expansion (simplified)
 			let finalNodes = topNodes;
@@ -716,8 +815,14 @@ const definition = defineStep<
 
 					edgeMap.forEach((edge) => {
 						if (nodeMap.has(edge.sourceId) && nodeMap.has(edge.destinationId)) {
-							nodeConnections.set(edge.sourceId, (nodeConnections.get(edge.sourceId) ?? 0) + 1);
-							nodeConnections.set(edge.destinationId, (nodeConnections.get(edge.destinationId) ?? 0) + 1);
+							nodeConnections.set(
+								edge.sourceId,
+								(nodeConnections.get(edge.sourceId) ?? 0) + 1,
+							);
+							nodeConnections.set(
+								edge.destinationId,
+								(nodeConnections.get(edge.destinationId) ?? 0) + 1,
+							);
 						}
 					});
 
@@ -737,20 +842,28 @@ const definition = defineStep<
 										inArray(schema.edges.sourceId, standaloneNodeIds),
 										inArray(schema.edges.destinationId, standaloneNodeIds),
 									),
-									getScopedGraphWhere({ graphId: input.graphId }, schema.edges.graph),
+									getScopedGraphWhere(
+										{ graphId: input.graphId },
+										schema.edges.graph,
+									),
 								),
 							)
 							.limit(config.postExpansion.maxEdgesPerIteration);
 
 						const missingNodeIds = new Set<string>();
 						connectedEdges.forEach((edge) => {
-							if (edge.sourceId && !nodeMap.has(edge.sourceId)) missingNodeIds.add(edge.sourceId);
-							if (edge.destinationId && !nodeMap.has(edge.destinationId)) missingNodeIds.add(edge.destinationId);
+							if (edge.sourceId && !nodeMap.has(edge.sourceId))
+								missingNodeIds.add(edge.sourceId);
+							if (edge.destinationId && !nodeMap.has(edge.destinationId))
+								missingNodeIds.add(edge.destinationId);
 						});
 
 						const missingNodes =
 							missingNodeIds.size > 0
-								? await db.select().from(schema.nodes).where(inArray(schema.nodes.id, Array.from(missingNodeIds)))
+								? await db
+										.select()
+										.from(schema.nodes)
+										.where(inArray(schema.nodes.id, Array.from(missingNodeIds)))
 								: [];
 
 						return { connectedEdges, missingNodes };
@@ -774,11 +887,19 @@ const definition = defineStep<
 					if (!addedAny) break;
 				}
 
-				finalNodes = Array.from(nodeMap.values()).slice(0, config.output.maxNodes);
-				finalEdges = Array.from(edgeMap.values()).slice(0, config.output.maxEdges);
+				finalNodes = Array.from(nodeMap.values()).slice(
+					0,
+					config.output.maxNodes,
+				);
+				finalEdges = Array.from(edgeMap.values()).slice(
+					0,
+					config.output.maxEdges,
+				);
 			}
 
-			logInfo(`[SMART_RETRIEVE] Complete: ${finalNodes.length} nodes, ${finalEdges.length} edges`);
+			logInfo(
+				`[SMART_RETRIEVE] Complete: ${finalNodes.length} nodes, ${finalEdges.length} edges`,
+			);
 
 			// Convert to output format
 			const relevantNodes: RelevantNode[] = finalNodes.map((node) => ({
@@ -841,7 +962,9 @@ const definition = defineStep<
 
 			return {
 				output: {
-					errors: [error instanceof Error ? error.message : "Smart retrieval failed"],
+					errors: [
+						error instanceof Error ? error.message : "Smart retrieval failed",
+					],
 				},
 			};
 		}
@@ -850,8 +973,10 @@ const definition = defineStep<
 
 type SmartRetrieveSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createSmartRetrieveStep: StepFactoryFromSpec<SmartRetrieveSpec> = (services: AllServices, config?: Partial<SmartRetrievalConfig>) =>
-	bindStep(definition, services, config);
+export const createSmartRetrieveStep: StepFactoryFromSpec<SmartRetrieveSpec> = (
+	services: AllServices,
+	config?: Partial<SmartRetrievalConfig>,
+) => bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createSmartRetrieveStep);
 

@@ -2,7 +2,10 @@ import { logInfo, logError } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 
@@ -105,7 +108,11 @@ Return your response as a valid JSON array with objects matching this structure:
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<EdgeEnrichmentInput, EdgeEnrichmentOutput, AllServices>({
+const definition = defineStep<
+	EdgeEnrichmentInput,
+	EdgeEnrichmentOutput,
+	AllServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		try {
@@ -211,7 +218,9 @@ const definition = defineStep<EdgeEnrichmentInput, EdgeEnrichmentOutput, AllServ
 
 			// Prepare isolated nodes text
 			const isolatedNodesText = isolatedNodes
-				.map((node, index) => `${index + 1}. ID: ${node.id}, Name: ${node.name}`)
+				.map(
+					(node, index) => `${index + 1}. ID: ${node.id}, Name: ${node.name}`,
+				)
 				.join("\n");
 
 			// Prepare all nodes text (for relationship targets)
@@ -219,7 +228,9 @@ const definition = defineStep<EdgeEnrichmentInput, EdgeEnrichmentOutput, AllServ
 				nodeIdWithEdges.has(node.id || ""),
 			);
 			const allNodesText = connectedNodes
-				.map((node, index) => `${index + 1}. ID: ${node.id}, Name: ${node.name}`)
+				.map(
+					(node, index) => `${index + 1}. ID: ${node.id}, Name: ${node.name}`,
+				)
 				.join("\n");
 
 			const fullText = `${contentSection}
@@ -266,11 +277,13 @@ ${allNodesText || "No connected nodes"}
 
 						const sourceEntity = input.resolvedEntities?.find(
 							(e) =>
-								e.finalName.toLowerCase() === rel.source_entity_name!.toLowerCase(),
+								e.finalName.toLowerCase() ===
+								rel.source_entity_name!.toLowerCase(),
 						);
 						const destEntity = input.resolvedEntities?.find(
 							(e) =>
-								e.finalName.toLowerCase() === rel.destination_entity_name!.toLowerCase(),
+								e.finalName.toLowerCase() ===
+								rel.destination_entity_name!.toLowerCase(),
 						);
 
 						if (!sourceEntity || !destEntity) {
@@ -326,8 +339,14 @@ ${allNodesText || "No connected nodes"}
 					dedupeBy: (f) =>
 						`${f.sourceEntityId}|${f.destinationEntityId}|${f.relationType}`,
 					onError: (error, attempt) => {
-						logError(`[EDGE_ENRICHMENT] Parse error on attempt ${attempt}:`, error);
-						if (error.message.includes("JSON") || error.message.includes("parse")) {
+						logError(
+							`[EDGE_ENRICHMENT] Parse error on attempt ${attempt}:`,
+							error,
+						);
+						if (
+							error.message.includes("JSON") ||
+							error.message.includes("parse")
+						) {
 							return `JSON parsing failed: ${error.message}. Please ensure the response is a valid JSON array with source_entity_name, destination_entity_name, relation_type, and fact_text fields.`;
 						}
 						return `Edge enrichment failed on attempt ${attempt}: ${error.message}. Please retry with correct JSON format.`;
@@ -390,7 +409,9 @@ ${allNodesText || "No connected nodes"}
 
 type EdgeEnrichmentSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createEdgeEnrichmentStep: StepFactoryFromSpec<EdgeEnrichmentSpec> = (services: AllServices) => bindStep(definition, services);
+export const createEdgeEnrichmentStep: StepFactoryFromSpec<
+	EdgeEnrichmentSpec
+> = (services: AllServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createEdgeEnrichmentStep);
 

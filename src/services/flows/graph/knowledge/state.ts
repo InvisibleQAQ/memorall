@@ -1,8 +1,5 @@
 import { Annotation } from "@langchain/langgraph/web";
-import {
-	BaseAnnotation,
-	type BaseStateBase,
-} from "../graph.base";
+import { BaseAnnotation, type BaseStateBase } from "../graph.base";
 import type { Node } from "@/services/database/entities/nodes";
 import type { Edge } from "@/services/database/entities/edges";
 import type { Source } from "@/services/database/entities/sources";

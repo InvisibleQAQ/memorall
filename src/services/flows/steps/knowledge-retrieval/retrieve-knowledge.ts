@@ -14,7 +14,10 @@ import type { Edge, Node } from "@/services/database";
 import { getScopedGraphWhere } from "@/utils/scoped-graph-query";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 
@@ -59,7 +62,11 @@ export interface RetrieveKnowledgeOutput {
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<RetrieveKnowledgeInput, RetrieveKnowledgeOutput, AllServices>({
+const definition = defineStep<
+	RetrieveKnowledgeInput,
+	RetrieveKnowledgeOutput,
+	AllServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		const database = services.database;
@@ -164,7 +171,10 @@ const definition = defineStep<RetrieveKnowledgeInput, RetrieveKnowledgeOutput, A
 						input.graphId,
 					);
 				} catch (error) {
-					logError("[RETRIEVE_KNOWLEDGE] Trigram search for nodes failed:", error);
+					logError(
+						"[RETRIEVE_KNOWLEDGE] Trigram search for nodes failed:",
+						error,
+					);
 				}
 			}
 
@@ -181,7 +191,10 @@ const definition = defineStep<RetrieveKnowledgeInput, RetrieveKnowledgeOutput, A
 						input.graphId,
 					);
 				} catch (error) {
-					logError("[RETRIEVE_KNOWLEDGE] Trigram search for edges failed:", error);
+					logError(
+						"[RETRIEVE_KNOWLEDGE] Trigram search for edges failed:",
+						error,
+					);
 				}
 			}
 
@@ -425,7 +438,9 @@ const definition = defineStep<RetrieveKnowledgeInput, RetrieveKnowledgeOutput, A
 			return {
 				output: {
 					errors: [
-						error instanceof Error ? error.message : "Knowledge retrieval failed",
+						error instanceof Error
+							? error.message
+							: "Knowledge retrieval failed",
 					],
 				},
 			};
@@ -435,7 +450,9 @@ const definition = defineStep<RetrieveKnowledgeInput, RetrieveKnowledgeOutput, A
 
 type RetrieveKnowledgeSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createRetrieveKnowledgeStep: StepFactoryFromSpec<RetrieveKnowledgeSpec> = (services: AllServices) => bindStep(definition, services);
+export const createRetrieveKnowledgeStep: StepFactoryFromSpec<
+	RetrieveKnowledgeSpec
+> = (services: AllServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createRetrieveKnowledgeStep);
 

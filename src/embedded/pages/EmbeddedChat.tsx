@@ -26,7 +26,10 @@ import {
 import type { ChatModalProps, ChatMessage, ChatAction } from "@/embedded/types";
 import { embeddedChatService } from "@/embedded/chat-service";
 import { EmbeddedContextSections } from "@/embedded/components/ContextSections";
-import { loadLanguageFromStorage, EMBEDDED_TRANSLATIONS } from "@/embedded/language";
+import {
+	loadLanguageFromStorage,
+	EMBEDDED_TRANSLATIONS,
+} from "@/embedded/language";
 import { EmbeddedMessageRenderer } from "@/embedded/components/EmbeddedMessageRenderer";
 import { EmbeddedChatInput } from "@/embedded/components/EmbeddedChatInput";
 import { customStyles } from "@/embedded/styles/customStyles";
@@ -674,12 +677,9 @@ export async function createEmbeddedChatModal(
 ): Promise<() => void> {
 	// Load language once at creation time
 	const language = await loadLanguageFromStorage();
-	const {
-		root,
-		container,
-	} = createShadowPage({
-		customStyles
-	})
+	const { root, container } = createShadowPage({
+		customStyles,
+	});
 
 	const cleanupModal = () => {
 		root.unmount();

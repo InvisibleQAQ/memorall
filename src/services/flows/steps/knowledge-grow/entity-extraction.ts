@@ -2,7 +2,10 @@ import { logInfo, logError } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 
@@ -176,7 +179,11 @@ MAXIMIZE EXTRACTION - The user selected this text specifically to preserve knowl
 // HELPER FUNCTIONS
 // ============================================================================
 
-function cleanEntityName(name: string, isUserInput: boolean, isSpecificConversion: boolean): string {
+function cleanEntityName(
+	name: string,
+	isUserInput: boolean,
+	isSpecificConversion: boolean,
+): string {
 	let cleaned = name.trim();
 
 	// Special handling for user input or specific conversion - convert first-person pronouns
@@ -238,7 +245,11 @@ function cleanEntityName(name: string, isUserInput: boolean, isSpecificConversio
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<EntityExtractionInput, EntityExtractionOutput, AllServices>({
+const definition = defineStep<
+	EntityExtractionInput,
+	EntityExtractionOutput,
+	AllServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		try {
@@ -332,7 +343,11 @@ const definition = defineStep<EntityExtractionInput, EntityExtractionOutput, All
 							.replace(/("name":\s*"|name:\s*)/, "")
 							.replace(/"/g, "")
 							.trim();
-						const cleanedName = cleanEntityName(rawName, isUserInput, isSpecificConversion);
+						const cleanedName = cleanEntityName(
+							rawName,
+							isUserInput,
+							isSpecificConversion,
+						);
 						return {
 							uuid: crypto.randomUUID(),
 							name: cleanedName,
@@ -377,8 +392,14 @@ const definition = defineStep<EntityExtractionInput, EntityExtractionOutput, All
 					maxRetries: 2,
 					dedupeBy: (e) => e.name.toLowerCase(),
 					onError: (error, attempt) => {
-						logError(`[ENTITY_EXTRACTION] Parse error on attempt ${attempt}:`, error);
-						if (error.message.includes("JSON") || error.message.includes("parse")) {
+						logError(
+							`[ENTITY_EXTRACTION] Parse error on attempt ${attempt}:`,
+							error,
+						);
+						if (
+							error.message.includes("JSON") ||
+							error.message.includes("parse")
+						) {
 							return `JSON parsing failed: ${error.message}. Please ensure the response is a valid JSON array with proper syntax and structure.`;
 						}
 						return `Processing failed on attempt ${attempt}: ${error.message}. Please retry with correct format.`;
@@ -430,7 +451,9 @@ const definition = defineStep<EntityExtractionInput, EntityExtractionOutput, All
 
 type EntityExtractionSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createEntityExtractionStep: StepFactoryFromSpec<EntityExtractionSpec> = (services: AllServices) => bindStep(definition, services);
+export const createEntityExtractionStep: StepFactoryFromSpec<
+	EntityExtractionSpec
+> = (services: AllServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createEntityExtractionStep);
 

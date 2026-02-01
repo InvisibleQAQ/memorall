@@ -2,7 +2,10 @@ import { logInfo, logError } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 
@@ -97,7 +100,11 @@ Return your response as a valid JSON array with objects matching this structure:
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<TemporalExtractionInput, TemporalExtractionOutput, AllServices>({
+const definition = defineStep<
+	TemporalExtractionInput,
+	TemporalExtractionOutput,
+	AllServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		try {
@@ -141,7 +148,9 @@ const definition = defineStep<TemporalExtractionInput, TemporalExtractionOutput,
 			});
 
 			// Helper function to validate ISO 8601 dates
-			const validateDate = (dateStr: string | undefined): string | undefined => {
+			const validateDate = (
+				dateStr: string | undefined,
+			): string | undefined => {
 				if (!dateStr || dateStr === "null") return undefined;
 				try {
 					new Date(dateStr);
@@ -248,8 +257,14 @@ ${input.referenceTimestamp || new Date().toISOString()}
 					dedupeBy: (f) =>
 						`${f.sourceEntityId}|${f.destinationEntityId}|${f.relationType}`,
 					onError: (error, attempt) => {
-						logError(`[TEMPORAL_EXTRACTION] Parse error on attempt ${attempt}:`, error);
-						if (error.message.includes("JSON") || error.message.includes("parse")) {
+						logError(
+							`[TEMPORAL_EXTRACTION] Parse error on attempt ${attempt}:`,
+							error,
+						);
+						if (
+							error.message.includes("JSON") ||
+							error.message.includes("parse")
+						) {
 							return `JSON parsing failed: ${error.message}. Please ensure the response is a valid JSON array with valid_at and invalid_at fields in ISO 8601 format.`;
 						}
 						return `Temporal extraction failed on attempt ${attempt}: ${error.message}. Please retry with correct JSON format.`;
@@ -319,7 +334,9 @@ ${input.referenceTimestamp || new Date().toISOString()}
 			return {
 				output: {
 					errors: [
-						error instanceof Error ? error.message : "Temporal extraction failed",
+						error instanceof Error
+							? error.message
+							: "Temporal extraction failed",
 					],
 				},
 			};
@@ -329,7 +346,9 @@ ${input.referenceTimestamp || new Date().toISOString()}
 
 type TemporalExtractionSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createTemporalExtractionStep: StepFactoryFromSpec<TemporalExtractionSpec> = (services: AllServices) => bindStep(definition, services);
+export const createTemporalExtractionStep: StepFactoryFromSpec<
+	TemporalExtractionSpec
+> = (services: AllServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createTemporalExtractionStep);
 

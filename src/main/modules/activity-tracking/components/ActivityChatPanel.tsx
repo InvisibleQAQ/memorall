@@ -12,7 +12,11 @@ import {
 	ConversationContent,
 	ConversationScrollButton,
 } from "@/main/components/ui/shadcn-io/ai/conversation";
-import { ChatInput, useCurrentModel, useChat } from "@/main/modules/chat/components";
+import {
+	ChatInput,
+	useCurrentModel,
+	useChat,
+} from "@/main/modules/chat/components";
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
 import { groupMessagesBySeparators } from "@/main/modules/chat/utils/message-grouping";
 

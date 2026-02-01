@@ -19,7 +19,7 @@ export interface BaseTool {
 }
 
 // Typed tool interface for implementation
-export interface Tool<TInput> extends Omit<BaseTool, 'schema' | 'execute'> {
+export interface Tool<TInput> extends Omit<BaseTool, "schema" | "execute"> {
 	schema: z.ZodSchema<TInput>;
 	execute: (input: TInput) => Promise<string>;
 }

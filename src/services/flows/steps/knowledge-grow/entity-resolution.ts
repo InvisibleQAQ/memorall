@@ -2,7 +2,10 @@ import { logInfo, logError } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import { UuidMapper } from "@/services/flows/utils/uuid-mapping";
@@ -91,11 +94,17 @@ Return your response as a valid JSON array with objects matching this structure:
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<EntityResolutionInput, EntityResolutionOutput, AllServices>({
+const definition = defineStep<
+	EntityResolutionInput,
+	EntityResolutionOutput,
+	AllServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		try {
-			logInfo("[ENTITY_RESOLUTION] Starting entity resolution with manual + AI");
+			logInfo(
+				"[ENTITY_RESOLUTION] Starting entity resolution with manual + AI",
+			);
 
 			if (!input.extractedEntities || input.extractedEntities.length === 0) {
 				const actions = [
@@ -290,7 +299,7 @@ ${entitiesText}
 								? mappingResult.correctUuid
 								: undefined,
 							finalName: mappingResult.finalName || finalName,
-							attributes: entity.attributes || {}
+							attributes: entity.attributes || {},
 						});
 					}
 
@@ -309,7 +318,7 @@ ${entitiesText}
 							uuid: mappingResult.correctUuid,
 							isExisting: false,
 							finalName: entity.name,
-							attributes: entity.attributes || {}
+							attributes: entity.attributes || {},
 						});
 					}
 
@@ -334,7 +343,7 @@ ${entitiesText}
 							uuid: mappingResult.correctUuid,
 							isExisting: false,
 							finalName: entity.name,
-							attributes: entity.attributes || {}
+							attributes: entity.attributes || {},
 						};
 					});
 				}
@@ -445,7 +454,9 @@ ${entitiesText}
 
 type EntityResolutionSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createEntityResolutionStep: StepFactoryFromSpec<EntityResolutionSpec> = (services: AllServices) => bindStep(definition, services);
+export const createEntityResolutionStep: StepFactoryFromSpec<
+	EntityResolutionSpec
+> = (services: AllServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createEntityResolutionStep);
 

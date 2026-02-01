@@ -5,10 +5,17 @@ import type { Edge, Node } from "@/services/database";
 import { getScopedGraphWhere } from "@/utils/scoped-graph-query";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
-import { combineSearchResultsWithTrigram, trigramSearchEdges, trigramSearchNodes } from "@/utils/trigram-search";
+import {
+	combineSearchResultsWithTrigram,
+	trigramSearchEdges,
+	trigramSearchNodes,
+} from "@/utils/trigram-search";
 
 const STEP_NAME = "load-entities" as const;
 
@@ -21,31 +28,31 @@ export interface ExtractedEntity {
 }
 
 export interface LoadEntitiesInput {
-  graphId?: string;
-  extractedEntities?: ExtractedEntity[]
+	graphId?: string;
+	extractedEntities?: ExtractedEntity[];
 }
 
 export interface LoadEntitiesOutput {
-  existingEdges?: Edge[],
-  existingNodes?: Node[],
-  error?: string
+	existingEdges?: Edge[];
+	existingNodes?: Node[];
+	error?: string;
 }
 
-export type LoadFactsServices = Pick<AllServices, 'database' | 'embedding'>
+export type LoadFactsServices = Pick<AllServices, "database" | "embedding">;
 
 // ============================================================================
 // STEP IMPLEMENTATION
 // ============================================================================
 
 const definition = defineStep<
-  LoadEntitiesInput,
-  LoadEntitiesOutput,
-  LoadFactsServices,
-  {}
+	LoadEntitiesInput,
+	LoadEntitiesOutput,
+	LoadFactsServices,
+	{}
 >({
-  name: STEP_NAME,
+	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
-    try {
+		try {
 			logInfo("[LOAD_ENTITIES] Loading related existing nodes for resolution");
 
 			const databaseService = services.database;
@@ -188,21 +195,23 @@ const definition = defineStep<
 					],
 					existingNodes: [],
 					existingEdges: [],
-				}
+				},
 			};
 		}
-  }
+	},
 });
 
 type LoadEntitiesSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createLoadFactsStep: StepFactoryFromSpec<LoadEntitiesSpec> = (services: LoadFactsServices, config?: {}) =>
-  bindStep(definition, services, config);
+export const createLoadFactsStep: StepFactoryFromSpec<LoadEntitiesSpec> = (
+	services: LoadFactsServices,
+	config?: {},
+) => bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createLoadFactsStep);
 
 declare global {
-  interface StepTypeRegistry {
-    [STEP_NAME]: LoadEntitiesSpec;
-  }
+	interface StepTypeRegistry {
+		[STEP_NAME]: LoadEntitiesSpec;
+	}
 }

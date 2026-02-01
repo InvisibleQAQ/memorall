@@ -25,7 +25,10 @@ export interface ChatAction {
 export interface ChatStreamCallbacks {
 	onContent?: (content: string) => void;
 	onAction?: (actions: ChatAction[]) => void;
-	onExecuteStart?: (event: { node: string; metadata?: Record<string, unknown> }) => void;
+	onExecuteStart?: (event: {
+		node: string;
+		metadata?: Record<string, unknown>;
+	}) => void;
 	onError?: (error: string) => void;
 }
 

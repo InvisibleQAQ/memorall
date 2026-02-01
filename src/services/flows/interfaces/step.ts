@@ -45,42 +45,40 @@ export interface BoundStep<TInput, TOutput> {
 		runConfig?: LangGraphRunnableConfig,
 		metadata?: Record<string, unknown>,
 	) => Promise<StepOutput<TOutput>>;
-	toNode: <TState = TOutput>(
-		options?: {
-			mapInput?: (
-				state: TState,
-				runConfig?: LangGraphRunnableConfig,
-			) => TInput | Promise<TInput>;
-			mapOutput?: (
-				output: TOutput,
-				result: StepOutput<TOutput>,
-				state: TState,
-				runConfig?: LangGraphRunnableConfig,
-			) => Partial<TState> | Promise<Partial<TState>>;
-			metadata?:
-				| Record<string, unknown>
-				| ((
-						state: TState,
-						runConfig?: LangGraphRunnableConfig,
-				  ) => Record<string, unknown> | Promise<Record<string, unknown>>);
-			onExecuteStart?: (
-				state: TState,
-				runConfig?: LangGraphRunnableConfig,
-			) =>
-				| {
-						node?: string;
-						metadata?: Record<string, unknown>;
-				  }
-				| void
-				| Promise<
-						| {
-								node?: string;
-								metadata?: Record<string, unknown>;
-						  }
-						| void
-				  >;
-		},
-	) => (state: TState, runConfig?: LangGraphRunnableConfig) => Promise<Partial<TState>>;
+	toNode: <TState = TOutput>(options?: {
+		mapInput?: (
+			state: TState,
+			runConfig?: LangGraphRunnableConfig,
+		) => TInput | Promise<TInput>;
+		mapOutput?: (
+			output: TOutput,
+			result: StepOutput<TOutput>,
+			state: TState,
+			runConfig?: LangGraphRunnableConfig,
+		) => Partial<TState> | Promise<Partial<TState>>;
+		metadata?:
+			| Record<string, unknown>
+			| ((
+					state: TState,
+					runConfig?: LangGraphRunnableConfig,
+			  ) => Record<string, unknown> | Promise<Record<string, unknown>>);
+		onExecuteStart?: (
+			state: TState,
+			runConfig?: LangGraphRunnableConfig,
+		) =>
+			| {
+					node?: string;
+					metadata?: Record<string, unknown>;
+			  }
+			| void
+			| Promise<{
+					node?: string;
+					metadata?: Record<string, unknown>;
+			  } | void>;
+	}) => (
+		state: TState,
+		runConfig?: LangGraphRunnableConfig,
+	) => Promise<Partial<TState>>;
 }
 
 /** Factory function type — conditional on whether services are needed */
@@ -99,7 +97,10 @@ export interface StepNodeMapping<TState, TInput, TOutput> {
 	mapOutput: (result: StepOutput<TOutput>, state: TState) => Partial<TState>;
 	metadata?:
 		| Record<string, unknown>
-		| ((state: TState, runConfig?: LangGraphRunnableConfig) => Record<string, unknown>);
+		| ((
+				state: TState,
+				runConfig?: LangGraphRunnableConfig,
+		  ) => Record<string, unknown>);
 }
 
 // ============================================================================
@@ -185,8 +186,7 @@ export function bindStep<
 				  >;
 		}) => {
 			const mapInput =
-				options?.mapInput ??
-				((state: TState) => state as unknown as TInput);
+				options?.mapInput ?? ((state: TState) => state as unknown as TInput);
 			const mapOutput =
 				options?.mapOutput ??
 				((output: TOutput) => output as unknown as Partial<TState>);
@@ -228,14 +228,25 @@ export function bindStep<
 }
 
 export type StepSpecFromDefinition<T> =
-  T extends StepDefinition<infer TInput, infer TOutput, infer TServices, infer TConfig>
-    ? {
-        input: TInput;
-        output: TOutput;
-        services: TServices;
-        config: TConfig;
-      }
-    : never;
+	T extends StepDefinition<
+		infer TInput,
+		infer TOutput,
+		infer TServices,
+		infer TConfig
+	>
+		? {
+				input: TInput;
+				output: TOutput;
+				services: TServices;
+				config: TConfig;
+			}
+		: never;
 
-export type StepFactoryFromSpec<T extends { input: unknown; output: unknown; services: unknown; config: unknown }> =
-  StepFactory<T["input"], T["output"], T["services"], T["config"]>;
+export type StepFactoryFromSpec<
+	T extends {
+		input: unknown;
+		output: unknown;
+		services: unknown;
+		config: unknown;
+	},
+> = StepFactory<T["input"], T["output"], T["services"], T["config"]>;
