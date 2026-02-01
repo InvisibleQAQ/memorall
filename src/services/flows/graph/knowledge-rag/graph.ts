@@ -1,4 +1,5 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
+import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
 import {
 	KnowledgeRAGAnnotation,
 	type KnowledgeRAGConfig,
@@ -9,7 +10,6 @@ import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ChatMessage } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
-import { AgentGraph } from "@/services/flows/graph/agent";
 import { stepRegistry } from "@/services/flows/step-registry";
 
 const RESPONSE_GENERATION_PROMPT = `
@@ -41,6 +41,12 @@ export class KnowledgeRAGFlow extends GraphBase<
 	private mode: "standard" | "quick" | "smart";
 	private responseMode: "simple" | "agent";
 	private configTools?: KnowledgeRAGConfig["tools"];
+	private chatCompletionStep!: ReturnType<
+		typeof stepRegistry.getStep<"chat-completion">
+	>;
+	private agentCompletionStep!: ReturnType<
+		typeof stepRegistry.getStep<"agent-completion">
+	>;
 
 	constructor(services: AllServices, config: KnowledgeRAGConfig = {}) {
 		super(services);
@@ -54,20 +60,62 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		const buildContextStep = stepRegistry.getStep('entities-facts-to-context', {})
 		const citationStep = stepRegistry.getStep('entities-facts-citation', services)
+		this.chatCompletionStep = stepRegistry.getStep("chat-completion", services);
+		this.agentCompletionStep = stepRegistry.getStep("agent-completion", services);
 
 		// Add common nodes
-		this.workflow.addNode("build_context", (...args) => {
-			return buildContextStep.execute(...args)
-		});
-		this.workflow.addNode("citation", (...args) => {
-			return citationStep.execute(...args)
-		});
+		this.workflow.addNode("build_context", buildContextStep.toNode());
+		this.workflow.addNode("citation", citationStep.toNode());
 
 		// Add response node based on responseMode
 		if (this.responseMode === "agent") {
-			this.workflow.addNode("agent_response", this.agentResponseNode);
+			this.workflow.addNode(
+				"agent_response",
+				this.agentCompletionStep.toNode<KnowledgeRAGState>({
+					mapInput: (state) => {
+						const systemMessage: ChatMessage = {
+							role: "system",
+							content: RESPONSE_GENERATION_PROMPT.replace(
+								"{context}",
+								state.knowledgeContext,
+							),
+						};
+						return {
+							messages: [systemMessage, ...state.messages],
+							tools: state.tools ?? this.configTools,
+							maxIterations: state.maxIterations,
+						};
+					},
+					mapOutput: (output) => ({
+						finalMessage: output.finalMessage,
+						next: "citation",
+					}),
+				}),
+			);
 		} else {
-			this.workflow.addNode("generate_response", this.generateResponseNode);
+			this.workflow.addNode(
+				"generate_response",
+				this.chatCompletionStep.toNode<KnowledgeRAGState>({
+					mapInput: (state) => {
+						const systemMessage: ChatMessage = {
+							role: "system",
+							content: RESPONSE_GENERATION_PROMPT.replace(
+								"{context}",
+								state.knowledgeContext,
+							),
+						};
+						return {
+							messages: [systemMessage, ...state.messages],
+							temperature: 0.2,
+							stream: true,
+						};
+					},
+					mapOutput: (output) => ({
+						finalMessage: output.finalMessage,
+						next: "citation",
+					}),
+				}),
+			);
 		}
 
 		// Add retrieval nodes and edges based on mode
@@ -75,7 +123,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 			const smartRetrieveContextStep = stepRegistry.getStep('smart-retrieve', services)
 			this.workflow.addNode(
 				"smart_retrieve",
-				(...args) => smartRetrieveContextStep.execute(...args),
+				smartRetrieveContextStep.toNode(),
 			);
 			this.workflow.addEdge(START, "smart_retrieve");
 			this.workflow.addEdge("smart_retrieve", "build_context");
@@ -83,7 +131,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 			const quickRetrieveContextStep = stepRegistry.getStep('quick-retrieve', services)
 			this.workflow.addNode(
 				"quick_retrieve",
-				(...args) => quickRetrieveContextStep.execute(...args),
+				quickRetrieveContextStep.toNode(),
 			);
 			this.workflow.addEdge(START, "quick_retrieve");
 			this.workflow.addEdge("quick_retrieve", "build_context");
@@ -92,11 +140,11 @@ export class KnowledgeRAGFlow extends GraphBase<
 			const retrievalKnowledge = stepRegistry.getStep('retrieve-knowledge', services)
 			this.workflow.addNode(
 				"analyze_query",
-				(...args) => analyzeQueryStep.execute(...args),
+				analyzeQueryStep.toNode(),
 			);
 			this.workflow.addNode(
 				"retrieve_knowledge",
-				(...args) => retrievalKnowledge.execute(...args),
+				retrievalKnowledge.toNode(),
 			);
 			this.workflow.addEdge(START, "analyze_query");
 			this.workflow.addEdge("analyze_query", "retrieve_knowledge");
@@ -117,132 +165,6 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		logInfo(`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}, responseMode: ${this.responseMode}`);
 	}
-
-	generateResponseNode = async (
-		state: KnowledgeRAGState,
-		_runConfig?: unknown,
-	): Promise<Partial<KnowledgeRAGState>> => {
-		const llm = this.services.llm;
-
-		if (!llm.isReady()) {
-			throw new Error("LLM service is not ready");
-		}
-
-		try {
-			logInfo("[KNOWLEDGE_RAG] Generating final response");
-
-			// Build system message with knowledge context
-			const systemMessage: ChatMessage = {
-				role: "system",
-				content: RESPONSE_GENERATION_PROMPT.replace(
-					"{context}",
-					state.knowledgeContext,
-				),
-			};
-
-			// Use full multimodal messages from input, prepending system message
-			const messages: ChatMessage[] = [systemMessage, ...state.messages];
-
-			const llmResponse = await llm.chatCompletions({
-				messages,
-				temperature: 0.2,
-				stream: true,
-			});
-
-			let responseContent = "";
-			if (Symbol.asyncIterator in llmResponse) {
-				for await (const chunk of llmResponse) {
-					responseContent += chunk.choices[0].delta.content || "";
-					if (this.callbacks?.onNewChunk) {
-						this.callbacks.onNewChunk(chunk);
-					}
-				}
-			}
-
-			return {
-				finalMessage: responseContent,
-				next: "citation",
-			};
-		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Response generation failed:", error);
-			throw error;
-		}
-	};
-
-	/**
-	 * Agent response node: Execute AgentGraph as child graph
-	 */
-	agentResponseNode = async (
-		state: KnowledgeRAGState,
-		_runConfig?: unknown,
-	): Promise<Partial<KnowledgeRAGState>> => {
-		try {
-			logInfo("[KNOWLEDGE_RAG] Executing agent workflow for response");
-
-			// Build system message with knowledge context
-			const systemMessage: ChatMessage = {
-				role: "system",
-				content: RESPONSE_GENERATION_PROMPT.replace(
-					"{context}",
-					state.knowledgeContext,
-				),
-			};
-
-			// Create AgentGraph instance
-			const agentGraph = new AgentGraph(this.services);
-
-			// Set callbacks to forward chunks
-			if (this.callbacks) {
-				agentGraph.setCallbacks(this.callbacks);
-			}
-
-			// Prepare input for agent - prepend system message
-			const agentInput = {
-				messages: [systemMessage, ...state.messages],
-				tools: state.tools ?? this.configTools,
-				maxIterations: state.maxIterations,
-				steps: [],
-			};
-
-			// Stream the agent graph execution
-			const stream = await agentGraph.stream(agentInput);
-
-			let finalMessage = "";
-			const allActions: KnowledgeRAGState["actions"] = [];
-
-			for await (const partial of stream) {
-				// Extract finalMessage and actions from agent state
-				for (const key of Object.keys(partial)) {
-					const value = partial[key as keyof typeof partial] as Record<string, unknown>;
-					if (value?.finalMessage) {
-						finalMessage = value.finalMessage as string;
-					}
-				}
-			}
-
-			logInfo("[KNOWLEDGE_RAG] Agent workflow completed", {
-				responseLength: finalMessage.length,
-				actionsCount: allActions.length,
-			});
-
-			return {
-				finalMessage,
-				next: "citation",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "agent_response",
-						description: "Generated response using agent workflow",
-						metadata: { responseLength: finalMessage.length },
-					},
-					...allActions,
-				],
-			};
-		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Agent response failed:", error);
-			throw error;
-		}
-	};
 }
 
 // Self-register the flow

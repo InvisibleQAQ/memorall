@@ -240,7 +240,7 @@ function cleanEntityName(name: string, isUserInput: boolean, isSpecificConversio
 
 const definition = defineStep<EntityExtractionInput, EntityExtractionOutput, AllServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		try {
 			const llm = services.llm;
 
@@ -388,22 +388,34 @@ const definition = defineStep<EntityExtractionInput, EntityExtractionOutput, All
 
 			logInfo("[ENTITY_EXTRACTION] Extracted entities:", extractedEntities);
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Entity Extraction Complete",
+					description: `Extracted ${extractedEntities.length} entities from content`,
+					metadata: { entityCount: extractedEntities.length },
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					extractedEntities,
 					processingStage: "entity_resolution",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Entity Extraction Complete",
-						description: `Extracted ${extractedEntities.length} entities from content`,
-						metadata: { entityCount: extractedEntities.length },
-					},
-				],
 			};
 		} catch (error) {
 			logError("[ENTITY_EXTRACTION] Error:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Entity Extraction Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -411,14 +423,6 @@ const definition = defineStep<EntityExtractionInput, EntityExtractionOutput, All
 						error instanceof Error ? error.message : "Entity extraction failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Entity Extraction Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

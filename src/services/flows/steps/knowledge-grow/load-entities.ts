@@ -44,7 +44,7 @@ const definition = defineStep<
   {}
 >({
   name: STEP_NAME,
-  execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
     try {
 			logInfo("[LOAD_ENTITIES] Loading related existing nodes for resolution");
 
@@ -155,25 +155,27 @@ const definition = defineStep<
 				`[LOAD_ENTITIES] Loaded ${related.length} related nodes (${sqlResults.length} SQL, ${trigramResults.length} trigram, ${vectorResults.length} vector)`,
 			);
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Related Nodes Loaded",
+					description: `Loaded ${related.length} related nodes for entity resolution (${sqlResults.length} SQL + ${trigramResults.length} trigram + ${vectorResults.length} vector)`,
+					metadata: {
+						nodeCount: related.length,
+						sqlCount: sqlResults.length,
+						trigramCount: trigramResults.length,
+						vectorCount: vectorResults.length,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					existingNodes: related as Node[],
 					// Defer edge loading; load_facts will query per facts
 					existingEdges: [],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Related Nodes Loaded",
-						description: `Loaded ${related.length} related nodes for entity resolution (${sqlResults.length} SQL + ${trigramResults.length} trigram + ${vectorResults.length} vector)`,
-						metadata: {
-							nodeCount: related.length,
-							sqlCount: sqlResults.length,
-							trigramCount: trigramResults.length,
-							vectorCount: vectorResults.length,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[LOAD_ENTITIES] Error:", error);

@@ -1,7 +1,8 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
+import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
 import { AgentAnnotation, type AgentState, type AgentStep } from "./state";
 import { GraphBase } from "@/services/flows/graph/graph.base";
-import { toolRegistry, convertToolsToOpenAI } from "@/services/flows/tools";
+import { toolRegistry, convertToolsToOpenAI } from "@/services/flows/tool-registry";
 import type { BaseTool, CombinedServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionChunk, ChatCompletionMessageParam } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
@@ -116,7 +117,10 @@ export class AgentGraph extends GraphBase<
 	/**
 	 * Agent node: Call LLM with tools (streaming) to decide on tool use or final response
 	 */
-	agentNode = async (state: AgentState): Promise<Partial<AgentState>> => {
+	agentNode = async (
+		state: AgentState,
+		runConfig?: LangGraphRunnableConfig,
+	): Promise<Partial<AgentState>> => {
 		const llm = this.services.llm;
 
 		if (!llm.isReady()) {
@@ -144,18 +148,14 @@ export class AgentGraph extends GraphBase<
 				type: "function";
 				function: { name: string; arguments: string };
 			}>();
-
 			for await (const chunk of stream) {
 				const delta = chunk.choices[0]?.delta;
 
 				// Accumulate content
 				if (delta?.content) {
 					content += delta.content;
-					// Stream to callback
-					if (this.callbacks?.onNewChunk) {
-						this.callbacks.onNewChunk(chunk);
-					}
 				}
+				runConfig?.writer?.({ type: "llm", chunk });
 
 				// Accumulate tool calls
 				if (delta?.tool_calls) {
@@ -187,6 +187,14 @@ export class AgentGraph extends GraphBase<
 
 			// Check if LLM wants to call tools
 			if (toolCalls.length > 0) {
+				const actions = toolCalls.map((tc) => ({
+					id: crypto.randomUUID(),
+					name: `Calling "${tc.function.name}"`,
+					description: `Args: ${tc.function.arguments}`,
+					metadata: { tool: tc.function.name },
+				}));
+				runConfig?.writer?.({ type: "actions", actions });
+
 				const newStep: AgentStep = {
 					role: "assistant",
 					content: content || null,
@@ -196,12 +204,6 @@ export class AgentGraph extends GraphBase<
 				return {
 					steps: [newStep],
 					currentIteration: state.currentIteration + 1,
-					actions: toolCalls.map((tc) => ({
-						id: crypto.randomUUID(),
-						name: `Calling "${tc.function.name}"`,
-						description: `Args: ${tc.function.arguments}`,
-						metadata: { tool: tc.function.name },
-					})),
 				};
 			}
 
@@ -211,18 +213,20 @@ export class AgentGraph extends GraphBase<
 				content,
 			};
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Final response",
+					description: "Agent completed with final answer",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				steps: [newStep],
 				finalMessage: content,
 				currentIteration: state.currentIteration + 1,
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Final response",
-						description: "Agent completed with final answer",
-						metadata: {},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[AGENT] Error:", error);
@@ -233,7 +237,10 @@ export class AgentGraph extends GraphBase<
 	/**
 	 * Tools node: Execute tool calls and return results
 	 */
-	toolsNode = async (state: AgentState): Promise<Partial<AgentState>> => {
+	toolsNode = async (
+		state: AgentState,
+		runConfig?: LangGraphRunnableConfig,
+	): Promise<Partial<AgentState>> => {
 		const lastStep = state.steps[state.steps.length - 1];
 
 		if (!lastStep?.tool_calls || lastStep.tool_calls.length === 0) {
@@ -282,18 +289,19 @@ export class AgentGraph extends GraphBase<
 			}
 		}
 
+		const actions = [
+			{
+				id: crypto.randomUUID(),
+				name: `Executed ${toolResultSteps.length} tool(s)`,
+				description: toolResultSteps
+					.map((s) => s.content?.substring(0, 100))
+					.join("; "),
+				metadata: {},
+			},
+		];
+		runConfig?.writer?.({ type: "actions", actions });
 		return {
 			steps: toolResultSteps,
-			actions: [
-				{
-					id: crypto.randomUUID(),
-					name: `Executed ${toolResultSteps.length} tool(s)`,
-					description: toolResultSteps
-						.map((s) => s.content?.substring(0, 100))
-						.join("; "),
-					metadata: {},
-				},
-			],
 		};
 	};
 }

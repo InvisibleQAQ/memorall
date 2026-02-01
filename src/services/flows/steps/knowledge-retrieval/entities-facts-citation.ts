@@ -91,7 +91,7 @@ const definition = defineStep<
   EntitiesFactsCitationConfig
 >({
   name: STEP_NAME,
-  execute: async ({ input, services }) => {
+  execute: async ({ input, services, runConfig }) => {
     const llm = services.llm;
 
 		if (
@@ -102,7 +102,6 @@ const definition = defineStep<
 				output: {
           finalMessage: input.finalMessage,
         },
-				actions: [],
 			};
 		}
 
@@ -184,39 +183,39 @@ const definition = defineStep<
 
 			const citedResponse = citedLines.join("\n");
 
+			const action = {
+				id: crypto.randomUUID(),
+				name: "citation",
+				description: "Added citations to response",
+				metadata: {
+					citationCount: (
+						citedResponse.match(/\]\(citation[s]?:(node|edge)\//g) || []
+					).length,
+					citedLines: lineCitations.size,
+				},
+			};
+			runConfig?.writer?.({ type: "actions", actions: [action] });
+
 			return {
 				output: {
           finalMessage: citedResponse,
         },
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "citation",
-						description: "Added citations to response",
-						metadata: {
-							citationCount: (
-								citedResponse.match(/\]\(citation[s]?:(node|edge)\//g) || []
-							).length,
-							citedLines: lineCitations.size,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[KNOWLEDGE_RAG] Citation failed:", error);
 			// Return original response if citation fails
+			const action = {
+				id: crypto.randomUUID(),
+				name: "citation_fallback",
+				description: "Citation failed, returning original response",
+				metadata: { error: String(error) },
+			};
+			runConfig?.writer?.({ type: "actions", actions: [action] });
+
 			return {
 				output: {
           finalMessage: input.finalMessage,
         },
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "citation_fallback",
-						description: "Citation failed, returning original response",
-						metadata: { error: String(error) },
-					},
-				],
 			};
 		}
   }

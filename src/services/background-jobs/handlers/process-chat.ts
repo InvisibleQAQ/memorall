@@ -6,6 +6,11 @@ import type {
 	ChatMessage,
 	ChatCompletionChunk,
 } from "@/types/openai";
+import {
+	isCustomChunkPayload,
+	normalizeLangGraphStreamChunk,
+	type FlowAction,
+} from "@/services/flows/utils/langgraph-stream";
 import { handlerRegistry } from "./handler-registry";
 import type { KnowledgeRAGState } from "@/services/flows/graph/knowledge-rag/state";
 import { sql } from "drizzle-orm";
@@ -160,12 +165,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		);
 
 		let currentContent = "";
-		const actions: Array<{
-			id: string;
-			name: string;
-			description: string;
-			metadata: Record<string, unknown>;
-		}> = [];
+		const actions: FlowAction[] = [];
 
 		// Create stream buffer for content
 		const streamBuffer = new StreamBuffer(
@@ -268,95 +268,112 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						steps: [],
 					},
 					{
-						callbacks: {
-							onNewChunk: async (chunk: ChatCompletionChunk) => {
-								// Stream all chunk types immediately if it's a tool call
-								const hasToolCalls =
-									chunk.choices[0]?.delta &&
-									"tool_calls" in chunk.choices[0]?.delta &&
-									Array.isArray(chunk.choices[0]?.delta?.tool_calls) &&
-									chunk.choices[0]?.delta?.tool_calls?.length > 0;
-								if (hasToolCalls && config.streamToolCallsImmediately) {
-									await dependencies.updateJobProgress(jobId, {
-										stage: "Tool call in progress...",
-										progress: Math.min(80, 20 + currentContent.length / 10),
-										result: {
-											type: "chunk",
-											chunk,
-										} as ChatResult,
-									});
-									return;
-								}
-
-								// Buffer content chunks
-								const content = chunk.choices[0]?.delta?.content;
-								if (content) {
-									streamBuffer.add(content);
-								}
-
-								// Stream other chunk types immediately (role, finish_reason, etc)
-								// But clear delta.content if it was already buffered to avoid duplication
-								if (
-									chunk.choices[0]?.delta?.role ||
-									chunk.choices[0]?.finish_reason
-								) {
-									// Create a copy of the chunk without delta.content if content was buffered
-									const chunkToSend = content
-										? {
-												...chunk,
-												choices: [
-													{
-														...chunk.choices[0],
-														delta: {
-															...chunk.choices[0].delta,
-															content: undefined, // Clear content since it's being buffered
-														},
-													},
-												],
-											}
-										: chunk;
-
-									await dependencies.updateJobProgress(jobId, {
-										stage: "Receiving response...",
-										progress: Math.min(80, 20 + currentContent.length / 10),
-										result: {
-											type: "chunk",
-											chunk: chunkToSend,
-										} as ChatResult,
-									});
-								}
-							},
-						},
+						streamMode: ["custom", "updates", "values"],
 					},
 				);
 
-				for await (const partial of stream) {
-					// Capture the final state for citation content
-					finalState = partial;
+				const responseProgress = () =>
+					Math.min(80, 20 + currentContent.length / 10);
+				const hasToolCalls = (
+					delta: ChatCompletionChunk["choices"][number]["delta"] | undefined,
+				) =>
+					Array.isArray(delta?.tool_calls) && delta.tool_calls.length > 0;
 
-					const keys = Object.keys(partial);
-					keys.forEach((key) => {
-						const partialValue = partial[key];
-						if (
-							"actions" in partialValue &&
-							Array.isArray(partialValue.actions) &&
-							partialValue.actions?.length
-						) {
-							partialValue.actions.forEach((action) => {
-								if (!actions.find((a) => a.id === action.id)) {
-									actions.push(action);
+				const handleChunk = async (chunk: ChatCompletionChunk) => {
+					const choice = chunk.choices?.[0];
+					if (!choice) {
+						return;
+					}
+
+					const delta = choice.delta;
+
+					if (config.streamToolCallsImmediately && hasToolCalls(delta)) {
+						await dependencies.updateJobProgress(jobId, {
+							stage: "Tool call in progress...",
+							progress: responseProgress(),
+							result: {
+								type: "chunk",
+								chunk,
+							} as ChatResult,
+						});
+						return;
+					}
+
+					const content = delta?.content ?? "";
+					if (content) {
+						streamBuffer.add(content);
+					}
+
+					if (delta?.role || choice.finish_reason) {
+						const chunkToSend = content
+							? {
+									...chunk,
+									choices: [
+										{
+											...choice,
+											delta: {
+												...delta,
+												content: undefined,
+											},
+										},
+									],
 								}
-							});
-							dependencies.updateJobProgress(jobId, {
-								stage: "Receiving response...",
-								progress: 10,
-								result: {
-									type: "action",
-									actions,
-								} as ChatResult,
-							});
+							: chunk;
+
+						await dependencies.updateJobProgress(jobId, {
+							stage: "Receiving response...",
+							progress: responseProgress(),
+							result: {
+								type: "chunk",
+								chunk: chunkToSend,
+							} as ChatResult,
+						});
+					}
+				};
+
+				const handleActions = (next: FlowAction[]) => {
+					let added = false;
+					for (const action of next) {
+						if (!actions.find((a) => a.id === action.id)) {
+							actions.push(action);
+							added = true;
 						}
-					});
+					}
+					if (added) {
+						dependencies.updateJobProgress(jobId, {
+							stage: "Receiving response...",
+							progress: 10,
+							result: {
+								type: "action",
+								actions,
+							} as ChatResult,
+						});
+					}
+				};
+
+				for await (const partial of stream) {
+					const { mode, payload } = normalizeLangGraphStreamChunk(partial);
+
+					if (mode === "custom" && isCustomChunkPayload(payload)) {
+						switch (payload.type) {
+							case "llm":
+								if ("chunk" in payload) {
+									await handleChunk(payload.chunk as ChatCompletionChunk);
+								}
+								break;
+							case "actions":
+								if ("actions" in payload) {
+									handleActions(payload.actions as FlowAction[]);
+								}
+								break;
+						}
+						continue;
+					}
+
+					// Capture the final state for citation content
+					if (mode === "values") {
+						finalState = payload as Partial<KnowledgeRAGState>;
+					}
 				}
 
 				// Flush any remaining buffered content from streaming

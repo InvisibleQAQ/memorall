@@ -497,7 +497,7 @@ const definition = defineStep<
 	Partial<SmartRetrievalConfig>
 >({
 	name: STEP_NAME,
-	execute: async ({ input, services, config: configOverrides }) => {
+	execute: async ({ input, services, config: configOverrides, runConfig }) => {
 		try {
 			const config = mergeConfig(DEFAULT_SMART_CONFIG, configOverrides);
 
@@ -800,6 +800,23 @@ const definition = defineStep<
 				relevanceScore: edge.finalScore ?? edge.semanticScore,
 			}));
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Smart Retrieval Complete",
+					description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} edges using smart hybrid retrieval`,
+					metadata: {
+						mode: "smart",
+						seedNodes: seedNodes.length,
+						seedEdges: seedEdges.length,
+						finalNodes: relevantNodes.length,
+						finalEdges: relevantEdges.length,
+						queryComponents: queryComponents.length,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					relevantNodes,
@@ -808,37 +825,24 @@ const definition = defineStep<
 					queryIntent: "factual",
 					next: "build_context",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Smart Retrieval Complete",
-						description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} edges using smart hybrid retrieval`,
-						metadata: {
-							mode: "smart",
-							seedNodes: seedNodes.length,
-							seedEdges: seedEdges.length,
-							finalNodes: relevantNodes.length,
-							finalEdges: relevantEdges.length,
-							queryComponents: queryComponents.length,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[SMART_RETRIEVE] Retrieval failed:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Smart Retrieval Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
 					errors: [error instanceof Error ? error.message : "Smart retrieval failed"],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Smart Retrieval Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

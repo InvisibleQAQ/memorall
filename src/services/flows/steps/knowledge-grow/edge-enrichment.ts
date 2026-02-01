@@ -107,7 +107,7 @@ Return your response as a valid JSON array with objects matching this structure:
 
 const definition = defineStep<EdgeEnrichmentInput, EdgeEnrichmentOutput, AllServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		try {
 			logInfo("[EDGE_ENRICHMENT] Starting edge enrichment for isolated nodes");
 
@@ -168,18 +168,20 @@ const definition = defineStep<EdgeEnrichmentInput, EdgeEnrichmentOutput, AllServ
 
 			if (isolatedNodes.length === 0) {
 				logInfo("[EDGE_ENRICHMENT] No isolated nodes found");
+				const actions = [
+					{
+						id: crypto.randomUUID(),
+						name: "Edge Enrichment Skipped",
+						description: "No isolated nodes to enrich",
+						metadata: { isolatedNodes: 0 },
+					},
+				];
+				runConfig?.writer?.({ type: "actions", actions });
+
 				return {
 					output: {
 						processingStage: "temporal_extraction",
 					},
-					actions: [
-						{
-							id: crypto.randomUUID(),
-							name: "Edge Enrichment Skipped",
-							description: "No isolated nodes to enrich",
-							metadata: { isolatedNodes: 0 },
-						},
-					],
 				};
 			}
 
@@ -343,25 +345,37 @@ ${allNodesText || "No connected nodes"}
 				...enrichedFacts,
 			];
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Edge Enrichment Complete",
+					description: `Enriched ${isolatedNodes.length} isolated nodes with ${enrichedFacts.length} new relationships`,
+					metadata: {
+						isolatedNodes: isolatedNodes.length,
+						newRelationships: enrichedFacts.length,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					extractedFacts: updatedExtractedFacts,
 					processingStage: "temporal_extraction",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Edge Enrichment Complete",
-						description: `Enriched ${isolatedNodes.length} isolated nodes with ${enrichedFacts.length} new relationships`,
-						metadata: {
-							isolatedNodes: isolatedNodes.length,
-							newRelationships: enrichedFacts.length,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[EDGE_ENRICHMENT] Error:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Edge Enrichment Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -369,14 +383,6 @@ ${allNodesText || "No connected nodes"}
 						error instanceof Error ? error.message : "Edge enrichment failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Edge Enrichment Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

@@ -93,24 +93,26 @@ Return your response as a valid JSON array with objects matching this structure:
 
 const definition = defineStep<EntityResolutionInput, EntityResolutionOutput, AllServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		try {
 			logInfo("[ENTITY_RESOLUTION] Starting entity resolution with manual + AI");
 
 			if (!input.extractedEntities || input.extractedEntities.length === 0) {
+				const actions = [
+					{
+						id: crypto.randomUUID(),
+						name: "Entity Resolution Skipped",
+						description: "No entities to resolve",
+						metadata: { totalEntities: 0 },
+					},
+				];
+				runConfig?.writer?.({ type: "actions", actions });
+
 				return {
 					output: {
 						resolvedEntities: [],
 						processingStage: "fact_extraction",
 					},
-					actions: [
-						{
-							id: crypto.randomUUID(),
-							name: "Entity Resolution Skipped",
-							description: "No entities to resolve",
-							metadata: { totalEntities: 0 },
-						},
-					],
 				};
 			}
 
@@ -152,23 +154,25 @@ const definition = defineStep<EntityResolutionInput, EntityResolutionOutput, All
 
 			// If all entities were manually resolved, return early
 			if (needsAIResolution.length === 0) {
+				const actions = [
+					{
+						id: crypto.randomUUID(),
+						name: "Entity Resolution Complete (Manual Only)",
+						description: `Resolved ${manuallyResolved.length} entities via exact name matching`,
+						metadata: {
+							totalEntities: manuallyResolved.length,
+							manualMatches: manuallyResolved.length,
+							aiResolved: 0,
+						},
+					},
+				];
+				runConfig?.writer?.({ type: "actions", actions });
+
 				return {
 					output: {
 						resolvedEntities: manuallyResolved,
 						processingStage: "fact_extraction",
 					},
-					actions: [
-						{
-							id: crypto.randomUUID(),
-							name: "Entity Resolution Complete (Manual Only)",
-							description: `Resolved ${manuallyResolved.length} entities via exact name matching`,
-							metadata: {
-								totalEntities: manuallyResolved.length,
-								manualMatches: manuallyResolved.length,
-								aiResolved: 0,
-							},
-						},
-					],
 				};
 			}
 
@@ -391,30 +395,42 @@ ${entitiesText}
 				`[ENTITY_RESOLUTION] Resolved ${allResolvedEntities.length} entities (${manuallyResolved.length} manual, ${aiResolvedEntities.length} AI)`,
 			);
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Entity Resolution Complete",
+					description: `Resolved ${allResolvedEntities.length} entities. ${allResolvedEntities.filter((e) => e.isExisting).length} existing, ${allResolvedEntities.filter((e) => !e.isExisting).length} new (${manuallyResolved.length} manual matches, ${aiResolvedEntities.length} AI resolved)`,
+					metadata: {
+						totalEntities: allResolvedEntities.length,
+						existingEntities: allResolvedEntities.filter((e) => e.isExisting)
+							.length,
+						newEntities: allResolvedEntities.filter((e) => !e.isExisting)
+							.length,
+						manualMatches: manuallyResolved.length,
+						aiResolved: aiResolvedEntities.length,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					resolvedEntities: allResolvedEntities,
 					processingStage: "fact_extraction",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Entity Resolution Complete",
-						description: `Resolved ${allResolvedEntities.length} entities. ${allResolvedEntities.filter((e) => e.isExisting).length} existing, ${allResolvedEntities.filter((e) => !e.isExisting).length} new (${manuallyResolved.length} manual matches, ${aiResolvedEntities.length} AI resolved)`,
-						metadata: {
-							totalEntities: allResolvedEntities.length,
-							existingEntities: allResolvedEntities.filter((e) => e.isExisting)
-								.length,
-							newEntities: allResolvedEntities.filter((e) => !e.isExisting)
-								.length,
-							manualMatches: manuallyResolved.length,
-							aiResolved: aiResolvedEntities.length,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[ENTITY_RESOLUTION] Error:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Entity Resolution Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -422,14 +438,6 @@ ${entitiesText}
 						error instanceof Error ? error.message : "Entity resolution failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Entity Resolution Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

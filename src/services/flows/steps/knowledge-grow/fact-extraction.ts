@@ -214,7 +214,7 @@ async function generateFactsForUnconnectedEntities(
 
 const definition = defineStep<FactExtractionInput, FactExtractionOutput, AllServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		try {
 			const llm = services.llm;
 
@@ -493,27 +493,39 @@ const definition = defineStep<FactExtractionInput, FactExtractionOutput, AllServ
 				`[FACT_EXTRACTION] Total extracted facts: ${totalFacts} (${totalFacts - additionalFacts.length} initial + ${additionalFacts.length} additional)`,
 			);
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Fact Extraction Complete",
+					description: `Extracted ${totalFacts} facts from content (${additionalFacts.length} additional for unconnected entities)`,
+					metadata: {
+						factCount: totalFacts,
+						initialFacts: totalFacts - additionalFacts.length,
+						additionalFacts: additionalFacts.length,
+						unconnectedEntitiesFound: unconnectedEntities.length,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					extractedFacts,
 					processingStage: "fact_resolution",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Fact Extraction Complete",
-						description: `Extracted ${totalFacts} facts from content (${additionalFacts.length} additional for unconnected entities)`,
-						metadata: {
-							factCount: totalFacts,
-							initialFacts: totalFacts - additionalFacts.length,
-							additionalFacts: additionalFacts.length,
-							unconnectedEntitiesFound: unconnectedEntities.length,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[FACT_EXTRACTION] Error:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Fact Extraction Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -521,14 +533,6 @@ const definition = defineStep<FactExtractionInput, FactExtractionOutput, AllServ
 						error instanceof Error ? error.message : "Fact extraction failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Fact Extraction Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

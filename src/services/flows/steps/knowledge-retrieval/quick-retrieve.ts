@@ -286,7 +286,7 @@ const definition = defineStep<
 	QuickRetrieveConfig
 >({
 	name: STEP_NAME,
-	execute: async ({ input, services, config }) => {
+	execute: async ({ input, services, config, runConfig }) => {
 		try {
 			const effectiveConfig: Required<QuickRetrieveConfig> = {
 				maxGrowthLevels: config?.maxGrowthLevels ?? 3,
@@ -344,6 +344,23 @@ const definition = defineStep<
 				growthLevels: effectiveConfig.maxGrowthLevels,
 			});
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Quick Knowledge Retrieval Complete",
+					description: `Found ${grownResults.nodes.length} nodes and ${grownResults.edges.length} relationships using semantic search and ${effectiveConfig.maxGrowthLevels} levels of graph growth`,
+					metadata: {
+						mode: "quick",
+						initialNodeCount: initialResults.nodes.length,
+						initialEdgeCount: initialResults.edges.length,
+						grownNodeCount: grownResults.nodes.length,
+						grownEdgeCount: grownResults.edges.length,
+						growthLevels: effectiveConfig.maxGrowthLevels,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					relevantNodes: grownResults.nodes,
@@ -352,24 +369,19 @@ const definition = defineStep<
 					queryIntent: "factual", // Default intent for quick mode
 					next: "build_context",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Quick Knowledge Retrieval Complete",
-						description: `Found ${grownResults.nodes.length} nodes and ${grownResults.edges.length} relationships using semantic search and ${effectiveConfig.maxGrowthLevels} levels of graph growth`,
-						metadata: {
-							mode: "quick",
-							initialNodeCount: initialResults.nodes.length,
-							initialEdgeCount: initialResults.edges.length,
-							grownNodeCount: grownResults.nodes.length,
-							grownEdgeCount: grownResults.edges.length,
-							growthLevels: effectiveConfig.maxGrowthLevels,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[QUICK_RETRIEVE] Quick retrieve failed:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Quick Retrieve Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -377,14 +389,6 @@ const definition = defineStep<
 						error instanceof Error ? error.message : "Quick retrieve failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Quick Retrieve Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

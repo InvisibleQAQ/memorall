@@ -766,7 +766,7 @@ async function generateFactsForUnconnectedEntities(
 
 const definition = defineStep<FactExtractionV2Input, FactExtractionV2Output, AllServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		try {
 			const llm = services.llm;
 
@@ -869,28 +869,41 @@ const definition = defineStep<FactExtractionV2Input, FactExtractionV2Output, All
 				`[FACT_EXTRACTION_V2] Extraction complete: ${totalFacts} total facts`,
 			);
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Fact Extraction Complete (V2)",
+					description: `Extracted ${totalFacts} facts using entity-batching strategy`,
+					metadata: {
+						factCount: totalFacts,
+						entityBatches: entityBatches.length,
+						batchSize: entityBatchSize,
+						unconnectedEntitiesFound: unconnectedEntities.length,
+						additionalFacts: additionalFacts.length,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					extractedFacts: allFacts,
 					processingStage: "fact_resolution",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Fact Extraction Complete (V2)",
-						description: `Extracted ${totalFacts} facts using entity-batching strategy`,
-						metadata: {
-							factCount: totalFacts,
-							entityBatches: entityBatches.length,
-							batchSize: entityBatchSize,
-							unconnectedEntitiesFound: unconnectedEntities.length,
-							additionalFacts: additionalFacts.length,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[FACT_EXTRACTION_V2] Error:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Fact Extraction Failed (V2)",
+					description:
+						error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -898,15 +911,6 @@ const definition = defineStep<FactExtractionV2Input, FactExtractionV2Output, All
 						error instanceof Error ? error.message : "Fact extraction failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Fact Extraction Failed (V2)",
-						description:
-							error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},
