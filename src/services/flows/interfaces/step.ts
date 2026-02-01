@@ -63,6 +63,22 @@ export interface BoundStep<TInput, TOutput> {
 						state: TState,
 						runConfig?: LangGraphRunnableConfig,
 				  ) => Record<string, unknown> | Promise<Record<string, unknown>>);
+			onExecuteStart?: (
+				state: TState,
+				runConfig?: LangGraphRunnableConfig,
+			) =>
+				| {
+						node?: string;
+						metadata?: Record<string, unknown>;
+				  }
+				| void
+				| Promise<
+						| {
+								node?: string;
+								metadata?: Record<string, unknown>;
+						  }
+						| void
+				  >;
 		},
 	) => (state: TState, runConfig?: LangGraphRunnableConfig) => Promise<Partial<TState>>;
 }
@@ -149,6 +165,24 @@ export function bindStep<
 						state: TState,
 						runConfig?: LangGraphRunnableConfig,
 				  ) => Record<string, unknown> | Promise<Record<string, unknown>>);
+			onExecuteStart?: (
+				state: TState,
+				runConfig?: LangGraphRunnableConfig,
+			) =>
+				| {
+						node?: string;
+						metadata?: Record<string, unknown>;
+				  }
+				| void
+				| undefined
+				| Promise<
+						| {
+								node?: string;
+								metadata?: Record<string, unknown>;
+						  }
+						| void
+						| undefined
+				  >;
 		}) => {
 			const mapInput =
 				options?.mapInput ??
@@ -161,6 +195,21 @@ export function bindStep<
 				state: TState,
 				runConfig?: LangGraphRunnableConfig,
 			): Promise<Partial<TState>> => {
+				if (runConfig?.writer) {
+					const executeInfo: {
+						type: "execute-start";
+						node?: string;
+						metadata?: unknown;
+					} = { type: "execute-start", node: definition.name };
+					if (options?.onExecuteStart) {
+						const startInfo = await options?.onExecuteStart?.(state, runConfig);
+						if (startInfo) {
+							executeInfo.node = startInfo.node ?? executeInfo.node;
+							executeInfo.metadata = startInfo.metadata;
+						}
+					}
+					runConfig.writer(executeInfo);
+				}
 				const metadata =
 					typeof options?.metadata === "function"
 						? await options.metadata(state, runConfig)
@@ -176,50 +225,6 @@ export function bindStep<
 			};
 		},
 	};
-}
-
-/**
- * Bridges a BoundStep to a LangGraph node function: `(state) => Partial<state>`.
- *
- * Uses `mapInput` to extract step input from state, runs the step,
- * then uses `mapOutput` to merge results back into state.
- */
-export function toGraphNode<TState extends BaseStateBase, TInput, TOutput>(
-	step: BoundStep<TInput, TOutput>,
-	mapping: StepNodeMapping<TState, TInput, TOutput>,
-): (state: TState, runConfig?: LangGraphRunnableConfig) => Promise<Partial<TState>> {
-	return async (state: TState, runConfig?: LangGraphRunnableConfig): Promise<Partial<TState>> => {
-		const metadata =
-			typeof mapping.metadata === "function"
-				? mapping.metadata(state, runConfig)
-				: mapping.metadata;
-
-		const input = mapping.mapInput(state);
-		const result = await step.execute(input, runConfig, metadata);
-
-		const stateUpdate = mapping.mapOutput(result, state);
-
-		return stateUpdate;
-	};
-}
-
-export function toGraphNodeAuto<TState extends BaseStateBase, TInput, TOutput>(
-	step: BoundStep<TInput, TOutput>,
-	mapping?: Partial<StepNodeMapping<TState, TInput, TOutput>>,
-): (state: TState, runConfig?: LangGraphRunnableConfig) => Promise<Partial<TState>> {
-	const mapInput =
-		mapping?.mapInput ??
-		((state: TState) => state as unknown as TInput);
-	const mapOutput =
-		mapping?.mapOutput ??
-		((result: StepOutput<TOutput>) =>
-			result.output as unknown as Partial<TState>);
-
-	return toGraphNode(step, {
-		mapInput,
-		mapOutput,
-		metadata: mapping?.metadata,
-	});
 }
 
 export type StepSpecFromDefinition<T> =

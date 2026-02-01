@@ -22,6 +22,11 @@ export type LangGraphCustomChunkPayload =
 			actions: FlowAction[];
 	  }
 	| {
+			type: "execute-start";
+			node: string;
+			metadata?: Record<string, unknown>;
+	  }
+	| {
 			type: string;
 	  };
 

@@ -36,6 +36,11 @@ export type ChatResult =
 			chunk?: ChatCompletionChunk;
 	  }
 	| {
+			type: "execute-start";
+			node: string;
+			metadata?: Record<string, unknown>;
+	  }
+	| {
 			type: "final";
 			content: string;
 			metadata?: {
@@ -257,7 +262,8 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					}
 				}
 
-				let finalState: Partial<KnowledgeRAGState> | null = null;
+				let finalState: KnowledgeRAGState | null = null;
+				const seenModes = new Set<string>();
 
 				const stream = await graph.stream(
 					{
@@ -354,6 +360,15 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				for await (const partial of stream) {
 					const { mode, payload } = normalizeLangGraphStreamChunk(partial);
 
+					if (!seenModes.has(mode)) {
+						seenModes.add(mode);
+						await dependencies.logger.info(
+							"[CHAT_STREAM] mode sample",
+							{ mode, payload },
+							"offscreen",
+						);
+					}
+
 					if (mode === "custom" && isCustomChunkPayload(payload)) {
 						switch (payload.type) {
 							case "llm":
@@ -366,38 +381,42 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 									handleActions(payload.actions as FlowAction[]);
 								}
 								break;
+							case "execute-start":
+								if ("node" in payload) {
+									await dependencies.logger.info(
+										"[CHAT_STREAM] execute-start",
+										{
+											node: payload.node,
+											metadata: payload.metadata,
+										},
+										"offscreen",
+									);
+									dependencies.updateJobProgress(jobId, {
+										stage: "Executing...",
+										progress: 12,
+										result: {
+											type: "execute-start",
+											node: payload.node,
+											metadata: payload.metadata,
+										} as ChatResult,
+									});
+								}
+								break;
 						}
 						continue;
 					}
 
 					// Capture the final state for citation content
 					if (mode === "values") {
-						finalState = payload as Partial<KnowledgeRAGState>;
+						finalState = payload as KnowledgeRAGState;
 					}
 				}
 
 				// Flush any remaining buffered content from streaming
 				streamBuffer.flush();
 
-				// After citation step, get the final content with citations
-				// The citation node updates finalMessage with citations
-				// LangGraph returns state like: { citation: { finalMessage: "...", actions: [...] } }
-				// We need to check all possible keys to find finalMessage
 				if (finalState) {
-					// Try to find finalMessage in any of the state keys
-					let finalMessage: string | undefined;
-					for (const key of Object.keys(finalState)) {
-						const stateValue = finalState[key as keyof typeof finalState];
-						if (
-							stateValue &&
-							typeof stateValue === "object" &&
-							"finalMessage" in stateValue
-						) {
-							finalMessage = (stateValue as { finalMessage: string })
-								.finalMessage;
-							break;
-						}
-					}
+					const finalMessage = finalState.finalMessage;
 
 					// If found and different from current content, update
 					if (finalMessage && finalMessage !== currentContent) {

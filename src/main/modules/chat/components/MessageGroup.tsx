@@ -63,7 +63,10 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 			if (!inProgressMessage) return null;
 
 			return {
-				metadata: { actions: inProgressMessage.actions },
+				metadata: {
+					actions: inProgressMessage.actions,
+					executeState: inProgressMessage.executeState,
+				},
 				createdAt: new Date(),
 				updatedAt: new Date(),
 				...inProgressMessage,

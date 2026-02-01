@@ -293,12 +293,6 @@ window.addEventListener("message", async (event) => {
 					};
 				});
 
-				console.log("[embedding-runner] reply(embeddings) ->", {
-					messageId,
-					targetOrigin: origin,
-					hasSource: !!src,
-					count: processed.length,
-				});
 				reply(src, origin, messageId, "complete", response);
 				break;
 			}

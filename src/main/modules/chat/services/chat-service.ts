@@ -25,6 +25,7 @@ export interface ChatAction {
 export interface ChatStreamCallbacks {
 	onContent?: (content: string) => void;
 	onAction?: (actions: ChatAction[]) => void;
+	onExecuteStart?: (event: { node: string; metadata?: Record<string, unknown> }) => void;
 	onError?: (error: string) => void;
 }
 
@@ -162,6 +163,11 @@ export class ChatService {
 							}
 						});
 						callbacks?.onAction?.(actions);
+					} else if (chatResult.type === "execute-start") {
+						callbacks?.onExecuteStart?.({
+							node: chatResult.node,
+							metadata: chatResult.metadata,
+						});
 					} else if (chatResult.type === "final") {
 						// Handle final content update (e.g., after citation step)
 						// This replaces the accumulated content with the final version

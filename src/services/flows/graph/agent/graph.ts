@@ -252,6 +252,14 @@ export class AgentGraph extends GraphBase<
 		for (const toolCall of lastStep.tool_calls) {
 			const toolName = toolCall.function.name;
 			const tool = this.toolsMap.get(toolName);
+			runConfig?.writer?.({
+				type: "execute-start",
+				node: "tools",
+				metadata: {
+					tool: toolName,
+					tool_call_id: toolCall.id,
+				},
+			});
 
 			if (!tool) {
 				toolResultSteps.push({
