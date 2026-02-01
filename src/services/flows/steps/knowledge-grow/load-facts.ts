@@ -62,7 +62,7 @@ const definition = defineStep<
   {}
 >({
   name: STEP_NAME,
-  execute: async ({ input, services }) => {
+  execute: async ({ input, services, runConfig }) => {
     try {
       logInfo("[LOAD_FACTS] Loading related edges for fact resolution");
       const databaseService = services.database;
@@ -265,25 +265,27 @@ const definition = defineStep<
         `[LOAD_FACTS] Loaded ${edges.length} related edges (${sqlResults.length} SQL, ${trigramResults.length} trigram, ${vectorResults.length} vector, ${relationResults.length} relations)`,
       );
 
+      const actions = [
+        {
+          id: crypto.randomUUID(),
+          name: "Related Edges Loaded",
+          description: `Loaded ${edges.length} related edges for fact resolution (${sqlResults.length} SQL + ${trigramResults.length} trigram + ${vectorResults.length} vector + ${relationResults.length} relations)`,
+          metadata: {
+            edgeCount: edges.length,
+            sqlCount: sqlResults.length,
+            trigramCount: trigramResults.length,
+            vectorCount: vectorResults.length,
+            relationCount: relationResults.length,
+          },
+        },
+      ];
+      runConfig?.writer?.({ type: "actions", actions });
+
       return {
         output: {
           existingEdges: edges as Edge[],
           existingNodes: (input.existingNodes || []).concat(newNodes),
         },
-        actions: [
-          {
-            id: crypto.randomUUID(),
-            name: "Related Edges Loaded",
-            description: `Loaded ${edges.length} related edges for fact resolution (${sqlResults.length} SQL + ${trigramResults.length} trigram + ${vectorResults.length} vector + ${relationResults.length} relations)`,
-            metadata: {
-              edgeCount: edges.length,
-              sqlCount: sqlResults.length,
-              trigramCount: trigramResults.length,
-              vectorCount: vectorResults.length,
-              relationCount: relationResults.length,
-            },
-          },
-        ],
       };
     } catch (error) {
       logError("[LOAD_FACTS] Error:", error);

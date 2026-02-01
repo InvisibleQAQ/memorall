@@ -53,7 +53,7 @@ const definition = defineStep<
   EntitiesFactsToContextConfig
 >({
   name: STEP_NAME,
-  execute: async ({ input, services, config }) => {
+  execute: async ({ input, services, config, runConfig }) => {
     try {
       logInfo(
         "[KNOWLEDGE_RAG] Building knowledge context in natural language format",
@@ -95,7 +95,6 @@ const definition = defineStep<
             knowledgeContext: "",
             next: "generate_response",
           },
-          actions: [],
         };
       }
 
@@ -128,25 +127,27 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
         edges: input.relevantEdges,
       };
 
+      const actions = [
+        {
+          id: crypto.randomUUID(),
+          name: "knowledge_graph",
+          description: `Retrieved ${input.relevantNodes.length} nodes and ${input.relevantEdges.length} edges`,
+          metadata: actionMetadata,
+        },
+        {
+          id: crypto.randomUUID(),
+          name: "context_knowledge",
+          description: knowledgeContext,
+          metadata: {},
+        },
+      ];
+      runConfig?.writer?.({ type: "actions", actions });
+
       return {
         output: {
           knowledgeContext,
           next: "generate_response",
         },
-        actions: [
-          {
-            id: crypto.randomUUID(),
-            name: "knowledge_graph",
-            description: `Retrieved ${input.relevantNodes.length} nodes and ${input.relevantEdges.length} edges`,
-            metadata: actionMetadata,
-          },
-          {
-            id: crypto.randomUUID(),
-            name: "context_knowledge",
-            description: knowledgeContext,
-            metadata: {},
-          },
-        ],
       };
     } catch (error) {
       logError("[KNOWLEDGE_RAG] Context building failed:", error);

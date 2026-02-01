@@ -51,7 +51,7 @@ Respond in this exact JSON format:
 
 const definition = defineStep<AnalyzeQueryInput, AnalyzeQueryOutput, AllServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		const llm = services.llm;
 
 		if (!llm.isReady()) {
@@ -96,26 +96,38 @@ const definition = defineStep<AnalyzeQueryInput, AnalyzeQueryOutput, AllServices
 				};
 			}
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Query Analysis Complete",
+					description: `Extracted ${analysisResult?.entities?.length || 0} entities: ${analysisResult?.entities?.map((e) => `"${e}"`).join(", ") || "none"} with "${analysisResult?.intent}" intent`,
+					metadata: {
+						entities: analysisResult?.entities,
+						intent: analysisResult?.intent,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					extractedEntities: analysisResult?.entities || [],
 					queryIntent: (analysisResult?.intent || "factual") as QueryIntent,
 					next: "retrieve_knowledge",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Query Analysis Complete",
-						description: `Extracted ${analysisResult?.entities?.length || 0} entities: ${analysisResult?.entities?.map((e) => `"${e}"`).join(", ") || "none"} with "${analysisResult?.intent}" intent`,
-						metadata: {
-							entities: analysisResult?.entities,
-							intent: analysisResult?.intent,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[ANALYZE_QUERY] Query analysis failed:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Query Analysis Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -123,14 +135,6 @@ const definition = defineStep<AnalyzeQueryInput, AnalyzeQueryOutput, AllServices
 						error instanceof Error ? error.message : "Query analysis failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Query Analysis Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

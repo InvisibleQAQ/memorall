@@ -497,7 +497,7 @@ async function createEdges(
 
 const definition = defineStep<KnowledgeDatabaseSaveInput, KnowledgeDatabaseSaveOutput, KnowledgeDatabaseSaveServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		try {
 			logInfo("[DATABASE_SAVE] Saving knowledge graph to database:", {
 				url: input.url,
@@ -550,6 +550,20 @@ const definition = defineStep<KnowledgeDatabaseSaveInput, KnowledgeDatabaseSaveO
 				`[DATABASE_SAVE] Successfully saved ${createdNodes.length} nodes and ${createdEdges.length} edges`,
 			);
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Knowledge Graph Saved",
+					description: `Successfully created knowledge graph with ${createdNodes.length} nodes and ${createdEdges.length} edges`,
+					metadata: {
+						sourceId: createdSource.id,
+						nodeCount: createdNodes.length,
+						edgeCount: createdEdges.length,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					createdSource,
@@ -558,21 +572,19 @@ const definition = defineStep<KnowledgeDatabaseSaveInput, KnowledgeDatabaseSaveO
 					processingStage: "completed",
 					finalMessage: `Knowledge graph creation completed. Created ${createdNodes.length} new nodes and ${createdEdges.length} new edges from "${input.title}".`,
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Knowledge Graph Saved",
-						description: `Successfully created knowledge graph with ${createdNodes.length} nodes and ${createdEdges.length} edges`,
-						metadata: {
-							sourceId: createdSource.id,
-							nodeCount: createdNodes.length,
-							edgeCount: createdEdges.length,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[DATABASE_SAVE] Error:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Database Save Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -581,14 +593,6 @@ const definition = defineStep<KnowledgeDatabaseSaveInput, KnowledgeDatabaseSaveO
 					],
 					finalMessage: "Knowledge graph creation failed during database save operation.",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Database Save Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

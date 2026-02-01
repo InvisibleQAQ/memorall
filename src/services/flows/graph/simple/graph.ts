@@ -1,8 +1,9 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
+import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
 import { AgentAnnotation, type AgentState } from "./state";
 
 import { GraphBase } from "@/services/flows/graph/graph.base";
-import { toolRegistry, convertToolsToOpenAI } from "@/services/flows/tools";
+import { toolRegistry, convertToolsToOpenAI } from "@/services/flows/tool-registry";
 import type { AllServices, BaseTool } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionResponse, ChatCompletionChunk, ChatMessage } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
@@ -108,7 +109,10 @@ export class SimpleGraph extends GraphBase<
 			: undefined;
 	}
 
-	answerNode = async (state: AgentState): Promise<Partial<AgentState>> => {
+	answerNode = async (
+		state: AgentState,
+		runConfig?: LangGraphRunnableConfig,
+	): Promise<Partial<AgentState>> => {
 		const llm = this.services.llm;
 
 		if (!llm.isReady()) {
@@ -137,9 +141,7 @@ export class SimpleGraph extends GraphBase<
 		if (Symbol.asyncIterator in llmResponse) {
 			for await (const chunk of llmResponse) {
 				responseContent += chunk.choices[0].delta.content || "";
-				if (this.callbacks?.onNewChunk) {
-					this.callbacks.onNewChunk(chunk);
-				}
+				runConfig?.writer?.({ type: "llm", chunk });
 			}
 		}
 		logInfo("[ANSWER] LLM response:", responseContent);
@@ -149,7 +151,10 @@ export class SimpleGraph extends GraphBase<
 		};
 	};
 
-	decisionNode = async (state: AgentState): Promise<Partial<AgentState>> => {
+	decisionNode = async (
+		state: AgentState,
+		runConfig?: LangGraphRunnableConfig,
+	): Promise<Partial<AgentState>> => {
 		const llm = this.services.llm;
 
 		if (!llm.isReady()) {
@@ -187,39 +192,46 @@ Important: Your answer must be one of the following exactly:
 		logInfo("[DECISION] LLM response:", responseContent);
 
 		if (responseContent.includes("YES_USE_TOOL")) {
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Use tool",
+					description: responseContent
+						.replace("YES_USE_TOOL:", "")
+						.replace("YES_USE_TOOL", "")
+						.trim(),
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				next: "agent",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Use tool",
-						description: responseContent
-							.replace("YES_USE_TOOL:", "")
-							.replace("YES_USE_TOOL", "")
-							.trim(),
-						metadata: {},
-					},
-				],
 			};
 		} else {
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "No tool needed",
+					description: responseContent
+						.replace("NO:", "")
+						.replace("NO", "")
+						.trim(),
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				next: "answer",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "No tool needed",
-						description: responseContent
-							.replace("NO:", "")
-							.replace("NO", "")
-							.trim(),
-						metadata: {},
-					},
-				],
 			};
 		}
 	};
 
-	agentNode = async (state: AgentState): Promise<Partial<AgentState>> => {
+	agentNode = async (
+		state: AgentState,
+		runConfig?: LangGraphRunnableConfig,
+	): Promise<Partial<AgentState>> => {
 		const llm = this.services.llm;
 
 		if (!llm.isReady()) {
@@ -252,16 +264,13 @@ Important: Your answer must be one of the following exactly:
 				type: "function";
 				function: { name: string; arguments: string };
 			}>();
-
 			for await (const chunk of stream) {
 				const delta = chunk.choices[0]?.delta;
 
 				if (delta?.content) {
 					content += delta.content;
-					if (this.callbacks?.onNewChunk) {
-						this.callbacks.onNewChunk(chunk);
-					}
 				}
+				runConfig?.writer?.({ type: "llm", chunk });
 
 				if (delta?.tool_calls) {
 					for (const tc of delta.tool_calls) {
@@ -288,6 +297,14 @@ Important: Your answer must be one of the following exactly:
 			logInfo("[AGENT] Stream complete - content:", content.length, "tool_calls:", toolCalls.length);
 
 			if (toolCalls.length > 0) {
+				const actions = toolCalls.map((tc) => ({
+					id: crypto.randomUUID(),
+					name: `Calling "${tc.function.name}"`,
+					description: `Args: ${tc.function.arguments}`,
+					metadata: { tool: tc.function.name },
+				}));
+				runConfig?.writer?.({ type: "actions", actions });
+
 				const newStep = {
 					role: "assistant" as const,
 					content: content || "",
@@ -301,12 +318,6 @@ Important: Your answer must be one of the following exactly:
 				return {
 					steps: [newStep],
 					next: "tools",
-					actions: toolCalls.map((tc) => ({
-						id: crypto.randomUUID(),
-						name: `Calling "${tc.function.name}"`,
-						description: `Args: ${tc.function.arguments}`,
-						metadata: { tool: tc.function.name },
-					})),
 				};
 			}
 
@@ -316,17 +327,19 @@ Important: Your answer must be one of the following exactly:
 				content,
 			};
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Thinking next step",
+					description: "",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				steps: [newStep],
 				next: "decision",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Thinking next step",
-						description: "",
-						metadata: {},
-					},
-				],
 			};
 		} catch (error) {
 			logError("Agent node error:", error);
@@ -334,7 +347,10 @@ Important: Your answer must be one of the following exactly:
 		}
 	};
 
-	toolsNode = async (state: AgentState): Promise<Partial<AgentState>> => {
+	toolsNode = async (
+		state: AgentState,
+		runConfig?: LangGraphRunnableConfig,
+	): Promise<Partial<AgentState>> => {
 		const lastStep = state.steps[state.steps.length - 1];
 
 		if (!lastStep?.tool_calls || lastStep.tool_calls.length === 0) {
@@ -381,17 +397,19 @@ Important: Your answer must be one of the following exactly:
 			}
 		}
 
+		const actions = [
+			{
+				id: crypto.randomUUID(),
+				name: `Executed ${toolResultSteps.length} tool(s)`,
+				description: "",
+				metadata: {},
+			},
+		];
+		runConfig?.writer?.({ type: "actions", actions });
+
 		return {
 			steps: toolResultSteps,
 			next: "decision",
-			actions: [
-				{
-					id: crypto.randomUUID(),
-					name: `Executed ${toolResultSteps.length} tool(s)`,
-					description: "",
-					metadata: {},
-				},
-			],
 		};
 	};
 }

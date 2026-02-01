@@ -98,23 +98,25 @@ Return your response as a valid JSON array with objects matching this structure:
 
 const definition = defineStep<FactResolutionInput, FactResolutionOutput, AllServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		try {
 			if (!input.extractedFacts || input.extractedFacts.length === 0) {
 				logWarn("[FACT_RESOLUTION] No extracted facts to resolve");
+				const actions = [
+					{
+						id: crypto.randomUUID(),
+						name: "Fact Resolution Skipped",
+						description: "No facts to resolve",
+						metadata: { totalFacts: 0 },
+					},
+				];
+				runConfig?.writer?.({ type: "actions", actions });
+
 				return {
 					output: {
 						resolvedFacts: [],
 						processingStage: "temporal_extraction",
 					},
-					actions: [
-						{
-							id: crypto.randomUUID(),
-							name: "Fact Resolution Skipped",
-							description: "No facts to resolve",
-							metadata: { totalFacts: 0 },
-						},
-					],
 				};
 			}
 
@@ -214,24 +216,26 @@ const definition = defineStep<FactResolutionInput, FactResolutionOutput, AllServ
 
 				const allResolvedFacts = [...manuallyResolved, ...invalidFacts];
 
+				const actions = [
+					{
+						id: crypto.randomUUID(),
+						name: "Fact Resolution Complete (Manual Only)",
+						description: `Resolved ${allResolvedFacts.length} facts via manual duplicate detection`,
+						metadata: {
+							totalFacts: allResolvedFacts.length,
+							manualDuplicates: manuallyResolved.length,
+							aiResolved: 0,
+							invalidFacts: invalidFacts.length,
+						},
+					},
+				];
+				runConfig?.writer?.({ type: "actions", actions });
+
 				return {
 					output: {
 						resolvedFacts: allResolvedFacts,
 						processingStage: "temporal_extraction",
 					},
-					actions: [
-						{
-							id: crypto.randomUUID(),
-							name: "Fact Resolution Complete (Manual Only)",
-							description: `Resolved ${allResolvedFacts.length} facts via manual duplicate detection`,
-							metadata: {
-								totalFacts: allResolvedFacts.length,
-								manualDuplicates: manuallyResolved.length,
-								aiResolved: 0,
-								invalidFacts: invalidFacts.length,
-							},
-						},
-					],
 				};
 			}
 
@@ -451,29 +455,41 @@ ${factsText}
 				`[FACT_RESOLUTION] Resolved ${allResolvedFacts.length} facts (${manuallyResolved.length} manual, ${aiResolvedFacts.length} AI, ${invalidFacts.length} invalid)`,
 			);
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Fact Resolution Complete",
+					description: `Resolved ${allResolvedFacts.length} facts. ${allResolvedFacts.filter((f) => f.isExisting).length} existing, ${allResolvedFacts.filter((f) => !f.isExisting).length} new (${manuallyResolved.length} manual, ${aiResolvedFacts.length} AI, ${invalidFacts.length} invalid)`,
+					metadata: {
+						totalFacts: allResolvedFacts.length,
+						existingFacts: allResolvedFacts.filter((f) => f.isExisting).length,
+						newFacts: allResolvedFacts.filter((f) => !f.isExisting).length,
+						manualDuplicates: manuallyResolved.length,
+						aiResolved: aiResolvedFacts.length,
+						invalidFacts: invalidFacts.length,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					resolvedFacts: allResolvedFacts,
 					processingStage: "temporal_extraction",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Fact Resolution Complete",
-						description: `Resolved ${allResolvedFacts.length} facts. ${allResolvedFacts.filter((f) => f.isExisting).length} existing, ${allResolvedFacts.filter((f) => !f.isExisting).length} new (${manuallyResolved.length} manual, ${aiResolvedFacts.length} AI, ${invalidFacts.length} invalid)`,
-						metadata: {
-							totalFacts: allResolvedFacts.length,
-							existingFacts: allResolvedFacts.filter((f) => f.isExisting).length,
-							newFacts: allResolvedFacts.filter((f) => !f.isExisting).length,
-							manualDuplicates: manuallyResolved.length,
-							aiResolved: aiResolvedFacts.length,
-							invalidFacts: invalidFacts.length,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[FACT_RESOLUTION] Error:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Fact Resolution Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -481,14 +497,6 @@ ${factsText}
 						error instanceof Error ? error.message : "Fact resolution failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Fact Resolution Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

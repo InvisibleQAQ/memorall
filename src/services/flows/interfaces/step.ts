@@ -1,4 +1,4 @@
-import type { RunnableConfig } from "@langchain/core/runnables";
+import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
 import type { BaseStateBase } from "../graph/graph.base";
 
 // ============================================================================
@@ -9,7 +9,6 @@ import type { BaseStateBase } from "../graph/graph.base";
 export interface StepOutput<TOutput> {
 	output: TOutput;
 	metadata?: Record<string, unknown>;
-	actions?: BaseStateBase["actions"];
 }
 
 /** Parameters passed to a step's execute function */
@@ -22,7 +21,7 @@ export interface StepExecuteParams<
 	services: TServices;
 	config: TConfig;
 	metadata?: Record<string, unknown>;
-	runConfig?: RunnableConfig;
+	runConfig?: LangGraphRunnableConfig;
 }
 
 /** A step definition: name + execute function */
@@ -43,9 +42,29 @@ export interface BoundStep<TInput, TOutput> {
 	name: string;
 	execute: (
 		input: TInput,
-		runConfig?: RunnableConfig,
+		runConfig?: LangGraphRunnableConfig,
 		metadata?: Record<string, unknown>,
 	) => Promise<StepOutput<TOutput>>;
+	toNode: <TState = TOutput>(
+		options?: {
+			mapInput?: (
+				state: TState,
+				runConfig?: LangGraphRunnableConfig,
+			) => TInput | Promise<TInput>;
+			mapOutput?: (
+				output: TOutput,
+				result: StepOutput<TOutput>,
+				state: TState,
+				runConfig?: LangGraphRunnableConfig,
+			) => Partial<TState> | Promise<Partial<TState>>;
+			metadata?:
+				| Record<string, unknown>
+				| ((
+						state: TState,
+						runConfig?: LangGraphRunnableConfig,
+				  ) => Record<string, unknown> | Promise<Record<string, unknown>>);
+		},
+	) => (state: TState, runConfig?: LangGraphRunnableConfig) => Promise<Partial<TState>>;
 }
 
 /** Factory function type — conditional on whether services are needed */
@@ -64,7 +83,7 @@ export interface StepNodeMapping<TState, TInput, TOutput> {
 	mapOutput: (result: StepOutput<TOutput>, state: TState) => Partial<TState>;
 	metadata?:
 		| Record<string, unknown>
-		| ((state: TState, runConfig?: RunnableConfig) => Record<string, unknown>);
+		| ((state: TState, runConfig?: LangGraphRunnableConfig) => Record<string, unknown>);
 }
 
 // ============================================================================
@@ -103,7 +122,7 @@ export function bindStep<
 		name: definition.name,
 		execute: (
 			input: TInput,
-			runConfig?: RunnableConfig,
+			runConfig?: LangGraphRunnableConfig,
 			metadata?: Record<string, unknown>,
 		) =>
 			definition.execute({
@@ -113,6 +132,49 @@ export function bindStep<
 				metadata,
 				runConfig,
 			}),
+		toNode: <TState = TOutput>(options?: {
+			mapInput?: (
+				state: TState,
+				runConfig?: LangGraphRunnableConfig,
+			) => TInput | Promise<TInput>;
+			mapOutput?: (
+				output: TOutput,
+				result: StepOutput<TOutput>,
+				state: TState,
+				runConfig?: LangGraphRunnableConfig,
+			) => Partial<TState> | Promise<Partial<TState>>;
+			metadata?:
+				| Record<string, unknown>
+				| ((
+						state: TState,
+						runConfig?: LangGraphRunnableConfig,
+				  ) => Record<string, unknown> | Promise<Record<string, unknown>>);
+		}) => {
+			const mapInput =
+				options?.mapInput ??
+				((state: TState) => state as unknown as TInput);
+			const mapOutput =
+				options?.mapOutput ??
+				((output: TOutput) => output as unknown as Partial<TState>);
+
+			return async (
+				state: TState,
+				runConfig?: LangGraphRunnableConfig,
+			): Promise<Partial<TState>> => {
+				const metadata =
+					typeof options?.metadata === "function"
+						? await options.metadata(state, runConfig)
+						: options?.metadata;
+				const result = await definition.execute({
+					input: await mapInput(state, runConfig),
+					services,
+					config: config as TConfig,
+					metadata,
+					runConfig,
+				});
+				return await mapOutput(result.output, result, state, runConfig);
+			};
+		},
 	};
 }
 
@@ -125,8 +187,8 @@ export function bindStep<
 export function toGraphNode<TState extends BaseStateBase, TInput, TOutput>(
 	step: BoundStep<TInput, TOutput>,
 	mapping: StepNodeMapping<TState, TInput, TOutput>,
-): (state: TState, runConfig?: RunnableConfig) => Promise<Partial<TState>> {
-	return async (state: TState, runConfig?: RunnableConfig): Promise<Partial<TState>> => {
+): (state: TState, runConfig?: LangGraphRunnableConfig) => Promise<Partial<TState>> {
+	return async (state: TState, runConfig?: LangGraphRunnableConfig): Promise<Partial<TState>> => {
 		const metadata =
 			typeof mapping.metadata === "function"
 				? mapping.metadata(state, runConfig)
@@ -137,16 +199,27 @@ export function toGraphNode<TState extends BaseStateBase, TInput, TOutput>(
 
 		const stateUpdate = mapping.mapOutput(result, state);
 
-		// Merge actions from step output into state update if present
-		if (result.actions?.length) {
-			const existing = (stateUpdate as BaseStateBase).actions;
-			(stateUpdate as BaseStateBase).actions = existing
-				? [...existing, ...result.actions]
-				: result.actions;
-		}
-
 		return stateUpdate;
 	};
+}
+
+export function toGraphNodeAuto<TState extends BaseStateBase, TInput, TOutput>(
+	step: BoundStep<TInput, TOutput>,
+	mapping?: Partial<StepNodeMapping<TState, TInput, TOutput>>,
+): (state: TState, runConfig?: LangGraphRunnableConfig) => Promise<Partial<TState>> {
+	const mapInput =
+		mapping?.mapInput ??
+		((state: TState) => state as unknown as TInput);
+	const mapOutput =
+		mapping?.mapOutput ??
+		((result: StepOutput<TOutput>) =>
+			result.output as unknown as Partial<TState>);
+
+	return toGraphNode(step, {
+		mapInput,
+		mapOutput,
+		metadata: mapping?.metadata,
+	});
 }
 
 export type StepSpecFromDefinition<T> =

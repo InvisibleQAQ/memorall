@@ -99,24 +99,26 @@ Return your response as a valid JSON array with objects matching this structure:
 
 const definition = defineStep<TemporalExtractionInput, TemporalExtractionOutput, AllServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		try {
 			logInfo("[TEMPORAL_EXTRACTION] Starting temporal extraction");
 
 			if (!input.resolvedFacts || input.resolvedFacts.length === 0) {
+				const actions = [
+					{
+						id: crypto.randomUUID(),
+						name: "Temporal Extraction Skipped",
+						description: "No facts to process for temporal information",
+						metadata: { totalFacts: 0 },
+					},
+				];
+				runConfig?.writer?.({ type: "actions", actions });
+
 				return {
 					output: {
 						enrichedFacts: [],
 						processingStage: "database_operations",
 					},
-					actions: [
-						{
-							id: crypto.randomUUID(),
-							name: "Temporal Extraction Skipped",
-							description: "No facts to process for temporal information",
-							metadata: { totalFacts: 0 },
-						},
-					],
 				};
 			}
 
@@ -281,26 +283,38 @@ ${input.referenceTimestamp || new Date().toISOString()}
 				`[TEMPORAL_EXTRACTION] Enriched ${allEnrichedFacts.length} facts. ${factsWithTemporal.length} have temporal information`,
 			);
 
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Temporal Extraction Complete",
+					description: `Processed ${allEnrichedFacts.length} facts. ${factsWithTemporal.length} have temporal information`,
+					metadata: {
+						totalFacts: allEnrichedFacts.length,
+						factsWithTemporal: factsWithTemporal.length,
+						invalidFacts: invalidFacts.length,
+					},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
 			return {
 				output: {
 					enrichedFacts: allEnrichedFacts,
 					processingStage: "database_operations",
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Temporal Extraction Complete",
-						description: `Processed ${allEnrichedFacts.length} facts. ${factsWithTemporal.length} have temporal information`,
-						metadata: {
-							totalFacts: allEnrichedFacts.length,
-							factsWithTemporal: factsWithTemporal.length,
-							invalidFacts: invalidFacts.length,
-						},
-					},
-				],
 			};
 		} catch (error) {
 			logError("[TEMPORAL_EXTRACTION] Error:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Temporal Extraction Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -308,14 +322,6 @@ ${input.referenceTimestamp || new Date().toISOString()}
 						error instanceof Error ? error.message : "Temporal extraction failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Temporal Extraction Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},

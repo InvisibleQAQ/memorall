@@ -47,37 +47,22 @@ export class KnowledgeGraphFlow extends GraphBase<
 		const loadEntitiesStep = stepRegistry.getStep('load-entities', services)
 
 		// Add nodes
-		this.workflow.addNode("load_entities", (...args) => {
-			return loadFactStep.execute(...args)
-		});
-		this.workflow.addNode("load_facts", (...args) => {
-			return loadFactStep.execute(...args)
-		});
-		this.workflow.addNode("extract_entities", (...args) => {
-			return entityExtractionStep.execute(...args)
-		});
-		this.workflow.addNode("resolve_entities", (...args) => {
-			return entityResolutionStep.execute(...args)
-		});
-		this.workflow.addNode("extract_facts", (...args) => {
-			return factExtractionStep.execute(...args)
-		});
-		this.workflow.addNode("resolve_facts", (...args) => {
-			return factResolutionStep.execute(...args)
-		});
-		this.workflow.addNode("enrich_edges", (...args) => {
-			return edgeEnrichmentStep.execute(...args)
-		});
-		this.workflow.addNode("save_to_database", (...args) => {
-			return databaseSaveStep.execute(...args)
-		});
+		this.workflow.addNode("load_entities", loadEntitiesStep.toNode());
+		this.workflow.addNode("load_facts", loadFactStep.toNode());
+		this.workflow.addNode("extract_entities", entityExtractionStep.toNode());
+		this.workflow.addNode("resolve_entities", entityResolutionStep.toNode());
+		this.workflow.addNode("extract_facts", factExtractionStep.toNode());
+		this.workflow.addNode("resolve_facts", factResolutionStep.toNode());
+		this.workflow.addNode("enrich_edges", edgeEnrichmentStep.toNode());
+		this.workflow.addNode("save_to_database", databaseSaveStep.toNode());
 
 		// Conditionally add temporal extraction
 		if (this.config.enableTemporalExtraction) {
 			const temporalExtraction = stepRegistry.getStep('temporal-extraction', services)
-			this.workflow.addNode("extract_temporal", (state) => {
-				return temporalExtraction.execute(state)
-			});
+			this.workflow.addNode(
+				"extract_temporal",
+				temporalExtraction.toNode(),
+			);
 		}
 
 		// Define the flow with conditional logic

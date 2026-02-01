@@ -61,7 +61,7 @@ export interface RetrieveKnowledgeOutput {
 
 const definition = defineStep<RetrieveKnowledgeInput, RetrieveKnowledgeOutput, AllServices>({
 	name: STEP_NAME,
-	execute: async ({ input, services }) => {
+	execute: async ({ input, services, runConfig }) => {
 		const database = services.database;
 		const embedding = services.embedding;
 
@@ -378,35 +378,49 @@ const definition = defineStep<RetrieveKnowledgeInput, RetrieveKnowledgeOutput, A
 				vectorEdges: vectorEdges.length,
 			});
 
+			const actions =
+				relevantNodes?.length || relevantEdges?.length
+					? [
+							{
+								id: crypto.randomUUID(),
+								name: "Knowledge Retrieval Complete",
+								description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} relationships (${sqlNodes.length}+${trigramNodeResults.length}+${vectorNodes.length} nodes, ${sqlEdges.length}+${trigramEdgeResults.length}+${vectorEdges.length} edges)`,
+								metadata: {
+									nodeCount: relevantNodes.length,
+									edgeCount: relevantEdges.length,
+									sqlNodeCount: sqlNodes.length,
+									trigramNodeCount: trigramNodeResults.length,
+									vectorNodeCount: vectorNodes.length,
+									sqlEdgeCount: sqlEdges.length,
+									trigramEdgeCount: trigramEdgeResults.length,
+									vectorEdgeCount: vectorEdges.length,
+								},
+							},
+						]
+					: [];
+			if (actions.length) {
+				runConfig?.writer?.({ type: "actions", actions });
+			}
+
 			return {
 				output: {
 					relevantNodes,
 					relevantEdges,
 					next: "build_context",
 				},
-				actions:
-					relevantNodes?.length || relevantEdges?.length
-						? [
-								{
-									id: crypto.randomUUID(),
-									name: "Knowledge Retrieval Complete",
-									description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} relationships (${sqlNodes.length}+${trigramNodeResults.length}+${vectorNodes.length} nodes, ${sqlEdges.length}+${trigramEdgeResults.length}+${vectorEdges.length} edges)`,
-									metadata: {
-										nodeCount: relevantNodes.length,
-										edgeCount: relevantEdges.length,
-										sqlNodeCount: sqlNodes.length,
-										trigramNodeCount: trigramNodeResults.length,
-										vectorNodeCount: vectorNodes.length,
-										sqlEdgeCount: sqlEdges.length,
-										trigramEdgeCount: trigramEdgeResults.length,
-										vectorEdgeCount: vectorEdges.length,
-									},
-								},
-							]
-						: [],
 			};
 		} catch (error) {
 			logError("[RETRIEVE_KNOWLEDGE] Knowledge retrieval failed:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Knowledge Retrieval Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
 
 			return {
 				output: {
@@ -414,14 +428,6 @@ const definition = defineStep<RetrieveKnowledgeInput, RetrieveKnowledgeOutput, A
 						error instanceof Error ? error.message : "Knowledge retrieval failed",
 					],
 				},
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "Knowledge Retrieval Failed",
-						description: error instanceof Error ? error.message : "Unknown error",
-						metadata: {},
-					},
-				],
 			};
 		}
 	},
