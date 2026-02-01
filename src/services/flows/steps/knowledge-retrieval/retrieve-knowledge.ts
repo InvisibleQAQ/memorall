@@ -1,4 +1,3 @@
-import type { AllServices } from "@/services/flows/interfaces/tool";
 import { logInfo, logError } from "@/utils/logger";
 import { and, eq, like, or, desc } from "drizzle-orm";
 import {
@@ -13,108 +12,62 @@ import {
 } from "@/utils/vector-search";
 import type { Edge, Node } from "@/services/database";
 import { getScopedGraphWhere } from "@/utils/scoped-graph-query";
-import type { ChatCompletionResponse, ChatMessage } from "@/types/openai";
 
-import type { KnowledgeRAGState } from "./state";
+import { defineStep, bindStep } from "@/services/flows/interfaces/step";
+import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import { stepRegistry } from "@/services/flows/step-registry";
+import type { AllServices } from "@/services/flows/interfaces/tool";
 
-const QUERY_ANALYSIS_PROMPT = `
-You are an expert at analyzing user queries for knowledge graph retrieval.
+const STEP_NAME = "retrieve-knowledge" as const;
 
-Analyze the user query and extract:
-1. Key entities mentioned (people, places, concepts, organizations)
-2. Query intent: "factual" (seeking facts), "relationship" (asking about connections), "summary" (wanting overview), "exploration" (browsing/discovery)
+// ============================================================================
+// STEP-SPECIFIC TYPES
+// ============================================================================
 
-User Query: {query}
-
-Respond in this exact JSON format:
-{
-  "entities
-  "intent": "factual|relationship|summary|exploration"
+export interface RelevantNode {
+	id: string;
+	nodeType: string;
+	name: string;
+	summary: string;
+	attributes: Record<string, unknown>;
+	relevanceScore: number;
 }
-`;
 
-export class RetrievalContextFlow {
-	constructor(private services: AllServices) {}
+export interface RelevantEdge {
+	id: string;
+	sourceId: string;
+	destinationId: string;
+	edgeType: string;
+	factText: string;
+	attributes: Record<string, unknown>;
+	relevanceScore: number;
+}
 
-	analyzeQueryNode = async (
-		state: KnowledgeRAGState,
-	): Promise<Partial<KnowledgeRAGState>> => {
-		const llm = this.services.llm;
+export interface RetrieveKnowledgeInput {
+	extractedEntities: string[];
+	graphId?: string;
+}
 
-		if (!llm.isReady()) {
-			throw new Error("LLM service is not ready");
-		}
+export interface RetrieveKnowledgeOutput {
+	relevantNodes?: RelevantNode[];
+	relevantEdges?: RelevantEdge[];
+	next?: string;
+	errors?: string[];
+}
 
-		try {
-			logInfo("[KNOWLEDGE_RAG] Analyzing query:", state.query);
+// ============================================================================
+// STEP IMPLEMENTATION
+// ============================================================================
 
-			// WebLLM requires last message to be from user or tool role
-			const messages: ChatMessage[] = [
-				{ role: "system", content: QUERY_ANALYSIS_PROMPT },
-				{ role: "user", content: state.query },
-			];
-
-			const llmResponse = (await llm.chatCompletions({
-				messages,
-				temperature: 0.1,
-				stream: false,
-			})) as ChatCompletionResponse;
-
-			const responseContent = llmResponse.choices[0].message.content || "";
-
-			// Parse JSON response
-			let analysisResult: { entities: string[]; intent: string } | undefined;
-			try {
-				const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
-				if (jsonMatch) {
-					analysisResult = JSON.parse(jsonMatch[0]);
-				} else {
-					throw new Error("No JSON found in response");
-				}
-			} catch (parseError) {
-				logError(
-					"[KNOWLEDGE_RAG] Failed to parse analysis response:",
-					parseError,
-				);
-				// Fallback to simple entity extraction
-				analysisResult = {
-					entities: state.query.split(" ").filter((word) => word.length > 3),
-					intent: "factual",
-				};
-			}
-
-			return {
-				extractedEntities: analysisResult?.entities || [],
-				queryIntent: (analysisResult?.intent ||
-					"factual") as KnowledgeRAGState["queryIntent"],
-				next: "retrieve_knowledge",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "query_analysis",
-						description: `Extracted ${analysisResult?.entities?.map((e) => `"${e}"`).join(", ")} entities with "${analysisResult?.intent}" intent`,
-						metadata: {
-							entities: analysisResult?.entities,
-							intent: analysisResult?.intent,
-						},
-					},
-				],
-			};
-		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Query analysis failed:", error);
-			throw error;
-		}
-	};
-
-	retrieveKnowledgeNode = async (
-		state: KnowledgeRAGState,
-	): Promise<Partial<KnowledgeRAGState>> => {
-		const database = this.services.database;
-		const embedding = this.services.embedding;
+const definition = defineStep<RetrieveKnowledgeInput, RetrieveKnowledgeOutput, AllServices>({
+	name: STEP_NAME,
+	execute: async ({ input, services }) => {
+		const database = services.database;
+		const embedding = services.embedding;
 
 		try {
-			let relevantNodes: KnowledgeRAGState["relevantNodes"] = [];
-			let relevantEdges: KnowledgeRAGState["relevantEdges"] = [];
+			let relevantNodes: RelevantNode[] = [];
+			let relevantEdges: RelevantEdge[] = [];
 
 			const TOTAL_NODE_LIMIT = 15;
 			const TOTAL_EDGE_LIMIT = 20;
@@ -126,9 +79,9 @@ export class RetrievalContextFlow {
 
 			// 1. SQL search for nodes
 			const sqlNodes = await database.use(async ({ db, schema }) => {
-				if (state.extractedEntities.length === 0) return [];
+				if (input.extractedEntities.length === 0) return [];
 
-				const entitySearchConditions = state.extractedEntities.map((entity) =>
+				const entitySearchConditions = input.extractedEntities.map((entity) =>
 					or(
 						like(schema.nodes.name, `%${entity}%`),
 						like(schema.nodes.summary, `%${entity}%`),
@@ -138,7 +91,7 @@ export class RetrievalContextFlow {
 				// Add topic filter if provided
 				const whereConditions = and(
 					or(...entitySearchConditions),
-					getScopedGraphWhere(state, schema.nodes.graph),
+					getScopedGraphWhere(input, schema.nodes.graph),
 				);
 
 				return await db
@@ -160,16 +113,16 @@ export class RetrievalContextFlow {
 
 			// 2. SQL search for edges
 			const sqlEdges = await database.use(async ({ db, schema }) => {
-				if (state.extractedEntities.length === 0) return [];
+				if (input.extractedEntities.length === 0) return [];
 
-				const factSearchConditions = state.extractedEntities.map((entity) =>
+				const factSearchConditions = input.extractedEntities.map((entity) =>
 					like(schema.edges.factText, `%${entity}%`),
 				);
 
 				// Add topic filter if provided
 				const whereConditions = and(
 					or(...factSearchConditions),
-					getScopedGraphWhere(state, schema.edges.graph),
+					getScopedGraphWhere(input, schema.edges.graph),
 				);
 
 				return await db
@@ -201,34 +154,34 @@ export class RetrievalContextFlow {
 			// 3. Trigram search for nodes
 			let trigramNodeResults: Awaited<ReturnType<typeof trigramSearchNodes>> =
 				[];
-			if (state.extractedEntities.length > 0) {
+			if (input.extractedEntities.length > 0) {
 				try {
 					trigramNodeResults = await trigramSearchNodes(
 						database,
-						state.extractedEntities,
+						input.extractedEntities,
 						Math.floor((TOTAL_NODE_LIMIT * WEIGHTS.trigramPercentage) / 100),
 						{ threshold: 0.1 },
-						state.graphId,
+						input.graphId,
 					);
 				} catch (error) {
-					logError("[KNOWLEDGE_RAG] Trigram search for nodes failed:", error);
+					logError("[RETRIEVE_KNOWLEDGE] Trigram search for nodes failed:", error);
 				}
 			}
 
 			// 4. Trigram search for edges
 			let trigramEdgeResults: Awaited<ReturnType<typeof trigramSearchEdges>> =
 				[];
-			if (state.extractedEntities.length > 0) {
+			if (input.extractedEntities.length > 0) {
 				try {
 					trigramEdgeResults = await trigramSearchEdges(
 						database,
-						state.extractedEntities,
+						input.extractedEntities,
 						Math.floor((TOTAL_EDGE_LIMIT * WEIGHTS.trigramPercentage) / 100),
 						{ threshold: 0.1 },
-						state.graphId,
+						input.graphId,
 					);
 				} catch (error) {
-					logError("[KNOWLEDGE_RAG] Trigram search for edges failed:", error);
+					logError("[RETRIEVE_KNOWLEDGE] Trigram search for edges failed:", error);
 				}
 			}
 
@@ -255,9 +208,9 @@ export class RetrievalContextFlow {
 							vectorNodes = await vectorSearchNodes(
 								database,
 								defaultEmbedding,
-								state.extractedEntities,
+								input.extractedEntities,
 								nodeLimit,
-								state.graphId,
+								input.graphId,
 							);
 						}
 
@@ -270,15 +223,15 @@ export class RetrievalContextFlow {
 							vectorEdges = await vectorSearchEdges(
 								database,
 								defaultEmbedding,
-								state.extractedEntities,
+								input.extractedEntities,
 								edgeLimit,
-								state.graphId,
+								input.graphId,
 							);
 						}
 					}
 				} catch (embeddingError) {
 					logError(
-						"[KNOWLEDGE_RAG] Vector search fallback failed:",
+						"[RETRIEVE_KNOWLEDGE] Vector search fallback failed:",
 						embeddingError,
 					);
 				}
@@ -315,13 +268,12 @@ export class RetrievalContextFlow {
 				(edge) => edge.id!,
 			);
 
-			// 4. Process and score nodes
+			// 7. Process and score nodes
 			relevantNodes = combinedNodes.map((node) => {
 				let relevanceScore = 0;
 
 				// Text-based relevance
-				// Text-based relevance
-				state.extractedEntities.forEach((entity) => {
+				input.extractedEntities.forEach((entity) => {
 					const entityLower = entity.toLowerCase();
 					if (`${node.name}`.toLowerCase().includes(entityLower)) {
 						relevanceScore += 3;
@@ -341,7 +293,7 @@ export class RetrievalContextFlow {
 				};
 			});
 
-			// 5. Get missing nodes for complete fact context
+			// 8. Get missing nodes for complete fact context
 			const edgeNodeIds = [
 				...new Set([
 					...combinedEdges.map((edge) => edge.sourceId),
@@ -379,12 +331,12 @@ export class RetrievalContextFlow {
 				relevantNodes = [...relevantNodes, ...additionalNodes];
 			}
 
-			// 6. Process edges
+			// 9. Process edges
 			relevantEdges = combinedEdges.map((edge) => {
 				let relevanceScore = 0;
 
 				// Score based on fact text relevance
-				state.extractedEntities.forEach((entity) => {
+				input.extractedEntities.forEach((entity) => {
 					if (edge.factText?.toLowerCase().includes(entity.toLowerCase())) {
 						relevanceScore += 2;
 					}
@@ -415,7 +367,7 @@ export class RetrievalContextFlow {
 			relevantNodes.sort((a, b) => b.relevanceScore - a.relevanceScore);
 			relevantEdges.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-			logInfo("[KNOWLEDGE_RAG] Retrieved knowledge:", {
+			logInfo("[RETRIEVE_KNOWLEDGE] Retrieved knowledge:", {
 				nodes: relevantNodes.length,
 				edges: relevantEdges.length,
 				sqlNodes: sqlNodes.length,
@@ -427,15 +379,17 @@ export class RetrievalContextFlow {
 			});
 
 			return {
-				relevantNodes,
-				relevantEdges,
-				next: "build_context",
+				output: {
+					relevantNodes,
+					relevantEdges,
+					next: "build_context",
+				},
 				actions:
 					relevantNodes?.length || relevantEdges?.length
 						? [
 								{
 									id: crypto.randomUUID(),
-									name: "knowledge_retrieval",
+									name: "Knowledge Retrieval Complete",
 									description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} relationships (${sqlNodes.length}+${trigramNodeResults.length}+${vectorNodes.length} nodes, ${sqlEdges.length}+${trigramEdgeResults.length}+${vectorEdges.length} edges)`,
 									metadata: {
 										nodeCount: relevantNodes.length,
@@ -452,8 +406,35 @@ export class RetrievalContextFlow {
 						: [],
 			};
 		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Knowledge retrieval failed:", error);
-			throw error;
+			logError("[RETRIEVE_KNOWLEDGE] Knowledge retrieval failed:", error);
+
+			return {
+				output: {
+					errors: [
+						error instanceof Error ? error.message : "Knowledge retrieval failed",
+					],
+				},
+				actions: [
+					{
+						id: crypto.randomUUID(),
+						name: "Knowledge Retrieval Failed",
+						description: error instanceof Error ? error.message : "Unknown error",
+						metadata: {},
+					},
+				],
+			};
 		}
-	};
+	},
+});
+
+type RetrieveKnowledgeSpec = StepSpecFromDefinition<typeof definition>;
+
+export const createRetrieveKnowledgeStep: StepFactoryFromSpec<RetrieveKnowledgeSpec> = (services: AllServices) => bindStep(definition, services);
+
+stepRegistry.register(STEP_NAME, createRetrieveKnowledgeStep);
+
+declare global {
+	interface StepTypeRegistry {
+		[STEP_NAME]: RetrieveKnowledgeSpec;
+	}
 }

@@ -2,7 +2,7 @@ import { Annotation } from "@langchain/langgraph/web";
 import {
 	BaseAnnotation,
 	type BaseStateBase,
-} from "../../interfaces/graph.base";
+} from "../graph.base";
 import type {
 	ChatCompletionMessageParam,
 	ChatCompletionMessageToolCall,

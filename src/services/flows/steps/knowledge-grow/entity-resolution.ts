@@ -1,13 +1,62 @@
-import type {
-	ExtractedEntity,
-	KnowledgeGraphState,
-	ResolvedEntity,
-} from "./state";
-import type { AllServices } from "@/services/flows/interfaces/tool";
-import type { Node } from "@/services/database/entities/nodes";
 import { logInfo, logError } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
-import { UuidMapper } from "./utils/uuid-mapping";
+
+import { defineStep, bindStep } from "@/services/flows/interfaces/step";
+import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import { stepRegistry } from "@/services/flows/step-registry";
+import type { AllServices } from "@/services/flows/interfaces/tool";
+import { UuidMapper } from "@/services/flows/utils/uuid-mapping";
+
+const STEP_NAME = "entity-resolution" as const;
+
+// ============================================================================
+// STEP-SPECIFIC TYPES
+// ============================================================================
+
+export interface ExtractedEntity {
+	uuid: string;
+	name: string;
+	summary?: string | null;
+	nodeType: string;
+	attributes?: Record<string, unknown>;
+}
+
+export interface ExistingNode {
+	id: string;
+	name: string;
+	nodeType: string;
+	summary?: string | null;
+}
+
+export interface ResolvedEntity {
+	uuid: string;
+	name: string;
+	summary?: string | null;
+	nodeType: string;
+	attributes: Record<string, unknown>;
+	isExisting: boolean;
+	existingId?: string;
+	finalName: string;
+}
+
+export interface EntityResolutionInput {
+	currentMessage: string;
+	previousMessages?: string;
+	url?: string;
+	title?: string;
+	extractedEntities: ExtractedEntity[];
+	existingNodes: ExistingNode[];
+}
+
+export interface EntityResolutionOutput {
+	resolvedEntities?: ResolvedEntity[];
+	processingStage?: string;
+	errors?: string[];
+}
+
+// ============================================================================
+// SYSTEM PROMPT
+// ============================================================================
 
 const ENTITY_RESOLUTION_SYSTEM_PROMPT = `Given the EXISTING NODES and NEW NODES, determine for EACH NEW NODE whether it represents the same real-world entity as any existing node.
 
@@ -38,21 +87,22 @@ Return your response as a valid JSON array with objects matching this structure:
   ...
 ]`;
 
-export class EntityResolutionFlow {
-	constructor(private services: AllServices) {}
+// ============================================================================
+// STEP IMPLEMENTATION
+// ============================================================================
 
-	async resolveEntities(
-		state: KnowledgeGraphState,
-	): Promise<Partial<KnowledgeGraphState>> {
+const definition = defineStep<EntityResolutionInput, EntityResolutionOutput, AllServices>({
+	name: STEP_NAME,
+	execute: async ({ input, services }) => {
 		try {
-			logInfo(
-				"[ENTITY_RESOLUTION] Starting entity resolution with manual + AI",
-			);
+			logInfo("[ENTITY_RESOLUTION] Starting entity resolution with manual + AI");
 
-			if (!state.extractedEntities || state.extractedEntities.length === 0) {
+			if (!input.extractedEntities || input.extractedEntities.length === 0) {
 				return {
-					resolvedEntities: [],
-					processingStage: "fact_extraction",
+					output: {
+						resolvedEntities: [],
+						processingStage: "fact_extraction",
+					},
 					actions: [
 						{
 							id: crypto.randomUUID(),
@@ -68,13 +118,13 @@ export class EntityResolutionFlow {
 			const manuallyResolved: ResolvedEntity[] = [];
 			const needsAIResolution: ExtractedEntity[] = [];
 
-			const existingNodesByName = new Map<string, Node>();
-			for (const node of state.existingNodes) {
+			const existingNodesByName = new Map<string, ExistingNode>();
+			for (const node of input.existingNodes || []) {
 				const normalizedName = node.name.toLowerCase().trim();
 				existingNodesByName.set(normalizedName, node);
 			}
 
-			for (const entity of state.extractedEntities) {
+			for (const entity of input.extractedEntities) {
 				const normalizedEntityName = entity.name.toLowerCase().trim();
 				const existingNode = existingNodesByName.get(normalizedEntityName);
 
@@ -84,7 +134,8 @@ export class EntityResolutionFlow {
 						...entity,
 						isExisting: true,
 						existingId: existingNode.id,
-						finalName: existingNode.name, // Use existing node's name
+						finalName: existingNode.name,
+						attributes: entity.attributes || {},
 					});
 					logInfo(
 						`[ENTITY_RESOLUTION] Manual match: "${entity.name}" -> existing node "${existingNode.name}" (${existingNode.id})`,
@@ -102,8 +153,10 @@ export class EntityResolutionFlow {
 			// If all entities were manually resolved, return early
 			if (needsAIResolution.length === 0) {
 				return {
-					resolvedEntities: manuallyResolved,
-					processingStage: "fact_extraction",
+					output: {
+						resolvedEntities: manuallyResolved,
+						processingStage: "fact_extraction",
+					},
 					actions: [
 						{
 							id: crypto.randomUUID(),
@@ -120,37 +173,35 @@ export class EntityResolutionFlow {
 			}
 
 			// Step 2: AI resolution for remaining entities
-			const llm = this.services.llm;
+			const llm = services.llm;
 
 			if (!llm.isReady()) {
 				throw new Error("LLM service is not ready");
 			}
 
 			// Prepare existing nodes context
-			const existingNodesText = state.existingNodes
+			const existingNodesText = (input.existingNodes || [])
 				.map(
 					(node) =>
-						`ID: ${node.id}, Name: ${node.name}, Summary: ${node.summary}, Type: ${node.nodeType}`,
+						`ID: ${node.id}, Name: ${node.name}, Summary: ${node.summary || "No summary"}, Type: ${node.nodeType}`,
 				)
 				.join("\n");
 
 			// Format content with proper context
-			let contentSection = `<CONTENT>\n${state.currentMessage}\n</CONTENT>`;
+			let contentSection = `<CONTENT>\n${input.currentMessage}\n</CONTENT>`;
 
-			// Add context if available
-			if (state.previousMessages && state.previousMessages.trim().length > 0) {
-				contentSection = `<CONTEXT>\n${state.previousMessages}\n</CONTEXT>\n\n${contentSection}`;
+			if (input.previousMessages && input.previousMessages.trim().length > 0) {
+				contentSection = `<CONTEXT>\n${input.previousMessages}\n</CONTEXT>\n\n${contentSection}`;
 			}
 
-			// Add metadata for better understanding
-			if (state.url || state.title) {
+			if (input.url || input.title) {
 				const metadata = [];
-				if (state.title) metadata.push(`Title: ${state.title}`);
-				if (state.url) metadata.push(`Source: ${state.url}`);
+				if (input.title) metadata.push(`Title: ${input.title}`);
+				if (input.url) metadata.push(`Source: ${input.url}`);
 				contentSection = `<METADATA>\n${metadata.join("\n")}\n</METADATA>\n\n${contentSection}`;
 			}
 
-			// Prepare entities text for processing (only entities needing AI resolution)
+			// Prepare entities text for processing
 			const entitiesText = needsAIResolution
 				.map(
 					(entity, index) =>
@@ -158,7 +209,6 @@ export class EntityResolutionFlow {
 				)
 				.join("\n");
 
-			// Combine all content for processing
 			const fullText = `${contentSection}
 
 <EXISTING NODES>
@@ -177,6 +227,14 @@ ${entitiesText}
 			// Create UUID mapper for this resolution session
 			const uuidMapper = new UuidMapper();
 
+			// Convert ExistingNode[] to Node[] format for UuidMapper
+			const nodesForMapper = (input.existingNodes || []).map((node) => ({
+				id: node.id,
+				name: node.name,
+				nodeType: node.nodeType,
+				summary: node.summary,
+			}));
+
 			const parseResolutions = (content: string): ResolvedEntity[] => {
 				let cleaned = content.trim();
 				if (cleaned.startsWith("```json"))
@@ -191,7 +249,6 @@ ${entitiesText}
 						throw new Error("Response is not an array");
 					}
 
-					// Map parsed resolutions to resolved entities (only for AI-resolved entities)
 					const results: ResolvedEntity[] = [];
 					for (
 						let i = 0;
@@ -212,11 +269,9 @@ ${entitiesText}
 							entity.name,
 							resolution.existing_id,
 							finalName,
-							state.existingNodes,
+							nodesForMapper,
 						);
 
-						// If LLM said it's a duplicate but mapper couldn't find a match,
-						// the mapper will have generated a new UUID and marked isExisting=false
 						if (isDuplicate && !mappingResult.isExisting) {
 							logInfo(
 								`[ENTITY_RESOLUTION] LLM marked entity "${entity.name}" as duplicate but could not find matching node. Created new entity with UUID: ${mappingResult.correctUuid}`,
@@ -231,18 +286,18 @@ ${entitiesText}
 								? mappingResult.correctUuid
 								: undefined,
 							finalName: mappingResult.finalName || finalName,
+							attributes: entity.attributes || {}
 						});
 					}
 
 					// Handle any remaining entities that weren't in the response
 					for (let i = parsedArray.length; i < needsAIResolution.length; i++) {
 						const entity = needsAIResolution[i];
-						// Generate new UUID for entities without resolution
 						const mappingResult = uuidMapper.mapEntityUuid(
 							entity.name,
 							undefined,
 							entity.name,
-							state.existingNodes,
+							nodesForMapper,
 						);
 
 						results.push({
@@ -250,6 +305,7 @@ ${entitiesText}
 							uuid: mappingResult.correctUuid,
 							isExisting: false,
 							finalName: entity.name,
+							attributes: entity.attributes || {}
 						});
 					}
 
@@ -266,7 +322,7 @@ ${entitiesText}
 							entity.name,
 							undefined,
 							entity.name,
-							state.existingNodes,
+							nodesForMapper,
 						);
 
 						return {
@@ -274,19 +330,19 @@ ${entitiesText}
 							uuid: mappingResult.correctUuid,
 							isExisting: false,
 							finalName: entity.name,
+							attributes: entity.attributes || {}
 						};
 					});
 				}
 			};
 
-			const maxModelTokens = await this.services.llm.getMaxModelTokens();
-			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
+			const maxModelTokens = await services.llm.getMaxModelTokens();
+			const maxResponseTokens = await services.llm.getMaxResponseTokens();
 
 			const aiResolvedEntities = await mapRefine<ResolvedEntity>(
 				llm,
 				ENTITY_RESOLUTION_SYSTEM_PROMPT,
 				(chunk, prev, errorContext) => {
-					// Include previous results summary to maintain context
 					const prevSummary =
 						prev.length > 0
 							? prev
@@ -312,7 +368,7 @@ ${entitiesText}
 					temperature: 0.0,
 					maxRetries: 2,
 					dedupeBy: (e) => `${e.name.toLowerCase()}|${e.nodeType}`,
-					onError: (error, attempt, chunk) => {
+					onError: (error, attempt) => {
 						logError(
 							`[ENTITY_RESOLUTION] Parse error on attempt ${attempt}:`,
 							error,
@@ -336,8 +392,10 @@ ${entitiesText}
 			);
 
 			return {
-				resolvedEntities: allResolvedEntities,
-				processingStage: "fact_extraction",
+				output: {
+					resolvedEntities: allResolvedEntities,
+					processingStage: "fact_extraction",
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
@@ -359,19 +417,32 @@ ${entitiesText}
 			logError("[ENTITY_RESOLUTION] Error:", error);
 
 			return {
-				errors: [
-					error instanceof Error ? error.message : "Entity resolution failed",
-				],
+				output: {
+					errors: [
+						error instanceof Error ? error.message : "Entity resolution failed",
+					],
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
 						name: "Entity Resolution Failed",
-						description:
-							error instanceof Error ? error.message : "Unknown error",
+						description: error instanceof Error ? error.message : "Unknown error",
 						metadata: {},
 					},
 				],
 			};
 		}
+	},
+});
+
+type EntityResolutionSpec = StepSpecFromDefinition<typeof definition>;
+
+export const createEntityResolutionStep: StepFactoryFromSpec<EntityResolutionSpec> = (services: AllServices) => bindStep(definition, services);
+
+stepRegistry.register(STEP_NAME, createEntityResolutionStep);
+
+declare global {
+	interface StepTypeRegistry {
+		[STEP_NAME]: EntityResolutionSpec;
 	}
 }

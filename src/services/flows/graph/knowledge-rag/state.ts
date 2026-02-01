@@ -3,7 +3,7 @@ import type { ChatMessage, ChatCompletionTool } from "@/types/openai";
 import {
 	type BaseStateBase,
 	BaseAnnotation,
-} from "@/services/flows/interfaces/graph.base";
+} from "@/services/flows/graph/graph.base";
 
 export interface KnowledgeRAGConfig {
 	/** Retrieval mode: standard (LLM-based), quick (fast semantic), smart (hybrid - default) */

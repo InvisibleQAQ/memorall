@@ -1,7 +1,7 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import { AgentAnnotation, type AgentState } from "./state";
 
-import { GraphBase } from "@/services/flows/interfaces/graph.base";
+import { GraphBase } from "@/services/flows/graph/graph.base";
 import { toolRegistry, convertToolsToOpenAI } from "@/services/flows/tools";
 import type { AllServices, BaseTool } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionResponse, ChatCompletionChunk, ChatMessage } from "@/types/openai";
