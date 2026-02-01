@@ -194,7 +194,6 @@ const definition = defineStep<
 					citedLines: lineCitations.size,
 				},
 			};
-			runConfig?.writer?.({ type: "actions", actions: [action] });
 
 			return {
 				output: {

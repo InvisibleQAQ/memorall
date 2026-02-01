@@ -5,6 +5,7 @@ import { useChatStore } from "@/main/stores/chat";
 import type { ChatStatus } from "@/types/chat";
 import { logError, logInfo } from "@/utils/logger";
 import { serviceManager } from "@/services";
+import type { Message } from "@/services/database";
 
 export interface InProgressMessage {
 	id: string;
@@ -15,6 +16,10 @@ export interface InProgressMessage {
 		description: string;
 		metadata: Record<string, unknown>;
 	}>;
+	executeState?: {
+		node: string;
+		metadata?: Record<string, unknown>;
+	};
 }
 
 export const useChat = (model: string) => {
@@ -109,7 +114,7 @@ export const useChat = (model: string) => {
 		const controller = new AbortController();
 		setAbortController(controller);
 
-		let assistantMessage: any = null;
+		let assistantMessage: Message | null = null;
 		let currentContent = "";
 		const startTime = Date.now();
 		let provider = "unknown";
@@ -211,6 +216,12 @@ export const useChat = (model: string) => {
 							prev ? { ...prev, actions } : null,
 						);
 					},
+					onExecuteStart: (event) => {
+						console.log('=============================>', event)
+						setInProgressMessage((prev) =>
+							prev ? { ...prev, executeState: event } : null,
+						);
+					},
 					onError: (error) => {
 						logError("Chat streaming error:", error);
 					},
@@ -302,7 +313,7 @@ export const useChat = (model: string) => {
 			if (assistantMessage) {
 				const errorContent =
 					"Sorry, I encountered an error processing your message.";
-				await finalizeMessage(assistantMessage.id, { content: errorContent });
+				await finalizeMessage(assistantMessage.id, { content: currentContent || errorContent });
 			} else {
 				await addMessage({
 					role: "assistant",

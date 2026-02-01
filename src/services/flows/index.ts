@@ -15,7 +15,7 @@ export type {
 	StepFactory,
 	StepNodeMapping,
 } from "./interfaces/step";
-export { defineStep, bindStep, toGraphNode } from "./interfaces/step";
+export { defineStep, bindStep } from "./interfaces/step";
 
 // Re-export registry utilities
 export { toolRegistry, convertToolsToOpenAI } from "./tool-registry";

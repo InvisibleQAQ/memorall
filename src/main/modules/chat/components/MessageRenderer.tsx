@@ -114,6 +114,10 @@ interface MessageMetadata extends Record<string, unknown> {
 	tokensPerSecond?: number;
 	estimatedTokens?: number;
 	actions?: ActionItem[];
+	executeState?: {
+		node: string;
+		metadata?: Record<string, unknown>;
+	};
 }
 
 // Type guard for knowledge graph metadata
@@ -521,6 +525,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 			() => dayjs(message.createdAt).format("MMM D, YYYY h:mm A"),
 			[message.createdAt],
 		);
+		const { t } = useTranslation("chat");
 
 		const actions = useMemo<ActionItem[]>(() => {
 			if (!message.metadata || typeof message.metadata !== "object") return [];
@@ -528,6 +533,31 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 			if (!Array.isArray(message.metadata.actions)) return [];
 			return message.metadata.actions;
 		}, [message.metadata]);
+
+		const executeState = useMemo(() => {
+			const metadata = message.metadata as MessageMetadata | undefined;
+			return metadata?.executeState;
+		}, [message.metadata]);
+
+		const executionLabel = useMemo(() => {
+			if (!executeState?.node) return "";
+			const key = `execution.nodes.${executeState.node}`;
+			const translated = t(key);
+			if (translated !== key) return translated;
+			return executeState.node;
+		}, [executeState?.node, t]);
+
+		const executionText = useMemo(() => {
+			if (!executeState?.node) return "";
+			const toolName =
+				typeof executeState.metadata?.tool === "string"
+					? executeState.metadata.tool
+					: undefined;
+			if (toolName) {
+				return t("execution.tool", { name: toolName });
+			}
+			return t("execution.default", { node: executionLabel });
+		}, [executeState, executionLabel, t]);
 
 		if (message.type === "separator") {
 			return (
@@ -564,27 +594,30 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 									</div>
 								}
 							>
-								<div className="relative">
+								<div className="relative z-10">
 									<ContentComponent isStreaming={isStreaming}>
 										{message.content}
 									</ContentComponent>
 									{isStreaming && (
 										<>
 											{/* Streaming indicator with three dots */}
-											<div className="mt-2 flex items-center gap-2">
+											<div className="mt-4 flex items-center gap-2">
 												<ThreeDotsLoader
 													className="text-muted-foreground"
 													size="sm"
 												/>
+												{executionText ? (
+													<span className="text-muted-foreground animate-pulse">
+														{executionText}
+													</span>
+												) : null}
 											</div>
 											{/* Subtle glass gradient at bottom to indicate streaming */}
 											<div
-												className="absolute -bottom-4 -left-6 -right-6 h-14 pointer-events-none rounded-b-lg"
+												className="absolute -bottom-6 -left-6 -right-6 h-10 pointer-events-none rounded-b-lg z-0"
 												style={{
 													background:
-														"linear-gradient(to top, hsl(var(--background) / 0.2) 0%, hsl(var(--background) / 0.08) 50%, transparent 100%)",
-													backdropFilter: "blur(1px)",
-													WebkitBackdropFilter: "blur(1px)",
+														"linear-gradient(to top, hsl(var(--background) / 0.2) 0%, hsl(var(--background) / 0.08) 55%, transparent 100%)",
 												}}
 											/>
 										</>

@@ -362,6 +362,14 @@ Important: Your answer must be one of the following exactly:
 		// Execute each tool call
 		for (const toolCall of lastStep.tool_calls) {
 			const tool = this.toolsMap.get(toolCall.name);
+			runConfig?.writer?.({
+				type: "execute-start",
+				node: "tools",
+				metadata: {
+					tool: toolCall.name,
+					tool_call_id: toolCall.id,
+				},
+			});
 
 			if (!tool) {
 				toolResultSteps.push({
