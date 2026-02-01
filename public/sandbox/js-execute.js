@@ -261,10 +261,14 @@ const execute = async ({ code, timeoutMs = 1000, maxLogEntries = 20 }) => {
 			return { status: "timeout", durationMs, logs, truncatedLogs };
 		}
 
+		let resolved = result;
+		if (resolved === undefined && logs.length > 0) {
+			resolved = logs[logs.length - 1].message;
+		}
 		return {
 			status: "ok",
 			durationMs,
-			result: safeSerialize(result),
+			result: safeSerialize(resolved),
 			logs,
 			truncatedLogs,
 		};

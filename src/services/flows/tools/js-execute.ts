@@ -54,23 +54,6 @@ type WorkerResult =
 			truncatedLogs: number;
 	  };
 
-const safeSerialize = (value: unknown): string => {
-	if (typeof value === "string") return value;
-	if (typeof value === "number" || typeof value === "boolean")
-		return String(value);
-	if (value === null) return "null";
-	if (value === undefined) return "undefined";
-	try {
-		return JSON.stringify(value);
-	} catch {
-		try {
-			return String(value);
-		} catch {
-			return "[unserializable]";
-		}
-	}
-};
-
 const executeInSandboxPage = async (
 	code: string,
 	timeoutMs: number,
@@ -112,7 +95,7 @@ const executeInSandboxPage = async (
 		settled = true;
 		clearTimeout(timeoutId);
 		window.removeEventListener("message", onMessage);
-		// iframe.remove();
+		iframe.remove();
 		return result;
 	};
 
@@ -201,7 +184,7 @@ export const createJsExecuteTool: ToolFactory<
 > = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Execute JavaScript from `code` in an extension sandbox page (CSP-safe). Allowed APIs: console (log/info/warn/error/debug), Math/Number/String/Boolean/Array/Object/Date/JSON/RegExp/Promise, in-memory cookie/localStorage/sessionStorage, fetch/XMLHttpRequest with credentials blocked (credentials forced to omit, Cookie/Authorization headers stripped). Returns JSON: status (ok|error|timeout), result (string on ok), logs [{level,message}] (keeps latest 20 by default), durationMs, truncatedLogs, and error/stack when status=error. Use console.log(...) to output the answer; if you return a value, ensure it is returned (e.g., `return String(result)`), otherwise it may be undefined.",
+		"Execute JavaScript from `code` in an extension sandbox page (CSP-safe). Allowed APIs: console (log/info/warn/error/debug), Math/Number/String/Boolean/Array/Object/Date/JSON/RegExp/Promise, in-memory cookie/localStorage/sessionStorage, fetch/XMLHttpRequest with credentials blocked (credentials forced to omit, Cookie/Authorization headers stripped). Returns JSON: status (ok|error|timeout), result (string on ok), logs [{level,message}] (keeps latest 20 by default), durationMs, truncatedLogs, and error/stack when status=error. IMPORTANT: Always use console.log(...) to report progress and the final answer so it appears in logs; also `return String(...)` for a definitive result value.",
 	schema,
 	execute: async (input) => {
 		const { code, timeoutMs = 1000, maxLogEntries = 20 } = input;

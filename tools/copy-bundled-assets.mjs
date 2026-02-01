@@ -174,6 +174,16 @@ function main() {
 		console.warn("⚠️  pdfjs-dist worker not found, skipping.\n");
 	}
 
+	// 5. Copy sandbox assets to extension root (for manifest sandbox.pages)
+	const sandboxSrcDir = path.resolve(process.cwd(), "public/sandbox");
+	const sandboxDestDir = path.resolve(process.cwd(), "sandbox");
+	if (fs.existsSync(sandboxSrcDir)) {
+		copyDirectory(sandboxSrcDir, sandboxDestDir);
+		console.log("✅ Sandbox assets copied.\n");
+	} else {
+		console.warn("⚠️  public/sandbox not found, skipping.\n");
+	}
+
 	console.log("🎉 All AI library assets prepared successfully!");
 }
 

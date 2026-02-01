@@ -24,6 +24,7 @@ console.log('✅ Publish directory ready\n');
 // Step 2: Build production version
 console.log('🔨 Building production extension...');
 try {
+  execSync('node tools/copy-bundled-assets.mjs', { stdio: 'inherit' });
   execSync('cross-env NODE_ENV=production extension build', { stdio: 'inherit' });
   console.log('✅ Production build complete\n');
 } catch (error) {
