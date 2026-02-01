@@ -1,8 +1,52 @@
-import type { KnowledgeGraphState, ExtractedFact } from "./state";
 import { logInfo, logError, logWarn } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
+
+import { defineStep, bindStep } from "@/services/flows/interfaces/step";
+import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
+
+const STEP_NAME = "fact-extraction" as const;
+
+// ============================================================================
+// STEP-SPECIFIC TYPES
+// ============================================================================
+
+export interface ResolvedEntity {
+	uuid: string;
+	name: string;
+	summary?: string;
+	nodeType: string;
+	finalName: string;
+}
+
+export interface ExtractedFact {
+	uuid: string;
+	sourceEntityId: string;
+	destinationEntityId: string;
+	relationType: string;
+	factText: string;
+	attributes: Record<string, unknown>;
+}
+
+export interface FactExtractionInput {
+	currentMessage: string;
+	previousMessages?: string;
+	url?: string;
+	title?: string;
+	resolvedEntities: ResolvedEntity[];
+}
+
+export interface FactExtractionOutput {
+	extractedFacts?: ExtractedFact[];
+	processingStage?: string;
+	errors?: string[];
+}
+
+// ============================================================================
+// SYSTEM PROMPTS
+// ============================================================================
 
 const FACT_EXTRACTION_SYSTEM_PROMPT = `Extract ALL possible factual relationships between the provided ENTITIES from the given CONTENT. Your goal is to generate as many edges as possible for the knowledge graph.
 
@@ -81,14 +125,98 @@ Return your response as a valid JSON array of objects with the following structu
 
 REMEMBER: Use entity names EXACTLY as they appear in the ENTITIES list, and focus on creating connections for the unconnected entities listed above!`;
 
-export class FactExtractionFlow {
-	constructor(private services: AllServices) {}
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
-	async extractFacts(
-		state: KnowledgeGraphState,
-	): Promise<Partial<KnowledgeGraphState>> {
+async function generateFactsForUnconnectedEntities(
+	unconnectedEntities: ResolvedEntity[],
+	resolvedEntities: ResolvedEntity[],
+	llm: ILLMService,
+	fullText: string,
+	entitiesText: string,
+	parseFacts: (content: string) => ExtractedFact[],
+	services: AllServices,
+): Promise<ExtractedFact[]> {
+	if (unconnectedEntities.length === 0) return [];
+
+	const unconnectedNames = unconnectedEntities
+		.map((e) => e.finalName)
+		.join(", ");
+
+	try {
+		const maxModelTokens = await services.llm.getMaxModelTokens();
+		const maxResponseTokens = await services.llm.getMaxResponseTokens();
+
+		const additionalFacts = await mapRefine<ExtractedFact>(
+			llm,
+			UNCONNECTED_EXTRACTION_PROMPT.replace(
+				"{{nodes}}",
+				unconnectedEntities
+					.map((e) => `- ${e.finalName}: ${e.summary || "No description"}`)
+					.join("\n"),
+			),
+			(chunk, prev, errorContext) => {
+				let prompt = `Focus on finding relationships for these unconnected entities: ${unconnectedNames}\n\n<CONTENT>\n${chunk}\n</CONTENT>\n\n<ENTITIES>\n${entitiesText}\n</ENTITIES>\n\nREMINDER: Create connections specifically for the unconnected entities listed above using EXACT entity names.`;
+
+				if (errorContext) {
+					prompt += `\n\n<ERROR_CONTEXT>\n${errorContext}\nPlease fix the JSON format and focus on the unconnected entities.\n</ERROR_CONTEXT>`;
+				}
+
+				return prompt;
+			},
+			parseFacts,
+			fullText,
+			{
+				maxModelTokens: Math.floor(maxModelTokens * 0.8),
+				maxResponseTokens,
+				temperature: 0.2,
+				maxRetries: 2,
+				dedupeBy: (f) =>
+					`${f.sourceEntityId}|${f.relationType}|${f.destinationEntityId}`,
+				onError: (error, attempt) => {
+					logError(
+						`[UNCONNECTED_EXTRACTION] Parse error on attempt ${attempt}:`,
+						error,
+					);
+					return `Extraction failed: ${error.message}. Please ensure valid JSON format and focus on unconnected entities.`;
+				},
+			},
+		);
+
+		// Filter to only include facts that involve at least one unconnected entity
+		const unconnectedEntityIds = new Set(
+			unconnectedEntities.map((e) => e.uuid),
+		);
+		const filteredFacts = additionalFacts.filter(
+			(fact) =>
+				unconnectedEntityIds.has(fact.sourceEntityId) ||
+				unconnectedEntityIds.has(fact.destinationEntityId),
+		);
+
+		logInfo(
+			`[UNCONNECTED_EXTRACTION] Generated ${filteredFacts.length} relationships for unconnected entities`,
+		);
+
+		return filteredFacts;
+	} catch (error) {
+		logError(
+			"[UNCONNECTED_EXTRACTION] Error generating facts for unconnected entities:",
+			error,
+		);
+		return [];
+	}
+}
+
+// ============================================================================
+// STEP IMPLEMENTATION
+// ============================================================================
+
+const definition = defineStep<FactExtractionInput, FactExtractionOutput, AllServices>({
+	name: STEP_NAME,
+	execute: async ({ input, services }) => {
 		try {
-			const llm = this.services.llm;
+			const llm = services.llm;
 
 			if (!llm.isReady()) {
 				throw new Error("LLM service is not ready");
@@ -96,7 +224,7 @@ export class FactExtractionFlow {
 
 			logInfo("[FACT_EXTRACTION] Starting fact extraction");
 
-			const entitiesText = state.resolvedEntities
+			const entitiesText = input.resolvedEntities
 				.map(
 					(entity) =>
 						`- ${entity.finalName}: ${entity.summary || "No description"}`,
@@ -104,22 +232,19 @@ export class FactExtractionFlow {
 				.join("\n");
 
 			// Format content with proper context
-			let formattedContent = `<CONTENT>\n${state.currentMessage}\n</CONTENT>`;
+			let formattedContent = `<CONTENT>\n${input.currentMessage}\n</CONTENT>`;
 
-			// Add context if available
-			if (state.previousMessages && state.previousMessages.trim().length > 0) {
-				formattedContent = `<CONTEXT>\n${state.previousMessages}\n</CONTEXT>\n\n${formattedContent}`;
+			if (input.previousMessages && input.previousMessages.trim().length > 0) {
+				formattedContent = `<CONTEXT>\n${input.previousMessages}\n</CONTEXT>\n\n${formattedContent}`;
 			}
 
-			// Add metadata for better understanding
-			if (state.url || state.title) {
+			if (input.url || input.title) {
 				const metadata = [];
-				if (state.title) metadata.push(`Title: ${state.title}`);
-				if (state.url) metadata.push(`Source: ${state.url}`);
+				if (input.title) metadata.push(`Title: ${input.title}`);
+				if (input.url) metadata.push(`Source: ${input.url}`);
 				formattedContent = `<METADATA>\n${metadata.join("\n")}\n</METADATA>\n\n${formattedContent}`;
 			}
 
-			// Add entities list
 			const fullText = `${formattedContent}\n\n<ENTITIES>\n${entitiesText}\n</ENTITIES>`;
 
 			interface ParsedFact {
@@ -131,14 +256,12 @@ export class FactExtractionFlow {
 			}
 
 			const nameToId = new Map<string, string>();
-			for (const e of state.resolvedEntities) {
-				// Use finalName as primary mapping, but only add name mapping if it doesn't conflict
+			for (const e of input.resolvedEntities) {
 				const finalNameKey = e.finalName.toLowerCase();
 				const originalNameKey = e.name.toLowerCase();
 
 				nameToId.set(finalNameKey, e.uuid);
 
-				// Only add original name mapping if it's different and not already taken
 				if (
 					originalNameKey !== finalNameKey &&
 					!nameToId.has(originalNameKey)
@@ -146,7 +269,6 @@ export class FactExtractionFlow {
 					nameToId.set(originalNameKey, e.uuid);
 				}
 
-				// Also try common variations for better matching
 				const trimmedFinal = e.finalName.trim().toLowerCase();
 				const trimmedOriginal = e.name.trim().toLowerCase();
 
@@ -187,7 +309,6 @@ export class FactExtractionFlow {
 									pf.fact_text ??
 									`${pf.source_entity} ${relation} ${pf.destination_entity}`;
 
-								// Check if similar fact already exists
 								const existingFactIndex = allAccumulatedFacts.findIndex(
 									(existing) =>
 										existing.sourceEntityId === src &&
@@ -196,7 +317,6 @@ export class FactExtractionFlow {
 								);
 
 								if (existingFactIndex >= 0) {
-									// Merge with existing fact
 									const existing = allAccumulatedFacts[existingFactIndex];
 									const mergedFactText = existing.factText.includes(factText)
 										? existing.factText
@@ -206,13 +326,12 @@ export class FactExtractionFlow {
 										...(pf.attributes ?? {}),
 									};
 
-									// Update existing fact
 									allAccumulatedFacts[existingFactIndex] = {
 										...existing,
 										factText: mergedFactText,
 										attributes: mergedAttributes,
 									};
-									return null; // Don't add as new fact
+									return null;
 								}
 
 								return {
@@ -226,7 +345,6 @@ export class FactExtractionFlow {
 							})
 							.filter((f): f is ExtractedFact => f !== null);
 
-						// Add new facts to accumulated facts
 						allAccumulatedFacts.push(...newFacts);
 						return [...allAccumulatedFacts];
 					}
@@ -244,7 +362,6 @@ export class FactExtractionFlow {
 							const dst = nameToId.get(dstName);
 							if (!src || !dst) return null;
 
-							// Check if similar fact already exists
 							const existingFactIndex = allAccumulatedFacts.findIndex(
 								(existing) =>
 									existing.sourceEntityId === src &&
@@ -253,19 +370,17 @@ export class FactExtractionFlow {
 							);
 
 							if (existingFactIndex >= 0) {
-								// Merge with existing fact
 								const existing = allAccumulatedFacts[existingFactIndex];
 								const factText = m.trim();
 								const mergedFactText = existing.factText.includes(factText)
 									? existing.factText
 									: `${existing.factText}. ${factText}`;
 
-								// Update existing fact
 								allAccumulatedFacts[existingFactIndex] = {
 									...existing,
 									factText: mergedFactText,
 								};
-								return null; // Don't add as new fact
+								return null;
 							}
 
 							return {
@@ -279,7 +394,6 @@ export class FactExtractionFlow {
 						})
 						.filter((f): f is ExtractedFact => f !== null);
 
-					// Add new facts to accumulated facts
 					allAccumulatedFacts.push(...newFacts);
 					return [...allAccumulatedFacts];
 				}
@@ -287,8 +401,8 @@ export class FactExtractionFlow {
 				return [];
 			};
 
-			const maxModelTokens = await this.services.llm.getMaxModelTokens();
-			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
+			const maxModelTokens = await services.llm.getMaxModelTokens();
+			const maxResponseTokens = await services.llm.getMaxResponseTokens();
 
 			const extractedFacts = await mapRefine<ExtractedFact>(
 				llm,
@@ -297,10 +411,10 @@ export class FactExtractionFlow {
 					const prevSummary = prev
 						.map((p) => {
 							const sourceEntity =
-								state.resolvedEntities.find((e) => e.uuid === p.sourceEntityId)
+								input.resolvedEntities.find((e) => e.uuid === p.sourceEntityId)
 									?.finalName ?? "";
 							const destEntity =
-								state.resolvedEntities.find(
+								input.resolvedEntities.find(
 									(e) => e.uuid === p.destinationEntityId,
 								)?.finalName ?? "";
 							return `${sourceEntity} ${p.relationType} ${destEntity}`;
@@ -345,7 +459,7 @@ export class FactExtractionFlow {
 				connectedEntityIds.add(fact.destinationEntityId);
 			});
 
-			const unconnectedEntities = state.resolvedEntities.filter(
+			const unconnectedEntities = input.resolvedEntities.filter(
 				(entity) => !connectedEntityIds.has(entity.uuid),
 			);
 
@@ -357,16 +471,16 @@ export class FactExtractionFlow {
 			// Generate additional facts for unconnected entities
 			let additionalFacts: ExtractedFact[] = [];
 			if (unconnectedEntities.length > 0) {
-				additionalFacts = await this.generateFactsForUnconnectedEntities(
+				additionalFacts = await generateFactsForUnconnectedEntities(
 					unconnectedEntities,
-					state,
+					input.resolvedEntities,
 					llm,
 					fullText,
 					entitiesText,
 					parseFacts,
+					services,
 				);
 
-				// Merge additional facts with existing ones
 				extractedFacts.push(...additionalFacts);
 
 				logInfo(
@@ -380,8 +494,10 @@ export class FactExtractionFlow {
 			);
 
 			return {
-				extractedFacts,
-				processingStage: "fact_resolution",
+				output: {
+					extractedFacts,
+					processingStage: "fact_resolution",
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
@@ -400,102 +516,32 @@ export class FactExtractionFlow {
 			logError("[FACT_EXTRACTION] Error:", error);
 
 			return {
-				errors: [
-					error instanceof Error ? error.message : "Fact extraction failed",
-				],
+				output: {
+					errors: [
+						error instanceof Error ? error.message : "Fact extraction failed",
+					],
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
 						name: "Fact Extraction Failed",
-						description:
-							error instanceof Error ? error.message : "Unknown error",
+						description: error instanceof Error ? error.message : "Unknown error",
 						metadata: {},
 					},
 				],
 			};
 		}
-	}
+	},
+});
 
-	private async generateFactsForUnconnectedEntities(
-		unconnectedEntities: Array<{
-			uuid: string;
-			finalName: string;
-			summary?: string;
-			nodeType: string;
-		}>,
-		state: KnowledgeGraphState,
-		llm: ILLMService,
-		fullText: string,
-		entitiesText: string,
-		parseFacts: (content: string) => ExtractedFact[],
-	): Promise<ExtractedFact[]> {
-		if (unconnectedEntities.length === 0) return [];
+type FactExtractionSpec = StepSpecFromDefinition<typeof definition>;
 
-		const unconnectedNames = unconnectedEntities
-			.map((e) => e.finalName)
-			.join(", ");
+export const createFactExtractionStep: StepFactoryFromSpec<FactExtractionSpec> = (services: AllServices) => bindStep(definition, services);
 
-		try {
-			const maxModelTokens = await this.services.llm.getMaxModelTokens();
-			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
+stepRegistry.register(STEP_NAME, createFactExtractionStep);
 
-			const additionalFacts = await mapRefine<ExtractedFact>(
-				llm,
-				UNCONNECTED_EXTRACTION_PROMPT.replace(
-					"{{nodes}}",
-					unconnectedEntities
-						.map((e) => `- ${e.finalName}: ${e.summary || "No description"}`)
-						.join("\n"),
-				),
-				(chunk, prev, errorContext) => {
-					let prompt = `Focus on finding relationships for these unconnected entities: ${unconnectedNames}\n\n<CONTENT>\n${chunk}\n</CONTENT>\n\n<ENTITIES>\n${entitiesText}\n</ENTITIES>\n\nREMINDER: Create connections specifically for the unconnected entities listed above using EXACT entity names.`;
-
-					if (errorContext) {
-						prompt += `\n\n<ERROR_CONTEXT>\n${errorContext}\nPlease fix the JSON format and focus on the unconnected entities.\n</ERROR_CONTEXT>`;
-					}
-
-					return prompt;
-				},
-				parseFacts,
-				fullText,
-				{
-					maxModelTokens: Math.floor(maxModelTokens * 0.8),
-					maxResponseTokens,
-					temperature: 0.2, // Slightly higher creativity for finding implicit relationships
-					maxRetries: 2,
-					dedupeBy: (f) =>
-						`${f.sourceEntityId}|${f.relationType}|${f.destinationEntityId}`,
-					onError: (error, attempt) => {
-						logError(
-							`[UNCONNECTED_EXTRACTION] Parse error on attempt ${attempt}:`,
-							error,
-						);
-						return `Extraction failed: ${error.message}. Please ensure valid JSON format and focus on unconnected entities.`;
-					},
-				},
-			);
-
-			// Filter to only include facts that involve at least one unconnected entity
-			const unconnectedEntityIds = new Set(
-				unconnectedEntities.map((e) => e.uuid),
-			);
-			const filteredFacts = additionalFacts.filter(
-				(fact) =>
-					unconnectedEntityIds.has(fact.sourceEntityId) ||
-					unconnectedEntityIds.has(fact.destinationEntityId),
-			);
-
-			logInfo(
-				`[UNCONNECTED_EXTRACTION] Generated ${filteredFacts.length} relationships for unconnected entities`,
-			);
-
-			return filteredFacts;
-		} catch (error) {
-			logError(
-				"[UNCONNECTED_EXTRACTION] Error generating facts for unconnected entities:",
-				error,
-			);
-			return [];
-		}
+declare global {
+	interface StepTypeRegistry {
+		[STEP_NAME]: FactExtractionSpec;
 	}
 }

@@ -4,15 +4,13 @@ import {
 	type KnowledgeRAGConfig,
 	type KnowledgeRAGState,
 } from "./state";
-import { GraphBase } from "@/services/flows/interfaces/graph.base";
+import { GraphBase } from "@/services/flows/graph/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ChatMessage } from "@/types/openai";
-import { logError, logInfo, logWarn } from "@/utils/logger";
+import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
-import { RetrievalContextFlow } from "./retrieval";
-import { QuickRetrievalContextFlow } from "./quick-retrieval";
-import { SmartRetrievalFlow } from "./smart-retrieval";
-import { AgentGraph } from "../agent/graph";
+import { AgentGraph } from "@/services/flows/graph/agent";
+import { stepRegistry } from "@/services/flows/step-registry";
 
 const RESPONSE_GENERATION_PROMPT = `
 You are a knowledgeable assistant that can answer questions using a knowledge graph.
@@ -26,43 +24,6 @@ Following below order of information:
 1. If information to answer available in knowledge graph use it to answer the question.
 2. If information to answer not available in knowledge graph use your general knowledge to answer the question.
 Structure your answer in clear sections when appropriate.
-`;
-
-const CITATION_PROMPT = `
-You are tasked with identifying which knowledge sources were used in each line of an answer.
-
-Answer with Line Numbers:
-{answer}
-
-Knowledge Sources Available:
-{sources}
-
-Instructions:
-1. For each line that uses knowledge sources, identify which nodes and edges were used
-2. Return ONLY line numbers with their citations in this exact format:
-   Line X: [Label](#citations:node/{uuid}), [Label](#citation:edge/{uuid})
-3. Use actual UUIDs from the knowledge sources list
-4. Only include lines that need citations - skip lines that don't use knowledge sources
-5. CRITICAL: For nodes, the link MUST start with "#": [Label](#citations:node/{uuid})
-6. CRITICAL: For edges, the link MUST start with "#": [Label](#citation:edge/{uuid})
-7. IMPORTANT: The "#" symbol at the start of the link is REQUIRED - DO NOT omit it
-8. IMPORTANT: DO NOT add citations to table rows (lines starting with "|") - tables should remain citation-free
-9. IMPORTANT: DO NOT add citations to table separator lines (lines with "---" or "|---|")
-10. IMPORTANT: For tables, add citations on the line AFTER the table ends (after the last row)
-11. Do not include any explanation or the original text - ONLY line numbers and citations
-
-Example format (notice the "#" at the start of each link):
-Line 1: [React](#citations:node/abc-123)
-Line 3: [uses](#citation:edge/def-456), [JavaScript](#citations:node/ghi-789)
-
-Example for tables:
-Line 15: [Table Data](#citations:node/abc-123), [Source](#citation:edge/def-456)
-(Where line 15 is the line AFTER the table ends, not the table rows themselves)
-
-REMINDER:
-- Every citation link MUST start with "#" - this is mandatory!
-- Skip all table lines (any line containing "|" for table formatting)
-- Cite tables on the line immediately after the table ends
 `;
 
 export class KnowledgeRAGFlow extends GraphBase<
@@ -80,9 +41,6 @@ export class KnowledgeRAGFlow extends GraphBase<
 	private mode: "standard" | "quick" | "smart";
 	private responseMode: "simple" | "agent";
 	private configTools?: KnowledgeRAGConfig["tools"];
-	private retrieveContext: RetrievalContextFlow;
-	private quickRetrieveContext: QuickRetrievalContextFlow;
-	private smartRetrieveContext: SmartRetrievalFlow;
 
 	constructor(services: AllServices, config: KnowledgeRAGConfig = {}) {
 		super(services);
@@ -93,13 +51,17 @@ export class KnowledgeRAGFlow extends GraphBase<
 		this.configTools = config.tools;
 
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
-		this.retrieveContext = new RetrievalContextFlow(services);
-		this.quickRetrieveContext = new QuickRetrievalContextFlow(services, config);
-		this.smartRetrieveContext = new SmartRetrievalFlow(services);
+
+		const buildContextStep = stepRegistry.getStep('entities-facts-to-context', {})
+		const citationStep = stepRegistry.getStep('entities-facts-citation', services)
 
 		// Add common nodes
-		this.workflow.addNode("build_context", this.buildContextNode);
-		this.workflow.addNode("citation", this.citationNode);
+		this.workflow.addNode("build_context", (...args) => {
+			return buildContextStep.execute(...args)
+		});
+		this.workflow.addNode("citation", (...args) => {
+			return citationStep.execute(...args)
+		});
 
 		// Add response node based on responseMode
 		if (this.responseMode === "agent") {
@@ -110,27 +72,31 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		// Add retrieval nodes and edges based on mode
 		if (this.mode === "smart") {
+			const smartRetrieveContextStep = stepRegistry.getStep('smart-retrieve', services)
 			this.workflow.addNode(
 				"smart_retrieve",
-				this.smartRetrieveContext.smartRetrieveNode,
+				(...args) => smartRetrieveContextStep.execute(...args),
 			);
 			this.workflow.addEdge(START, "smart_retrieve");
 			this.workflow.addEdge("smart_retrieve", "build_context");
 		} else if (this.mode === "quick") {
+			const quickRetrieveContextStep = stepRegistry.getStep('quick-retrieve', services)
 			this.workflow.addNode(
 				"quick_retrieve",
-				this.quickRetrieveContext.quickRetrieveNode,
+				(...args) => quickRetrieveContextStep.execute(...args),
 			);
 			this.workflow.addEdge(START, "quick_retrieve");
 			this.workflow.addEdge("quick_retrieve", "build_context");
 		} else {
+			const analyzeQueryStep = stepRegistry.getStep('analyze-query', services)
+			const retrievalKnowledge = stepRegistry.getStep('retrieve-knowledge', services)
 			this.workflow.addNode(
 				"analyze_query",
-				this.retrieveContext.analyzeQueryNode,
+				(...args) => analyzeQueryStep.execute(...args),
 			);
 			this.workflow.addNode(
 				"retrieve_knowledge",
-				this.retrieveContext.retrieveKnowledgeNode,
+				(...args) => retrievalKnowledge.execute(...args),
 			);
 			this.workflow.addEdge(START, "analyze_query");
 			this.workflow.addEdge("analyze_query", "retrieve_knowledge");
@@ -152,114 +118,9 @@ export class KnowledgeRAGFlow extends GraphBase<
 		logInfo(`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}, responseMode: ${this.responseMode}`);
 	}
 
-	buildContextNode = async (
-		state: KnowledgeRAGState,
-	): Promise<Partial<KnowledgeRAGState>> => {
-		try {
-			logInfo(
-				"[KNOWLEDGE_RAG] Building knowledge context in natural language format",
-			);
-
-			// DEBUG: Log what we received in state
-			logInfo("[KNOWLEDGE_RAG] State received in buildContextNode:", {
-				relevantNodesCount: state.relevantNodes?.length ?? 0,
-				relevantEdgesCount: state.relevantEdges?.length ?? 0,
-				hasNodes: !!state.relevantNodes,
-				hasEdges: !!state.relevantEdges,
-				firstNode: state.relevantNodes?.[0]
-					? {
-							id: state.relevantNodes[0].id,
-							name: state.relevantNodes[0].name,
-						}
-					: null,
-				firstEdge: state.relevantEdges?.[0]
-					? {
-							id: state.relevantEdges[0].id,
-							sourceId: state.relevantEdges[0].sourceId,
-							destinationId: state.relevantEdges[0].destinationId,
-						}
-					: null,
-			});
-
-			if (!state.relevantNodes?.length || !state.relevantEdges?.length) {
-				logWarn(
-					"[KNOWLEDGE_RAG] No nodes or edges in state, returning empty context",
-					{
-						hasNodes: !!state.relevantNodes,
-						hasEdges: !!state.relevantEdges,
-						nodesLength: state.relevantNodes?.length,
-						edgesLength: state.relevantEdges?.length,
-					},
-				);
-				return {
-					knowledgeContext: "",
-					next: "generate_response",
-					actions: [],
-				};
-			}
-
-			// 1. Build definitions section - entity names and summaries
-			const definitions = state.relevantNodes
-				.map((node) => `"${node.name}" (${node.nodeType || 'Unknow'}): ${node.summary}.`)
-				.join("\n");
-
-			// 2. Build facts section - entity connections with fact text
-			const facts = state.relevantEdges
-				.map((edge) => {
-					const sourceName =
-						state.relevantNodes.find((n) => n.id === edge.sourceId)?.name ||
-						"Unknown";
-					const destName =
-						state.relevantNodes.find((n) => n.id === edge.destinationId)
-							?.name || "Unknown";
-					return `"${sourceName}" ${edge.edgeType} "${destName}", ${edge.factText}.`;
-				})
-				.join("\n");
-
-			// 3. Build natural language context
-			const knowledgeContext = `
-${definitions.trim() ? `<definitions>${definitions}</definitions>` : ""}
-${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
-
-			logInfo("[KNOWLEDGE_RAG] Built natural language context:", {
-				definitionsLength: definitions.length,
-				factsLength: facts.length,
-				nodesCount: state.relevantNodes.length,
-				edgesCount: state.relevantEdges.length,
-			});
-
-			// DEBUG: Log the action metadata before returning
-			const actionMetadata = {
-				nodes: state.relevantNodes,
-				edges: state.relevantEdges,
-			};
-
-			return {
-				knowledgeContext,
-				next: "generate_response",
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "knowledge_graph",
-						description: `Retrieved ${state.relevantNodes.length} nodes and ${state.relevantEdges.length} edges`,
-						metadata: actionMetadata,
-					},
-					{
-						id: crypto.randomUUID(),
-						name: "context_knowledge",
-						description: knowledgeContext,
-						metadata: {},
-					},
-				],
-			};
-		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Context building failed:", error);
-			throw error;
-		}
-	};
-
 	generateResponseNode = async (
 		state: KnowledgeRAGState,
+		_runConfig?: unknown,
 	): Promise<Partial<KnowledgeRAGState>> => {
 		const llm = this.services.llm;
 
@@ -313,6 +174,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 	 */
 	agentResponseNode = async (
 		state: KnowledgeRAGState,
+		_runConfig?: unknown,
 	): Promise<Partial<KnowledgeRAGState>> => {
 		try {
 			logInfo("[KNOWLEDGE_RAG] Executing agent workflow for response");
@@ -379,132 +241,6 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 		} catch (error) {
 			logError("[KNOWLEDGE_RAG] Agent response failed:", error);
 			throw error;
-		}
-	};
-
-	citationNode = async (
-		state: KnowledgeRAGState,
-	): Promise<Partial<KnowledgeRAGState>> => {
-		const llm = this.services.llm;
-
-		if (
-			(!state.relevantNodes?.length && !state.relevantEdges?.length) ||
-			!llm.isReady()
-		) {
-			return {
-				finalMessage: state.finalMessage,
-				actions: [],
-			};
-		}
-
-		try {
-			logInfo("[KNOWLEDGE_RAG] Adding citations to response");
-
-			// Split answer into lines and number them
-			const answerLines = state.finalMessage.split("\n");
-			const numberedAnswer = answerLines
-				.map((line, index) => `Line ${index + 1}: ${line}`)
-				.join("\n");
-
-			// Build sources list using actual UUIDs
-			const sourcesList = [
-				"Nodes:",
-				...state.relevantNodes.map(
-					(node) => `- ${node.name} (UUID: ${node.id})`,
-				),
-				"",
-				"Edges:",
-				...state.relevantEdges.map(
-					(edge) => `- ${edge.edgeType}: ${edge.factText} (UUID: ${edge.id})`,
-				),
-			].join("\n");
-
-			// Build system message with citation instructions
-			const systemMessage: ChatMessage = {
-				role: "system",
-				content: CITATION_PROMPT.replace("{answer}", numberedAnswer).replace(
-					"{sources}",
-					sourcesList,
-				),
-			};
-
-			// Use minimal messages for citation task
-			const messages: ChatMessage[] = [
-				systemMessage,
-				{
-					role: "user",
-					content:
-						"Identify citations for each line that uses knowledge sources.",
-				},
-			];
-
-			// NO STREAMING - just get the citations directly
-			const llmResponse = await llm.chatCompletions({
-				messages,
-				temperature: 0.1,
-				stream: false,
-			});
-
-			const citationResponse =
-				"choices" in llmResponse
-					? llmResponse.choices[0].message.content || ""
-					: "";
-
-			// Parse line-based citations
-			// Format: "Line X: [Label](#citations:node/uuid), [Label](#citation:edge/uuid)"
-			const lineCitations = new Map<number, string>();
-			const linePattern = /Line\s+(\d+):\s*(.+?)(?=\n|$)/gi;
-			let match;
-
-			while ((match = linePattern.exec(citationResponse)) !== null) {
-				const lineNum = parseInt(match[1], 10);
-				const citations = match[2].trim();
-				lineCitations.set(lineNum, citations);
-			}
-
-			// Merge citations back into original answer
-			const citedLines = answerLines.map((line, index) => {
-				const lineNum = index + 1;
-				const citations = lineCitations.get(lineNum);
-				if (citations) {
-					// Add citations at the end of the line
-					return `${line} ${citations}`;
-				}
-				return line;
-			});
-
-			const citedResponse = citedLines.join("\n");
-
-			return {
-				finalMessage: citedResponse,
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "citation",
-						description: "Added citations to response",
-						metadata: {
-							citationCount: (
-								citedResponse.match(/\]\(citation[s]?:(node|edge)\//g) || []
-							).length,
-							citedLines: lineCitations.size,
-						},
-					},
-				],
-			};
-		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Citation failed:", error);
-			// Return original response if citation fails
-			return {
-				finalMessage: state.finalMessage,
-				actions: [
-					{
-						id: crypto.randomUUID(),
-						name: "citation_fallback",
-						description: "Citation failed, returning original response",
-						metadata: { error: String(error) },
-					},
-				],
-			};
 		}
 	};
 }

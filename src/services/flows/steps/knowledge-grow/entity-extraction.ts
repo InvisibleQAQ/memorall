@@ -1,7 +1,43 @@
-import type { KnowledgeGraphState, ExtractedEntity } from "./state";
 import { logInfo, logError } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
-import type { AllServices } from "../../interfaces/tool";
+
+import { defineStep, bindStep } from "@/services/flows/interfaces/step";
+import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import { stepRegistry } from "@/services/flows/step-registry";
+import type { AllServices } from "@/services/flows/interfaces/tool";
+
+const STEP_NAME = "entity-extraction" as const;
+
+// ============================================================================
+// STEP-SPECIFIC TYPES
+// ============================================================================
+
+export interface ExtractedEntity {
+	uuid: string;
+	name: string;
+	summary?: string;
+	nodeType: string;
+	attributes: Record<string, unknown>;
+}
+
+export interface EntityExtractionInput {
+	currentMessage: string;
+	previousMessages?: string;
+	url?: string;
+	title?: string;
+	sourceType?: string;
+	isSpecificTextConversion?: boolean;
+}
+
+export interface EntityExtractionOutput {
+	extractedEntities?: ExtractedEntity[];
+	processingStage?: string;
+	errors?: string[];
+}
+
+// ============================================================================
+// SYSTEM PROMPTS
+// ============================================================================
 
 const ENTITY_EXTRACTION_SYSTEM_PROMPT = `You are an expert entity extraction specialist. Extract clean, precise entity nodes from the provided CONTENT.
 
@@ -136,22 +172,85 @@ Return a valid JSON array with this exact structure:
 
 MAXIMIZE EXTRACTION - The user selected this text specifically to preserve knowledge. Extract everything that could be valuable!`;
 
-export class EntityExtractionFlow {
-	constructor(private services: AllServices) {}
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
-	async extractEntities(
-		state: KnowledgeGraphState,
-	): Promise<Partial<KnowledgeGraphState>> {
+function cleanEntityName(name: string, isUserInput: boolean, isSpecificConversion: boolean): string {
+	let cleaned = name.trim();
+
+	// Special handling for user input or specific conversion - convert first-person pronouns
+	if (isUserInput || isSpecificConversion) {
+		if (/^(i|me|my|myself)$/i.test(cleaned)) {
+			return "Memorall User";
+		}
+		if (/^(my|mine)$/i.test(cleaned)) {
+			return "Memorall User";
+		}
+	}
+
+	// Remove common articles
+	cleaned = cleaned.replace(/^(the|a|an)\s+/i, "");
+
+	// Remove common descriptive patterns
+	cleaned = cleaned.replace(/^\w+:?\s+/, "");
+
+	// Remove introductory phrases pattern
+	cleaned = cleaned.replace(/^(called|named|known\s+as):?\s+/i, "");
+
+	// Generic URL cleaning
+	if (
+		cleaned.includes("://") ||
+		cleaned.includes(".com") ||
+		cleaned.includes(".org")
+	) {
 		try {
-			const llm = this.services.llm;
+			const url = new URL(
+				cleaned.startsWith("http") ? cleaned : `https://${cleaned}`,
+			);
+			const pathParts = url.pathname
+				.split("/")
+				.filter((part) => part.length > 0);
+
+			if (pathParts.length >= 2) {
+				cleaned = pathParts.slice(0, 2).join("/");
+			} else if (pathParts.length === 1) {
+				cleaned = pathParts[0];
+			} else {
+				cleaned = url.hostname.replace(/^www\./, "");
+			}
+		} catch {
+			const domainMatch = cleaned.match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+			if (domainMatch) {
+				cleaned = domainMatch[1].replace(/^www\./, "");
+			}
+		}
+	}
+
+	// Remove quotes and normalize whitespace
+	cleaned = cleaned.replace(/^["']|["']$/g, "").trim();
+	cleaned = cleaned.replace(/\s+/g, " ");
+
+	return cleaned;
+}
+
+// ============================================================================
+// STEP IMPLEMENTATION
+// ============================================================================
+
+const definition = defineStep<EntityExtractionInput, EntityExtractionOutput, AllServices>({
+	name: STEP_NAME,
+	execute: async ({ input, services }) => {
+		try {
+			const llm = services.llm;
 
 			if (!llm.isReady()) {
 				throw new Error("LLM service is not ready");
 			}
 
 			// Determine which prompt to use based on context
-			const isSpecificConversion = state.isSpecificTextConversion === true;
-			const isUserInput = state.sourceType === "user_input";
+			const isSpecificConversion = input.isSpecificTextConversion === true;
+			const isUserInput = input.sourceType === "user_input";
 
 			let promptToUse: string;
 			let mode: string;
@@ -170,18 +269,16 @@ export class EntityExtractionFlow {
 			logInfo(`[ENTITY_EXTRACTION] Starting entity extraction (${mode} mode)`);
 
 			// Format content based on available information
-			let formattedContent = `<CONTENT>\n${state.currentMessage}\n</CONTENT>`;
+			let formattedContent = `<CONTENT>\n${input.currentMessage}\n</CONTENT>`;
 
-			// Add context if available
-			if (state.previousMessages && state.previousMessages.trim().length > 0) {
-				formattedContent = `<CONTEXT>\n${state.previousMessages}\n</CONTEXT>\n\n${formattedContent}`;
+			if (input.previousMessages && input.previousMessages.trim().length > 0) {
+				formattedContent = `<CONTEXT>\n${input.previousMessages}\n</CONTEXT>\n\n${formattedContent}`;
 			}
 
-			// Add metadata for better understanding
-			if (state.url || state.title) {
+			if (input.url || input.title) {
 				const metadata = [];
-				if (state.title) metadata.push(`Title: ${state.title}`);
-				if (state.url) metadata.push(`Source: ${state.url}`);
+				if (input.title) metadata.push(`Title: ${input.title}`);
+				if (input.url) metadata.push(`Source: ${input.url}`);
 				formattedContent = `<METADATA>\n${metadata.join("\n")}\n</METADATA>\n\n${formattedContent}`;
 			}
 
@@ -199,72 +296,6 @@ export class EntityExtractionFlow {
 				attributes?: Record<string, unknown>;
 			}
 
-			const cleanEntityName = (name: string): string => {
-				let cleaned = name.trim();
-
-				// Special handling for user input or specific conversion - convert first-person pronouns
-				if (isUserInput || isSpecificConversion) {
-					// Convert first-person pronouns to "Memorall User"
-					if (/^(i|me|my|myself)$/i.test(cleaned)) {
-						return "Memorall User";
-					}
-					// Handle possessive forms
-					if (/^(my|mine)$/i.test(cleaned)) {
-						return "Memorall User";
-					}
-				}
-
-				// Generic pattern-based cleaning without fixed lists
-				// Remove common articles
-				cleaned = cleaned.replace(/^(the|a|an)\s+/i, "");
-
-				// Remove common descriptive patterns (word + colon/space + actual name)
-				cleaned = cleaned.replace(/^\w+:?\s+/, "");
-
-				// Remove introductory phrases pattern
-				cleaned = cleaned.replace(/^(called|named|known\s+as):?\s+/i, "");
-
-				// Generic URL cleaning - extract meaningful identifiers from URLs
-				if (
-					cleaned.includes("://") ||
-					cleaned.includes(".com") ||
-					cleaned.includes(".org")
-				) {
-					try {
-						const url = new URL(
-							cleaned.startsWith("http") ? cleaned : `https://${cleaned}`,
-						);
-						const pathParts = url.pathname
-							.split("/")
-							.filter((part) => part.length > 0);
-
-						if (pathParts.length >= 2) {
-							// Use meaningful path structure (e.g., user/repo)
-							cleaned = pathParts.slice(0, 2).join("/");
-						} else if (pathParts.length === 1) {
-							cleaned = pathParts[0];
-						} else {
-							// Use clean domain name
-							cleaned = url.hostname.replace(/^www\./, "");
-						}
-					} catch {
-						// If URL parsing fails, try simple domain extraction
-						const domainMatch = cleaned.match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-						if (domainMatch) {
-							cleaned = domainMatch[1].replace(/^www\./, "");
-						}
-					}
-				}
-
-				// Remove quotes and normalize whitespace
-				cleaned = cleaned.replace(/^["']|["']$/g, "").trim();
-
-				// Remove extra whitespace
-				cleaned = cleaned.replace(/\s+/g, " ");
-
-				return cleaned;
-			};
-
 			const parseEntities = (content: string): ExtractedEntity[] => {
 				let cleaned = content.trim();
 				if (cleaned.startsWith("```json"))
@@ -276,7 +307,11 @@ export class EntityExtractionFlow {
 					if (Array.isArray(parsed)) {
 						return parsed.map((e): ExtractedEntity => {
 							const pe = e as ParsedEntity;
-							const cleanedName = cleanEntityName(pe.name ?? "Unknown Entity");
+							const cleanedName = cleanEntityName(
+								pe.name ?? "Unknown Entity",
+								isUserInput,
+								isSpecificConversion,
+							);
 							const nodeType = pe.nodeType?.toUpperCase() ?? "OTHER";
 
 							return {
@@ -297,7 +332,7 @@ export class EntityExtractionFlow {
 							.replace(/("name":\s*"|name:\s*)/, "")
 							.replace(/"/g, "")
 							.trim();
-						const cleanedName = cleanEntityName(rawName);
+						const cleanedName = cleanEntityName(rawName, isUserInput, isSpecificConversion);
 						return {
 							uuid: crypto.randomUUID(),
 							name: cleanedName,
@@ -310,8 +345,8 @@ export class EntityExtractionFlow {
 				return [];
 			};
 
-			const maxModelTokens = await this.services.llm.getMaxModelTokens();
-			const maxResponseTokens = await this.services.llm.getMaxModelTokens();
+			const maxModelTokens = await services.llm.getMaxModelTokens();
+			const maxResponseTokens = await services.llm.getMaxModelTokens();
 
 			const extractedEntities = await mapRefine<ExtractedEntity>(
 				llm,
@@ -338,18 +373,12 @@ export class EntityExtractionFlow {
 				{
 					maxModelTokens,
 					maxResponseTokens,
-					temperature: isUserInput ? 0.2 : 0.1, // Higher creativity for user input
+					temperature: isUserInput ? 0.2 : 0.1,
 					maxRetries: 2,
 					dedupeBy: (e) => e.name.toLowerCase(),
-					onError: (error, attempt, chunk) => {
-						logError(
-							`[ENTITY_EXTRACTION] Parse error on attempt ${attempt}:`,
-							error,
-						);
-						if (
-							error.message.includes("JSON") ||
-							error.message.includes("parse")
-						) {
+					onError: (error, attempt) => {
+						logError(`[ENTITY_EXTRACTION] Parse error on attempt ${attempt}:`, error);
+						if (error.message.includes("JSON") || error.message.includes("parse")) {
 							return `JSON parsing failed: ${error.message}. Please ensure the response is a valid JSON array with proper syntax and structure.`;
 						}
 						return `Processing failed on attempt ${attempt}: ${error.message}. Please retry with correct format.`;
@@ -360,8 +389,10 @@ export class EntityExtractionFlow {
 			logInfo("[ENTITY_EXTRACTION] Extracted entities:", extractedEntities);
 
 			return {
-				extractedEntities,
-				processingStage: "entity_resolution",
+				output: {
+					extractedEntities,
+					processingStage: "entity_resolution",
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
@@ -375,19 +406,32 @@ export class EntityExtractionFlow {
 			logError("[ENTITY_EXTRACTION] Error:", error);
 
 			return {
-				errors: [
-					error instanceof Error ? error.message : "Entity extraction failed",
-				],
+				output: {
+					errors: [
+						error instanceof Error ? error.message : "Entity extraction failed",
+					],
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
 						name: "Entity Extraction Failed",
-						description:
-							error instanceof Error ? error.message : "Unknown error",
+						description: error instanceof Error ? error.message : "Unknown error",
 						metadata: {},
 					},
 				],
 			};
 		}
+	},
+});
+
+type EntityExtractionSpec = StepSpecFromDefinition<typeof definition>;
+
+export const createEntityExtractionStep: StepFactoryFromSpec<EntityExtractionSpec> = (services: AllServices) => bindStep(definition, services);
+
+stepRegistry.register(STEP_NAME, createEntityExtractionStep);
+
+declare global {
+	interface StepTypeRegistry {
+		[STEP_NAME]: EntityExtractionSpec;
 	}
 }

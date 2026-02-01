@@ -1,6 +1,4 @@
 import { logInfo, logError } from "@/utils/logger";
-import type { Node } from "@/services/database/entities/nodes";
-import type { Edge } from "@/services/database/entities/edges";
 import { nanoid } from "nanoid";
 
 // UUID validation regex (supports both standard UUIDs and nanoid format)
@@ -15,6 +13,26 @@ export interface UuidMappingResult {
 	isExisting: boolean;
 	/** The final name to use (from existing node if found) */
 	finalName?: string;
+}
+
+/**
+ * Minimal node interface for UUID mapping
+ * Only requires id and name fields
+ */
+export interface MinimalNode {
+	id: string;
+	name: string;
+}
+
+/**
+ * Minimal edge interface for UUID mapping
+ * Only requires id, sourceId, destinationId, and edgeType fields
+ */
+export interface MinimalEdge {
+	id: string;
+	sourceId: string;
+	destinationId: string;
+	edgeType: string;
 }
 
 /**
@@ -35,7 +53,7 @@ export class UuidMapper {
 		entityName: string,
 		llmProvidedUuid: string | undefined,
 		finalName: string,
-		existingNodes: Node[],
+		existingNodes: MinimalNode[],
 	): UuidMappingResult {
 		// If we already mapped this LLM UUID, return cached result
 		if (llmProvidedUuid && this.llmToCorrectMap.has(llmProvidedUuid)) {
@@ -44,7 +62,7 @@ export class UuidMapper {
 
 		// Create lookup maps for existing nodes
 		const nodeIdToNode = new Map(
-			existingNodes.filter((n) => n.id).map((n) => [n.id!, n]),
+			existingNodes.filter((n) => n.id).map((n) => [n.id, n]),
 		);
 		const nodeNameToNode = new Map(
 			existingNodes
@@ -150,7 +168,7 @@ export class UuidMapper {
 		destEntityId: string,
 		relationType: string,
 		llmProvidedUuid: string | undefined,
-		existingEdges: Edge[],
+		existingEdges: MinimalEdge[],
 		resolvedEntities: Array<{ uuid: string; existingId?: string }>,
 	): UuidMappingResult {
 		// If we already mapped this LLM UUID, return cached result
@@ -160,12 +178,12 @@ export class UuidMapper {
 
 		// Create lookup maps for existing edges
 		const edgeIdToEdge = new Map(
-			existingEdges.filter((e) => e.id).map((e) => [e.id!, e]),
+			existingEdges.filter((e) => e.id).map((e) => [e.id, e]),
 		);
 
 		// Create a map for finding edges by their characteristics
 		// Key: "sourceId|destId|edgeType"
-		const edgeKeyToEdge = new Map<string, Edge>();
+		const edgeKeyToEdge = new Map<string, MinimalEdge>();
 		for (const edge of existingEdges) {
 			if (edge.sourceId && edge.destinationId && edge.edgeType) {
 				const key = `${edge.sourceId}|${edge.destinationId}|${edge.edgeType}`;

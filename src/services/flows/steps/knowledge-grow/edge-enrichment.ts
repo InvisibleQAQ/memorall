@@ -1,7 +1,78 @@
-import type { KnowledgeGraphState, ExtractedFact } from "./state";
-import type { AllServices } from "@/services/flows/interfaces/tool";
 import { logInfo, logError } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
+
+import { defineStep, bindStep } from "@/services/flows/interfaces/step";
+import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import { stepRegistry } from "@/services/flows/step-registry";
+import type { AllServices } from "@/services/flows/interfaces/tool";
+
+const STEP_NAME = "edge-enrichment" as const;
+
+// ============================================================================
+// STEP-SPECIFIC TYPES
+// ============================================================================
+
+export interface ResolvedEntity {
+	uuid: string;
+	finalName: string;
+	nodeType: string;
+	summary?: string;
+	existingId?: string;
+}
+
+export interface ExistingNode {
+	id: string;
+	name: string;
+	nodeType: string;
+	summary?: string | null;
+}
+
+export interface ExistingEdge {
+	id: string;
+	sourceId: string;
+	destinationId: string;
+	edgeType: string;
+}
+
+export interface ResolvedFact {
+	uuid: string;
+	sourceEntityId: string;
+	destinationEntityId: string;
+	relationType: string;
+	factText: string | null;
+	attributes?: Record<string, unknown>;
+}
+
+export interface ExtractedFact {
+	uuid: string;
+	sourceEntityId: string;
+	destinationEntityId: string;
+	relationType: string;
+	factText: string;
+	attributes?: Record<string, unknown>;
+}
+
+export interface EdgeEnrichmentInput {
+	currentMessage: string;
+	previousMessages?: string;
+	url?: string;
+	title?: string;
+	resolvedEntities: ResolvedEntity[];
+	resolvedFacts?: ResolvedFact[];
+	extractedFacts?: ExtractedFact[];
+	existingNodes?: ExistingNode[];
+	existingEdges?: ExistingEdge[];
+}
+
+export interface EdgeEnrichmentOutput {
+	extractedFacts?: ExtractedFact[];
+	processingStage?: string;
+	errors?: string[];
+}
+
+// ============================================================================
+// SYSTEM PROMPT
+// ============================================================================
 
 const EDGE_ENRICHMENT_SYSTEM_PROMPT = `You are tasked with finding missing relationships between entities in a knowledge graph.
 
@@ -30,28 +101,29 @@ Return your response as a valid JSON array with objects matching this structure:
   ...
 ]`;
 
-export class EdgeEnrichmentFlow {
-	constructor(private services: AllServices) {}
+// ============================================================================
+// STEP IMPLEMENTATION
+// ============================================================================
 
-	async enrichEdges(
-		state: KnowledgeGraphState,
-	): Promise<Partial<KnowledgeGraphState>> {
+const definition = defineStep<EdgeEnrichmentInput, EdgeEnrichmentOutput, AllServices>({
+	name: STEP_NAME,
+	execute: async ({ input, services }) => {
 		try {
 			logInfo("[EDGE_ENRICHMENT] Starting edge enrichment for isolated nodes");
 
 			// Find isolated nodes (nodes with no edges)
 			const nodeIdWithEdges = new Set<string>();
-			for (const edge of state.existingEdges || []) {
+			for (const edge of input.existingEdges || []) {
 				nodeIdWithEdges.add(edge.sourceId);
 				nodeIdWithEdges.add(edge.destinationId);
 			}
 
 			// Also include edges from resolved facts
-			for (const fact of state.resolvedFacts || []) {
-				const sourceEntity = state.resolvedEntities?.find(
+			for (const fact of input.resolvedFacts || []) {
+				const sourceEntity = input.resolvedEntities?.find(
 					(e) => e.uuid === fact.sourceEntityId,
 				);
-				const destEntity = state.resolvedEntities?.find(
+				const destEntity = input.resolvedEntities?.find(
 					(e) => e.uuid === fact.destinationEntityId,
 				);
 
@@ -66,20 +138,19 @@ export class EdgeEnrichmentFlow {
 			// Create list of all nodes (existing + newly resolved)
 			const allNodes = new Map<string, { id?: string; name: string }>();
 
-			for (const node of state.existingNodes || []) {
+			for (const node of input.existingNodes || []) {
 				if (node.id) {
 					allNodes.set(node.id, { id: node.id, name: node.name });
 				}
 			}
 
-			for (const entity of state.resolvedEntities || []) {
+			for (const entity of input.resolvedEntities || []) {
 				if (entity.existingId) {
 					allNodes.set(entity.existingId, {
 						id: entity.existingId,
 						name: entity.finalName,
 					});
 				} else {
-					// For new nodes, use UUID as temporary ID
 					allNodes.set(entity.uuid, {
 						id: entity.uuid,
 						name: entity.finalName,
@@ -98,7 +169,9 @@ export class EdgeEnrichmentFlow {
 			if (isolatedNodes.length === 0) {
 				logInfo("[EDGE_ENRICHMENT] No isolated nodes found");
 				return {
-					processingStage: "temporal_extraction",
+					output: {
+						processingStage: "temporal_extraction",
+					},
 					actions: [
 						{
 							id: crypto.randomUUID(),
@@ -114,33 +187,29 @@ export class EdgeEnrichmentFlow {
 				`[EDGE_ENRICHMENT] Found ${isolatedNodes.length} isolated nodes out of ${allNodes.size} total nodes`,
 			);
 
-			const llm = this.services.llm;
+			const llm = services.llm;
 
 			if (!llm.isReady()) {
 				throw new Error("LLM service is not ready");
 			}
 
 			// Format content with proper context
-			let contentSection = `<CONTENT>\n${state.currentMessage}\n</CONTENT>`;
+			let contentSection = `<CONTENT>\n${input.currentMessage}\n</CONTENT>`;
 
-			// Add context if available
-			if (state.previousMessages && state.previousMessages.trim().length > 0) {
-				contentSection = `<CONTEXT>\n${state.previousMessages}\n</CONTEXT>\n\n${contentSection}`;
+			if (input.previousMessages && input.previousMessages.trim().length > 0) {
+				contentSection = `<CONTEXT>\n${input.previousMessages}\n</CONTEXT>\n\n${contentSection}`;
 			}
 
-			// Add metadata for better understanding
-			if (state.url || state.title) {
+			if (input.url || input.title) {
 				const metadata = [];
-				if (state.title) metadata.push(`Title: ${state.title}`);
-				if (state.url) metadata.push(`Source: ${state.url}`);
+				if (input.title) metadata.push(`Title: ${input.title}`);
+				if (input.url) metadata.push(`Source: ${input.url}`);
 				contentSection = `<METADATA>\n${metadata.join("\n")}\n</METADATA>\n\n${contentSection}`;
 			}
 
 			// Prepare isolated nodes text
 			const isolatedNodesText = isolatedNodes
-				.map(
-					(node, index) => `${index + 1}. ID: ${node.id}, Name: ${node.name}`,
-				)
+				.map((node, index) => `${index + 1}. ID: ${node.id}, Name: ${node.name}`)
 				.join("\n");
 
 			// Prepare all nodes text (for relationship targets)
@@ -148,12 +217,9 @@ export class EdgeEnrichmentFlow {
 				nodeIdWithEdges.has(node.id || ""),
 			);
 			const allNodesText = connectedNodes
-				.map(
-					(node, index) => `${index + 1}. ID: ${node.id}, Name: ${node.name}`,
-				)
+				.map((node, index) => `${index + 1}. ID: ${node.id}, Name: ${node.name}`)
 				.join("\n");
 
-			// Combine all content for processing
 			const fullText = `${contentSection}
 
 <ISOLATED NODES>
@@ -185,7 +251,6 @@ ${allNodesText || "No connected nodes"}
 						throw new Error("Response is not an array");
 					}
 
-					// Map parsed relationships to extracted facts
 					const results: ExtractedFact[] = [];
 					for (const rel of parsedArray) {
 						if (
@@ -194,19 +259,16 @@ ${allNodesText || "No connected nodes"}
 							!rel.relation_type ||
 							!rel.fact_text
 						) {
-							continue; // Skip incomplete relationships
+							continue;
 						}
 
-						// Find entity UUIDs by name
-						const sourceEntity = state.resolvedEntities?.find(
+						const sourceEntity = input.resolvedEntities?.find(
 							(e) =>
-								e.finalName.toLowerCase() ===
-								rel.source_entity_name!.toLowerCase(),
+								e.finalName.toLowerCase() === rel.source_entity_name!.toLowerCase(),
 						);
-						const destEntity = state.resolvedEntities?.find(
+						const destEntity = input.resolvedEntities?.find(
 							(e) =>
-								e.finalName.toLowerCase() ===
-								rel.destination_entity_name!.toLowerCase(),
+								e.finalName.toLowerCase() === rel.destination_entity_name!.toLowerCase(),
 						);
 
 						if (!sourceEntity || !destEntity) {
@@ -228,22 +290,18 @@ ${allNodesText || "No connected nodes"}
 
 					return results;
 				} catch (parseError) {
-					logError(
-						"[EDGE_ENRICHMENT] JSON parsing failed, using fallback:",
-						parseError,
-					);
+					logError("[EDGE_ENRICHMENT] JSON parsing failed:", parseError);
 					return [];
 				}
 			};
 
-			const maxModelTokens = await this.services.llm.getMaxModelTokens();
-			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
+			const maxModelTokens = await services.llm.getMaxModelTokens();
+			const maxResponseTokens = await services.llm.getMaxResponseTokens();
 
 			const enrichedFacts = await mapRefine<ExtractedFact>(
 				llm,
 				EDGE_ENRICHMENT_SYSTEM_PROMPT,
 				(chunk, prev, errorContext) => {
-					// Include previous results summary to maintain context
 					const prevSummary =
 						prev.length > 0
 							? prev.map((p, idx) => `${idx + 1}. ${p.relationType}`).join(", ")
@@ -265,15 +323,9 @@ ${allNodesText || "No connected nodes"}
 					maxRetries: 2,
 					dedupeBy: (f) =>
 						`${f.sourceEntityId}|${f.destinationEntityId}|${f.relationType}`,
-					onError: (error, attempt, chunk) => {
-						logError(
-							`[EDGE_ENRICHMENT] Parse error on attempt ${attempt}:`,
-							error,
-						);
-						if (
-							error.message.includes("JSON") ||
-							error.message.includes("parse")
-						) {
+					onError: (error, attempt) => {
+						logError(`[EDGE_ENRICHMENT] Parse error on attempt ${attempt}:`, error);
+						if (error.message.includes("JSON") || error.message.includes("parse")) {
 							return `JSON parsing failed: ${error.message}. Please ensure the response is a valid JSON array with source_entity_name, destination_entity_name, relation_type, and fact_text fields.`;
 						}
 						return `Edge enrichment failed on attempt ${attempt}: ${error.message}. Please retry with correct JSON format.`;
@@ -285,15 +337,17 @@ ${allNodesText || "No connected nodes"}
 				`[EDGE_ENRICHMENT] Created ${enrichedFacts.length} new relationships for isolated nodes`,
 			);
 
-			// Add enriched facts to extractedFacts so they go through normal fact resolution
+			// Add enriched facts to extractedFacts
 			const updatedExtractedFacts = [
-				...(state.extractedFacts || []),
+				...(input.extractedFacts || []),
 				...enrichedFacts,
 			];
 
 			return {
-				extractedFacts: updatedExtractedFacts,
-				processingStage: "temporal_extraction",
+				output: {
+					extractedFacts: updatedExtractedFacts,
+					processingStage: "temporal_extraction",
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
@@ -310,19 +364,32 @@ ${allNodesText || "No connected nodes"}
 			logError("[EDGE_ENRICHMENT] Error:", error);
 
 			return {
-				errors: [
-					error instanceof Error ? error.message : "Edge enrichment failed",
-				],
+				output: {
+					errors: [
+						error instanceof Error ? error.message : "Edge enrichment failed",
+					],
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
 						name: "Edge Enrichment Failed",
-						description:
-							error instanceof Error ? error.message : "Unknown error",
+						description: error instanceof Error ? error.message : "Unknown error",
 						metadata: {},
 					},
 				],
 			};
 		}
+	},
+});
+
+type EdgeEnrichmentSpec = StepSpecFromDefinition<typeof definition>;
+
+export const createEdgeEnrichmentStep: StepFactoryFromSpec<EdgeEnrichmentSpec> = (services: AllServices) => bindStep(definition, services);
+
+stepRegistry.register(STEP_NAME, createEdgeEnrichmentStep);
+
+declare global {
+	interface StepTypeRegistry {
+		[STEP_NAME]: EdgeEnrichmentSpec;
 	}
 }

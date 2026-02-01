@@ -1,7 +1,62 @@
-import type { KnowledgeGraphState, EnrichedFact, TemporalInfo } from "./state";
-import type { AllServices } from "@/services/flows/interfaces/tool";
 import { logInfo, logError } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
+
+import { defineStep, bindStep } from "@/services/flows/interfaces/step";
+import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import { stepRegistry } from "@/services/flows/step-registry";
+import type { AllServices } from "@/services/flows/interfaces/tool";
+
+const STEP_NAME = "temporal-extraction" as const;
+
+// ============================================================================
+// STEP-SPECIFIC TYPES
+// ============================================================================
+
+export interface ResolvedEntity {
+	uuid: string;
+	finalName: string;
+	nodeType: string;
+	summary?: string;
+}
+
+export interface ResolvedFact {
+	uuid: string;
+	sourceEntityId: string;
+	destinationEntityId: string;
+	relationType: string;
+	factText: string;
+	attributes?: Record<string, unknown>;
+	isExisting?: boolean;
+}
+
+export interface TemporalInfo {
+	validAt?: string;
+	invalidAt?: string;
+}
+
+export interface EnrichedFact extends ResolvedFact {
+	temporal: TemporalInfo;
+}
+
+export interface TemporalExtractionInput {
+	currentMessage: string;
+	previousMessages?: string;
+	url?: string;
+	title?: string;
+	referenceTimestamp?: string;
+	resolvedEntities: ResolvedEntity[];
+	resolvedFacts: ResolvedFact[];
+}
+
+export interface TemporalExtractionOutput {
+	enrichedFacts?: EnrichedFact[];
+	processingStage?: string;
+	errors?: string[];
+}
+
+// ============================================================================
+// SYSTEM PROMPT
+// ============================================================================
 
 const TEMPORAL_EXTRACTION_SYSTEM_PROMPT = `Extract temporal information (dates and times) that are directly related to when the relationships in the provided facts were established, changed, or ended.
 
@@ -38,21 +93,22 @@ Return your response as a valid JSON array with objects matching this structure:
   ...
 ]`;
 
-export class TemporalExtractionFlow {
-	constructor(private services: AllServices) {}
+// ============================================================================
+// STEP IMPLEMENTATION
+// ============================================================================
 
-	async extractTemporal(
-		state: KnowledgeGraphState,
-	): Promise<Partial<KnowledgeGraphState>> {
+const definition = defineStep<TemporalExtractionInput, TemporalExtractionOutput, AllServices>({
+	name: STEP_NAME,
+	execute: async ({ input, services }) => {
 		try {
-			logInfo(
-				"[TEMPORAL_EXTRACTION] Starting temporal extraction with chunking",
-			);
+			logInfo("[TEMPORAL_EXTRACTION] Starting temporal extraction");
 
-			if (!state.resolvedFacts || state.resolvedFacts.length === 0) {
+			if (!input.resolvedFacts || input.resolvedFacts.length === 0) {
 				return {
-					enrichedFacts: [],
-					processingStage: "database_operations",
+					output: {
+						enrichedFacts: [],
+						processingStage: "database_operations",
+					},
 					actions: [
 						{
 							id: crypto.randomUUID(),
@@ -65,11 +121,11 @@ export class TemporalExtractionFlow {
 			}
 
 			// Filter facts that have valid entity references
-			const validFacts = state.resolvedFacts.filter((fact) => {
-				const sourceEntity = state.resolvedEntities?.find(
+			const validFacts = input.resolvedFacts.filter((fact) => {
+				const sourceEntity = input.resolvedEntities?.find(
 					(e) => e.uuid === fact.sourceEntityId,
 				);
-				const destEntity = state.resolvedEntities?.find(
+				const destEntity = input.resolvedEntities?.find(
 					(e) => e.uuid === fact.destinationEntityId,
 				);
 
@@ -83,9 +139,7 @@ export class TemporalExtractionFlow {
 			});
 
 			// Helper function to validate ISO 8601 dates
-			const validateDate = (
-				dateStr: string | undefined,
-			): string | undefined => {
+			const validateDate = (dateStr: string | undefined): string | undefined => {
 				if (!dateStr || dateStr === "null") return undefined;
 				try {
 					new Date(dateStr);
@@ -104,7 +158,6 @@ export class TemporalExtractionFlow {
 				}
 
 				try {
-					// Clean and parse JSON response
 					const cleaned = response.replace(/```json|```/g, "").trim();
 					const parsedArray = JSON.parse(cleaned) as ParsedTemporal[];
 
@@ -112,7 +165,6 @@ export class TemporalExtractionFlow {
 						throw new Error("Response is not an array");
 					}
 
-					// Ensure we have results for all facts
 					const results: EnrichedFact[] = [];
 					for (let i = 0; i < validFacts.length; i++) {
 						const fact = validFacts[i];
@@ -140,36 +192,32 @@ export class TemporalExtractionFlow {
 			};
 
 			// Format content with proper context
-			let contentSection = `<CONTENT>\n${state.currentMessage}\n</CONTENT>`;
+			let contentSection = `<CONTENT>\n${input.currentMessage}\n</CONTENT>`;
 
-			// Add context if available
-			if (state.previousMessages && state.previousMessages.trim().length > 0) {
-				contentSection = `<CONTEXT>\n${state.previousMessages}\n</CONTEXT>\n\n${contentSection}`;
+			if (input.previousMessages && input.previousMessages.trim().length > 0) {
+				contentSection = `<CONTEXT>\n${input.previousMessages}\n</CONTEXT>\n\n${contentSection}`;
 			}
 
-			// Add metadata for better understanding
-			if (state.url || state.title) {
+			if (input.url || input.title) {
 				const metadata = [];
-				if (state.title) metadata.push(`Title: ${state.title}`);
-				if (state.url) metadata.push(`Source: ${state.url}`);
+				if (input.title) metadata.push(`Title: ${input.title}`);
+				if (input.url) metadata.push(`Source: ${input.url}`);
 				contentSection = `<METADATA>\n${metadata.join("\n")}\n</METADATA>\n\n${contentSection}`;
 			}
 
 			const fullText = `${contentSection}
 
 <REFERENCE TIMESTAMP>
-${state.referenceTimestamp}
+${input.referenceTimestamp || new Date().toISOString()}
 </REFERENCE TIMESTAMP>`;
 
-			// Use mapRefine for temporal extraction with retry and error handling
-			const maxModelTokens = await this.services.llm.getMaxModelTokens();
-			const maxResponseTokens = await this.services.llm.getMaxResponseTokens();
+			const maxModelTokens = await services.llm.getMaxModelTokens();
+			const maxResponseTokens = await services.llm.getMaxResponseTokens();
 
 			const enrichedFacts = await mapRefine<EnrichedFact>(
-				this.services.llm,
+				services.llm,
 				TEMPORAL_EXTRACTION_SYSTEM_PROMPT,
 				(chunk, prev, errorContext) => {
-					const factsInChunk = chunk.split("\n").filter((line) => line.trim());
 					let prompt = `${fullText}\n<FACTS>\n${chunk}\n</FACTS>`;
 
 					if (errorContext) {
@@ -181,10 +229,10 @@ ${state.referenceTimestamp}
 				parseTemporal,
 				validFacts
 					.map((fact, index) => {
-						const sourceEntity = state.resolvedEntities?.find(
+						const sourceEntity = input.resolvedEntities?.find(
 							(e) => e.uuid === fact.sourceEntityId,
 						);
-						const destEntity = state.resolvedEntities?.find(
+						const destEntity = input.resolvedEntities?.find(
 							(e) => e.uuid === fact.destinationEntityId,
 						);
 						return `${index + 1}. Source: ${sourceEntity?.finalName || "Unknown"}, Destination: ${destEntity?.finalName || "Unknown"}, Relation: ${fact.relationType}, Fact Text: ${fact.factText}`;
@@ -197,15 +245,9 @@ ${state.referenceTimestamp}
 					maxRetries: 2,
 					dedupeBy: (f) =>
 						`${f.sourceEntityId}|${f.destinationEntityId}|${f.relationType}`,
-					onError: (error, attempt, chunk) => {
-						logError(
-							`[TEMPORAL_EXTRACTION] Parse error on attempt ${attempt}:`,
-							error,
-						);
-						if (
-							error.message.includes("JSON") ||
-							error.message.includes("parse")
-						) {
+					onError: (error, attempt) => {
+						logError(`[TEMPORAL_EXTRACTION] Parse error on attempt ${attempt}:`, error);
+						if (error.message.includes("JSON") || error.message.includes("parse")) {
 							return `JSON parsing failed: ${error.message}. Please ensure the response is a valid JSON array with valid_at and invalid_at fields in ISO 8601 format.`;
 						}
 						return `Temporal extraction failed on attempt ${attempt}: ${error.message}. Please retry with correct JSON format.`;
@@ -214,12 +256,12 @@ ${state.referenceTimestamp}
 			);
 
 			// Add back any invalid facts without temporal info
-			const invalidFacts = state.resolvedFacts
+			const invalidFacts = input.resolvedFacts
 				.filter((fact) => {
-					const sourceEntity = state.resolvedEntities?.find(
+					const sourceEntity = input.resolvedEntities?.find(
 						(e) => e.uuid === fact.sourceEntityId,
 					);
-					const destEntity = state.resolvedEntities?.find(
+					const destEntity = input.resolvedEntities?.find(
 						(e) => e.uuid === fact.destinationEntityId,
 					);
 					return !sourceEntity || !destEntity;
@@ -240,8 +282,10 @@ ${state.referenceTimestamp}
 			);
 
 			return {
-				enrichedFacts: allEnrichedFacts,
-				processingStage: "database_operations",
+				output: {
+					enrichedFacts: allEnrichedFacts,
+					processingStage: "database_operations",
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
@@ -259,19 +303,32 @@ ${state.referenceTimestamp}
 			logError("[TEMPORAL_EXTRACTION] Error:", error);
 
 			return {
-				errors: [
-					error instanceof Error ? error.message : "Temporal extraction failed",
-				],
+				output: {
+					errors: [
+						error instanceof Error ? error.message : "Temporal extraction failed",
+					],
+				},
 				actions: [
 					{
 						id: crypto.randomUUID(),
 						name: "Temporal Extraction Failed",
-						description:
-							error instanceof Error ? error.message : "Unknown error",
+						description: error instanceof Error ? error.message : "Unknown error",
 						metadata: {},
 					},
 				],
 			};
 		}
+	},
+});
+
+type TemporalExtractionSpec = StepSpecFromDefinition<typeof definition>;
+
+export const createTemporalExtractionStep: StepFactoryFromSpec<TemporalExtractionSpec> = (services: AllServices) => bindStep(definition, services);
+
+stepRegistry.register(STEP_NAME, createTemporalExtractionStep);
+
+declare global {
+	interface StepTypeRegistry {
+		[STEP_NAME]: TemporalExtractionSpec;
 	}
 }

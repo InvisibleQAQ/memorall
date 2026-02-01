@@ -1,5 +1,5 @@
 import type { AllServices } from "./interfaces/tool";
-import type { GraphBase, BaseStateBase } from "./interfaces/graph.base";
+import type { GraphBase, BaseStateBase } from "./graph/graph.base";
 
 // Base interface for all flows - any class extending GraphBase
 export type BaseFlow = GraphBase<string, BaseStateBase, AllServices>;
