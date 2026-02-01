@@ -10,7 +10,10 @@ const schema = z.object({
 
 type Input = z.infer<typeof schema>;
 
-export const createCurrentTimeTool: ToolFactory<Input, undefined> = (): Tool<Input> => ({
+export const createCurrentTimeTool: ToolFactory<
+	Input,
+	undefined
+> = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description: "Get the current date and time",
 	schema,

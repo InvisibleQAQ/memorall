@@ -66,7 +66,21 @@ export class EmbeddedChatService {
 		// Convert embedded ChatMessage to OpenAI-compatible format
 		// Note: Embedded messages only have user/assistant roles
 		const jobMessages: Array<
-			| { role: "user"; content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string; detail?: "auto" | "low" | "high" } }> }
+			| {
+					role: "user";
+					content:
+						| string
+						| Array<
+								| { type: "text"; text: string }
+								| {
+										type: "image_url";
+										image_url: {
+											url: string;
+											detail?: "auto" | "low" | "high";
+										};
+								  }
+						  >;
+			  }
 			| { role: "assistant"; content: string | null }
 		> = messages.map((msg) => {
 			if (msg.role === "user") {

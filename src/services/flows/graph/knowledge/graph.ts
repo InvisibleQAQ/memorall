@@ -35,16 +35,31 @@ export class KnowledgeGraphFlow extends GraphBase<
 		};
 		this.workflow = new StateGraph(KnowledgeGraphAnnotation);
 
-		const entityExtractionStep = stepRegistry.getStep("entity-extraction", services)
-		const entityResolutionStep = stepRegistry.getStep('entity-resolution', services)
+		const entityExtractionStep = stepRegistry.getStep(
+			"entity-extraction",
+			services,
+		);
+		const entityResolutionStep = stepRegistry.getStep(
+			"entity-resolution",
+			services,
+		);
 		const factExtractionStep = !config.disableFactExtractionV2
-			? stepRegistry.getStep('fact-extraction-v2', services)
-			: stepRegistry.getStep('fact-extraction', services)
-		const factResolutionStep = stepRegistry.getStep('fact-resolution', services)
-		const edgeEnrichmentStep = stepRegistry.getStep('edge-enrichment', services)
-		const databaseSaveStep = stepRegistry.getStep('knowledge-database-save', services)
-		const loadFactStep = stepRegistry.getStep('load-facts', services)
-		const loadEntitiesStep = stepRegistry.getStep('load-entities', services)
+			? stepRegistry.getStep("fact-extraction-v2", services)
+			: stepRegistry.getStep("fact-extraction", services);
+		const factResolutionStep = stepRegistry.getStep(
+			"fact-resolution",
+			services,
+		);
+		const edgeEnrichmentStep = stepRegistry.getStep(
+			"edge-enrichment",
+			services,
+		);
+		const databaseSaveStep = stepRegistry.getStep(
+			"knowledge-database-save",
+			services,
+		);
+		const loadFactStep = stepRegistry.getStep("load-facts", services);
+		const loadEntitiesStep = stepRegistry.getStep("load-entities", services);
 
 		// Add nodes
 		this.workflow.addNode("load_entities", loadEntitiesStep.toNode());
@@ -58,11 +73,11 @@ export class KnowledgeGraphFlow extends GraphBase<
 
 		// Conditionally add temporal extraction
 		if (this.config.enableTemporalExtraction) {
-			const temporalExtraction = stepRegistry.getStep('temporal-extraction', services)
-			this.workflow.addNode(
-				"extract_temporal",
-				temporalExtraction.toNode(),
+			const temporalExtraction = stepRegistry.getStep(
+				"temporal-extraction",
+				services,
 			);
+			this.workflow.addNode("extract_temporal", temporalExtraction.toNode());
 		}
 
 		// Define the flow with conditional logic
@@ -153,7 +168,7 @@ export class KnowledgeGraphFlow extends GraphBase<
 // Self-register the flow
 flowRegistry.register({
 	flowType: "knowledge",
-	factory: (services) => new KnowledgeGraphFlow(services),
+	factory: (services, config) => new KnowledgeGraphFlow(services, config),
 });
 
 // Extend global FlowTypeRegistry for type-safe flow creation
@@ -161,6 +176,7 @@ declare global {
 	interface FlowTypeRegistry {
 		knowledge: {
 			services: AllServices;
+			config: KnowledgeGraphConfig;
 			flow: KnowledgeGraphFlow;
 		};
 	}

@@ -147,7 +147,10 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 		messages: ChatCompletionMessageParam[],
 	): Record<string, unknown>[] {
 		return messages.map((m) => {
-			const base: Record<string, unknown> = { role: m.role, content: m.content };
+			const base: Record<string, unknown> = {
+				role: m.role,
+				content: m.content,
+			};
 			if (m.role === "assistant" && m.tool_calls) {
 				base.tool_calls = m.tool_calls;
 			}
@@ -343,8 +346,8 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 									content: choice?.delta?.content ?? undefined,
 									tool_calls: toolCalls,
 								},
-								finish_reason:
-									(choice.finish_reason ?? null) as ChatCompletionFinishReason,
+								finish_reason: (choice.finish_reason ??
+									null) as ChatCompletionFinishReason,
 							},
 						],
 					};

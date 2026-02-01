@@ -6,7 +6,10 @@ import { getScopedGraphWhere } from "@/utils/scoped-graph-query";
 import type { BaseEmbedding } from "@/services/embedding";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 
@@ -396,8 +399,10 @@ const definition = defineStep<
 
 type QuickRetrieveSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createQuickRetrieveStep: StepFactoryFromSpec<QuickRetrieveSpec> = (services: AllServices, config?: QuickRetrieveConfig) =>
-	bindStep(definition, services, config);
+export const createQuickRetrieveStep: StepFactoryFromSpec<QuickRetrieveSpec> = (
+	services: AllServices,
+	config?: QuickRetrieveConfig,
+) => bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createQuickRetrieveStep);
 

@@ -2,7 +2,10 @@ import { logInfo, logError, logWarn } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
@@ -221,10 +224,7 @@ function createNameToIdMap(
 		if (trimmedFinal !== finalNameKey && !nameToId.has(trimmedFinal)) {
 			nameToId.set(trimmedFinal, entity.uuid);
 		}
-		if (
-			trimmedOriginal !== originalNameKey &&
-			!nameToId.has(trimmedOriginal)
-		) {
+		if (trimmedOriginal !== originalNameKey && !nameToId.has(trimmedOriginal)) {
 			nameToId.set(trimmedOriginal, entity.uuid);
 		}
 	}
@@ -411,10 +411,7 @@ async function extractFactsForEntityBatchInternal(
 			dedupeBy: (f) =>
 				`${f.sourceEntityId}|${f.relationType}|${f.destinationEntityId}|${f.factText.toLowerCase()}`,
 			onError: (error, attempt) => {
-				if (
-					error.message.includes("JSON") ||
-					error.message.includes("parse")
-				) {
+				if (error.message.includes("JSON") || error.message.includes("parse")) {
 					return `JSON parsing failed: ${error.message}. Please ensure the response is a valid JSON array with source_entity, destination_entity, relation_type, and fact_text fields.`;
 				}
 				return `Fact extraction failed on attempt ${attempt}: ${error.message}. Please retry with correct JSON format.`;
@@ -453,8 +450,7 @@ async function extractFactsForEntityBatch(
 		);
 	} catch (error) {
 		// Check if error is related to JSON parsing or context limit
-		const errorMessage =
-			error instanceof Error ? error.message : String(error);
+		const errorMessage = error instanceof Error ? error.message : String(error);
 		const isJsonParseError =
 			errorMessage.includes("JSON") ||
 			errorMessage.includes("parse") ||
@@ -676,8 +672,7 @@ async function extractUnconnectedBatch(
 		);
 	} catch (error) {
 		// Check if error is related to JSON parsing or context limit
-		const errorMessage =
-			error instanceof Error ? error.message : String(error);
+		const errorMessage = error instanceof Error ? error.message : String(error);
 		const isJsonParseError =
 			errorMessage.includes("JSON") ||
 			errorMessage.includes("parse") ||
@@ -764,7 +759,11 @@ async function generateFactsForUnconnectedEntities(
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<FactExtractionV2Input, FactExtractionV2Output, AllServices>({
+const definition = defineStep<
+	FactExtractionV2Input,
+	FactExtractionV2Output,
+	AllServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		try {
@@ -898,8 +897,7 @@ const definition = defineStep<FactExtractionV2Input, FactExtractionV2Output, All
 				{
 					id: crypto.randomUUID(),
 					name: "Fact Extraction Failed (V2)",
-					description:
-						error instanceof Error ? error.message : "Unknown error",
+					description: error instanceof Error ? error.message : "Unknown error",
 					metadata: {},
 				},
 			];
@@ -918,7 +916,9 @@ const definition = defineStep<FactExtractionV2Input, FactExtractionV2Output, All
 
 type FactExtractionV2Spec = StepSpecFromDefinition<typeof definition>;
 
-export const createFactExtractionV2Step: StepFactoryFromSpec<FactExtractionV2Spec> = (services: AllServices) => bindStep(definition, services);
+export const createFactExtractionV2Step: StepFactoryFromSpec<
+	FactExtractionV2Spec
+> = (services: AllServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createFactExtractionV2Step);
 

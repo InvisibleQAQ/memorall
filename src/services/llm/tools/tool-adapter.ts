@@ -75,9 +75,8 @@ export function injectToolsIntoSystemPrompt(
 		const contentStr =
 			typeof existingContent === "string"
 				? existingContent
-				: existingContent
-						?.map((p) => ("text" in p ? p.text : ""))
-						.join("\n") || "";
+				: existingContent?.map((p) => ("text" in p ? p.text : "")).join("\n") ||
+					"";
 		messages[systemIdx] = {
 			role: "system",
 			content: `${injectionPrompt}\n\n---\n\n${contentStr}`,

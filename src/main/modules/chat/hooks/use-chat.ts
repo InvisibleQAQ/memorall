@@ -42,7 +42,9 @@ export const useChat = (model: string) => {
 	const addMessage = useChatStore((state) => state.addMessage);
 	const finalizeMessage = useChatStore((state) => state.finalizeMessage);
 	const setLoading = useChatStore((state) => state.setLoading);
-	const ensureMainConversation = useChatStore((state) => state.ensureMainConversation);
+	const ensureMainConversation = useChatStore(
+		(state) => state.ensureMainConversation,
+	);
 	const deleteMessages = useChatStore((state) => state.deleteMessages);
 
 	// Initialize conversation
@@ -217,7 +219,6 @@ export const useChat = (model: string) => {
 						);
 					},
 					onExecuteStart: (event) => {
-						console.log('=============================>', event)
 						setInProgressMessage((prev) =>
 							prev ? { ...prev, executeState: event } : null,
 						);
@@ -313,7 +314,9 @@ export const useChat = (model: string) => {
 			if (assistantMessage) {
 				const errorContent =
 					"Sorry, I encountered an error processing your message.";
-				await finalizeMessage(assistantMessage.id, { content: currentContent || errorContent });
+				await finalizeMessage(assistantMessage.id, {
+					content: currentContent || errorContent,
+				});
 			} else {
 				await addMessage({
 					role: "assistant",

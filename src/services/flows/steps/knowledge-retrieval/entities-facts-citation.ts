@@ -1,7 +1,10 @@
 import { logInfo, logError } from "@/utils/logger";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ChatMessage } from "@/types/openai";
@@ -13,7 +16,7 @@ const STEP_NAME = "entities-facts-citation" as const;
 // ============================================================================
 
 export interface EntitiesFactsCitationInput {
-  // Knowledge Retrieval
+	// Knowledge Retrieval
 	relevantNodes: Array<{
 		id: string;
 		nodeType: string;
@@ -32,16 +35,16 @@ export interface EntitiesFactsCitationInput {
 		attributes: Record<string, unknown>;
 		relevanceScore: number;
 	}>;
-  finalMessage?: string
+	finalMessage?: string;
 }
 
 export interface EntitiesFactsCitationOutput {
-  finalMessage?: string,
-  errors?: string[];
+	finalMessage?: string;
+	errors?: string[];
 }
 
-export type EntitiesFactsCitationServices = Pick<AllServices, 'llm'>
-export type EntitiesFactsCitationConfig = {}
+export type EntitiesFactsCitationServices = Pick<AllServices, "llm">;
+export type EntitiesFactsCitationConfig = {};
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -85,14 +88,14 @@ REMINDER:
 `;
 
 const definition = defineStep<
-  EntitiesFactsCitationInput,
-  EntitiesFactsCitationOutput,
-  EntitiesFactsCitationServices,
-  EntitiesFactsCitationConfig
+	EntitiesFactsCitationInput,
+	EntitiesFactsCitationOutput,
+	EntitiesFactsCitationServices,
+	EntitiesFactsCitationConfig
 >({
-  name: STEP_NAME,
-  execute: async ({ input, services, runConfig }) => {
-    const llm = services.llm;
+	name: STEP_NAME,
+	execute: async ({ input, services, runConfig }) => {
+		const llm = services.llm;
 
 		if (
 			(!input.relevantNodes?.length && !input.relevantEdges?.length) ||
@@ -100,8 +103,8 @@ const definition = defineStep<
 		) {
 			return {
 				output: {
-          finalMessage: input.finalMessage,
-        },
+					finalMessage: input.finalMessage,
+				},
 			};
 		}
 
@@ -109,7 +112,7 @@ const definition = defineStep<
 			logInfo("[KNOWLEDGE_RAG] Adding citations to response");
 
 			// Split answer into lines and number them
-			const answerLines = (input.finalMessage || '').split("\n");
+			const answerLines = (input.finalMessage || "").split("\n");
 			const numberedAnswer = answerLines
 				.map((line, index) => `Line ${index + 1}: ${line}`)
 				.join("\n");
@@ -197,8 +200,8 @@ const definition = defineStep<
 
 			return {
 				output: {
-          finalMessage: citedResponse,
-        },
+					finalMessage: citedResponse,
+				},
 			};
 		} catch (error) {
 			logError("[KNOWLEDGE_RAG] Citation failed:", error);
@@ -213,22 +216,23 @@ const definition = defineStep<
 
 			return {
 				output: {
-          finalMessage: input.finalMessage,
-        },
+					finalMessage: input.finalMessage,
+				},
 			};
 		}
-  }
+	},
 });
 
 type EntitiesFactsCitationSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createEntitiesFactsCitationStep: StepFactoryFromSpec<EntitiesFactsCitationSpec> =
-  (services, config) => bindStep(definition, services, config);
+export const createEntitiesFactsCitationStep: StepFactoryFromSpec<
+	EntitiesFactsCitationSpec
+> = (services, config) => bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createEntitiesFactsCitationStep);
 
 declare global {
-  interface StepTypeRegistry {
-    [STEP_NAME]: EntitiesFactsCitationSpec;
-  }
+	interface StepTypeRegistry {
+		[STEP_NAME]: EntitiesFactsCitationSpec;
+	}
 }

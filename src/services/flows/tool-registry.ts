@@ -1,6 +1,5 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
-import type { ZodSchema } from "zod/v3";
-import type { BaseTool, Tool, ToolFactory } from "./interfaces/tool";
+import z from "zod";
+import type { BaseTool, ToolFactory } from "./interfaces/tool";
 import type { ChatCompletionTool } from "@/types/openai";
 
 // Global tool type registry for smart type inference
@@ -14,6 +13,108 @@ declare global {
 
 // Internal factory storage type
 type StoredFactory = (services: unknown) => BaseTool;
+
+type JsonSchema = Record<string, unknown>;
+
+const isOptionalSchema = (schema: z.ZodTypeAny): boolean => {
+	if (schema instanceof z.ZodOptional) return true;
+	if (schema instanceof z.ZodDefault) return true;
+	if (schema instanceof z.ZodNullable) return true;
+	return false;
+};
+
+const unwrapSchema = (schema: z.ZodTypeAny): z.ZodTypeAny => {
+	const def = (
+		schema as {
+			_def?: {
+				innerType?: z.ZodTypeAny;
+				schema?: z.ZodTypeAny;
+				typeName?: string;
+			};
+		}
+	)._def;
+	if (schema instanceof z.ZodOptional && def?.innerType)
+		return unwrapSchema(def.innerType);
+	if (schema instanceof z.ZodDefault && def?.innerType)
+		return unwrapSchema(def.innerType);
+	if (schema instanceof z.ZodNullable && def?.innerType)
+		return unwrapSchema(def.innerType);
+	if (def?.typeName === "ZodEffects" && def.schema)
+		return unwrapSchema(def.schema);
+	return schema;
+};
+
+const toJsonSchema = (schema: z.ZodTypeAny): JsonSchema => {
+	const unwrapped = unwrapSchema(schema);
+
+	if (unwrapped instanceof z.ZodString) {
+		return { type: "string" };
+	}
+	if (unwrapped instanceof z.ZodNumber) {
+		return { type: "number" };
+	}
+	if (unwrapped instanceof z.ZodBoolean) {
+		return { type: "boolean" };
+	}
+	if (unwrapped instanceof z.ZodEnum) {
+		return { type: "string", enum: unwrapped.options };
+	}
+	if (unwrapped instanceof z.ZodLiteral) {
+		const value = unwrapped.value;
+		const type = typeof value;
+		return { type, enum: [value] };
+	}
+	if (unwrapped instanceof z.ZodArray) {
+		const itemSchema = (
+			unwrapped as unknown as { _def?: { type?: z.ZodTypeAny } }
+		)._def?.type;
+		return { type: "array", items: toJsonSchema(itemSchema ?? z.any()) };
+	}
+	if (unwrapped instanceof z.ZodObject) {
+		const rawShape = (unwrapped as { _def?: { shape?: unknown } })._def?.shape;
+		const shape =
+			typeof rawShape === "function"
+				? (rawShape as () => Record<string, z.ZodTypeAny>)()
+				: (rawShape as Record<string, z.ZodTypeAny>);
+		const properties: Record<string, JsonSchema> = {};
+		const required: string[] = [];
+
+		for (const [key, value] of Object.entries(shape ?? {})) {
+			properties[key] = toJsonSchema(value as z.ZodTypeAny);
+			if (!isOptionalSchema(value as z.ZodTypeAny)) {
+				required.push(key);
+			}
+		}
+
+		const result: JsonSchema = {
+			type: "object",
+			properties,
+		};
+		if (required.length) {
+			result.required = required;
+		}
+		return result;
+	}
+
+	return { type: "object", properties: {} };
+};
+
+const toOpenAIToolParameters = (schema: z.ZodTypeAny): JsonSchema =>
+	toJsonSchema(schema);
+
+/**
+ * Convert tools to OpenAI ChatCompletionTool format
+ */
+export function convertToolsToOpenAI(tools: BaseTool[]): ChatCompletionTool[] {
+	return tools.map((tool) => ({
+		type: "function" as const,
+		function: {
+			name: tool.name,
+			description: tool.description,
+			parameters: toOpenAIToolParameters(tool.schema),
+		},
+	}));
+}
 
 // Registry class using singleton pattern
 export class ToolRegistryManager {
@@ -110,17 +211,3 @@ export class ToolRegistryManager {
 }
 
 export const toolRegistry = ToolRegistryManager.getInstance();
-
-/**
- * Convert tools to OpenAI ChatCompletionTool format
- */
-export function convertToolsToOpenAI(tools: BaseTool[]): ChatCompletionTool[] {
-	return tools.map((tool) => ({
-		type: "function" as const,
-		function: {
-			name: tool.name,
-			description: tool.description,
-			parameters: zodToJsonSchema(tool.schema as unknown as ZodSchema, { target: "openAi" }),
-		},
-	}));
-}

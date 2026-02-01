@@ -85,10 +85,10 @@ const definition = defineStep<
 
 type ChatCompletionSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createChatCompletionStep: StepFactoryFromSpec<ChatCompletionSpec> = (
-	services: ChatCompletionServices,
-	config?: ChatCompletionConfig,
-) => bindStep(definition, services, config);
+export const createChatCompletionStep: StepFactoryFromSpec<
+	ChatCompletionSpec
+> = (services: ChatCompletionServices, config?: ChatCompletionConfig) =>
+	bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createChatCompletionStep);
 

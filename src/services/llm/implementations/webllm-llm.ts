@@ -185,8 +185,13 @@ export class WebLLMLLM implements BaseLLM {
 		}
 
 		// Remove signal and tool fields from request payload (can't serialize)
-		const { signal, tools, tool_choice, parallel_tool_calls, ...requestPayload } =
-			processedRequest;
+		const {
+			signal,
+			tools,
+			tool_choice,
+			parallel_tool_calls,
+			...requestPayload
+		} = processedRequest;
 
 		let signalId: string | undefined;
 		if (signal) {
@@ -226,8 +231,13 @@ export class WebLLMLLM implements BaseLLM {
 		}
 
 		// Remove signal and tool fields from request payload (can't serialize)
-		const { signal, tools, tool_choice, parallel_tool_calls, ...requestPayload } =
-			processedRequest;
+		const {
+			signal,
+			tools,
+			tool_choice,
+			parallel_tool_calls,
+			...requestPayload
+		} = processedRequest;
 
 		let signalId: string | undefined;
 		if (signal) {

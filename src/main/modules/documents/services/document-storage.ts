@@ -250,7 +250,9 @@ class DocumentStorageService {
 			const segment = segments[i];
 			currentPath += "/" + segment;
 
-			logDebug(`📂 Checking directory segment ${i + 1}/${segments.length}: ${currentPath}`);
+			logDebug(
+				`📂 Checking directory segment ${i + 1}/${segments.length}: ${currentPath}`,
+			);
 
 			try {
 				const stat = await fs.promises.stat(currentPath);
@@ -292,7 +294,9 @@ class DocumentStorageService {
 							logError(`Current segment: ${i + 1}/${segments.length}`);
 							throw mkdirErr;
 						} else {
-							logDebug(`✓ Directory already exists (race condition): ${currentPath}`);
+							logDebug(
+								`✓ Directory already exists (race condition): ${currentPath}`,
+							);
 						}
 					}
 				} else {

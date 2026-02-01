@@ -2,7 +2,10 @@ import { logInfo, logError, logWarn } from "@/utils/logger";
 import { mapRefine } from "@/utils/map-refine";
 
 import { defineStep, bindStep } from "@/services/flows/interfaces/step";
-import type { StepFactoryFromSpec, StepSpecFromDefinition } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import { UuidMapper } from "../../utils/uuid-mapping";
@@ -96,7 +99,11 @@ Return your response as a valid JSON array with objects matching this structure:
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<FactResolutionInput, FactResolutionOutput, AllServices>({
+const definition = defineStep<
+	FactResolutionInput,
+	FactResolutionOutput,
+	AllServices
+>({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		try {
@@ -504,7 +511,9 @@ ${factsText}
 
 type FactResolutionSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createFactResolutionStep: StepFactoryFromSpec<FactResolutionSpec> = (services: AllServices) => bindStep(definition, services);
+export const createFactResolutionStep: StepFactoryFromSpec<
+	FactResolutionSpec
+> = (services: AllServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createFactResolutionStep);
 

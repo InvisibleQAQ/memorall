@@ -1,5 +1,5 @@
 import { Annotation } from "@langchain/langgraph/web";
-import type { ChatMessage, ChatCompletionTool } from "@/types/openai";
+import type { ChatCompletionTool } from "@/types/openai";
 import {
 	type BaseStateBase,
 	BaseAnnotation,
@@ -27,17 +27,14 @@ export interface GraphGrowthConfig {
 
 export interface KnowledgeRAGState extends BaseStateBase {
 	// Input
-	messages: ChatMessage[];
 	query: string;
 	graphId?: string;
-
 	// Core context for general knowledge retrieval (topic name + description)
 	coreContext?: string;
 
 	// Agent config (from input)
 	tools?: ChatCompletionTool[];
 	maxIterations: number;
-	currentIteration: number;
 
 	// Query Analysis
 	extractedEntities: string[];
@@ -65,36 +62,10 @@ export interface KnowledgeRAGState extends BaseStateBase {
 
 	// Context Building
 	knowledgeContext: string;
-
-	// Steps for tracking progress
-	steps: Array<{
-		role: "assistant" | "tool" | "user";
-		content: string | null;
-		tool_calls?: Array<{
-			id: string;
-			type: "function";
-			function: { name: string; arguments: string };
-		}>;
-		tool_call_id?: string;
-	}>;
-
-	// Flow control
-	next?:
-		| "analyze_query"
-		| "retrieve_knowledge"
-		| "build_context"
-		| "generate_response"
-		| "agent_response"
-		| "execute_tools"
-		| "citation";
 }
 
 export const KnowledgeRAGAnnotation = {
 	...BaseAnnotation,
-	messages: Annotation<ChatMessage[]>({
-		value: (x, y) => y ?? x ?? [],
-		default: () => [],
-	}),
 	query: Annotation<string>({
 		value: (x, y) => y ?? x ?? "",
 		default: () => "",
@@ -115,10 +86,6 @@ export const KnowledgeRAGAnnotation = {
 		value: (x, y) => y ?? x,
 		default: () => 10,
 	}),
-	currentIteration: Annotation<number>({
-		value: (x, y) => y ?? x,
-		default: () => 0,
-	}),
 	extractedEntities: Annotation<string[]>({
 		value: (x, y) => y ?? x ?? [],
 		default: () => [],
@@ -138,17 +105,5 @@ export const KnowledgeRAGAnnotation = {
 	knowledgeContext: Annotation<string>({
 		value: (x, y) => y ?? x ?? "",
 		default: () => "",
-	}),
-	steps: Annotation<KnowledgeRAGState["steps"]>({
-		value: (x, y) => {
-			if (!x) return y ?? [];
-			if (!y) return x;
-			return x.concat(y);
-		},
-		default: () => [],
-	}),
-	next: Annotation<KnowledgeRAGState["next"]>({
-		value: (x, y) => y ?? x,
-		default: () => undefined,
 	}),
 };

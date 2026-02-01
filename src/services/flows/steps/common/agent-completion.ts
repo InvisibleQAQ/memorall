@@ -52,7 +52,6 @@ const definition = defineStep<
 			{
 				messages: input.messages,
 				maxIterations: input.maxIterations,
-				steps: [],
 			},
 			{
 				streamMode: ["custom", "values"],
@@ -102,7 +101,9 @@ const definition = defineStep<
 
 type AgentCompletionSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createAgentCompletionStep: StepFactoryFromSpec<AgentCompletionSpec> = (
+export const createAgentCompletionStep: StepFactoryFromSpec<
+	AgentCompletionSpec
+> = (
 	services: AgentCompletionStepServices,
 	config?: AgentCompletionStepConfig,
 ) => bindStep(definition, services, config);

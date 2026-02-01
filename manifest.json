@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/chrome-manifest.json",
   "manifest_version": 3,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "name": "Memorall",
   "description": "Memorall - AI-powered memory and knowledge management browser extension",
   "icons": {
@@ -59,6 +59,10 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' http://localhost:* http://127.0.0.1:*; worker-src 'self'; object-src 'self'; frame-src 'self' http://localhost:* http://127.0.0.1:* https: data: blob:;"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' http://localhost:* http://127.0.0.1:*; worker-src 'self'; object-src 'self'; frame-src 'self' http://localhost:* http://127.0.0.1:* https: data: blob:;",
+    "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval'; object-src 'self';"
+  },
+  "sandbox": {
+    "pages": ["sandbox/js-execute.html"]
   }
 }

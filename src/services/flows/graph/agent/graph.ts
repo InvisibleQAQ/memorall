@@ -1,15 +1,24 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
-import { AgentAnnotation, type AgentState, type AgentStep } from "./state";
+import { AgentAnnotation, type AgentState } from "./state";
 import { GraphBase } from "@/services/flows/graph/graph.base";
-import { toolRegistry, convertToolsToOpenAI } from "@/services/flows/tool-registry";
-import type { BaseTool, CombinedServices } from "@/services/flows/interfaces/tool";
-import type { ChatCompletionChunk, ChatCompletionMessageParam } from "@/types/openai";
+import {
+	toolRegistry,
+	convertToolsToOpenAI,
+} from "@/services/flows/tool-registry";
+import type {
+	BaseTool,
+	CombinedServices,
+} from "@/services/flows/interfaces/tool";
+import type {
+	ChatCompletionChunk,
+	ChatCompletionMessageParam,
+} from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
 
 // Tool names available to the agent
-const TOOL_NAMES = ["calculator", "current_time", "memory_search"] as const;
+const TOOL_NAMES = ["current_time", "js_execute"] as const;
 
 // Derive services from tools + graph's own needs (llm for calling the model)
 type AgentServices = CombinedServices<typeof TOOL_NAMES, "llm">;
@@ -62,7 +71,7 @@ export class AgentGraph extends GraphBase<
 	 * Route after agent node: go to tools if there are tool calls, otherwise end
 	 */
 	private routeAfterAgent = (state: AgentState): "tools" | typeof END => {
-		const lastStep = state.steps[state.steps.length - 1];
+		const lastMessage = this.chat.last(state.messages);
 
 		// Check for max iterations
 		if (state.currentIteration >= state.maxIterations) {
@@ -73,11 +82,7 @@ export class AgentGraph extends GraphBase<
 		}
 
 		// If last step has tool calls, route to tools node
-		if (
-			lastStep?.role === "assistant" &&
-			lastStep.tool_calls &&
-			lastStep.tool_calls.length > 0
-		) {
+		if (lastMessage?.role === "assistant" && lastMessage.tool_calls?.length) {
 			return "tools";
 		}
 
@@ -86,32 +91,10 @@ export class AgentGraph extends GraphBase<
 	};
 
 	/**
-	 * Build conversation history from messages and steps for LLM
+	 * Build conversation history from messages for LLM
 	 */
 	private buildConversation(state: AgentState): ChatCompletionMessageParam[] {
-		const messages: ChatCompletionMessageParam[] = [
-			{ role: "system", content: AGENT_SYSTEM_PROMPT },
-			...state.messages,
-		];
-
-		// Add steps (tool calls and results) to conversation
-		for (const step of state.steps) {
-			if (step.role === "assistant") {
-				messages.push({
-					role: "assistant",
-					content: step.content,
-					tool_calls: step.tool_calls,
-				});
-			} else if (step.role === "tool" && step.tool_call_id) {
-				messages.push({
-					role: "tool",
-					content: step.content || "",
-					tool_call_id: step.tool_call_id,
-				});
-			}
-		}
-
-		return messages;
+		return this.chat.system(state.messages, AGENT_SYSTEM_PROMPT);
 	}
 
 	/**
@@ -131,7 +114,13 @@ export class AgentGraph extends GraphBase<
 			const messages = this.buildConversation(state);
 			const tools = convertToolsToOpenAI(this.tools);
 
-			logInfo("[AGENT] Calling LLM with", messages.length, "messages and", tools.length, "tools");
+			logInfo(
+				"[AGENT] Calling LLM with",
+				messages.length,
+				"messages and",
+				tools.length,
+				"tools",
+			);
 
 			// Use native OpenAI tool calling with streaming
 			const stream = llm.chatCompletions({
@@ -143,11 +132,14 @@ export class AgentGraph extends GraphBase<
 
 			// Accumulate response from stream
 			let content = "";
-			const toolCallsMap = new Map<number, {
-				id: string;
-				type: "function";
-				function: { name: string; arguments: string };
-			}>();
+			const toolCallsMap = new Map<
+				number,
+				{
+					id: string;
+					type: "function";
+					function: { name: string; arguments: string };
+				}
+			>();
 			for await (const chunk of stream) {
 				const delta = chunk.choices[0]?.delta;
 
@@ -183,48 +175,31 @@ export class AgentGraph extends GraphBase<
 
 			const toolCalls = Array.from(toolCallsMap.values());
 
-			logInfo("[AGENT] Stream complete - content length:", content.length, "tool_calls:", toolCalls.length);
+			logInfo(
+				"[AGENT] Stream complete - content length:",
+				content.length,
+				"tool_calls:",
+				toolCalls.length,
+			);
 
 			// Check if LLM wants to call tools
 			if (toolCalls.length > 0) {
-				const actions = toolCalls.map((tc) => ({
-					id: crypto.randomUUID(),
-					name: `Calling "${tc.function.name}"`,
-					description: `Args: ${tc.function.arguments}`,
-					metadata: { tool: tc.function.name },
-				}));
-				runConfig?.writer?.({ type: "actions", actions });
-
-				const newStep: AgentStep = {
-					role: "assistant",
-					content: content || null,
-					tool_calls: toolCalls,
-				};
+				const updatedMessages = this.chat.assistant(
+					messages,
+					content || null,
+					toolCalls,
+				);
 
 				return {
-					steps: [newStep],
+					messages: updatedMessages,
 					currentIteration: state.currentIteration + 1,
 				};
 			}
 
-			// No tool calls - this is the final response
-			const newStep: AgentStep = {
-				role: "assistant",
-				content,
-			};
-
-			const actions = [
-				{
-					id: crypto.randomUUID(),
-					name: "Final response",
-					description: "Agent completed with final answer",
-					metadata: {},
-				},
-			];
-			runConfig?.writer?.({ type: "actions", actions });
+			const updatedMessages = this.chat.assistant(messages, content || null);
 
 			return {
-				steps: [newStep],
+				messages: updatedMessages,
 				finalMessage: content,
 				currentIteration: state.currentIteration + 1,
 			};
@@ -241,15 +216,24 @@ export class AgentGraph extends GraphBase<
 		state: AgentState,
 		runConfig?: LangGraphRunnableConfig,
 	): Promise<Partial<AgentState>> => {
-		const lastStep = state.steps[state.steps.length - 1];
+		const lastMessage = this.chat.last(state.messages);
 
-		if (!lastStep?.tool_calls || lastStep.tool_calls.length === 0) {
+		if (
+			lastMessage?.role !== "assistant" ||
+			!lastMessage.tool_calls ||
+			lastMessage.tool_calls.length === 0
+		) {
 			throw new Error("No tool calls found in the last step");
 		}
 
-		const toolResultSteps: AgentStep[] = [];
+		let updatedMessages = state.messages;
+		const toolResults: Array<{
+			toolName: string;
+			content: string;
+			toolCall: (typeof lastMessage.tool_calls)[number];
+		}> = [];
 
-		for (const toolCall of lastStep.tool_calls) {
+		for (const toolCall of lastMessage.tool_calls) {
 			const toolName = toolCall.function.name;
 			const tool = this.toolsMap.get(toolName);
 			runConfig?.writer?.({
@@ -262,54 +246,57 @@ export class AgentGraph extends GraphBase<
 			});
 
 			if (!tool) {
-				toolResultSteps.push({
-					role: "tool",
-					content: `Error: Tool '${toolName}' not found`,
-					tool_call_id: toolCall.id,
+				const content = `Error: Tool '${toolName}' not found`;
+				updatedMessages = this.chat.tool(updatedMessages, toolCall.id, content);
+				toolResults.push({
+					toolName,
+					content,
+					toolCall,
 				});
 				continue;
 			}
 
 			try {
 				const args = JSON.parse(toolCall.function.arguments);
-				logInfo(`[TOOLS] Executing ${toolName} with args:`, args);
 
 				// Validate and execute the tool (services already bound via factory)
 				const validatedArgs = tool.schema.parse(args);
 				const result = await tool.execute(validatedArgs);
-				logInfo(`[TOOLS] Result from ${toolName}:`, result);
 
-				toolResultSteps.push({
-					role: "tool",
+				updatedMessages = this.chat.tool(updatedMessages, toolCall.id, result);
+				toolResults.push({
+					toolName,
 					content: result,
-					tool_call_id: toolCall.id,
+					toolCall,
 				});
 			} catch (error) {
 				const errorMessage =
 					error instanceof Error ? error.message : "Unknown error";
 				logError(`[TOOLS] Error executing ${toolName}:`, error);
 
-				toolResultSteps.push({
-					role: "tool",
-					content: `Error: ${errorMessage}`,
-					tool_call_id: toolCall.id,
+				const content = `Error: ${errorMessage}`;
+				updatedMessages = this.chat.tool(updatedMessages, toolCall.id, content);
+				toolResults.push({
+					toolName,
+					content,
+					toolCall,
 				});
 			}
 		}
 
-		const actions = [
-			{
-				id: crypto.randomUUID(),
-				name: `Executed ${toolResultSteps.length} tool(s)`,
-				description: toolResultSteps
-					.map((s) => s.content?.substring(0, 100))
-					.join("; "),
-				metadata: {},
+		const actions = toolResults.map((result) => ({
+			id: crypto.randomUUID(),
+			name: result.toolName,
+			description: result.content,
+			metadata: {
+				tool_call: result.toolCall,
 			},
-		];
-		runConfig?.writer?.({ type: "actions", actions });
+		}));
+		if (actions.length) {
+			runConfig?.writer?.({ type: "actions", actions });
+		}
 		return {
-			steps: toolResultSteps,
+			messages: updatedMessages,
 		};
 	};
 }
@@ -325,6 +312,7 @@ declare global {
 	interface FlowTypeRegistry {
 		agent: {
 			services: AgentServices;
+			config: undefined;
 			flow: AgentGraph;
 		};
 	}

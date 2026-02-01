@@ -14,8 +14,9 @@ export class FlowsService {
 	createGraph<K extends keyof FlowTypeRegistry>(
 		flowType: K,
 		services: FlowTypeRegistry[K]["services"],
+		config?: FlowTypeRegistry[K] extends { config: infer C } ? C : undefined,
 	): FlowTypeRegistry[K]["flow"] {
-		return flowRegistry.createFlow(flowType, services);
+		return flowRegistry.createFlow(flowType, services, config);
 	}
 
 	/**
