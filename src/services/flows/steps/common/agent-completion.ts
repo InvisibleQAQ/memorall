@@ -70,11 +70,8 @@ const definition = defineStep<
 
 			if (mode === "values") {
 				const stateValues = payload as Record<string, unknown>;
-				for (const key of Object.keys(stateValues)) {
-					const value = stateValues[key] as Record<string, unknown>;
-					if (value?.finalMessage) {
-						finalMessage = value.finalMessage as string;
-					}
+				if (stateValues?.finalMessage) {
+					finalMessage = stateValues.finalMessage as string;
 				}
 			}
 		}

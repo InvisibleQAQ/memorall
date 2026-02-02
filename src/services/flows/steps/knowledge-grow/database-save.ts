@@ -240,6 +240,7 @@ function getNodeId(
 
 async function createNodes(
 	input: KnowledgeDatabaseSaveInput,
+	graphId: string,
 	createdSource: SourceSelectType,
 	services: KnowledgeDatabaseSaveServices,
 ): Promise<Node[]> {
@@ -255,7 +256,7 @@ async function createNodes(
 					name: entity.finalName,
 					summary: entity.summary,
 					attributes: entity.attributes || {},
-					graph: input.graphId,
+					graph: graphId,
 				};
 
 				const nameEmbedding = await safeTextToVector(
@@ -283,7 +284,7 @@ async function createNodes(
 					sourceId: createdSource.id,
 					nodeId: createdNode.id,
 					relation: "MENTIONED_IN",
-					graph: input.graphId,
+					graph: graphId,
 				});
 			} catch (error) {
 				skippedNodes.push(entity);
@@ -316,6 +317,7 @@ async function createNodes(
 async function createEdges(
 	input: KnowledgeDatabaseSaveInput,
 	createdNodes: Node[],
+	graphId: string,
 	createdSource: SourceSelectType,
 	services: KnowledgeDatabaseSaveServices,
 ): Promise<Edge[]> {
@@ -434,7 +436,7 @@ async function createEdges(
 						: undefined,
 					recordedAt: new Date(),
 					attributes: fact.attributes || {},
-					graph: input.graphId,
+					graph: graphId,
 				};
 
 				// Generate embeddings
@@ -474,7 +476,7 @@ async function createEdges(
 						edgeId: edge.id,
 						relation: "EXTRACTED_FROM",
 						linkWeight: 1.0,
-						graph: input.graphId,
+						graph: graphId,
 					});
 				} catch (edgeError) {
 					skippedEdges.push(fact);
@@ -512,10 +514,13 @@ const definition = defineStep<
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
 		try {
+			const graphId = input.graphId?.trim() || "default";
+
 			logInfo("[DATABASE_SAVE] Saving knowledge graph to database:", {
 				url: input.url,
 				title: input.title,
 				sourceId: input.sourceId,
+				graphId,
 			});
 
 			const databaseService = services.database;
@@ -551,7 +556,12 @@ const definition = defineStep<
 				(e) => !e.isExisting,
 			).length;
 			logInfo(`[DATABASE_SAVE] Creating ${newEntityCount} nodes...`);
-			const createdNodes = await createNodes(input, createdSource, services);
+			const createdNodes = await createNodes(
+				input,
+				graphId,
+				createdSource,
+				services,
+			);
 			logInfo(`[DATABASE_SAVE] ${createdNodes.length} nodes created`);
 
 			// Create edges
@@ -563,6 +573,7 @@ const definition = defineStep<
 			const createdEdges = await createEdges(
 				input,
 				createdNodes,
+				graphId,
 				createdSource,
 				services,
 			);

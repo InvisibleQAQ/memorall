@@ -167,3 +167,5 @@ yarn-error.log*
 extension-env.d.ts
 
 publish
+sandbox
+

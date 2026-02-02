@@ -98,6 +98,7 @@ const definition = defineStep<
 		const llm = services.llm;
 
 		if (
+			!input.finalMessage?.trim() ||
 			(!input.relevantNodes?.length && !input.relevantEdges?.length) ||
 			!llm.isReady()
 		) {
@@ -186,18 +187,6 @@ const definition = defineStep<
 
 			const citedResponse = citedLines.join("\n");
 
-			const action = {
-				id: crypto.randomUUID(),
-				name: "citation",
-				description: "Added citations to response",
-				metadata: {
-					citationCount: (
-						citedResponse.match(/\]\(citation[s]?:(node|edge)\//g) || []
-					).length,
-					citedLines: lineCitations.size,
-				},
-			};
-
 			return {
 				output: {
 					finalMessage: citedResponse,
@@ -205,14 +194,6 @@ const definition = defineStep<
 			};
 		} catch (error) {
 			logError("[KNOWLEDGE_RAG] Citation failed:", error);
-			// Return original response if citation fails
-			const action = {
-				id: crypto.randomUUID(),
-				name: "citation_fallback",
-				description: "Citation failed, returning original response",
-				metadata: { error: String(error) },
-			};
-			runConfig?.writer?.({ type: "actions", actions: [action] });
 
 			return {
 				output: {

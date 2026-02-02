@@ -3,6 +3,7 @@ import type {
 	ChatCompletionMessageParam,
 	ChatCompletionMessageToolCall,
 } from "@/types/openai";
+import { logWarn } from "@/utils/logger";
 
 export interface BaseStateBase {
 	messages: ChatCompletionMessageParam[];
@@ -14,52 +15,65 @@ export const normalizeChatMessages = (
 	systemContent?: string,
 ): ChatCompletionMessageParam[] => {
 	const list = Array.isArray(messages) ? messages : [];
-	const systemMessages = list.filter((message) => message.role === "system");
-	const nonSystem = list.filter((message) => message.role !== "system");
-	const resolvedSystemContent =
-		systemContent ?? systemMessages[systemMessages.length - 1]?.content ?? "";
+	const systemMessages = list.filter((m) => m.role === "system");
+	const nonSystem = list.filter((m) => m.role !== "system");
 
 	const toolById = new Map<string, ChatCompletionMessageParam[]>();
 	const orphanTools: ChatCompletionMessageParam[] = [];
-	const ordered: ChatCompletionMessageParam[] = [];
 
-	for (const message of nonSystem) {
-		if (message.role === "tool") {
-			if (message.tool_call_id) {
-				const existing = toolById.get(message.tool_call_id) ?? [];
-				existing.push(message);
-				toolById.set(message.tool_call_id, existing);
-			} else {
-				orphanTools.push(message);
+	const ordered = nonSystem.reduce<ChatCompletionMessageParam[]>(
+		(acc, message) => {
+			if (message.role === "tool") {
+				const bucket = message.tool_call_id
+					? (toolById.get(message.tool_call_id) ?? [])
+					: orphanTools;
+				bucket.push(message);
+				if (message.tool_call_id) toolById.set(message.tool_call_id, bucket);
+				return acc;
 			}
-			continue;
-		}
 
-		ordered.push(message);
-
-		if (message.role === "assistant" && message.tool_calls?.length) {
-			for (const toolCall of message.tool_calls) {
-				const bucket = toolById.get(toolCall.id);
-				if (bucket?.length) {
-					ordered.push(...bucket);
-					toolById.delete(toolCall.id);
-				}
+			acc.push(message);
+			if (message.role === "assistant" && message.tool_calls?.length) {
+				message.tool_calls.forEach(({ id }) => {
+					const bucket = toolById.get(id);
+					if (bucket?.length) {
+						acc.push(...bucket);
+						toolById.delete(id);
+					}
+				});
 			}
-		}
+			return acc;
+		},
+		[],
+	);
+
+	toolById.forEach((bucket) => ordered.push(...bucket));
+	if (orphanTools?.length) {
+		logWarn('[NormalizeChatMessages] orphanTools', orphanTools)
 	}
 
-	for (const bucket of toolById.values()) {
-		ordered.push(...bucket);
-	}
-	ordered.push(...orphanTools);
+	const systemParts = [
+		systemContent?.trim(),
+		...systemMessages.map(({ content }) =>
+			typeof content === "string"
+				? content.trim()
+				: Array.isArray(content)
+						? content
+								.filter((part) => part.type === "text")
+								.map((part) => (part as { type: "text"; text: string }).text)
+								.join("\n")
+								.trim()
+						: "",
+		),
+	].filter(Boolean) as string[];
 
-	return [{ role: "system", content: resolvedSystemContent }, ...ordered];
+	return [{ role: "system", content: systemParts.join("\n\n") }, ...ordered];
 };
 
 export const BaseAnnotation = {
 	messages: Annotation<ChatCompletionMessageParam[]>({
 		value: (x, y) => normalizeChatMessages(y ?? x),
-		default: () => [{ role: "system", content: "" }],
+		default: () => [],
 	}),
 	finalMessage: Annotation<string>({
 		value: (x, y) => y ?? x,
