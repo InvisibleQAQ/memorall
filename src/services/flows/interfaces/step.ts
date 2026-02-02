@@ -1,5 +1,4 @@
 import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
-import type { BaseStateBase } from "../graph/graph.base";
 
 // ============================================================================
 // Core Step Types

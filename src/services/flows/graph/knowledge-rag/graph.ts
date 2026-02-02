@@ -149,7 +149,10 @@ export class KnowledgeRAGFlow extends GraphBase<
 				services,
 			);
 			this.workflow.addNode("analyze_query", analyzeQueryStep.toNode());
-			this.workflow.addNode("retrieve_knowledge", retrievalKnowledge.toNode());
+			this.workflow.addNode(
+				"retrieve_knowledge",
+				retrievalKnowledge.toNode(),
+			);
 			this.workflow.addEdge(START, "analyze_query");
 			this.workflow.addEdge("analyze_query", "retrieve_knowledge");
 			this.workflow.addEdge("retrieve_knowledge", "build_context");

@@ -99,7 +99,7 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 		this.services = services;
 	}
 
-	protected chat = {
+	static chat = {
 		system: (
 			messages: ChatCompletionMessageParam[],
 			systemContent: string,
@@ -137,6 +137,7 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 					message.role === "tool" && message.tool_call_id === toolCallId,
 			),
 	};
+	protected chat = GraphBase.chat;
 
 	protected compile(
 		options?: Parameters<typeof this.workflow.compile>[0],
