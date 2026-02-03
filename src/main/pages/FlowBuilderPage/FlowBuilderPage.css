@@ -1,0 +1,64 @@
+.flow-builder .react-flow__controls,
+.flow-builder .react-flow__minimap {
+	background: hsl(var(--background));
+	color: hsl(var(--foreground));
+	border: 1px solid hsl(var(--border));
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.flow-builder .react-flow__controls button {
+	background: transparent;
+	color: inherit;
+}
+
+.flow-builder .react-flow__minimap svg {
+	background: hsl(var(--muted));
+}
+
+.flow-builder .react-flow__minimap .react-flow__minimap-mask {
+	fill: rgba(0, 0, 0, 0.12);
+}
+
+.flow-builder .react-flow__background {
+	background-color: hsl(var(--background));
+}
+
+.flow-step-node {
+	border-radius: 12px;
+	border: 1px solid hsl(var(--border));
+	background: hsl(var(--card));
+	color: hsl(var(--foreground));
+	padding: 10px 12px;
+	min-width: 140px;
+	box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+}
+
+.flow-panel-content[data-state="open"] {
+	animation: flow-panel-in 200ms ease-out;
+}
+
+.flow-panel-content[data-state="closed"] {
+	animation: flow-panel-out 200ms ease-in;
+}
+
+@keyframes flow-panel-in {
+	from {
+		opacity: 0;
+		transform: translateX(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@keyframes flow-panel-out {
+	from {
+		opacity: 1;
+		transform: translateX(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateX(-6px);
+	}
+}

@@ -3,6 +3,7 @@
 		"chat": "Trò chuyện",
 		"models": "Mô hình",
 		"knowledgeGraph": "Đồ thị tri thức",
+		"flowBuilder": "Trình xây dựng luồng",
 		"documents": "Tài liệu",
 		"debug": "Gỡ lỗi",
 		"embeddings": "Nhúng",
@@ -140,6 +141,50 @@
 			"completed": "Hoàn thành",
 			"failed": "Thất bại"
 		}
+	},
+	"flowBuilder": {
+		"selectFlow": "Chọn luồng",
+		"selectOrCreateFlow": "Chọn hoặc tạo một luồng để bắt đầu xây dựng.",
+		"createFlow": {
+			"title": "Tạo luồng",
+			"description": "Đặt tên cho luồng của bạn để bắt đầu xây dựng.",
+			"namePlaceholder": "Tên luồng"
+		},
+		"panels": {
+			"steps": "Các bước",
+			"inspector": "Thanh tra"
+		},
+		"tabs": {
+			"properties": "Thuộc tính",
+			"testing": "Kiểm thử"
+		},
+		"sections": {
+			"flowDetails": "Chi tiết luồng",
+			"services": "Dịch vụ",
+			"stateFields": "Trường trạng thái",
+			"stepProperties": "Thuộc tính bước"
+		},
+		"placeholders": {
+			"flowName": "Tên luồng",
+			"description": "Mô tả",
+			"status": "Trạng thái",
+			"stateName": "Tên trạng thái",
+			"type": "Loại"
+		},
+		"labels": {
+			"type": "Loại"
+		},
+		"nodeTypes": {
+			"start": "Bắt đầu",
+			"end": "Kết thúc",
+			"step": "Bước"
+		},
+		"noSteps": "Chưa có bước nào.",
+		"noServices": "Chưa có dịch vụ nào được danh mục.",
+		"noStateFields": "Chưa có trường trạng thái nào.",
+		"selectNodeForProperties": "Chọn một node để xem thuộc tính bước.",
+		"testingPlaceholder": "Bộ kiểm thử sẽ xuất hiện ở đây.",
+		"ready": "Sẵn sàng"
 	},
 	"copilot": {
 		"error": "useCopilot phải được sử dụng trong CopilotProvider",

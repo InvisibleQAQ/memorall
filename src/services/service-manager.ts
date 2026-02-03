@@ -2,6 +2,7 @@ import { logError, logInfo, logWarn } from "@/utils/logger";
 import type { IEmbeddingService } from "@/services/embedding";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
 import { FlowsService } from "./flows";
+import { FlowBuilderService } from "./flows/flow-builder-service";
 import { DatabaseMode } from "./database/constants";
 import type { IDatabaseService } from "./database/interfaces/database-service.interface";
 import {
@@ -26,6 +27,7 @@ export class ServiceManager {
 		embedding: false,
 		llm: false,
 		flows: false,
+		flowBuilder: false,
 		topic: false,
 	};
 
@@ -34,6 +36,7 @@ export class ServiceManager {
 	public llmService!: ILLMService;
 	public databaseService!: IDatabaseService;
 	public flowsService!: FlowsService;
+	public flowBuilderService!: FlowBuilderService;
 
 	// Progress tracking
 	private progressListeners = new Set<
@@ -135,6 +138,7 @@ export class ServiceManager {
 
 				this.databaseService = new DatabaseServiceProxy();
 				await this.initializeDatabase({ mode: DatabaseMode.PROXY });
+				this.flowBuilderService = new FlowBuilderService(this.databaseService);
 
 				this.embeddingService = new EmbeddingServiceProxy();
 				this.llmService = new LLMServiceProxy();
@@ -158,6 +162,7 @@ export class ServiceManager {
 
 				this.databaseService = new DatabaseServiceMain();
 				await this.initializeDatabase({ mode: DatabaseMode.MAIN });
+				this.flowBuilderService = new FlowBuilderService(this.databaseService);
 
 				this.embeddingService = new EmbeddingServiceMain();
 				this.llmService = new LLMServiceMain();
@@ -193,6 +198,7 @@ export class ServiceManager {
 			options.callback?.("flow", 0);
 			await this.initializeFlowsService();
 
+			this.serviceStatus.flowBuilder = true;
 			this.updateProgress("All services ready", 100, "flows");
 
 			logInfo(`✅ All services initialized successfully in ${mode}`);
@@ -364,6 +370,10 @@ export class ServiceManager {
 		return this.serviceStatus.flows;
 	}
 
+	isFlowBuilderServiceReady(): boolean {
+		return this.serviceStatus.flowBuilder;
+	}
+
 	// Get overall service status
 	getServiceStatus() {
 		return {
@@ -389,6 +399,10 @@ export class ServiceManager {
 		return this.flowsService;
 	}
 
+	getFlowBuilderService() {
+		return this.flowBuilderService;
+	}
+
 	// Generic service getter for dynamic access
 	getService<K extends keyof ServiceRegistry>(
 		serviceName: K,
@@ -402,6 +416,8 @@ export class ServiceManager {
 				return this.llmService as ServiceRegistry[K];
 			case "flows":
 				return this.flowsService as ServiceRegistry[K];
+			case "flowBuilder":
+				return this.flowBuilderService as ServiceRegistry[K];
 			default:
 				return undefined;
 		}
@@ -414,4 +430,5 @@ interface ServiceRegistry {
 	embedding: IEmbeddingService;
 	llm: ILLMService;
 	flows: FlowsService;
+	flowBuilder: FlowBuilderService;
 }

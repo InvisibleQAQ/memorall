@@ -3,6 +3,7 @@
 		"chat": "Chat",
 		"models": "Models",
 		"knowledgeGraph": "Knowledge Graph",
+		"flowBuilder": "Flow Builder",
 		"documents": "Documents",
 		"debug": "Debug",
 		"embeddings": "Embeddings",
@@ -141,6 +142,50 @@
 			"completed": "Completed",
 			"failed": "Failed"
 		}
+	},
+	"flowBuilder": {
+		"selectFlow": "Select flow",
+		"selectOrCreateFlow": "Select or create a flow to start building.",
+		"createFlow": {
+			"title": "Create Flow",
+			"description": "Name your flow to start building.",
+			"namePlaceholder": "Flow name"
+		},
+		"panels": {
+			"steps": "Steps",
+			"inspector": "Inspector"
+		},
+		"tabs": {
+			"properties": "Properties",
+			"testing": "Testing"
+		},
+		"sections": {
+			"flowDetails": "Flow Details",
+			"services": "Services",
+			"stateFields": "State Fields",
+			"stepProperties": "Step Properties"
+		},
+		"placeholders": {
+			"flowName": "Flow name",
+			"description": "Description",
+			"status": "Status",
+			"stateName": "State name",
+			"type": "Type"
+		},
+		"labels": {
+			"type": "Type"
+		},
+		"nodeTypes": {
+			"start": "Start",
+			"end": "End",
+			"step": "Step"
+		},
+		"noSteps": "No steps available yet.",
+		"noServices": "No services cataloged yet.",
+		"noStateFields": "No state fields yet.",
+		"selectNodeForProperties": "Select a node to see step properties.",
+		"testingPlaceholder": "Testing harness will appear here.",
+		"ready": "Ready"
 	},
 	"copilot": {
 		"error": "useCopilot must be used within a CopilotProvider",

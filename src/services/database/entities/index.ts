@@ -17,3 +17,10 @@ export * from "./configurations";
 // Activity tracking entities
 export * from "./activity-sessions";
 export * from "./activities";
+
+// Flow builder entities
+export * from "./flows";
+export * from "./flow-states";
+export * from "./flow-services";
+export * from "./flow-steps";
+export * from "./flow-connections";
