@@ -14,6 +14,25 @@ export type {
 	StepNodeMapping,
 } from "./interfaces/step";
 export { defineStep, bindStep } from "./interfaces/step";
+export type {
+	FlowDefinition,
+	FlowDraftInput,
+	FlowStateInput,
+	FlowStepInput,
+	FlowConnectionInput,
+	FlowCatalog,
+	FlowLayout,
+	FlowLayoutNode,
+} from "./interfaces/flow-builder";
+export { FlowBuilderService } from "./flow-builder-service";
+export type { CatalogService, CatalogStep } from "./flow-builder-catalog";
+export {
+	DEFAULT_FLOW_SERVICES,
+	DEFAULT_FLOW_STEPS,
+	getFlowCatalog,
+	findCatalogStep,
+	findCatalogService,
+} from "./flow-builder-catalog";
 
 // Re-export registry utilities
 export { toolRegistry, convertToolsToOpenAI } from "./tool-registry";

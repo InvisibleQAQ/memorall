@@ -38,6 +38,7 @@ import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
 import { DocumentLibraryPage } from "./pages/DocumentLibraryPage";
 import { ActivityTimelinePage } from "./pages/ActivityTimelinePage";
 import { AuthPage } from "./pages/AuthPage";
+import { FlowBuilderPage } from "./pages/FlowBuilderPage";
 import { registerAllEditors } from "@/main/modules/documents/editors";
 import { useAuthInit } from "@/main/modules/supabase";
 
@@ -340,6 +341,10 @@ const App: React.FC = () => {
 											<Route
 												path="/activities"
 												element={<ActivityTimelinePage />}
+											/>
+											<Route
+												path="/flow-builder"
+												element={<FlowBuilderPage />}
 											/>
 											<Route path="/logs" element={<LogsPage />} />
 										</Routes>

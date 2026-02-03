@@ -17,6 +17,10 @@ import {
 	up as addMultiSizeEmbeddingsUp,
 	down as addMultiSizeEmbeddingsDown,
 } from "./005_add_multi_size_embeddings";
+import {
+	up as addFlowBuilderUp,
+	down as addFlowBuilderDown,
+} from "./006_add_flow_builder";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -66,6 +70,14 @@ export const migrations: Migration[] = [
 			"Add multi-size embedding support (small 384d, medium 768d, large 1536d)",
 		up: addMultiSizeEmbeddingsUp,
 		down: addMultiSizeEmbeddingsDown,
+	},
+	{
+		id: "add_flow_builder",
+		version: 6,
+		description:
+			"Add flow builder tables (flows, flow_states, flow_services, flow_steps, flow_connections)",
+		up: addFlowBuilderUp,
+		down: addFlowBuilderDown,
 	},
 	// Example of how to add future migrations:
 	// {

@@ -22,6 +22,11 @@ import * as topicSchema from "./entities/topics";
 import * as topicFilesSchema from "./entities/topic-files";
 import * as activitySessionsSchema from "./entities/activity-sessions";
 import * as activitiesSchema from "./entities/activities";
+import * as flowsSchema from "./entities/flows";
+import * as flowStatesSchema from "./entities/flow-states";
+import * as flowServicesSchema from "./entities/flow-services";
+import * as flowStepsSchema from "./entities/flow-steps";
+import * as flowConnectionsSchema from "./entities/flow-connections";
 
 // Export consolidated schema object
 export const schema = {
@@ -44,4 +49,10 @@ export const schema = {
 	// Activity tracking entities
 	activitySessions: activitySessionsSchema.activitySessions,
 	activities: activitiesSchema.activities,
+	// Flow builder entities
+	flows: flowsSchema.flows,
+	flowStates: flowStatesSchema.flowStates,
+	flowServices: flowServicesSchema.flowServices,
+	flowSteps: flowStepsSchema.flowSteps,
+	flowConnections: flowConnectionsSchema.flowConnections,
 };
