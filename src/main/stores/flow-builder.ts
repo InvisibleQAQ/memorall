@@ -20,6 +20,7 @@ import type {
 } from "@/services/flows/interfaces/flow-builder";
 import { logError } from "@/utils/logger";
 import { validateFlowGraph } from "@/services/flows/flow-builder-validation";
+import { v4 } from "@/utils/uuid";
 import type { CatalogStep } from "@/services/flows/flow-builder-catalog";
 
 export interface FlowNodeData extends Record<string, unknown> {
@@ -65,7 +66,10 @@ export interface FlowBuilderState {
 	onNodesChange: (changes: NodeChange<Node<FlowNodeData>>[]) => void;
 	onEdgesChange: (changes: EdgeChange[]) => void;
 	onConnect: (connection: Connection) => void;
-	addNodeForStep: (catalogStepId: string, position: { x: number; y: number }) => void;
+	addNodeForStep: (
+		catalogStepId: string,
+		position: { x: number; y: number },
+	) => void;
 }
 
 const emptyCatalog: FlowCatalog = { services: [], steps: [] };
@@ -77,8 +81,85 @@ const UUID_REGEX =
 
 const isUuid = (value: string): boolean => UUID_REGEX.test(value);
 
+const BASE_STATE_NAMES = new Set(["messages", "finalMessage"]);
+
+const DEFAULT_BASE_STATES: FlowStateInput[] = [
+	{
+		name: "messages",
+		type: "array",
+		metadata: {
+			zod: {
+				type: "array",
+				element: {
+					type: "object",
+					fields: [
+						{
+							name: "role",
+							schema: {
+								type: "enum",
+								values: ["system", "user", "assistant", "tool"],
+							},
+						},
+						{ name: "content", schema: { type: "string" } },
+						{ name: "name", schema: { type: "string" } },
+						{ name: "tool_call_id", schema: { type: "string" } },
+						{
+							name: "tool_calls",
+							schema: {
+								type: "array",
+								element: {
+									type: "object",
+									fields: [
+										{ name: "id", schema: { type: "string" } },
+										{
+											name: "type",
+											schema: { type: "enum", values: ["function"] },
+										},
+										{
+											name: "function",
+											schema: {
+												type: "object",
+												fields: [
+													{ name: "name", schema: { type: "string" } },
+													{ name: "arguments", schema: { type: "string" } },
+												],
+											},
+										},
+									],
+								},
+							},
+						},
+					],
+				},
+			},
+		},
+	},
+	{
+		name: "finalMessage",
+		type: "string",
+		metadata: {
+			zod: {
+				type: "string",
+			},
+		},
+	},
+];
+
+const isBaseStateName = (name: string) => BASE_STATE_NAMES.has(name);
+
 const generateNodeId = (): string => {
-	return `node-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+	if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+		return crypto.randomUUID();
+	}
+	return v4();
+};
+
+const generateUniqueNodeId = (existing: Set<string>): string => {
+	let id = generateNodeId();
+	while (existing.has(id)) {
+		id = generateNodeId();
+	}
+	return id;
 };
 
 const buildDefaultNodes = (): Node<FlowNodeData>[] => [
@@ -108,7 +189,9 @@ const buildDefaultNodes = (): Node<FlowNodeData>[] => [
 	},
 ];
 
-const ensureTerminalNodes = (nodes: Node<FlowNodeData>[]): Node<FlowNodeData>[] => {
+const ensureTerminalNodes = (
+	nodes: Node<FlowNodeData>[],
+): Node<FlowNodeData>[] => {
 	const existingIds = new Set(nodes.map((node) => node.id));
 	const next = [...nodes];
 	if (!existingIds.has(START_NODE_ID)) {
@@ -179,6 +262,62 @@ const ensureVirtualEdge = (
 	];
 };
 
+const normalizeNodesAndEdges = (
+	nodes: Node<FlowNodeData>[],
+	edges: Edge[],
+): { nodes: Node<FlowNodeData>[]; edges: Edge[]; changed: boolean } => {
+	const used = new Set<string>();
+	const remap = new Map<string, string>();
+	let changed = false;
+
+	const nextNodes = nodes.map((node) => {
+		if (node.id === START_NODE_ID || node.id === END_NODE_ID) {
+			if (used.has(node.id)) {
+				changed = true;
+				const newId = generateUniqueNodeId(used);
+				used.add(newId);
+				return { ...node, id: newId };
+			}
+			used.add(node.id);
+			return node;
+		}
+
+		if (!isUuid(node.id)) {
+			changed = true;
+			const newId = generateUniqueNodeId(used);
+			used.add(newId);
+			remap.set(node.id, newId);
+			return { ...node, id: newId };
+		}
+
+		if (used.has(node.id)) {
+			changed = true;
+			const newId = generateUniqueNodeId(used);
+			used.add(newId);
+			return { ...node, id: newId };
+		}
+
+		used.add(node.id);
+		return node;
+	});
+
+	const nextEdges = edges.map((edge) => {
+		const source = remap.get(edge.source) ?? edge.source;
+		const target = remap.get(edge.target) ?? edge.target;
+		const nextId =
+			edge.id === `${edge.source}-${edge.target}`
+				? `${source}-${target}`
+				: edge.id;
+		if (source !== edge.source || target !== edge.target || nextId !== edge.id) {
+			changed = true;
+			return { ...edge, source, target, id: nextId };
+		}
+		return edge;
+	});
+
+	return { nodes: nextNodes, edges: nextEdges, changed };
+};
+
 const buildLayout = (nodes: Node<FlowNodeData>[]): FlowLayout => ({
 	nodes: nodes
 		.filter((node) => node.id !== START_NODE_ID && node.id !== END_NODE_ID)
@@ -190,15 +329,22 @@ const buildLayout = (nodes: Node<FlowNodeData>[]): FlowLayout => ({
 		})),
 });
 
-const buildSteps = (nodes: Node<FlowNodeData>[]): FlowStepInput[] =>
-	nodes
+const buildSteps = (nodes: Node<FlowNodeData>[]): FlowStepInput[] => {
+	const seen = new Set<string>();
+	return nodes
 		.filter(
 			(node) =>
 				node.id !== START_NODE_ID &&
 				node.id !== END_NODE_ID &&
 				node.data.stepType !== "system",
 		)
+		.filter((node) => {
+			if (seen.has(node.id)) return false;
+			seen.add(node.id);
+			return true;
+		})
 		.map((node) => ({
+			id: node.id,
 			catalogStepId: node.data.catalogStepId,
 			name: node.data.label,
 			type: node.data.stepType,
@@ -206,6 +352,7 @@ const buildSteps = (nodes: Node<FlowNodeData>[]): FlowStepInput[] =>
 			isEnd: node.data.isEnd,
 			position: node.position,
 		}));
+};
 
 const resolveStepId = (
 	nodeId: string,
@@ -213,7 +360,7 @@ const resolveStepId = (
 ): string => {
 	const node = nodesById.get(nodeId);
 	if (!node) return nodeId;
-	return node.data.catalogStepId;
+	return node.id;
 };
 
 const buildConnections = (
@@ -289,8 +436,22 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 				return;
 			}
 
-			const { flow, states, steps, connections, layout } = definition;
+			const { flow, states, steps, connections, layout, services } = definition;
 			const catalog = get().catalog;
+			const storedStates = states.reduce<FlowStateInput[]>((acc, state) => {
+				if (isBaseStateName(state.name)) {
+					return acc;
+				}
+				if (acc.some((entry) => entry.name === state.name)) {
+					return acc;
+				}
+				acc.push({
+					name: state.name,
+					type: state.type,
+					metadata: state.metadata ?? {},
+				});
+				return acc;
+			}, []);
 
 			// Build nodes from saved steps
 			let nodes: Node<FlowNodeData>[] = steps.map((step) => {
@@ -320,14 +481,17 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 
 			// Fallback to layout if no steps saved
 			if (nodes.length === 0 && layout?.nodes.length) {
-				const catalogStepById = new Map(
-					catalog.steps.map((s) => [s.id, s]),
-				);
+				const catalogStepById = new Map(catalog.steps.map((s) => [s.id, s]));
 
 				nodes = layout.nodes.map((layoutNode) => {
 					const catalogStep = catalogStepById.get(layoutNode.stepId);
+					const nodeId = isUuid(layoutNode.stepId)
+						? layoutNode.stepId
+						: generateUniqueNodeId(
+								new Set(nodes.map((node) => node.id)),
+							);
 					return {
-						id: layoutNode.stepId,
+						id: nodeId,
 						type: "flowStep",
 						position: layoutNode.position,
 						data: {
@@ -365,12 +529,11 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 				flowName: flow.name,
 				flowDescription: flow.description ?? "",
 				flowStatus: flow.status,
-				serviceKeys: flow.serviceKeys ?? [],
-				flowStates: states.map((state) => ({
-					name: state.name,
-					type: state.type,
-					metadata: state.metadata ?? {},
-				})),
+				serviceKeys:
+					services.length > 0
+						? services.map((service) => service.serviceKey)
+						: (flow.serviceKeys ?? []),
+				flowStates: [...DEFAULT_BASE_STATES, ...storedStates],
 				nodes,
 				edges,
 				isDirty: false,
@@ -409,8 +572,11 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 				flowName: definition.flow.name,
 				flowDescription: definition.flow.description ?? "",
 				flowStatus: definition.flow.status,
-				serviceKeys: definition.flow.serviceKeys ?? [],
-				flowStates: [],
+				serviceKeys:
+					definition.services?.length > 0
+						? definition.services.map((service) => service.serviceKey)
+						: (definition.flow.serviceKeys ?? []),
+				flowStates: DEFAULT_BASE_STATES,
 				nodes: defaultNodes,
 				edges: [],
 				isDirty: false,
@@ -440,22 +606,38 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 
 		if (!selectedFlowId) return;
 
-		set({ isSaving: true, error: null });
-		try {
-			const issues = validateFlowGraph(nodes, edges, catalog.steps);
-			const errors = issues.filter((issue) => issue.severity === "error");
-			if (errors.length > 0) {
-				set({
-					isSaving: false,
-					error: errors.map((issue) => issue.message).join(" "),
-				});
-				return;
-			}
+	set({ isSaving: true, error: null });
+	try {
+		const normalized = normalizeNodesAndEdges(nodes, edges);
+		if (normalized.changed) {
+			set({
+				nodes: normalized.nodes,
+				edges: normalized.edges,
+				isDirty: true,
+			});
+		}
 
-			const flowBuilderService = serviceManager.flowBuilderService;
-			const layout = buildLayout(nodes);
-			const steps = buildSteps(nodes);
-			const connections = buildConnections(edges, nodes);
+		const issues = validateFlowGraph(
+			normalized.nodes,
+			normalized.edges,
+			catalog.steps,
+		);
+		const errors = issues.filter((issue) => issue.severity === "error");
+		if (errors.length > 0) {
+			set({
+				isSaving: false,
+				error: errors.map((issue) => issue.message).join(" "),
+			});
+			return;
+		}
+
+		const flowBuilderService = serviceManager.flowBuilderService;
+		const layout = buildLayout(normalized.nodes);
+		const steps = buildSteps(normalized.nodes);
+		const connections = buildConnections(normalized.edges, normalized.nodes);
+		const userStates = flowStates.filter(
+			(state) => !isBaseStateName(state.name),
+		);
 
 			const updated = await flowBuilderService.updateFlow(
 				selectedFlowId,
@@ -465,7 +647,7 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 					status: flowStatus,
 					serviceKeys,
 				},
-				flowStates,
+				userStates,
 				steps,
 				connections,
 				layout,
@@ -505,7 +687,11 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 			let updatedEdges = newEdges;
 			for (const node of finalNodes) {
 				if (node.data.isStart && node.id !== START_NODE_ID) {
-					updatedEdges = ensureVirtualEdge(updatedEdges, START_NODE_ID, node.id);
+					updatedEdges = ensureVirtualEdge(
+						updatedEdges,
+						START_NODE_ID,
+						node.id,
+					);
 				}
 				if (node.data.isEnd && node.id !== END_NODE_ID) {
 					updatedEdges = ensureVirtualEdge(updatedEdges, node.id, END_NODE_ID);
@@ -537,7 +723,7 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 				const nextFlows = state.flows.filter((flow) => flow.id !== flowId);
 				const deletedSelected = state.selectedFlowId === flowId;
 				const nextSelectedId = deletedSelected
-					? nextFlows[0]?.id ?? null
+					? (nextFlows[0]?.id ?? null)
 					: state.selectedFlowId;
 
 				return {
@@ -572,20 +758,30 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 	},
 
 	addStateField: (stateField) => {
-		set((state) => ({
-			flowStates: [...state.flowStates, stateField],
-			isDirty: true,
-		}));
+		if (isBaseStateName(stateField.name)) return;
+		set((state) => {
+			if (state.flowStates.some((entry) => entry.name === stateField.name)) {
+				return state;
+			}
+			return {
+				flowStates: [...state.flowStates, stateField],
+				isDirty: true,
+			};
+		});
 	},
 
 	removeStateField: (name) => {
+		if (isBaseStateName(name)) return;
 		set((state) => ({
-			flowStates: state.flowStates.filter((stateField) => stateField.name !== name),
+			flowStates: state.flowStates.filter(
+				(stateField) => stateField.name !== name,
+			),
 			isDirty: true,
 		}));
 	},
 
 	updateStateField: (name, updates) => {
+		if (isBaseStateName(name)) return;
 		set((state) => ({
 			flowStates: state.flowStates.map((stateField) =>
 				stateField.name === name ? { ...stateField, ...updates } : stateField,
@@ -598,8 +794,7 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 		set((state) => {
 			const protectedIds = new Set([START_NODE_ID, END_NODE_ID]);
 			const filteredChanges = changes.filter(
-				(change) =>
-					change.type !== "remove" || !protectedIds.has(change.id),
+				(change) => change.type !== "remove" || !protectedIds.has(change.id),
 			);
 			const updated = applyNodeChanges(filteredChanges, state.nodes);
 			const nodes = ensureTerminalNodes(updated);
@@ -653,10 +848,7 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 				serviceManager.flowBuilderService
 					.deleteFlowConnection(selectedFlowId, edge.source, edge.target)
 					.catch((error) =>
-						logError(
-							"[FLOW_BUILDER] Failed to delete connection:",
-							error,
-						),
+						logError("[FLOW_BUILDER] Failed to delete connection:", error),
 					),
 			),
 		);
@@ -664,11 +856,19 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 
 	onConnect: (connection) => {
 		set((state) => {
-			if (connection.source === END_NODE_ID || connection.target === START_NODE_ID) {
+			if (
+				connection.source === END_NODE_ID ||
+				connection.target === START_NODE_ID
+			) {
 				return state;
 			}
 			if (connection.source === START_NODE_ID && connection.target) {
-				const nodes = setNodeFlag(state.nodes, connection.target, "isStart", true);
+				const nodes = setNodeFlag(
+					state.nodes,
+					connection.target,
+					"isStart",
+					true,
+				);
 				const edges = ensureVirtualEdge(
 					state.edges,
 					START_NODE_ID,
@@ -677,7 +877,12 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 				return { ...state, nodes, edges, isDirty: true };
 			}
 			if (connection.target === END_NODE_ID && connection.source) {
-				const nodes = setNodeFlag(state.nodes, connection.source, "isEnd", true);
+				const nodes = setNodeFlag(
+					state.nodes,
+					connection.source,
+					"isEnd",
+					true,
+				);
 				const edges = ensureVirtualEdge(
 					state.edges,
 					connection.source,
@@ -710,8 +915,9 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 			label = `${baseLabel} ${suffix}`;
 		}
 
+		const existingIds = new Set(get().nodes.map((node) => node.id));
 		const node: Node<FlowNodeData> = {
-			id: generateNodeId(),
+			id: generateUniqueNodeId(existingIds),
 			type: "flowStep",
 			position,
 			data: {

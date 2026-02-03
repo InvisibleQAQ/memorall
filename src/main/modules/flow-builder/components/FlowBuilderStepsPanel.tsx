@@ -72,7 +72,9 @@ export const FlowBuilderStepsPanel: React.FC<FlowBuilderStepsPanelProps> = ({
 					))}
 					{visibleSteps.length === 0 && (
 						<p className="text-sm text-muted-foreground">
-							{t("flowBuilder.noSteps", { defaultValue: "No steps available yet." })}
+							{t("flowBuilder.noSteps", {
+								defaultValue: "No steps available yet.",
+							})}
 						</p>
 					)}
 				</div>

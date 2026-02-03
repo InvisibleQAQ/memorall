@@ -34,6 +34,7 @@ export const FlowBuilderPage: React.FC = () => {
 		setFlowMeta,
 		addStateField,
 		removeStateField,
+		updateStateField,
 		onNodesChange,
 		onEdgesChange,
 		onConnect,
@@ -43,7 +44,9 @@ export const FlowBuilderPage: React.FC = () => {
 	const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
 	const [leftPanelOpen, setLeftPanelOpen] = React.useState(true);
 	const [rightPanelOpen, setRightPanelOpen] = React.useState(true);
-	const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null);
+	const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(
+		null,
+	);
 	const [isDeleting, setIsDeleting] = React.useState(false);
 
 	React.useEffect(() => {
@@ -126,6 +129,7 @@ export const FlowBuilderPage: React.FC = () => {
 					onFlowMetaChange={setFlowMeta}
 					onAddStateField={addStateField}
 					onRemoveStateField={removeStateField}
+					onUpdateStateField={updateStateField}
 				/>
 			</div>
 

@@ -11,27 +11,27 @@ const FoundationNode: React.FC<{
 }> = ({ label, handle, icon }) => {
 	const handleStyle = { top: "50%", transform: "translateY(-50%)" };
 	return (
-	<div className="flex flex-col items-center gap-2">
-		<div className="flow-foundation-node flex items-center justify-center text-muted-foreground">
-			{handle === "in" && (
-				<Handle
-					id="in"
-					type="target"
-					position={Position.Left}
-					style={handleStyle}
-				/>
-			)}
-			{handle === "out" && (
-				<Handle
-					id="out"
-					type="source"
-					position={Position.Right}
-					style={handleStyle}
-				/>
-			)}
-			<span className="text-foreground">{icon}</span>
+		<div className="flex flex-col items-center gap-2">
+			<div className="flow-foundation-node flex items-center justify-center text-muted-foreground">
+				{handle === "in" && (
+					<Handle
+						id="in"
+						type="target"
+						position={Position.Left}
+						style={handleStyle}
+					/>
+				)}
+				{handle === "out" && (
+					<Handle
+						id="out"
+						type="source"
+						position={Position.Right}
+						style={handleStyle}
+					/>
+				)}
+				<span className="text-foreground">{icon}</span>
+			</div>
 		</div>
-	</div>
 	);
 };
 

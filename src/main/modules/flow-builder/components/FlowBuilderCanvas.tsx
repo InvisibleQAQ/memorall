@@ -100,10 +100,13 @@ const FlowBuilderCanvasInner: React.FC<FlowBuilderCanvasProps> = ({
 		[onDropStep],
 	);
 
-	const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-		event.preventDefault();
-		event.dataTransfer.dropEffect = "move";
-	}, []);
+	const handleDragOver = useCallback(
+		(event: React.DragEvent<HTMLDivElement>) => {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = "move";
+		},
+		[],
+	);
 
 	return (
 		<section
@@ -140,16 +143,19 @@ const FlowBuilderCanvasInner: React.FC<FlowBuilderCanvasProps> = ({
 };
 
 // Memoize to prevent re-renders when unrelated state changes
-export const FlowBuilderCanvas = React.memo(FlowBuilderCanvasInner, (prev, next) => {
-	// Only re-render if nodes, edges, or selectedFlowId changed
-	return (
-		prev.nodes === next.nodes &&
-		prev.edges === next.edges &&
-		prev.selectedFlowId === next.selectedFlowId &&
-		prev.onNodesChange === next.onNodesChange &&
-		prev.onEdgesChange === next.onEdgesChange &&
-		prev.onConnect === next.onConnect &&
-		prev.onNodeClick === next.onNodeClick &&
-		prev.onDropStep === next.onDropStep
-	);
-});
+export const FlowBuilderCanvas = React.memo(
+	FlowBuilderCanvasInner,
+	(prev, next) => {
+		// Only re-render if nodes, edges, or selectedFlowId changed
+		return (
+			prev.nodes === next.nodes &&
+			prev.edges === next.edges &&
+			prev.selectedFlowId === next.selectedFlowId &&
+			prev.onNodesChange === next.onNodesChange &&
+			prev.onEdgesChange === next.onEdgesChange &&
+			prev.onConnect === next.onConnect &&
+			prev.onNodeClick === next.onNodeClick &&
+			prev.onDropStep === next.onDropStep
+		);
+	},
+);

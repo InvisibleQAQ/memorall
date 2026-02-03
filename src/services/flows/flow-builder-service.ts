@@ -5,6 +5,7 @@ import type {
 	FlowState,
 	FlowStep,
 	FlowConnection,
+	FlowService,
 } from "@/services/database/types";
 import type {
 	FlowCatalog,
@@ -17,6 +18,26 @@ import type {
 } from "./interfaces/flow-builder";
 import { logError, logInfo } from "@/utils/logger";
 import { getFlowCatalog } from "./flow-builder-catalog";
+
+const buildFlowServices = (
+	flowId: string,
+	serviceKeys: string[],
+): Omit<FlowService, "id" | "createdAt" | "updatedAt">[] => {
+	const catalog = getFlowCatalog();
+	const byKey = new Map(
+		catalog.services.map((service) => [service.serviceKey, service]),
+	);
+	return serviceKeys.map((serviceKey) => {
+		const catalogService = byKey.get(serviceKey);
+		return {
+			flowId,
+			name: catalogService?.name ?? serviceKey,
+			type: catalogService?.type ?? "custom",
+			serviceKey,
+			metadata: catalogService?.metadata ?? {},
+		};
+	});
+};
 
 export class FlowBuilderService {
 	constructor(private databaseService: IDatabaseService) {}
@@ -37,11 +58,15 @@ export class FlowBuilderService {
 
 			if (!flow) return null;
 
-			const [states, steps, connections] = await Promise.all([
+			const [states, services, steps, connections] = await Promise.all([
 				db
 					.select()
 					.from(schema.flowStates)
 					.where(eq(schema.flowStates.flowId, flowId)),
+				db
+					.select()
+					.from(schema.flowServices)
+					.where(eq(schema.flowServices.flowId, flowId)),
 				db
 					.select()
 					.from(schema.flowSteps)
@@ -53,10 +78,12 @@ export class FlowBuilderService {
 			]);
 
 			const layout =
-				(flow.metadata as { layout?: FlowLayout } | undefined)?.layout ?? undefined;
+				(flow.metadata as { layout?: FlowLayout } | undefined)?.layout ??
+				undefined;
 
 			return {
 				flow,
+				services,
 				states,
 				steps,
 				connections,
@@ -89,6 +116,14 @@ export class FlowBuilderService {
 					})
 					.returning();
 
+				const serviceKeys = input.serviceKeys ?? [];
+				const createdServices: FlowService[] = serviceKeys.length
+					? await db
+							.insert(schema.flowServices)
+							.values(buildFlowServices(flow.id, serviceKeys))
+							.returning()
+					: [];
+
 				const createdStates: FlowState[] = states.length
 					? await db
 							.insert(schema.flowStates)
@@ -108,6 +143,7 @@ export class FlowBuilderService {
 							.insert(schema.flowSteps)
 							.values(
 								steps.map((step) => ({
+									id: step.id,
 									flowId: flow.id,
 									name: step.name,
 									type: step.type,
@@ -128,8 +164,8 @@ export class FlowBuilderService {
 				steps.forEach((input, index) => {
 					const created = createdSteps[index];
 					if (created) {
-						// Map the original catalogStepId to the new DB step id
-						stepIdMap.set(input.catalogStepId, created.id);
+						const key = input.id ?? input.catalogStepId;
+						stepIdMap.set(key, created.id);
 					}
 				});
 
@@ -139,8 +175,12 @@ export class FlowBuilderService {
 							.values(
 								connections.map((connection) => ({
 									flowId: flow.id,
-									sourceStepId: stepIdMap.get(connection.sourceStepId) ?? connection.sourceStepId,
-									targetStepId: stepIdMap.get(connection.targetStepId) ?? connection.targetStepId,
+									sourceStepId:
+										stepIdMap.get(connection.sourceStepId) ??
+										connection.sourceStepId,
+									targetStepId:
+										stepIdMap.get(connection.targetStepId) ??
+										connection.targetStepId,
 									metadata: connection.metadata ?? {},
 								})),
 							)
@@ -149,6 +189,7 @@ export class FlowBuilderService {
 
 				return {
 					flow,
+					services: createdServices,
 					states: createdStates,
 					steps: createdSteps,
 					connections: createdConnections,
@@ -192,10 +233,27 @@ export class FlowBuilderService {
 
 				// Clear existing data for this flow
 				await Promise.all([
-					db.delete(schema.flowStates).where(eq(schema.flowStates.flowId, flowId)),
-					db.delete(schema.flowConnections).where(eq(schema.flowConnections.flowId, flowId)),
-					db.delete(schema.flowSteps).where(eq(schema.flowSteps.flowId, flowId)),
+					db
+						.delete(schema.flowStates)
+						.where(eq(schema.flowStates.flowId, flowId)),
+					db
+						.delete(schema.flowServices)
+						.where(eq(schema.flowServices.flowId, flowId)),
+					db
+						.delete(schema.flowConnections)
+						.where(eq(schema.flowConnections.flowId, flowId)),
+					db
+						.delete(schema.flowSteps)
+						.where(eq(schema.flowSteps.flowId, flowId)),
 				]);
+
+				const serviceKeys = updates.serviceKeys ?? [];
+				const createdServices: FlowService[] = serviceKeys.length
+					? await db
+							.insert(schema.flowServices)
+							.values(buildFlowServices(flowId, serviceKeys))
+							.returning()
+					: [];
 
 				const createdStates: FlowState[] = states.length
 					? await db
@@ -216,6 +274,7 @@ export class FlowBuilderService {
 							.insert(schema.flowSteps)
 							.values(
 								steps.map((step) => ({
+									id: step.id,
 									flowId,
 									name: step.name,
 									type: step.type,
@@ -236,7 +295,8 @@ export class FlowBuilderService {
 				steps.forEach((input, index) => {
 					const created = createdSteps[index];
 					if (created) {
-						stepIdMap.set(input.catalogStepId, created.id);
+						const key = input.id ?? input.catalogStepId;
+						stepIdMap.set(key, created.id);
 					}
 				});
 
@@ -246,8 +306,12 @@ export class FlowBuilderService {
 							.values(
 								connections.map((connection) => ({
 									flowId,
-									sourceStepId: stepIdMap.get(connection.sourceStepId) ?? connection.sourceStepId,
-									targetStepId: stepIdMap.get(connection.targetStepId) ?? connection.targetStepId,
+									sourceStepId:
+										stepIdMap.get(connection.sourceStepId) ??
+										connection.sourceStepId,
+									targetStepId:
+										stepIdMap.get(connection.targetStepId) ??
+										connection.targetStepId,
 									metadata: connection.metadata ?? {},
 								})),
 							)
@@ -255,11 +319,12 @@ export class FlowBuilderService {
 					: [];
 
 				const resolvedLayout =
-					(updatedFlow.metadata as { layout?: FlowLayout } | undefined)?.layout ??
-					layout;
+					(updatedFlow.metadata as { layout?: FlowLayout } | undefined)
+						?.layout ?? layout;
 
 				return {
 					flow: updatedFlow,
+					services: createdServices,
 					states: createdStates,
 					steps: createdSteps,
 					connections: createdConnections,
