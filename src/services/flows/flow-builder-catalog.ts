@@ -183,6 +183,10 @@ export function findCatalogStep(stepId: string): CatalogStep | undefined {
 }
 
 /** Find a catalog service by serviceKey */
-export function findCatalogService(serviceKey: string): CatalogService | undefined {
-	return DEFAULT_FLOW_SERVICES.find((service) => service.serviceKey === serviceKey);
+export function findCatalogService(
+	serviceKey: string,
+): CatalogService | undefined {
+	return DEFAULT_FLOW_SERVICES.find(
+		(service) => service.serviceKey === serviceKey,
+	);
 }

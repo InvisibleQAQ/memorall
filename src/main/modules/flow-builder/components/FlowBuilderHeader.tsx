@@ -61,13 +61,12 @@ export const FlowBuilderHeader: React.FC<FlowBuilderHeaderProps> = ({
 				<h1 className="text-lg font-semibold">
 					{t("navigation.flowBuilder", { defaultValue: "Flow Builder" })}
 				</h1>
-				<Select
-					value={selectedFlowId ?? ""}
-					onValueChange={onSelectFlow}
-				>
+				<Select value={selectedFlowId ?? ""} onValueChange={onSelectFlow}>
 					<SelectTrigger className="w-60">
 						<SelectValue
-							placeholder={t("flowBuilder.selectFlow", { defaultValue: "Select flow" })}
+							placeholder={t("flowBuilder.selectFlow", {
+								defaultValue: "Select flow",
+							})}
 						/>
 					</SelectTrigger>
 					<SelectContent>
@@ -117,7 +116,8 @@ export const FlowBuilderHeader: React.FC<FlowBuilderHeaderProps> = ({
 									: ""}
 								{isDirty
 									? ` ${t("flowBuilder.deleteUnsavedWarning", {
-											defaultValue: "You have unsaved changes that will be lost.",
+											defaultValue:
+												"You have unsaved changes that will be lost.",
 										})}`
 									: ""}
 							</AlertDialogDescription>

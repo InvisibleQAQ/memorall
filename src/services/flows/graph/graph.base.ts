@@ -49,7 +49,7 @@ export const normalizeChatMessages = (
 
 	toolById.forEach((bucket) => ordered.push(...bucket));
 	if (orphanTools?.length) {
-		logWarn('[NormalizeChatMessages] orphanTools', orphanTools)
+		logWarn("[NormalizeChatMessages] orphanTools", orphanTools);
 	}
 
 	const systemParts = [
@@ -58,12 +58,12 @@ export const normalizeChatMessages = (
 			typeof content === "string"
 				? content.trim()
 				: Array.isArray(content)
-						? content
-								.filter((part) => part.type === "text")
-								.map((part) => (part as { type: "text"; text: string }).text)
-								.join("\n")
-								.trim()
-						: "",
+					? content
+							.filter((part) => part.type === "text")
+							.map((part) => (part as { type: "text"; text: string }).text)
+							.join("\n")
+							.trim()
+					: "",
 		),
 	].filter(Boolean) as string[];
 
