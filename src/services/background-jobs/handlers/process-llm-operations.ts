@@ -12,7 +12,10 @@ import type {
 } from "./types";
 import { backgroundProcessFactory } from "./process-factory";
 import type { ChatCompletionRequest } from "@/types/openai";
-import { restoreAuthProvider } from "@/utils/auth-provider-restore";
+import {
+	checkProviderNeedsRestore,
+	restoreAuthProvider,
+} from "@/utils/auth-provider-restore";
 
 const JOB_NAMES = {
 	getCurrentModel: "get-current-model",
@@ -28,6 +31,7 @@ const JOB_NAMES = {
 	restoreAuthProvider: "restore-auth-provider",
 	removeAuthProvider: "remove-auth-provider",
 	detectSystemSpecs: "detect-system-specs",
+	checkProviderNeedsRestore: "check-provider-needs-restore",
 } as const;
 
 export interface GetCurrentModelPayload {
@@ -88,6 +92,10 @@ export interface RemoveAuthProviderPayload {
 	provider: "openai" | "openrouter";
 }
 
+export interface CheckProviderNeedsRestorePayload {
+	provider: "openai" | "openrouter";
+}
+
 export interface GetCurrentModelResult extends Record<string, unknown> {
 	modelInfo: unknown;
 }
@@ -143,6 +151,12 @@ export interface RemoveAuthProviderResult extends Record<string, unknown> {
 	provider: string;
 }
 
+export interface CheckProviderNeedsRestoreResult
+	extends Record<string, unknown> {
+	needsRestore: boolean;
+	provider: string;
+}
+
 export interface DetectSystemSpecsPayload {
 	// No payload needed
 }
@@ -176,7 +190,8 @@ export type LLMModelsJob = BaseJob & {
 		| RestoreAuthProviderPayload
 		| RemoveAuthProviderPayload
 		| GetMaxResponseTokensPayload
-		| DetectSystemSpecsPayload;
+		| DetectSystemSpecsPayload
+		| CheckProviderNeedsRestorePayload;
 };
 
 export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
@@ -212,6 +227,12 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 				return await this.handleGetMaxResponseTokens(jobId, job, dependencies);
 			case JOB_NAMES.detectSystemSpecs:
 				return await this.handleDetectSystemSpecs(jobId, job, dependencies);
+			case JOB_NAMES.checkProviderNeedsRestore:
+				return await this.handleCheckProviderNeedsRestore(
+					jobId,
+					job,
+					dependencies,
+				);
 			default:
 				throw new Error(`Unknown LLM job type: ${job.jobType}`);
 		}
@@ -918,6 +939,38 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 
 		return { specs };
 	}
+
+	private async handleCheckProviderNeedsRestore(
+		jobId: string,
+		job: BaseJob,
+		dependencies: ProcessDependencies,
+	): Promise<ItemHandlerResult> {
+		const { logger, updateJobProgress } = dependencies;
+		const payload = job.payload as CheckProviderNeedsRestorePayload;
+
+		await logger.info(
+			`Starting check-provider-needs-restore job for: ${payload.provider}`,
+			{ jobId },
+		);
+
+		await updateJobProgress(jobId, {
+			stage: `Checking if ${payload.provider} needs passkey restoration`,
+			progress: 50,
+		});
+
+		const needsRestore = await checkProviderNeedsRestore(payload.provider);
+
+		await logger.info(`Check-provider-needs-restore job completed`, {
+			jobId,
+			provider: payload.provider,
+			needsRestore,
+		});
+
+		return {
+			needsRestore,
+			provider: payload.provider,
+		};
+	}
 }
 
 // Self-register the handler
@@ -942,6 +995,7 @@ declare global {
 		"remove-auth-provider": RemoveAuthProviderPayload;
 		"get-max-response-tokens": GetMaxResponseTokensPayload;
 		"detect-system-specs": DetectSystemSpecsPayload;
+		"check-provider-needs-restore": CheckProviderNeedsRestorePayload;
 	}
 
 	interface JobResultRegistry {
@@ -958,5 +1012,6 @@ declare global {
 		"remove-auth-provider": RemoveAuthProviderResult;
 		"get-max-response-tokens": GetMaxResponseTokensResult;
 		"detect-system-specs": DetectSystemSpecsResult;
+		"check-provider-needs-restore": CheckProviderNeedsRestoreResult;
 	}
 }

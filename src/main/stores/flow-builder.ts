@@ -308,7 +308,11 @@ const normalizeNodesAndEdges = (
 			edge.id === `${edge.source}-${edge.target}`
 				? `${source}-${target}`
 				: edge.id;
-		if (source !== edge.source || target !== edge.target || nextId !== edge.id) {
+		if (
+			source !== edge.source ||
+			target !== edge.target ||
+			nextId !== edge.id
+		) {
 			changed = true;
 			return { ...edge, source, target, id: nextId };
 		}
@@ -487,9 +491,7 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 					const catalogStep = catalogStepById.get(layoutNode.stepId);
 					const nodeId = isUuid(layoutNode.stepId)
 						? layoutNode.stepId
-						: generateUniqueNodeId(
-								new Set(nodes.map((node) => node.id)),
-							);
+						: generateUniqueNodeId(new Set(nodes.map((node) => node.id)));
 					return {
 						id: nodeId,
 						type: "flowStep",
@@ -606,38 +608,38 @@ export const useFlowBuilderStore = create<FlowBuilderState>((set, get) => ({
 
 		if (!selectedFlowId) return;
 
-	set({ isSaving: true, error: null });
-	try {
-		const normalized = normalizeNodesAndEdges(nodes, edges);
-		if (normalized.changed) {
-			set({
-				nodes: normalized.nodes,
-				edges: normalized.edges,
-				isDirty: true,
-			});
-		}
+		set({ isSaving: true, error: null });
+		try {
+			const normalized = normalizeNodesAndEdges(nodes, edges);
+			if (normalized.changed) {
+				set({
+					nodes: normalized.nodes,
+					edges: normalized.edges,
+					isDirty: true,
+				});
+			}
 
-		const issues = validateFlowGraph(
-			normalized.nodes,
-			normalized.edges,
-			catalog.steps,
-		);
-		const errors = issues.filter((issue) => issue.severity === "error");
-		if (errors.length > 0) {
-			set({
-				isSaving: false,
-				error: errors.map((issue) => issue.message).join(" "),
-			});
-			return;
-		}
+			const issues = validateFlowGraph(
+				normalized.nodes,
+				normalized.edges,
+				catalog.steps,
+			);
+			const errors = issues.filter((issue) => issue.severity === "error");
+			if (errors.length > 0) {
+				set({
+					isSaving: false,
+					error: errors.map((issue) => issue.message).join(" "),
+				});
+				return;
+			}
 
-		const flowBuilderService = serviceManager.flowBuilderService;
-		const layout = buildLayout(normalized.nodes);
-		const steps = buildSteps(normalized.nodes);
-		const connections = buildConnections(normalized.edges, normalized.nodes);
-		const userStates = flowStates.filter(
-			(state) => !isBaseStateName(state.name),
-		);
+			const flowBuilderService = serviceManager.flowBuilderService;
+			const layout = buildLayout(normalized.nodes);
+			const steps = buildSteps(normalized.nodes);
+			const connections = buildConnections(normalized.edges, normalized.nodes);
+			const userStates = flowStates.filter(
+				(state) => !isBaseStateName(state.name),
+			);
 
 			const updated = await flowBuilderService.updateFlow(
 				selectedFlowId,

@@ -54,7 +54,7 @@ export class BackgroundJobMessageForwarder {
 				sender: chrome.runtime.MessageSender,
 				sendResponse: (response?: unknown) => void,
 			) => {
-				this.handleRuntimeMessage(message, sender, sendResponse);
+				return this.handleRuntimeMessage(message, sender, sendResponse);
 			},
 		);
 
@@ -65,19 +65,20 @@ export class BackgroundJobMessageForwarder {
 	/**
 	 * Handle incoming chrome.runtime messages
 	 * Relays JOB_NOTIFICATION_BRIDGE messages and JOB_PROGRESS messages to content scripts
+	 * @returns true if async response will be sent, false otherwise
 	 */
 	private handleRuntimeMessage(
 		message: unknown,
 		sender: chrome.runtime.MessageSender,
 		sendResponse: (response?: unknown) => void,
-	): void {
+	): boolean {
 		// Handle JOB_NOTIFICATION_BRIDGE messages
 		if (this.isJobNotificationBridgeMessage(message)) {
 			const { jobMessage } = message;
 
 			// Only relay messages that should go to content scripts
 			if (!this.shouldRelayToContentScripts(jobMessage, sender)) {
-				return;
+				return false;
 			}
 
 			// Relay the entire JOB_NOTIFICATION_BRIDGE message to content scripts
@@ -89,8 +90,10 @@ export class BackgroundJobMessageForwarder {
 					logError("Failed to relay message to content scripts:", error);
 					sendResponse({ success: false, error: error.message });
 				});
-			return;
+			return true; // Keep channel open for async response
 		}
+
+		return false;
 	}
 
 	/**

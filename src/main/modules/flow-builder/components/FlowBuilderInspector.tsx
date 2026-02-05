@@ -214,7 +214,9 @@ interface FieldsEditorProps {
 }
 
 const FieldsEditor: React.FC<FieldsEditorProps> = ({ fields, onChange }) => {
-	const [enumDrafts, setEnumDrafts] = React.useState<Record<string, string>>({});
+	const [enumDrafts, setEnumDrafts] = React.useState<Record<string, string>>(
+		{},
+	);
 
 	React.useEffect(() => {
 		setEnumDrafts((prev) => {
@@ -226,7 +228,10 @@ const FieldsEditor: React.FC<FieldsEditorProps> = ({ fields, onChange }) => {
 						next[key] = formatEnumValues(field.schema.values);
 					}
 				}
-				if (field.schema.type === "array" && field.schema.element.type === "enum") {
+				if (
+					field.schema.type === "array" &&
+					field.schema.element.type === "enum"
+				) {
 					const key = `${index}-${field.name}-array`;
 					if (!(key in next)) {
 						next[key] = formatEnumValues(field.schema.element.values);
@@ -1099,7 +1104,8 @@ export const FlowBuilderInspector: React.FC<FlowBuilderInspectorProps> = ({
 																onChange={(event) =>
 																	setEnumDrafts((prev) => ({
 																		...prev,
-																		[`${state.name}::array`]: event.target.value,
+																		[`${state.name}::array`]:
+																			event.target.value,
 																	}))
 																}
 																onBlur={(event) =>

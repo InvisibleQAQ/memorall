@@ -25,6 +25,10 @@ export const EMBEDDED_TRANSLATIONS = {
 			whatDoYouKnow: "What do you know about:",
 			errorMessage:
 				"Sorry, I encountered an error while processing your request. Please try again.",
+			authRequired: "Authentication Required",
+			authRequiredDescription:
+				"Your model requires authentication. Please open the main app to enter your passkey.",
+			openMainApp: "Open Main App",
 		},
 		// Topic selector translations
 		topicSelector: {
@@ -84,6 +88,10 @@ export const EMBEDDED_TRANSLATIONS = {
 			whatDoYouKnow: "Bạn biết gì về:",
 			errorMessage:
 				"Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.",
+			authRequired: "Yêu cầu xác thực",
+			authRequiredDescription:
+				"Mô hình của bạn yêu cầu xác thực. Vui lòng mở ứng dụng chính để nhập mật khẩu.",
+			openMainApp: "Mở ứng dụng chính",
 		},
 		// Topic selector translations
 		topicSelector: {
