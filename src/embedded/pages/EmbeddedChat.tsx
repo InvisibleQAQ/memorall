@@ -56,6 +56,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	const [selectedModel, setSelectedModel] = useState<string>("");
 	const [selectedProvider, setSelectedProvider] = useState<string>("");
 	const [modelAvailable, setModelAvailable] = useState(false);
+	const [needsPasskey, setNeedsPasskey] = useState(false);
 	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
 	const [selectedTopic, setSelectedTopic] = useState<string>("");
 	const [topicsLoading, setTopicsLoading] = useState(true);
@@ -157,8 +158,34 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 						"modelId" in modelInfo &&
 						"provider" in modelInfo
 					) {
+						const provider = `${modelInfo.provider}`;
 						setSelectedModel(`${modelInfo.modelId}`);
-						setSelectedProvider(`${modelInfo.provider}`);
+						setSelectedProvider(provider);
+
+						// Check if provider needs passkey restoration (openai/openrouter)
+						if (provider === "openai" || provider === "openrouter") {
+							const checkResult = await backgroundJob.execute(
+								"check-provider-needs-restore",
+								{ provider: provider as "openai" | "openrouter" },
+								{ stream: false },
+							);
+
+							if ("promise" in checkResult) {
+								const checkJobResult = await checkResult.promise;
+								if (
+									checkJobResult.status === "completed" &&
+									checkJobResult.result?.needsRestore
+								) {
+									logInfo(
+										`[EmbeddedChat] Provider ${provider} needs passkey restoration`,
+									);
+									setNeedsPasskey(true);
+									setModelAvailable(false);
+									return;
+								}
+							}
+						}
+
 						setModelAvailable(true);
 					} else {
 						setModelAvailable(false);
@@ -480,7 +507,44 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					onScroll={handleScroll}
 				>
 					<ConversationContent className="space-y-4">
-						{messages.length === 0 ? (
+						{/* Show passkey required banner */}
+						{needsPasskey ? (
+							<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+								<div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3">
+									<svg
+										className="w-6 h-6 text-amber-600 dark:text-amber-400"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+										/>
+									</svg>
+								</div>
+								<h3 className="font-medium mb-2 text-foreground">
+									{texts.chat.authRequired || "Authentication Required"}
+								</h3>
+								<p className="text-muted-foreground text-xs leading-relaxed mb-4">
+									{texts.chat.authRequiredDescription ||
+										`Your ${selectedProvider} model requires authentication. Please open the main app to enter your passkey.`}
+								</p>
+								<button
+									onClick={() => {
+										chrome.runtime.sendMessage({
+											type: "OPEN_FULL_PAGE",
+										});
+										onClose();
+									}}
+									className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+								>
+									{texts.chat.openMainApp || "Open Main App"}
+								</button>
+							</div>
+						) : messages.length === 0 ? (
 							<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
 								<div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3 overflow-hidden">
 									<img

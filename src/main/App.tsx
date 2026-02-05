@@ -38,7 +38,7 @@ import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
 import { DocumentLibraryPage } from "./pages/DocumentLibraryPage";
 import { ActivityTimelinePage } from "./pages/ActivityTimelinePage";
 import { AuthPage } from "./pages/AuthPage";
-import { FlowBuilderPage } from "./pages/FlowBuilderPage";
+import { FlowBuilderPage } from "./pages/FlowBuilderPage/FlowBuilderPage";
 import { registerAllEditors } from "@/main/modules/documents/editors";
 import { useAuthInit } from "@/main/modules/supabase";
 
