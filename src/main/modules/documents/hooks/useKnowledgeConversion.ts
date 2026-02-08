@@ -6,7 +6,7 @@
 import { useCallback } from "react";
 import { logInfo, logError } from "@/utils/logger";
 import { backgroundJob } from "@/services/background-jobs/background-job";
-import { documentFileSystemService } from "@/services/file-system/document-file-system";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import type { DocumentFile } from "@/types/document-library";
 import type { Topic } from "@/services/database/types";

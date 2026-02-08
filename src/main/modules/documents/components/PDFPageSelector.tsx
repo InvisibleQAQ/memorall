@@ -21,7 +21,7 @@ import {
 } from "@/main/components/ui/dialog";
 import { Badge } from "@/main/components/ui/badge";
 import type { DocumentFile } from "@/types/document-library";
-import { documentFileSystemService } from "@/services/file-system/document-file-system";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import {
 	readPDFFile,
 	type PDFPageContent,

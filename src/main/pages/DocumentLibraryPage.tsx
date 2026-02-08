@@ -28,7 +28,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/main/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/main/components/ui/alert";
-import { documentFileSystemService } from "@/services/file-system/document-file-system";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import { DocumentTreeDraggable } from "@/main/modules/documents/components/DocumentTreeDraggable";
 import { DocumentList } from "@/main/modules/documents/components/DocumentList";
 import { DocumentViewer } from "@/main/modules/documents/components/DocumentViewer";

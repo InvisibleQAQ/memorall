@@ -3,7 +3,7 @@
  * Direct filesystem operations without metadata
  */
 
-import fs, { initializeFs, refreshFsCache } from "@/services/file-system/fs";
+import fs, { initializeFs, refreshFsCache } from "@/services/filesystem/fs";
 import { logInfo, logError, logDebug } from "@/utils/logger";
 import type {
 	DocumentFile,
@@ -15,8 +15,8 @@ import { BACKGROUND_EVENTS } from "@/constants/events";
 
 const DOCUMENTS_ROOT = "/home/documents";
 
-class DocumentFileSystemService {
-	private static instance: DocumentFileSystemService;
+export class DocumentFileSystem {
+	private static instance: DocumentFileSystem;
 	private initialized = false;
 	private changeListeners: Set<() => void> = new Set();
 	private messageListenerRegistered = false;
@@ -31,11 +31,11 @@ class DocumentFileSystemService {
 		this.registerMessageListener();
 	}
 
-	static getInstance(): DocumentFileSystemService {
-		if (!DocumentFileSystemService.instance) {
-			DocumentFileSystemService.instance = new DocumentFileSystemService();
+	static getInstance(): DocumentFileSystem {
+		if (!DocumentFileSystem.instance) {
+			DocumentFileSystem.instance = new DocumentFileSystem();
 		}
-		return DocumentFileSystemService.instance;
+		return DocumentFileSystem.instance;
 	}
 
 	/**
@@ -1149,4 +1149,4 @@ class DocumentFileSystemService {
 	}
 }
 
-export const documentFileSystemService = DocumentFileSystemService.getInstance();
+export const documentFileSystemService = DocumentFileSystem.getInstance();

@@ -25,7 +25,7 @@ export interface SaveContentData {
 	textContent?: string;
 	topicId?: string;
 }
-import { documentFileSystemService } from "@/services/file-system/document-file-system";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import { BaseProcessHandler } from "./base-process-handler";
 import type { ProcessDependencies, BaseJob, ItemHandlerResult } from "./types";
 import { backgroundProcessFactory } from "./process-factory";

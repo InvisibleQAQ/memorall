@@ -30,7 +30,7 @@ import { ScrollArea } from "@/main/components/ui/scroll-area";
 import { Button } from "@/main/components/ui/button";
 import { Badge } from "@/main/components/ui/badge";
 import { Separator } from "@/main/components/ui/separator";
-import { documentFileSystemService } from "@/services/file-system/document-file-system";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
 import { PDFPageSelector } from "./PDFPageSelector";
 import { ExcelViewer } from "./ExcelViewer";
