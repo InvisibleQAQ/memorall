@@ -3,7 +3,6 @@ import "./calculator";
 import "./current-time";
 import "./js-execute";
 import "./knowledge-graph";
-import "./memory-search";
 import "./doc-search";
 import "./doc-read";
 import "./doc-write";

@@ -12,9 +12,6 @@ export const TOOL_DISPLAY_INFO: Record<string, { description: string }> = {
 	calculator: {
 		description: "Perform basic mathematical calculations",
 	},
-	memory_search: {
-		description: "Search through conversation memory and knowledge base",
-	},
 	knowledge_graph: {
 		description: "Query the knowledge graph for relationships and entities",
 	},

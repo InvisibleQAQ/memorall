@@ -9,6 +9,15 @@ import { stepRegistry } from "@/services/flows/step-registry";
 
 const STEP_NAME = "entities-facts-to-context" as const;
 
+const stableHash = (value: string): string => {
+	let hash = 0;
+	for (let i = 0; i < value.length; i++) {
+		hash = (hash << 5) - hash + value.charCodeAt(i);
+		hash |= 0;
+	}
+	return Math.abs(hash).toString(36);
+};
+
 // ============================================================================
 // STEP-SPECIFIC TYPES
 // ============================================================================
@@ -133,15 +142,26 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 				edges: input.relevantEdges,
 			};
 
+			const nodeIds = input.relevantNodes
+				.map((node) => node.id)
+				.sort()
+				.join("|");
+			const edgeIds = input.relevantEdges
+				.map((edge) => edge.id)
+				.sort()
+				.join("|");
+			const contextHash = stableHash(knowledgeContext);
+			const retrievalHash = stableHash(`${nodeIds}::${edgeIds}`);
+
 			const actions = [
 				{
-					id: crypto.randomUUID(),
+					id: `knowledge_graph_${retrievalHash}`,
 					name: "knowledge_graph",
 					description: `Retrieved ${input.relevantNodes.length} nodes and ${input.relevantEdges.length} edges`,
 					metadata: actionMetadata,
 				},
 				{
-					id: crypto.randomUUID(),
+					id: `context_knowledge_${contextHash}`,
 					name: "context_knowledge",
 					description: knowledgeContext,
 					metadata: {},
