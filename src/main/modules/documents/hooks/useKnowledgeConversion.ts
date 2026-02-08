@@ -6,7 +6,7 @@
 import { useCallback } from "react";
 import { logInfo, logError } from "@/utils/logger";
 import { backgroundJob } from "@/services/background-jobs/background-job";
-import { documentStorageService } from "../services/document-storage";
+import { documentFileSystemService } from "@/services/file-system/document-file-system";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import type { DocumentFile } from "@/types/document-library";
 import type { Topic } from "@/services/database/types";
@@ -55,7 +55,7 @@ export async function convertToKnowledge(
 
 		// Get content based on file type
 		let content: string;
-		const fileContent = await documentStorageService.getFileContent(file.id);
+		const fileContent = await documentFileSystemService.getFileContent(file.id);
 
 		switch (file.type) {
 			case "text":

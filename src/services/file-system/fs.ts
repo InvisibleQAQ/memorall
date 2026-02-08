@@ -1,4 +1,4 @@
-import { configure, InMemory, fs, resolveMountConfig } from "@zenfs/core";
+import { configure, InMemory, fs } from "@zenfs/core";
 import { IndexedDB } from "@zenfs/dom";
 import { logDebug, logError, logInfo } from "@/utils/logger";
 

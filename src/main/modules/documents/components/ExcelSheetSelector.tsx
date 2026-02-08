@@ -20,7 +20,7 @@ import {
 } from "@/main/components/ui/dialog";
 import { Badge } from "@/main/components/ui/badge";
 import type { DocumentFile } from "@/types/document-library";
-import { documentStorageService } from "@/main/modules/documents/services/document-storage";
+import { documentFileSystemService } from "@/services/file-system/document-file-system";
 import {
 	parseExcelFile,
 	sheetToMarkdown,
@@ -57,7 +57,7 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 	const loadExcelSheets = async () => {
 		try {
 			setLoading(true);
-			const content = await documentStorageService.getFileContent(file.id);
+			const content = await documentFileSystemService.getFileContent(file.id);
 
 			// Parse Excel file
 			const wb = await parseExcelFile(content);

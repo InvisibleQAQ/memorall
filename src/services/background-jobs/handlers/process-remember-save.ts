@@ -25,7 +25,7 @@ export interface SaveContentData {
 	textContent?: string;
 	topicId?: string;
 }
-import { documentStorageService } from "@/main/modules/documents/services/document-storage";
+import { documentFileSystemService } from "@/services/file-system/document-file-system";
 import { BaseProcessHandler } from "./base-process-handler";
 import type { ProcessDependencies, BaseJob, ItemHandlerResult } from "./types";
 import { backgroundProcessFactory } from "./process-factory";
@@ -199,8 +199,8 @@ export class RememberSaveHandler extends BaseProcessHandler<RememberSaveJob> {
 			const file = new File([textBlob], fileName, { type: "text/plain" });
 
 			// Save to document library
-			await documentStorageService.initialize();
-			const savedFile = await documentStorageService.uploadFile(
+			await documentFileSystemService.initialize();
+			const savedFile = await documentFileSystemService.uploadFile(
 				file,
 				folderPath,
 			);

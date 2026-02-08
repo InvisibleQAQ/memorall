@@ -21,7 +21,7 @@ import {
 } from "@/main/components/ui/dialog";
 import { Badge } from "@/main/components/ui/badge";
 import type { DocumentFile } from "@/types/document-library";
-import { documentStorageService } from "@/main/modules/documents/services/document-storage";
+import { documentFileSystemService } from "@/services/file-system/document-file-system";
 import {
 	readPDFFile,
 	type PDFPageContent,
@@ -59,7 +59,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 	const loadPDFPages = async () => {
 		try {
 			setLoading(true);
-			const content = await documentStorageService.getFileContent(file.id);
+			const content = await documentFileSystemService.getFileContent(file.id);
 			const arrayBuffer =
 				content.buffer instanceof ArrayBuffer
 					? content.buffer
@@ -114,7 +114,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 			setConverting(true);
 
 			// Get file content from storage and convert to text in main thread
-			const fileContent = await documentStorageService.getFileContent(file.id);
+			const fileContent = await documentFileSystemService.getFileContent(file.id);
 			const pageNumbers = Array.from(selectedPages).sort((a, b) => a - b);
 
 			logInfo(

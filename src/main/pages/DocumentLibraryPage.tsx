@@ -28,7 +28,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/main/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/main/components/ui/alert";
-import { documentStorageService } from "@/main/modules/documents/services/document-storage";
+import { documentFileSystemService } from "@/services/file-system/document-file-system";
 import { DocumentTreeDraggable } from "@/main/modules/documents/components/DocumentTreeDraggable";
 import { DocumentList } from "@/main/modules/documents/components/DocumentList";
 import { DocumentViewer } from "@/main/modules/documents/components/DocumentViewer";
@@ -104,7 +104,7 @@ export const DocumentLibraryPage: React.FC = () => {
 	// Listen for filesystem changes from other contexts (e.g., offscreen)
 	// Using the unified service API instead of scattered message listeners
 	useEffect(() => {
-		const unsubscribe = documentStorageService.onFilesystemChanged(() => {
+		const unsubscribe = documentFileSystemService.onFilesystemChanged(() => {
 			logInfo(
 				"[DOCUMENT_LIBRARY] Filesystem changed, reloading tree and topics...",
 			);
@@ -124,11 +124,11 @@ export const DocumentLibraryPage: React.FC = () => {
 	const initializeLibrary = async () => {
 		try {
 			setLoading(true);
-			await documentStorageService.initialize();
+			await documentFileSystemService.initialize();
 
 			// Force refresh cache to ensure we load fresh data when page opens
 			// This prevents showing stale cached data from previous sessions
-			documentStorageService.forceRefresh();
+			documentFileSystemService.forceRefresh();
 
 			await Promise.all([loadTree(), loadTopics()]);
 			setError(null);
@@ -159,7 +159,7 @@ export const DocumentLibraryPage: React.FC = () => {
 
 	const loadTree = async () => {
 		try {
-			const treeData = await documentStorageService.getTree();
+			const treeData = await documentFileSystemService.getTree();
 			setTree(treeData);
 			// Select root by default if nothing selected
 			if (!selectedNode && treeData.length > 0) {
@@ -314,7 +314,7 @@ export const DocumentLibraryPage: React.FC = () => {
 				updateProgress(id, 70, "uploading");
 
 				// Upload file
-				await documentStorageService.uploadFile(file, currentPath, metadata);
+				await documentFileSystemService.uploadFile(file, currentPath, metadata);
 
 				updateProgress(id, 100, "completed");
 
@@ -356,7 +356,7 @@ export const DocumentLibraryPage: React.FC = () => {
 			// Get the current folder path for creating subfolder
 			const targetPath =
 				selectedNode?.type === "folder" ? selectedNode.path : "/";
-			await documentStorageService.createFolder(folderName, targetPath);
+			await documentFileSystemService.createFolder(folderName, targetPath);
 			await loadTree();
 		} catch (err) {
 			logError("Failed to create folder:", err);
@@ -388,7 +388,7 @@ export const DocumentLibraryPage: React.FC = () => {
 			});
 
 			// Upload the file
-			await documentStorageService.uploadFile(file, targetPath);
+			await documentFileSystemService.uploadFile(file, targetPath);
 
 			// Reload tree to show new document
 			const newTree = await loadTree();
@@ -441,9 +441,9 @@ export const DocumentLibraryPage: React.FC = () => {
 
 		try {
 			if (item.type === "file") {
-				await documentStorageService.deleteFile(item.item.id);
+				await documentFileSystemService.deleteFile(item.item.id);
 			} else {
-				await documentStorageService.deleteFolder(item.item.id);
+				await documentFileSystemService.deleteFolder(item.item.id);
 			}
 
 			const newTree = await loadTree();
@@ -486,9 +486,9 @@ export const DocumentLibraryPage: React.FC = () => {
 	) => {
 		try {
 			if (item.type === "file") {
-				await documentStorageService.renameFile(item.item.id, newName);
+				await documentFileSystemService.renameFile(item.item.id, newName);
 			} else {
-				await documentStorageService.renameFolder(item.item.id, newName);
+				await documentFileSystemService.renameFolder(item.item.id, newName);
 			}
 
 			const newTree = await loadTree();
@@ -531,7 +531,7 @@ export const DocumentLibraryPage: React.FC = () => {
 		}
 
 		try {
-			await documentStorageService.deleteFile(selectedNode.id);
+			await documentFileSystemService.deleteFile(selectedNode.id);
 			const newTree = await loadTree();
 
 			// Go back to parent folder
@@ -565,7 +565,7 @@ export const DocumentLibraryPage: React.FC = () => {
 
 	const handleDownloadFile = async (fileId: string) => {
 		try {
-			const content = await documentStorageService.getFileContent(fileId);
+			const content = await documentFileSystemService.getFileContent(fileId);
 
 			// Find file in tree
 			const findFile = (nodes: DocumentTreeNode[]): DocumentFile | null => {
@@ -711,9 +711,9 @@ export const DocumentLibraryPage: React.FC = () => {
 			});
 
 			if (nodeType === "file") {
-				await documentStorageService.moveFile(nodeId, targetFolderId);
+				await documentFileSystemService.moveFile(nodeId, targetFolderId);
 			} else {
-				await documentStorageService.moveFolder(nodeId, targetFolderId);
+				await documentFileSystemService.moveFolder(nodeId, targetFolderId);
 			}
 
 			// Reload tree to reflect the changes
