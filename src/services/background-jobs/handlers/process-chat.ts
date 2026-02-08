@@ -14,6 +14,7 @@ import {
 import { handlerRegistry } from "./handler-registry";
 import type { KnowledgeRAGState } from "@/services/flows/graph/knowledge-rag/state";
 import { sql } from "drizzle-orm";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
@@ -341,6 +342,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						llm: serviceManager.llmService,
 						embedding: serviceManager.embeddingService,
 						database: serviceManager.databaseService,
+						documentFileSystem: documentFileSystemService
 					},
 					{
 						responseMode: "agent",

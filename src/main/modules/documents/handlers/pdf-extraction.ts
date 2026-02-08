@@ -2,7 +2,6 @@ import { logError } from "@/utils/logger";
 import * as pdfjsLib from "pdfjs-dist";
 import type {
 	TextItem,
-	TextMarkedContent,
 } from "pdfjs-dist/types/src/display/api";
 
 // Configure PDF.js worker to use bundled worker file

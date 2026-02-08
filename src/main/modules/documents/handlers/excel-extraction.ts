@@ -4,7 +4,6 @@
  */
 
 import * as XLSX from "xlsx";
-import type { DocumentFile } from "@/types/document-library";
 
 export interface ExcelMetadata {
 	sheetCount: number;

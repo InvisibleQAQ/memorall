@@ -18,7 +18,16 @@ import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
 
 // Tool names available to the agent
-const TOOL_NAMES = ["current_time", "js_execute"] as const;
+const TOOL_NAMES = [
+	"current_time",
+	"js_execute",
+	"doc_search",
+	"doc_read",
+	"doc_write",
+	"doc_edit",
+	"doc_remove",
+	"doc_move",
+] as const;
 
 // Derive services from tools + graph's own needs (llm for calling the model)
 type AgentServices = CombinedServices<typeof TOOL_NAMES, "llm">;

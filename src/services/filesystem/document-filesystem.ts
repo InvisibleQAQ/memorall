@@ -747,9 +747,13 @@ export class DocumentFileSystem {
 	 * Delete a folder
 	 */
 	async deleteFolder(folderId: string): Promise<void> {
-		// This is complex without metadata, would need to scan and find folder
-		// For now, throw error
-		throw new Error("Folder deletion not implemented in simple mode");
+		await this.initialize();
+		const fullPath = `${DOCUMENTS_ROOT}${folderId}`;
+		const stats = await fs.promises.stat(fullPath);
+		if (!stats.isDirectory()) throw new Error(`Path is not a folder: ${folderId}`);
+		await this.deleteDirectoryRecursive(fullPath);
+		logInfo(`Deleted folder recursively: ${folderId}`);
+		this.notifyFilesystemChanged();
 	}
 
 	/**
