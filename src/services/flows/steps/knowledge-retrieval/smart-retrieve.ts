@@ -65,6 +65,8 @@ export interface SmartRetrieveOutput {
 	errors?: string[];
 }
 
+export type SmartRetrieveServices = Pick<AllServices, 'database' | 'embedding'>
+
 // ============================================================================
 // CONFIGURATION TYPES
 // ============================================================================
@@ -546,7 +548,7 @@ function calculateGraphMetrics(
 const definition = defineStep<
 	SmartRetrieveInput,
 	SmartRetrieveOutput,
-	AllServices,
+	SmartRetrieveServices,
 	Partial<SmartRetrievalConfig>
 >({
 	name: STEP_NAME,
@@ -921,23 +923,6 @@ const definition = defineStep<
 				relevanceScore: edge.finalScore ?? edge.semanticScore,
 			}));
 
-			const actions = [
-				{
-					id: crypto.randomUUID(),
-					name: "Smart Retrieval Complete",
-					description: `Found ${relevantNodes.length} nodes and ${relevantEdges.length} edges using smart hybrid retrieval`,
-					metadata: {
-						mode: "smart",
-						seedNodes: seedNodes.length,
-						seedEdges: seedEdges.length,
-						finalNodes: relevantNodes.length,
-						finalEdges: relevantEdges.length,
-						queryComponents: queryComponents.length,
-					},
-				},
-			];
-			runConfig?.writer?.({ type: "actions", actions });
-
 			return {
 				output: {
 					relevantNodes,
@@ -974,7 +959,7 @@ const definition = defineStep<
 type SmartRetrieveSpec = StepSpecFromDefinition<typeof definition>;
 
 export const createSmartRetrieveStep: StepFactoryFromSpec<SmartRetrieveSpec> = (
-	services: AllServices,
+	services: SmartRetrieveServices,
 	config?: Partial<SmartRetrievalConfig>,
 ) => bindStep(definition, services, config);
 

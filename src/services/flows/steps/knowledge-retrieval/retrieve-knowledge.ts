@@ -58,6 +58,8 @@ export interface RetrieveKnowledgeOutput {
 	errors?: string[];
 }
 
+export type RetrieveKnowledgeServices = Pick<AllServices, 'database' | 'embedding'>
+
 // ============================================================================
 // STEP IMPLEMENTATION
 // ============================================================================
@@ -65,7 +67,7 @@ export interface RetrieveKnowledgeOutput {
 const definition = defineStep<
 	RetrieveKnowledgeInput,
 	RetrieveKnowledgeOutput,
-	AllServices
+	RetrieveKnowledgeServices
 >({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
@@ -452,7 +454,7 @@ type RetrieveKnowledgeSpec = StepSpecFromDefinition<typeof definition>;
 
 export const createRetrieveKnowledgeStep: StepFactoryFromSpec<
 	RetrieveKnowledgeSpec
-> = (services: AllServices) => bindStep(definition, services);
+> = (services: RetrieveKnowledgeServices) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createRetrieveKnowledgeStep);
 

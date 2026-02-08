@@ -53,7 +53,6 @@ export const YourModels: React.FC<YourModelsProps> = ({
 	const {
 		getState,
 		setStateReady,
-		setPasskeyExists,
 		setConfigExists,
 		localConfigExists,
 		setLocalConfigExists,
@@ -166,7 +165,6 @@ export const YourModels: React.FC<YourModelsProps> = ({
 								<OpenAITab
 									onModelLoaded={(modelId) => {
 										setStateReady("openai", true);
-										setPasskeyExists("openai", true);
 										setConfigExists("openai", true);
 										onModelLoaded?.(modelId, "openai");
 									}}
@@ -175,7 +173,6 @@ export const YourModels: React.FC<YourModelsProps> = ({
 								<OpenRouterTab
 									onModelLoaded={(modelId) => {
 										setStateReady("openrouter", true);
-										setPasskeyExists("openrouter", true);
 										setConfigExists("openrouter", true);
 										onModelLoaded?.(modelId, "openrouter");
 									}}

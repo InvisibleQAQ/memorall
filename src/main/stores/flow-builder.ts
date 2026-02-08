@@ -81,7 +81,7 @@ const UUID_REGEX =
 
 const isUuid = (value: string): boolean => UUID_REGEX.test(value);
 
-const BASE_STATE_NAMES = new Set(["messages", "finalMessage"]);
+const BASE_STATE_NAMES = new Set(["messages", "response"]);
 
 const DEFAULT_BASE_STATES: FlowStateInput[] = [
 	{
@@ -135,7 +135,7 @@ const DEFAULT_BASE_STATES: FlowStateInput[] = [
 		},
 	},
 	{
-		name: "finalMessage",
+		name: "response",
 		type: "string",
 		metadata: {
 			zod: {

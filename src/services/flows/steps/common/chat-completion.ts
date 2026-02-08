@@ -25,7 +25,7 @@ export interface ChatCompletionInput {
 }
 
 export interface ChatCompletionOutput {
-	finalMessage: string;
+	response: string;
 }
 
 export type ChatCompletionServices = Pick<AllServices, "llm">;
@@ -77,7 +77,7 @@ const definition = defineStep<
 
 		return {
 			output: {
-				finalMessage: responseContent,
+				response: responseContent,
 			},
 		};
 	},

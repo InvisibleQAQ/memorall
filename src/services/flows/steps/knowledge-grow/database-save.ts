@@ -84,7 +84,7 @@ export interface KnowledgeDatabaseSaveOutput {
 	createdNodes?: Partial<Node>[];
 	createdEdges?: Partial<Edge>[];
 	processingStage?: string;
-	finalMessage?: string;
+	response?: string;
 	errors?: string[];
 }
 
@@ -603,7 +603,7 @@ const definition = defineStep<
 					createdNodes,
 					createdEdges,
 					processingStage: "completed",
-					finalMessage: `Knowledge graph creation completed. Created ${createdNodes.length} new nodes and ${createdEdges.length} new edges from "${input.title}".`,
+					response: `Knowledge graph creation completed. Created ${createdNodes.length} new nodes and ${createdEdges.length} new edges from "${input.title}".`,
 				},
 			};
 		} catch (error) {
@@ -626,7 +626,7 @@ const definition = defineStep<
 							? error.message
 							: "Failed to save to database",
 					],
-					finalMessage:
+					response:
 						"Knowledge graph creation failed during database save operation.",
 				},
 			};

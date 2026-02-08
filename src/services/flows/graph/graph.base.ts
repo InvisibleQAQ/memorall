@@ -7,7 +7,7 @@ import { logWarn } from "@/utils/logger";
 
 export interface BaseStateBase {
 	messages: ChatCompletionMessageParam[];
-	finalMessage: string;
+	response?: string;
 }
 
 export const normalizeChatMessages = (
@@ -75,7 +75,7 @@ export const BaseAnnotation = {
 		value: (x, y) => normalizeChatMessages(y ?? x),
 		default: () => [],
 	}),
-	finalMessage: Annotation<string>({
+	response: Annotation<string>({
 		value: (x, y) => y ?? x,
 		default: () => "",
 	}),

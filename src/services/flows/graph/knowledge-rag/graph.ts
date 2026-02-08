@@ -25,13 +25,9 @@ Structure your answer in clear sections when appropriate.
 `;
 
 export class KnowledgeRAGFlow extends GraphBase<
-	| "analyze_query"
-	| "retrieve_knowledge"
-	| "quick_retrieve"
-	| "smart_retrieve"
-	| "build_context"
-	| "generate_response"
-	| "agent_response"
+	| "context_retrieve"
+	| "final_response"
+	| "emit_context"
 	| "citation",
 	KnowledgeRAGState,
 	AllServices
@@ -39,12 +35,6 @@ export class KnowledgeRAGFlow extends GraphBase<
 	private mode: "standard" | "quick" | "smart";
 	private responseMode: "simple" | "agent";
 	private configTools?: KnowledgeRAGConfig["tools"];
-	private chatCompletionStep!: ReturnType<
-		typeof stepRegistry.getStep<"chat-completion">
-	>;
-	private agentCompletionStep!: ReturnType<
-		typeof stepRegistry.getStep<"agent-completion">
-	>;
 
 	constructor(services: AllServices, config: KnowledgeRAGConfig = {}) {
 		super(services);
@@ -56,63 +46,63 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
 
-		const buildContextStep = stepRegistry.getStep(
-			"entities-facts-to-context",
-			{},
-		);
 		const citationStep = stepRegistry.getStep(
 			"entities-facts-citation",
 			services,
 		);
-		this.chatCompletionStep = stepRegistry.getStep("chat-completion", services);
-		this.agentCompletionStep = stepRegistry.getStep(
+		const chatCompletionStep = stepRegistry.getStep("chat-completion", services);
+		const agentCompletionStep = stepRegistry.getStep(
 			"agent-completion",
 			services,
 		);
+		const emitContextStep = stepRegistry.getStep("add-system", {})
 
-		// Add common nodes
-		this.workflow.addNode("build_context", buildContextStep.toNode());
+		// Add citation node
 		this.workflow.addNode("citation", citationStep.toNode());
+		this.workflow.addNode("emit_context", emitContextStep.toNode<KnowledgeRAGState>({
+			mapInput: (state) => {
+				const systemMessage = RESPONSE_GENERATION_PROMPT.replace(
+					"{context}",
+					state.knowledgeContext,
+				);
+				return {
+					messages: this.chat.system(state.messages, systemMessage),
+					content: state.knowledgeContext,
+				}
+			}
+		}));
 
 		// Add response node based on responseMode
 		if (this.responseMode === "agent") {
 			this.workflow.addNode(
-				"agent_response",
-				this.agentCompletionStep.toNode<KnowledgeRAGState>({
+				"final_response",
+				agentCompletionStep.toNode<KnowledgeRAGState>({
 					mapInput: (state) => {
-						const systemMessage = RESPONSE_GENERATION_PROMPT.replace(
-							"{context}",
-							state.knowledgeContext,
-						);
 						return {
-							messages: this.chat.system(state.messages, systemMessage),
+							messages: state.messages,
 							tools: state.tools ?? this.configTools,
 							maxIterations: state.maxIterations,
 						};
 					},
 					mapOutput: (output) => ({
-						finalMessage: output.finalMessage,
+						response: output.response,
 						next: "citation",
 					}),
 				}),
 			);
 		} else {
 			this.workflow.addNode(
-				"generate_response",
-				this.chatCompletionStep.toNode<KnowledgeRAGState>({
+				"final_response",
+				chatCompletionStep.toNode<KnowledgeRAGState>({
 					mapInput: (state) => {
-						const systemMessage = RESPONSE_GENERATION_PROMPT.replace(
-							"{context}",
-							state.knowledgeContext,
-						);
 						return {
-							messages: this.chat.system(state.messages, systemMessage),
+							messages: state.messages,
 							temperature: 0.2,
 							stream: true,
 						};
 					},
 					mapOutput: (output) => ({
-						finalMessage: output.finalMessage,
+						response: output.response,
 						next: "citation",
 					}),
 				}),
@@ -120,49 +110,67 @@ export class KnowledgeRAGFlow extends GraphBase<
 		}
 
 		// Add retrieval nodes and edges based on mode
+		// Each mode uses a combined step (retrieve + build_context in one)
 		if (this.mode === "smart") {
-			const smartRetrieveContextStep = stepRegistry.getStep(
-				"smart-retrieve",
+			const contextSmartRetrieveStep = stepRegistry.getStep(
+				"context-smart-retrieve",
 				services,
 			);
 			this.workflow.addNode(
-				"smart_retrieve",
-				smartRetrieveContextStep.toNode(),
+				"context_retrieve",
+				contextSmartRetrieveStep.toNode<KnowledgeRAGState>({
+					mapOutput: (output) => ({
+						knowledgeContext: output.context,
+						relevantNodes: output.relevantNodes ?? [],
+						relevantEdges: output.relevantEdges ?? [],
+					}),
+				}),
 			);
-			this.workflow.addEdge(START, "smart_retrieve");
-			this.workflow.addEdge("smart_retrieve", "build_context");
+			this.workflow.addEdge(START, "context_retrieve");
+			this.workflow.addEdge("context_retrieve", 'emit_context');
 		} else if (this.mode === "quick") {
-			const quickRetrieveContextStep = stepRegistry.getStep(
-				"quick-retrieve",
+			const contextQuickRetrieveStep = stepRegistry.getStep(
+				"context-quick-retrieve",
+				services,
+				{
+					maxGrowthLevels: config.maxGrowthLevels,
+					searchLimit: config.searchLimit,
+				},
+			);
+			this.workflow.addNode(
+				"context_retrieve",
+				contextQuickRetrieveStep.toNode<KnowledgeRAGState>({
+					mapOutput: (output) => ({
+						knowledgeContext: output.context,
+						relevantNodes: output.relevantNodes ?? [],
+						relevantEdges: output.relevantEdges ?? [],
+					}),
+				}),
+			);
+			this.workflow.addEdge(START, "context_retrieve");
+			this.workflow.addEdge("context_retrieve", 'emit_context');
+		} else {
+			const contextRetrieveKnowledgeStep = stepRegistry.getStep(
+				"context-llm-retrieve",
 				services,
 			);
 			this.workflow.addNode(
-				"quick_retrieve",
-				quickRetrieveContextStep.toNode(),
+				"context_retrieve",
+				contextRetrieveKnowledgeStep.toNode<KnowledgeRAGState>({
+					mapOutput: (output) => ({
+						knowledgeContext: output.context,
+						relevantNodes: output.relevantNodes ?? [],
+						relevantEdges: output.relevantEdges ?? [],
+					}),
+				}),
 			);
-			this.workflow.addEdge(START, "quick_retrieve");
-			this.workflow.addEdge("quick_retrieve", "build_context");
-		} else {
-			const analyzeQueryStep = stepRegistry.getStep("analyze-query", services);
-			const retrievalKnowledge = stepRegistry.getStep(
-				"retrieve-knowledge",
-				services,
-			);
-			this.workflow.addNode("analyze_query", analyzeQueryStep.toNode());
-			this.workflow.addNode("retrieve_knowledge", retrievalKnowledge.toNode());
-			this.workflow.addEdge(START, "analyze_query");
-			this.workflow.addEdge("analyze_query", "retrieve_knowledge");
-			this.workflow.addEdge("retrieve_knowledge", "build_context");
+			this.workflow.addEdge(START, "context_retrieve");
+			this.workflow.addEdge("context_retrieve", 'emit_context');
 		}
 
-		// Add edges based on responseMode
-		if (this.responseMode === "agent") {
-			this.workflow.addEdge("build_context", "agent_response");
-			this.workflow.addEdge("agent_response", "citation");
-		} else {
-			this.workflow.addEdge("build_context", "generate_response");
-			this.workflow.addEdge("generate_response", "citation");
-		}
+		// Common edges
+		this.workflow.addEdge('emit_context', "final_response");
+		this.workflow.addEdge('final_response', "citation");
 		this.workflow.addEdge("citation", END);
 
 		this.compile();

@@ -107,14 +107,87 @@
 		"description": "Bạn đã cấu hình mô hình {{provider}}. Vui lòng nhập mã khóa 6 ký tự để giải mã và tải cấu hình.",
 		"passkeyLabel": "Mã khóa mã hóa",
 		"placeholder": "6 ký tự",
-		"lengthError": "Mã khóa phải có chính xác 6 ký tự",
+		"lengthError": "Mã khóa phải có ít nhất 6 ký tự",
 		"lengthHint": "Mã khóa phải có chính xác 6 ký tự ({{current}}/6)",
 		"decryptError": "Không thể giải mã",
 		"decrypting": "Đang giải mã...",
 		"unlock": "Mở khóa",
 		"cancel": "Hủy",
 		"cancelConfirm": "Bạn có chắc chắn muốn hủy?\n\nĐiều này sẽ xóa mô hình {{provider}} đã chọn. Bạn sẽ cần chọn một mô hình khác để tiếp tục.",
-		"helpText": "Mã khóa này đã được đặt khi bạn lần đầu cấu hình {{provider}}. Nếu bạn quên, bạn sẽ cần cấu hình lại nhà cung cấp."
+		"helpText": "Mã khóa này đã được đặt khi bạn lần đầu cấu hình {{provider}}. Nếu bạn quên, bạn sẽ cần cấu hình lại nhà cung cấp.",
+		"masterTitle": "Yêu cầu Mã khóa Chính",
+		"masterDescription": "Nhập mã khóa chính để mở khóa tất cả cấu hình nhà cung cấp được mã hóa ({{providers}}).",
+		"masterPasskeyLabel": "Mã khóa Chính",
+		"masterPlaceholder": "Nhập mã khóa chính",
+		"masterLengthHint": "Mã khóa phải có ít nhất 6 ký tự ({{current}}/6)",
+		"masterCancelConfirm": "Bạn có chắc chắn muốn hủy?\n\nBạn sẽ không thể sử dụng các nhà cung cấp được mã hóa cho đến khi nhập mã khóa chính.",
+		"masterHelpText": "Mã khóa này đã được đặt khi bạn lần đầu cấu hình nhà cung cấp API. Nó bảo vệ tất cả các cấu hình được mã hóa của bạn.",
+		"unlockAll": "Mở khóa Tất cả",
+		"willUnlock": "Sẽ mở khóa:",
+		"allProviders": "tất cả nhà cung cấp đã cấu hình"
+	},
+	"masterKeySetup": {
+		"title": "Tạo Mã khóa Chính",
+		"description": "Tạo mã khóa chính để bảo vệ tất cả cấu hình API của bạn. Mã khóa này sẽ được yêu cầu khi khởi động ứng dụng.",
+		"passkeyLabel": "Mã khóa Chính",
+		"passkeyPlaceholder": "Nhập mã khóa (tối thiểu 6 ký tự)",
+		"confirmLabel": "Xác nhận Mã khóa",
+		"confirmPlaceholder": "Nhập lại mã khóa",
+		"minLength": "Tối thiểu 6 ký tự ({{current}}/6)",
+		"passkeysMatch": "Mã khóa khớp",
+		"passkeysNoMatch": "Mã khóa không khớp",
+		"strength": {
+			"weak": "Yếu",
+			"fair": "Trung bình",
+			"good": "Tốt",
+			"strong": "Mạnh"
+		},
+		"createButton": "Tạo Mã khóa Chính",
+		"creating": "Đang tạo...",
+		"infoText": "Mã khóa chính của bạn mã hóa tất cả API key bằng AES-256. Lưu trữ an toàn - không thể khôi phục nếu mất.",
+		"helpText": "Chọn mã khóa mạnh mà bạn có thể nhớ. Bạn sẽ cần nó mỗi khi khởi động ứng dụng.",
+		"errors": {
+			"tooShort": "Mã khóa phải có ít nhất 6 ký tự",
+			"noMatch": "Mã khóa không khớp",
+			"failed": "Không thể tạo mã khóa chính"
+		}
+	},
+	"migration": {
+		"title": {
+			"setup": "Thiết lập Mã khóa Chính",
+			"migrate": "Di chuyển Cấu hình Nhà cung cấp",
+			"complete": "Di chuyển Hoàn tất"
+		},
+		"description": {
+			"setup": "Tạo một mã khóa chính duy nhất để bảo vệ tất cả cấu hình API của bạn.",
+			"migrate": "Di chuyển các cấu hình nhà cung cấp hiện có sang hệ thống mã hóa thống nhất mới.",
+			"complete": "Cấu hình của bạn đã được di chuyển thành công."
+		},
+		"masterKeyInfo": "Chúng tôi đang nâng cấp lên hệ thống mã khóa chính thống nhất. Bạn chỉ cần nhớ một mã khóa cho tất cả các nhà cung cấp.",
+		"continueToMigration": "Tiếp tục Di chuyển",
+		"settingUp": "Đang thiết lập...",
+		"providerProgress": "Nhà cung cấp {{current}} của {{total}}",
+		"migratingProvider": "Đang di chuyển {{provider}}",
+		"enterOldPasskey": "Nhập mã khóa bạn đã sử dụng khi cấu hình {{provider}} ban đầu.",
+		"oldPasskeyLabel": "Mã khóa {{provider}}",
+		"migrateButton": "Di chuyển",
+		"migrating": "Đang di chuyển...",
+		"skip": "Bỏ qua",
+		"skipInfo": "Bỏ qua nhà cung cấp này nếu bạn không nhớ mã khóa. Bạn có thể cấu hình lại sau.",
+		"cancelLink": "Hủy và sử dụng chế độ cũ",
+		"complete": {
+			"title": "Di chuyển Hoàn tất!",
+			"description": "Cấu hình nhà cung cấp của bạn hiện được bảo vệ bởi một mã khóa chính duy nhất.",
+			"migrated": "Đã di chuyển thành công:",
+			"skipped": "Đã bỏ qua (có thể cấu hình lại):",
+			"skippedInfo": "Bạn sẽ cần cấu hình lại các nhà cung cấp này với API key mới.",
+			"continue": "Tiếp tục vào Ứng dụng"
+		},
+		"errors": {
+			"setupFailed": "Không thể thiết lập mã khóa chính",
+			"migrateFailed": "Không thể di chuyển nhà cung cấp",
+			"invalidPasskey": "Vui lòng nhập mã khóa hợp lệ 6 ký tự"
+		}
 	},
 	"processMonitor": {
 		"title": "Hoạt động xử lý",

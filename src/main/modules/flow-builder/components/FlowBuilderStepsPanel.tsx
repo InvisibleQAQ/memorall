@@ -1,14 +1,20 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/main/components/ui/button";
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/main/components/ui/collapsible";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/main/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { CatalogStep } from "@/services/flows/flow-builder-catalog";
+import type { CatalogStep, StepIOField } from "@/services/flows/flow-builder-catalog";
 
 interface FlowBuilderStepsPanelProps {
 	steps: CatalogStep[];
@@ -28,6 +34,59 @@ export const FlowBuilderStepsPanel: React.FC<FlowBuilderStepsPanelProps> = ({
 	};
 
 	const visibleSteps = steps.filter((step) => step.type !== "system");
+
+	const renderIOFields = (fields: StepIOField[] | undefined, isInput: boolean) => {
+		if (!fields || fields.length === 0) return null;
+		return (
+			<div className="mt-1">
+				<div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
+					{isInput ? (
+						<>
+							<ArrowRight className="h-2.5 w-2.5" />
+							<span>In</span>
+						</>
+					) : (
+						<>
+							<ArrowLeft className="h-2.5 w-2.5" />
+							<span>Out</span>
+						</>
+					)}
+				</div>
+				<div className="flex flex-wrap gap-1">
+					{fields.map((field) => (
+						<TooltipProvider key={field.name} delayDuration={300}>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span
+										className={cn(
+											"text-[10px] px-1.5 py-0.5 rounded-sm",
+											isInput
+												? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+												: "bg-green-500/10 text-green-600 dark:text-green-400",
+											field.required && isInput && "font-medium"
+										)}
+									>
+										{field.name}
+										{field.required && isInput && "*"}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="right" className="max-w-xs">
+									<div className="text-xs">
+										<div className="font-medium">{field.name}: {field.type}</div>
+										{field.description && (
+											<div className="text-muted-foreground mt-0.5">
+												{field.description}
+											</div>
+										)}
+									</div>
+								</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
+					))}
+				</div>
+			</div>
+		);
+	};
 
 	return (
 		<Collapsible
@@ -62,12 +121,19 @@ export const FlowBuilderStepsPanel: React.FC<FlowBuilderStepsPanelProps> = ({
 					{visibleSteps.map((step) => (
 						<div
 							key={step.id}
-							className="border rounded-md px-2 py-2 text-sm bg-background cursor-grab active:cursor-grabbing"
+							className="border rounded-md px-2 py-2 text-sm bg-background cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors"
 							draggable
 							onDragStart={(event) => handleDragStart(event, step.id)}
 						>
 							<div className="font-medium">{step.name}</div>
 							<div className="text-xs text-muted-foreground">{step.type}</div>
+							{step.metadata?.description ? (
+								<div className="text-[10px] text-muted-foreground/70 mt-0.5">
+									{String(step.metadata.description)}
+								</div>
+							) : undefined}
+							{renderIOFields(step.inputs, true)}
+							{renderIOFields(step.outputs, false)}
 						</div>
 					))}
 					{visibleSteps.length === 0 && (

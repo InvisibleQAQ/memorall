@@ -9,18 +9,19 @@ import {
 } from "@/main/components/ui/dialog";
 import { Button } from "@/main/components/ui/button";
 import { Input } from "@/main/components/ui/input";
-import { Eye, EyeOff, Key, AlertCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Key, AlertCircle, Loader2, Shield } from "lucide-react";
 
 interface PasskeyPromptDialogProps {
 	open: boolean;
-	provider: "openai" | "openrouter";
+	/** List of providers that will be unlocked */
+	providers?: string[];
 	onPasskeySubmit: (passkey: string) => Promise<void>;
 	onCancel: () => void;
 }
 
 export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 	open,
-	provider,
+	providers = [],
 	onPasskeySubmit,
 	onCancel,
 }) => {
@@ -30,10 +31,17 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
 
-	const providerLabel = provider === "openai" ? "OpenAI" : "OpenRouter";
+	// Format provider list for display
+	const providerLabels = providers.map((p) =>
+		p === "openai" ? "OpenAI" : p === "openrouter" ? "OpenRouter" : p,
+	);
+	const providerText =
+		providerLabels.length > 0
+			? providerLabels.join(", ")
+			: t("passkeyDialog.allProviders");
 
 	const handleSubmit = async () => {
-		if (passkey.length !== 6) {
+		if (passkey.length < 6) {
 			setError(t("passkeyDialog.lengthError"));
 			return;
 		}
@@ -54,15 +62,13 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter" && passkey.length === 6 && !isLoading) {
+		if (e.key === "Enter" && passkey.length >= 6 && !isLoading) {
 			handleSubmit();
 		}
 	};
 
 	const handleCancelClick = () => {
-		const confirmed = window.confirm(
-			t("passkeyDialog.cancelConfirm", { provider: providerLabel }),
-		);
+		const confirmed = window.confirm(t("passkeyDialog.masterCancelConfirm"));
 
 		if (confirmed) {
 			onCancel();
@@ -77,30 +83,46 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 			>
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
-						<Key className="w-5 h-5 text-primary" />
-						{t("passkeyDialog.title", { provider: providerLabel })}
+						<Shield className="w-5 h-5 text-primary" />
+						{t("passkeyDialog.masterTitle")}
 					</DialogTitle>
 					<DialogDescription>
-						{t("passkeyDialog.description", { provider: providerLabel })}
+						{t("passkeyDialog.masterDescription", { providers: providerText })}
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">
+					{/* Info about what will be unlocked */}
+					{providers.length > 0 && (
+						<div className="p-3 border rounded-lg bg-muted/20 border-border">
+							<div className="flex items-start gap-2">
+								<Key className="w-4 h-4 text-primary mt-0.5" />
+								<div>
+									<div className="text-xs text-muted-foreground">
+										{t("passkeyDialog.willUnlock")}
+									</div>
+									<div className="text-sm font-medium mt-1">
+										{providerLabels.join(", ")}
+									</div>
+								</div>
+							</div>
+						</div>
+					)}
+
 					<div>
 						<label className="text-sm text-muted-foreground mb-2 block">
-							{t("passkeyDialog.passkeyLabel")}{" "}
+							{t("passkeyDialog.masterPasskeyLabel")}{" "}
 							<span className="text-destructive">*</span>
 						</label>
 						<div className="relative">
 							<Input
 								type={showPasskey ? "text" : "password"}
-								placeholder={t("passkeyDialog.placeholder")}
+								placeholder={t("passkeyDialog.masterPlaceholder")}
 								value={passkey}
-								onChange={(e) => setPasskey(e.target.value.slice(0, 6))}
+								onChange={(e) => setPasskey(e.target.value)}
 								onKeyDown={handleKeyDown}
 								disabled={isLoading}
 								className="pr-10"
-								maxLength={6}
 								autoFocus
 							/>
 							<button
@@ -116,11 +138,13 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 								)}
 							</button>
 						</div>
-						{passkey.length > 0 && passkey.length !== 6 && (
+						{passkey.length > 0 && passkey.length < 6 && (
 							<div className="flex items-center gap-2 p-2 mt-2 border rounded bg-muted/50 border-border">
 								<AlertCircle className="w-4 h-4 text-muted-foreground" />
 								<span className="text-xs text-muted-foreground">
-									{t("passkeyDialog.lengthHint", { current: passkey.length })}
+									{t("passkeyDialog.masterLengthHint", {
+										current: passkey.length,
+									})}
 								</span>
 							</div>
 						)}
@@ -136,7 +160,7 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 					<div className="flex gap-2">
 						<Button
 							onClick={handleSubmit}
-							disabled={isLoading || passkey.length !== 6}
+							disabled={isLoading || passkey.length < 6}
 							className="flex-1"
 						>
 							{isLoading ? (
@@ -147,7 +171,7 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 							) : (
 								<>
 									<Key className="w-4 h-4 mr-2" />
-									{t("passkeyDialog.unlock")}
+									{t("passkeyDialog.unlockAll")}
 								</>
 							)}
 						</Button>
@@ -162,7 +186,7 @@ export const PasskeyPromptDialog: React.FC<PasskeyPromptDialogProps> = ({
 					</div>
 
 					<div className="text-xs text-muted-foreground text-center pt-2 border-t">
-						{t("passkeyDialog.helpText", { provider: providerLabel })}
+						{t("passkeyDialog.masterHelpText")}
 					</div>
 				</div>
 			</DialogContent>

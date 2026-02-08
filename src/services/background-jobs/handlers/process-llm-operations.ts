@@ -15,6 +15,8 @@ import type { ChatCompletionRequest } from "@/types/openai";
 import {
 	checkProviderNeedsRestore,
 	restoreAuthProvider,
+	restoreAllProviders,
+	getEncryptedProviders,
 } from "@/utils/auth-provider-restore";
 
 const JOB_NAMES = {
@@ -29,6 +31,7 @@ const JOB_NAMES = {
 	createLLMService: "create-llm-service",
 	chatCompletion: "chat-completion",
 	restoreAuthProvider: "restore-auth-provider",
+	restoreAllProviders: "restore-all-providers",
 	removeAuthProvider: "remove-auth-provider",
 	detectSystemSpecs: "detect-system-specs",
 	checkProviderNeedsRestore: "check-provider-needs-restore",
@@ -96,6 +99,10 @@ export interface CheckProviderNeedsRestorePayload {
 	provider: "openai" | "openrouter";
 }
 
+export interface RestoreAllProvidersPayload {
+	masterStrongPassword: string;
+}
+
 export interface GetCurrentModelResult extends Record<string, unknown> {
 	modelInfo: unknown;
 }
@@ -157,6 +164,11 @@ export interface CheckProviderNeedsRestoreResult
 	provider: string;
 }
 
+export interface RestoreAllProvidersResult extends Record<string, unknown> {
+	restored: boolean;
+	providers: string[];
+}
+
 export interface DetectSystemSpecsPayload {
 	// No payload needed
 }
@@ -188,6 +200,7 @@ export type LLMModelsJob = BaseJob & {
 		| CreateLLMServicePayload
 		| ChatCompletionPayload
 		| RestoreAuthProviderPayload
+		| RestoreAllProvidersPayload
 		| RemoveAuthProviderPayload
 		| GetMaxResponseTokensPayload
 		| DetectSystemSpecsPayload
@@ -221,6 +234,8 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 				return await this.handleChatCompletion(jobId, job, dependencies);
 			case JOB_NAMES.restoreAuthProvider:
 				return await this.handleRestoreAuthProvider(jobId, job, dependencies);
+			case JOB_NAMES.restoreAllProviders:
+				return await this.handleRestoreAllProviders(jobId, job, dependencies);
 			case JOB_NAMES.removeAuthProvider:
 				return await this.handleRemoveAuthProvider(jobId, job, dependencies);
 			case JOB_NAMES.getMaxResponseTokens:
@@ -854,6 +869,48 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 		};
 	}
 
+	private async handleRestoreAllProviders(
+		jobId: string,
+		job: BaseJob,
+		dependencies: ProcessDependencies,
+	): Promise<ItemHandlerResult> {
+		const { logger, updateJobProgress } = dependencies;
+		const payload = job.payload as RestoreAllProvidersPayload;
+
+		await logger.info(`Starting restore-all-providers job`, { jobId });
+
+		await updateJobProgress(jobId, {
+			stage: "Restoring all provider authentications",
+			progress: 20,
+		});
+
+		// Get list of encrypted providers
+		const providers = await getEncryptedProviders();
+
+		await updateJobProgress(jobId, {
+			stage: `Found ${providers.length} providers to restore`,
+			progress: 40,
+		});
+
+		// Restore all providers using master key
+		await restoreAllProviders(payload.masterStrongPassword);
+
+		await updateJobProgress(jobId, {
+			stage: "All providers restored",
+			progress: 90,
+		});
+
+		await logger.info(`Restore-all-providers job completed`, {
+			jobId,
+			providers,
+		});
+
+		return {
+			restored: true,
+			providers,
+		};
+	}
+
 	private async handleRemoveAuthProvider(
 		jobId: string,
 		job: BaseJob,
@@ -992,6 +1049,7 @@ declare global {
 		"create-llm-service": CreateLLMServicePayload;
 		"chat-completion": ChatCompletionPayload;
 		"restore-auth-provider": RestoreAuthProviderPayload;
+		"restore-all-providers": RestoreAllProvidersPayload;
 		"remove-auth-provider": RemoveAuthProviderPayload;
 		"get-max-response-tokens": GetMaxResponseTokensPayload;
 		"detect-system-specs": DetectSystemSpecsPayload;
@@ -1009,6 +1067,7 @@ declare global {
 		"create-llm-service": CreateLLMServiceResult;
 		"chat-completion": ChatCompletionResult;
 		"restore-auth-provider": RestoreAuthProviderResult;
+		"restore-all-providers": RestoreAllProvidersResult;
 		"remove-auth-provider": RemoveAuthProviderResult;
 		"get-max-response-tokens": GetMaxResponseTokensResult;
 		"detect-system-specs": DetectSystemSpecsResult;

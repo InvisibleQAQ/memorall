@@ -3,6 +3,7 @@ import { serviceManager } from "@/services";
 import { eq } from "drizzle-orm";
 import secureSession from "@/utils/secure-session";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
+import { isMasterKeyUnlocked } from "@/utils/master-key";
 
 /**
  * Provider configuration metadata
@@ -13,8 +14,6 @@ interface ProviderConfig {
 	requiresAuth: boolean;
 	/** Secure session key for ready state (for API-based providers) */
 	readyKey?: string;
-	/** Secure session key for passkey/API key */
-	passkeyKey?: string;
 	/** Database encryption key for config */
 	encryptionKey?: string;
 	/** Database configuration key for config */
@@ -31,14 +30,12 @@ const PROVIDER_CONFIGS: Record<ServiceProvider, ProviderConfig> = {
 	openai: {
 		requiresAuth: true,
 		readyKey: "openai_ready",
-		passkeyKey: "openai_passkey",
 		encryptionKey: "openai_config",
 		isLocal: false,
 	},
 	openrouter: {
 		requiresAuth: true,
 		readyKey: "openrouter_ready",
-		passkeyKey: "openrouter_passkey",
 		encryptionKey: "openrouter_config",
 		isLocal: false,
 	},
@@ -71,13 +68,13 @@ const PROVIDER_CONFIGS: Record<ServiceProvider, ProviderConfig> = {
  */
 export interface ProviderState {
 	ready: boolean;
-	passkeyExists: boolean;
 	configExists: boolean | null;
 }
 
 /**
  * Generic provider configuration hook
  * Supports all AI providers without provider-specific APIs
+ * Uses master key for encryption (no per-provider passkeys)
  */
 export function useProviderConfig() {
 	// Generic provider states - keyed by provider name
@@ -97,6 +94,9 @@ export function useProviderConfig() {
 	// Overall ready state - true when all providers are checked and loaded
 	const [ready, setReady] = useState(false);
 
+	// Master key state
+	const [masterKeyUnlocked, setMasterKeyUnlocked] = useState(false);
+
 	/**
 	 * Generic function to check provider configuration
 	 */
@@ -107,12 +107,11 @@ export function useProviderConfig() {
 
 		if (!config.requiresAuth) {
 			// Local providers are always ready
-			return { ready: true, passkeyExists: false, configExists: null };
+			return { ready: true, configExists: null };
 		}
 
 		const state: ProviderState = {
 			ready: false,
-			passkeyExists: false,
 			configExists: null,
 		};
 
@@ -122,15 +121,6 @@ export function useProviderConfig() {
 				state.ready = await secureSession.exists(config.readyKey);
 			} catch (_) {
 				state.ready = false;
-			}
-		}
-
-		// Check passkey existence
-		if (config.passkeyKey) {
-			try {
-				state.passkeyExists = await secureSession.exists(config.passkeyKey);
-			} catch (_) {
-				state.passkeyExists = false;
 			}
 		}
 
@@ -165,6 +155,10 @@ export function useProviderConfig() {
 	// Initialize all providers on mount
 	useEffect(() => {
 		const initializeProviders = async () => {
+			// Check master key status
+			const isUnlocked = await isMasterKeyUnlocked();
+			setMasterKeyUnlocked(isUnlocked);
+
 			// Check all providers
 			const allProviders = Object.keys(PROVIDER_CONFIGS) as ServiceProvider[];
 
@@ -213,7 +207,6 @@ export function useProviderConfig() {
 		return (
 			providerStates[provider] || {
 				ready: false,
-				passkeyExists: false,
 				configExists: null,
 			}
 		);
@@ -228,27 +221,9 @@ export function useProviderConfig() {
 			[provider]: {
 				...(prev[provider] || {
 					ready: false,
-					passkeyExists: false,
 					configExists: null,
 				}),
 				ready: isReady,
-			},
-		}));
-	};
-
-	/**
-	 * Set passkey existence for a provider
-	 */
-	const setPasskeyExists = (provider: ServiceProvider, exists: boolean) => {
-		setProviderStates((prev) => ({
-			...prev,
-			[provider]: {
-				...(prev[provider] || {
-					ready: false,
-					passkeyExists: false,
-					configExists: null,
-				}),
-				passkeyExists: exists,
 			},
 		}));
 	};
@@ -265,7 +240,6 @@ export function useProviderConfig() {
 			[provider]: {
 				...(prev[provider] || {
 					ready: false,
-					passkeyExists: false,
 					configExists: null,
 				}),
 				configExists: exists,
@@ -273,9 +247,21 @@ export function useProviderConfig() {
 		}));
 	};
 
+	/**
+	 * Refresh master key status
+	 */
+	const refreshMasterKeyStatus = async () => {
+		const isUnlocked = await isMasterKeyUnlocked();
+		setMasterKeyUnlocked(isUnlocked);
+	};
+
 	return {
 		// Overall ready state
 		ready,
+
+		// Master key state
+		masterKeyUnlocked,
+		refreshMasterKeyStatus,
 
 		// Generic provider state access
 		providerStates,
@@ -283,7 +269,6 @@ export function useProviderConfig() {
 
 		// Generic setters
 		setStateReady,
-		setPasskeyExists,
 		setConfigExists,
 		updateProviderState,
 

@@ -52,6 +52,7 @@
 	"openai": {
 		"secureStorage": "Lưu trữ bảo mật",
 		"secureStorageDescription": "API key của bạn được mã hóa bằng AES-256 và lưu trữ an toàn trên đĩa. Mật khẩu 6 ký tự bảo vệ cấu hình của bạn.",
+		"masterKeySecurityDescription": "API key của bạn được mã hóa bằng AES-256 sử dụng mã khóa chính. Tất cả cấu hình API được bảo vệ bởi một mã khóa chính duy nhất.",
 		"checkingConfiguration": "Đang kiểm tra cấu hình...",
 		"noConfigurationFound": "Không tìm thấy cấu hình",
 		"createNewConfiguration": "Tạo cấu hình OpenAI mới",
@@ -63,6 +64,7 @@
 		"apiKeyWarning": "OpenAI API key thường bắt đầu bằng \"sk-\"",
 		"passkeyLengthWarning": "Mật khẩu phải có đúng 6 ký tự ({{current}}/6)",
 		"saving": "Đang lưu...",
+		"loading": "Đang tải...",
 		"saveAndEncrypt": "Lưu & Mã hóa cấu hình",
 		"configurationFound": "Đã tìm thấy cấu hình",
 		"createdDate": "Tạo: {{date}}",
@@ -74,7 +76,7 @@
 		"modelsAvailableInYourModels": "Các mô hình OpenAI của bạn hiện có sẵn trong phần **Mô hình của tôi** ở trên.",
 		"unloadConfiguration": "Gỡ cấu hình",
 		"deleteConfigurationConfirm": "Bạn có chắc chắn muốn xóa cấu hình OpenAI của mình không?",
-		"fillAllRequiredFields": "Vui lòng điền tất cả các trường bắt buộc và đảm bảo mật khẩu có 6 ký tự",
+		"fillAllRequiredFields": "Vui lòng điền tất cả các trường bắt buộc",
 		"enterValidPasskey": "Vui lòng nhập mật khẩu hợp lệ 6 ký tự",
 		"noConfigurationFoundError": "Không tìm thấy cấu hình OpenAI",
 		"failedToSaveConfiguration": "Không thể lưu cấu hình: {{error}}",
@@ -83,6 +85,8 @@
 		"passkey": "Mật khẩu (6 ký tự)",
 		"securityDescription": "Khóa API của bạn được mã hóa bằng AES-256 và lưu trữ an toàn trên đĩa. Mật khẩu 6 ký tự bảo vệ cấu hình của bạn.",
 		"loadPasskey": "Tải mật khẩu",
+		"unlockWithMasterKey": "Nhấn để tải cấu hình. Mã khóa chính phải được mở khóa.",
+		"masterKeyNotUnlocked": "Mã khóa chính chưa được mở khóa. Vui lòng mở khóa trước qua lời nhắc khởi động ứng dụng.",
 		"placeholders": {
 			"apiKey": "sk-...",
 			"baseUrl": "https://api.openai.com/v1",

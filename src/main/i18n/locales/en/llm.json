@@ -52,6 +52,7 @@
 	"openai": {
 		"secureStorage": "Secure Storage",
 		"secureStorageDescription": "Your API key is encrypted with AES-256 and stored securely on disk. A 6-character passkey protects your configuration.",
+		"masterKeySecurityDescription": "Your API key is encrypted with AES-256 using your master passkey. All API configurations are protected by a single master key.",
 		"noConfigurationFound": "No Configuration Found",
 		"createNewConfiguration": "Create a new OpenAI configuration",
 		"apiKey": "OpenAI API Key",
@@ -61,6 +62,7 @@
 		"passkeyDescription": "6-character password to encrypt your configuration",
 		"passkeyLengthWarning": "Passkey must be exactly 6 characters ({{current}}/6)",
 		"saving": "Saving...",
+		"loading": "Loading...",
 		"saveAndEncrypt": "Save & Encrypt Configuration",
 		"configurationFound": "Configuration Found",
 		"createdDate": "Created: {{date}}",
@@ -71,7 +73,7 @@
 		"configurationLoadedAndConnected": "Configuration loaded and service connected",
 		"unloadConfiguration": "Unload Configuration",
 		"deleteConfigurationConfirm": "Are you sure you want to delete your OpenAI configuration?",
-		"fillAllRequiredFields": "Please fill all required fields and ensure passkey is 6 characters",
+		"fillAllRequiredFields": "Please fill all required fields",
 		"enterValidPasskey": "Please enter a valid 6-character passkey",
 		"noConfigurationFoundError": "No OpenAI configuration found",
 		"failedToSaveConfiguration": "Failed to save configuration: {{error}}",
@@ -85,6 +87,8 @@
 		"defaultBaseUrl": "Default is https://openrouter.ai/api/v1",
 		"openrouterReady": "OpenRouter Ready",
 		"modelsAvailableInYourModels": "Your OpenRouter models are now available in the **Your Models** section above.",
+		"unlockWithMasterKey": "Click to load configuration. Master key must be unlocked.",
+		"masterKeyNotUnlocked": "Master key is not unlocked. Please unlock it first via the app startup prompt.",
 		"placeholders": {
 			"apiKey": "sk-...",
 			"baseUrl": "https://api.openai.com/v1",

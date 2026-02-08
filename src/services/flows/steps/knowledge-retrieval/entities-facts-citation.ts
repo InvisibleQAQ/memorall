@@ -35,11 +35,11 @@ export interface EntitiesFactsCitationInput {
 		attributes: Record<string, unknown>;
 		relevanceScore: number;
 	}>;
-	finalMessage?: string;
+	response?: string;
 }
 
 export interface EntitiesFactsCitationOutput {
-	finalMessage?: string;
+	response?: string;
 	errors?: string[];
 }
 
@@ -98,13 +98,13 @@ const definition = defineStep<
 		const llm = services.llm;
 
 		if (
-			!input.finalMessage?.trim() ||
+			!input.response?.trim() ||
 			(!input.relevantNodes?.length && !input.relevantEdges?.length) ||
 			!llm.isReady()
 		) {
 			return {
 				output: {
-					finalMessage: input.finalMessage,
+					response: input.response,
 				},
 			};
 		}
@@ -113,7 +113,7 @@ const definition = defineStep<
 			logInfo("[KNOWLEDGE_RAG] Adding citations to response");
 
 			// Split answer into lines and number them
-			const answerLines = (input.finalMessage || "").split("\n");
+			const answerLines = (input.response || "").split("\n");
 			const numberedAnswer = answerLines
 				.map((line, index) => `Line ${index + 1}: ${line}`)
 				.join("\n");
@@ -189,7 +189,7 @@ const definition = defineStep<
 
 			return {
 				output: {
-					finalMessage: citedResponse,
+					response: citedResponse,
 				},
 			};
 		} catch (error) {
@@ -197,7 +197,7 @@ const definition = defineStep<
 
 			return {
 				output: {
-					finalMessage: input.finalMessage,
+					response: input.response,
 				},
 			};
 		}

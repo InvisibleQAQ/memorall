@@ -17,11 +17,20 @@ import {
 import { logError, logInfo } from "@/utils/logger";
 import { ThemeProvider } from "./components/molecules/ThemeContext";
 import { PasskeyPromptDialog } from "./components/molecules/PasskeyPromptDialog";
+import { MigrationWizard } from "./components/molecules/MigrationWizard";
 import { useEmbeddingSettings } from "./stores/embedding-settings";
 import {
-	checkProviderNeedsRestore,
-	restoreAuthProvider,
+	checkAnyProviderNeedsRestore,
+	restoreAllProviders,
+	getEncryptedProviders,
 } from "@/utils/auth-provider-restore";
+import {
+	detectEncryptionFormat,
+	unlockMasterKey,
+	hasMasterKey,
+	isMasterKeyUnlocked,
+	getMasterStrongPassword,
+} from "@/utils/master-key";
 import { serviceManager } from "@/services";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { sharedStorageService } from "@/services/shared-storage/shared-storage-service";
@@ -42,15 +51,17 @@ import { FlowBuilderPage } from "./pages/FlowBuilderPage/FlowBuilderPage";
 import { registerAllEditors } from "@/main/modules/documents/editors";
 import { useAuthInit } from "@/main/modules/supabase";
 
+type EncryptionFormat = "master" | "legacy" | "none";
+
 const App: React.FC = () => {
 	const [servicesStatus, setServicesStatus] = useState<
-		"loading" | "ready" | "error" | "awaiting-passkey"
+		"loading" | "ready" | "error" | "awaiting-passkey" | "awaiting-migration"
 	>("loading");
 	const [initError, setInitError] = useState<string | null>(null);
 	const [uiProgress, setUiProgress] = useState(0);
-	const [passkeyProvider, setPasskeyProvider] = useState<
-		"openai" | "openrouter" | null
-	>(null);
+	const [encryptionFormat, setEncryptionFormat] =
+		useState<EncryptionFormat>("none");
+	const [encryptedProviders, setEncryptedProviders] = useState<string[]>([]);
 
 	// Bridge component to access navigate from message listener once Router is active
 	const NavigatorBridge: React.FC = () => {
@@ -103,12 +114,12 @@ const App: React.FC = () => {
 	useEffect(() => {
 		const initializeApp = async () => {
 			try {
-				logInfo("🚀 Starting app initialization...");
+				logInfo("Starting app initialization...");
 				setServicesStatus("loading");
 
 				// Initialize shared storage service first (required for cross-thread communication)
 				await sharedStorageService.initialize();
-				logInfo("✅ Shared storage service initialized in UI thread");
+				logInfo("Shared storage service initialized in UI thread");
 
 				// Initialize services through offscreen with progress streaming
 				const progressStream = await backgroundJob.initializeServices();
@@ -116,12 +127,12 @@ const App: React.FC = () => {
 
 				// Listen to initialization progress
 				for await (const progress of progressStream) {
-					logInfo("🚀 App initialization progress:", progress);
+					logInfo("App initialization progress:", progress);
 					setUiProgress(progress.progress);
 
 					if (progress.status === "completed") {
 						setUiProgress(100);
-						logInfo("✅ App initialization complete");
+						logInfo("App initialization complete");
 						break;
 					}
 				}
@@ -136,44 +147,40 @@ const App: React.FC = () => {
 
 				// Register all document editors
 				registerAllEditors();
-				logInfo("📝 Document editors registered");
+				logInfo("Document editors registered");
 
-				// Check if current model requires authentication
-				try {
-					const currentModel =
-						await serviceManager.llmService.getCurrentModel();
-					if (
-						currentModel &&
-						(currentModel.provider === "openai" ||
-							currentModel.provider === "openrouter")
-					) {
-						// Check if provider needs passkey to restore
-						const needsRestore = await checkProviderNeedsRestore(
-							currentModel.provider,
-						);
-						if (needsRestore) {
-							logInfo(
-								`🔐 ${currentModel.provider} authentication required - waiting for passkey`,
-							);
-							setPasskeyProvider(currentModel.provider);
-							setServicesStatus("awaiting-passkey");
-							return;
-						}
+				// Check encryption format
+				const format = await detectEncryptionFormat();
+				setEncryptionFormat(format);
+				logInfo(`Encryption format: ${format}`);
+
+				if (format === "legacy") {
+					// Need migration from legacy format
+					logInfo("Legacy encryption detected - showing migration wizard");
+					setServicesStatus("awaiting-migration");
+					return;
+				}
+
+				if (format === "master") {
+					// Master key format - check if we need to prompt for passkey
+					const needsRestore = await checkAnyProviderNeedsRestore();
+
+					if (needsRestore) {
+						// Get list of encrypted providers
+						const providers = await getEncryptedProviders();
+						setEncryptedProviders(providers);
+						logInfo(`Master key authentication required for: ${providers.join(", ")}`);
+						setServicesStatus("awaiting-passkey");
+						return;
 					}
-				} catch (error) {
-					logError(
-						"Failed to check auth provider restore - continuing anyway:",
-						error,
-					);
-					// Continue to ready state even if check fails
 				}
 
 				// Initialize embedding settings
 				await initializeEmbeddingSettings();
-				logInfo(`🚀 App initialization completed in ${duration}ms`);
+				logInfo(`App initialization completed in ${duration}ms`);
 				setServicesStatus("ready");
 			} catch (error) {
-				logError("❌ App initialization failed:", error);
+				logError("App initialization failed:", error);
 				setServicesStatus("error");
 				setInitError(error instanceof Error ? error.message : "Unknown error");
 			}
@@ -182,26 +189,26 @@ const App: React.FC = () => {
 		initializeApp();
 	}, []);
 
-	// Handle passkey submission
+	// Handle master passkey submission
 	const handlePasskeySubmit = async (passkey: string) => {
-		if (!passkeyProvider) return;
-
 		try {
-			// Restore provider in UI thread (proxy mode)
-			await restoreAuthProvider(passkeyProvider, passkey);
+			// Unlock master key
+			const masterStrongPassword = await unlockMasterKey(passkey);
 
-			// Also restore in offscreen thread (main mode) via background job
+			// Restore all providers in UI thread
+			await restoreAllProviders(masterStrongPassword);
+
+			// Also restore in offscreen thread via background job
 			await backgroundJob.execute(
-				"restore-auth-provider",
-				{ provider: passkeyProvider, passkey },
+				"restore-all-providers",
+				{ masterStrongPassword },
 				{ stream: false },
 			);
 
-			logInfo(`✅ ${passkeyProvider} authenticated and restored`);
-			setPasskeyProvider(null);
+			logInfo("All providers restored with master key");
 			setServicesStatus("ready");
 		} catch (error) {
-			logError("Failed to restore auth provider:", error);
+			logError("Failed to unlock master key:", error);
 			throw error; // Re-throw to let dialog show error
 		}
 	};
@@ -217,9 +224,32 @@ const App: React.FC = () => {
 			logError("Failed to clear current model:", error);
 		}
 
-		setPasskeyProvider(null);
-		setServicesStatus("ready"); // Continue without the auth provider
-		logInfo("User cancelled passkey prompt - continuing without auth provider");
+		setServicesStatus("ready"); // Continue without the auth providers
+		logInfo("User cancelled passkey prompt - continuing without auth providers");
+	};
+
+	// Handle migration completion
+	const handleMigrationComplete = async () => {
+		logInfo("Migration complete - checking if passkey is needed");
+
+		// After migration, check if we need passkey prompt
+		const needsRestore = await checkAnyProviderNeedsRestore();
+		const isUnlocked = await isMasterKeyUnlocked();
+
+		if (needsRestore && !isUnlocked) {
+			const providers = await getEncryptedProviders();
+			setEncryptedProviders(providers);
+			setServicesStatus("awaiting-passkey");
+		} else if (isUnlocked) {
+			// Master key is already unlocked, restore providers
+			const masterStrongPassword = await getMasterStrongPassword();
+			if (masterStrongPassword) {
+				await restoreAllProviders(masterStrongPassword);
+			}
+			setServicesStatus("ready");
+		} else {
+			setServicesStatus("ready");
+		}
 	};
 
 	const handleRetry = async () => {
@@ -235,43 +265,34 @@ const App: React.FC = () => {
 					setUiProgress(100);
 					await serviceManager.initialize({ proxy: true });
 
-					// Check auth provider with error handling
-					try {
-						const currentModel =
-							await serviceManager.llmService.getCurrentModel();
-						if (
-							currentModel &&
-							(currentModel.provider === "openai" ||
-								currentModel.provider === "openrouter")
-						) {
-							const needsRestore = await checkProviderNeedsRestore(
-								currentModel.provider,
-							);
-							if (needsRestore) {
-								logInfo(
-									`🔐 ${currentModel.provider} authentication required - waiting for passkey`,
-								);
-								setPasskeyProvider(currentModel.provider);
-								setServicesStatus("awaiting-passkey");
-								return;
-							}
+					// Check encryption format
+					const format = await detectEncryptionFormat();
+					setEncryptionFormat(format);
+
+					if (format === "legacy") {
+						setServicesStatus("awaiting-migration");
+						return;
+					}
+
+					if (format === "master") {
+						const needsRestore = await checkAnyProviderNeedsRestore();
+						if (needsRestore) {
+							const providers = await getEncryptedProviders();
+							setEncryptedProviders(providers);
+							setServicesStatus("awaiting-passkey");
+							return;
 						}
-					} catch (error) {
-						logError(
-							"Failed to check auth provider restore - continuing anyway:",
-							error,
-						);
 					}
 
 					setTimeout(() => {
 						setServicesStatus("ready");
-						logInfo("✅ App re-initialization complete");
+						logInfo("App re-initialization complete");
 					}, 100);
 					break;
 				}
 			}
 		} catch (error) {
-			logError("❌ App re-initialization failed:", error);
+			logError("App re-initialization failed:", error);
 			setServicesStatus("error");
 			setInitError(error instanceof Error ? error.message : "Unknown error");
 		}
@@ -355,15 +376,19 @@ const App: React.FC = () => {
 						<Copilot />
 					</Router>
 
-					{/* Passkey prompt dialog */}
-					{passkeyProvider && (
-						<PasskeyPromptDialog
-							open={servicesStatus === "awaiting-passkey"}
-							provider={passkeyProvider}
-							onPasskeySubmit={handlePasskeySubmit}
-							onCancel={handlePasskeyCancel}
-						/>
-					)}
+					{/* Master passkey prompt dialog */}
+					<PasskeyPromptDialog
+						open={servicesStatus === "awaiting-passkey"}
+						providers={encryptedProviders}
+						onPasskeySubmit={handlePasskeySubmit}
+						onCancel={handlePasskeyCancel}
+					/>
+
+					{/* Migration wizard for legacy configs */}
+					<MigrationWizard
+						open={servicesStatus === "awaiting-migration"}
+						onMigrationComplete={handleMigrationComplete}
+					/>
 				</NiceModal.Provider>
 			</CopilotProvider>
 		</ThemeProvider>

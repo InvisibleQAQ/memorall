@@ -1,0 +1,164 @@
+/**
+ * Context Smart Retrieve Step
+ *
+ * Combines smart-retrieve and build-context into a single step.
+ * Output: "context" string ready for LLM consumption.
+ */
+
+import { logInfo, logError } from "@/utils/logger";
+import {
+	defineStep,
+	bindStep,
+	type StepOutput,
+} from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
+import { stepRegistry } from "@/services/flows/step-registry";
+import type { SmartRetrieveOutput, RelevantNode, RelevantEdge, SmartRetrieveServices } from "./smart-retrieve";
+import type { EntitiesFactsToContextOutput } from "./entities-facts-to-context";
+
+const STEP_NAME = "context-smart-retrieve" as const;
+
+// ============================================================================
+// STEP-SPECIFIC TYPES
+// ============================================================================
+
+export interface ContextSmartRetrieveInput {
+	query: string;
+	graphId?: string;
+	coreContext?: string;
+}
+
+export interface ContextSmartRetrieveOutput {
+	context: string;
+	relevantNodes?: RelevantNode[];
+	relevantEdges?: RelevantEdge[];
+	nodeCount?: number;
+	edgeCount?: number;
+	errors?: string[];
+}
+
+export interface ContextSmartRetrieveConfig {
+	maxNodes?: number;
+	maxEdges?: number;
+}
+
+export type ContextSmartRetrieveServices = SmartRetrieveServices
+
+// ============================================================================
+// STEP IMPLEMENTATION
+// ============================================================================
+
+const definition = defineStep<
+	ContextSmartRetrieveInput,
+	ContextSmartRetrieveOutput,
+	ContextSmartRetrieveServices,
+	ContextSmartRetrieveConfig
+>({
+	name: STEP_NAME,
+	execute: async ({ input, services, config, runConfig }) => {
+		try {
+			logInfo(
+				`[CONTEXT_SMART_RETRIEVE] Starting for graphId: ${input.graphId}`,
+			);
+
+			// Step 1: Run smart-retrieve
+			// Use getStepByName to avoid circular type reference
+			const smartRetrieveStep = stepRegistry.getStepByName(
+				"smart-retrieve",
+				services,
+			);
+			const retrieveResult = (await smartRetrieveStep.execute(
+				{
+					query: input.query,
+					graphId: input.graphId,
+					coreContext: input.coreContext,
+				},
+				runConfig,
+			)) as StepOutput<SmartRetrieveOutput>;
+
+			if (retrieveResult.output.errors?.length) {
+				return {
+					output: {
+						context: "",
+						errors: retrieveResult.output.errors,
+					},
+				};
+			}
+
+			const relevantNodes = retrieveResult.output.relevantNodes ?? [];
+			const relevantEdges = retrieveResult.output.relevantEdges ?? [];
+
+			// Step 2: Build context
+			// Use getStepByName to avoid circular type reference
+			const buildContextStep = stepRegistry.getStepByName(
+				"entities-facts-to-context",
+				{},
+			);
+			const contextResult = (await buildContextStep.execute(
+				{
+					relevantNodes,
+					relevantEdges,
+					graphId: input.graphId,
+				},
+				runConfig,
+			)) as StepOutput<EntitiesFactsToContextOutput>;
+
+			const context = contextResult.output.knowledgeContext ?? "";
+
+			logInfo(
+				`[CONTEXT_SMART_RETRIEVE] Complete: ${relevantNodes.length} nodes, ${relevantEdges.length} edges`,
+			);
+
+			return {
+				output: {
+					context,
+					relevantNodes,
+					relevantEdges,
+					nodeCount: relevantNodes.length,
+					edgeCount: relevantEdges.length,
+				},
+			};
+		} catch (error) {
+			logError("[CONTEXT_SMART_RETRIEVE] Failed:", error);
+
+			const actions = [
+				{
+					id: crypto.randomUUID(),
+					name: "Context Smart Retrieve Failed",
+					description: error instanceof Error ? error.message : "Unknown error",
+					metadata: {},
+				},
+			];
+			runConfig?.writer?.({ type: "actions", actions });
+
+			return {
+				output: {
+					context: "",
+					errors: [
+						error instanceof Error
+							? error.message
+							: "Context smart retrieve failed",
+					],
+				},
+			};
+		}
+	},
+});
+
+type ContextSmartRetrieveSpec = StepSpecFromDefinition<typeof definition>;
+
+export const createContextSmartRetrieveStep: StepFactoryFromSpec<
+	ContextSmartRetrieveSpec
+> = (services: ContextSmartRetrieveServices, config?: ContextSmartRetrieveConfig) =>
+	bindStep(definition, services, config);
+
+stepRegistry.register(STEP_NAME, createContextSmartRetrieveStep);
+
+declare global {
+	interface StepTypeRegistry {
+		[STEP_NAME]: ContextSmartRetrieveSpec;
+	}
+}

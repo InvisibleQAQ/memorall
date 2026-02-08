@@ -9,6 +9,14 @@
  * in the database with a reference to the step type name.
  */
 
+/** Step input/output field definition */
+export interface StepIOField {
+	name: string;
+	type: string;
+	required?: boolean;
+	description?: string;
+}
+
 /** Catalog service definition - available service types */
 export interface CatalogService {
 	id: string;
@@ -23,6 +31,8 @@ export interface CatalogStep {
 	id: string;
 	name: string;
 	type: string;
+	inputs?: StepIOField[];
+	outputs?: StepIOField[];
 	metadata: Record<string, unknown>;
 }
 
@@ -57,19 +67,79 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		id: "step-add-system",
 		name: "add-system",
 		type: "common",
-		metadata: { description: "Addpend system prompt" },
+		inputs: [
+			{ name: "messages", type: "Message[]", required: true, description: "Chat messages" },
+			{ name: "systemPrompt", type: "string", required: true, description: "System prompt to add" },
+		],
+		outputs: [
+			{ name: "messages", type: "Message[]", description: "Messages with system prompt" },
+		],
+		metadata: { description: "Append system prompt" },
 	},
 	{
 		id: "step-chat-completion",
 		name: "chat-completion",
 		type: "common",
+		inputs: [
+			{ name: "messages", type: "Message[]", required: true, description: "Chat messages" },
+			{ name: "temperature", type: "number", description: "Sampling temperature" },
+			{ name: "stream", type: "boolean", description: "Enable streaming" },
+		],
+		outputs: [
+			{ name: "response", type: "string", description: "Generated response" },
+		],
 		metadata: { description: "Chat completion step" },
 	},
 	{
 		id: "step-agent-completion",
 		name: "agent-completion",
 		type: "common",
-		metadata: { description: "Agent completion step" },
+		inputs: [
+			{ name: "messages", type: "Message[]", required: true, description: "Chat messages" },
+			{ name: "tools", type: "Tool[]", description: "Available tools" },
+			{ name: "maxIterations", type: "number", description: "Max tool iterations" },
+		],
+		outputs: [
+			{ name: "response", type: "string", description: "Agent response" },
+		],
+		metadata: { description: "Agent completion step with tool use" },
+	},
+	{
+		id: "step-context-smart-retrieve",
+		name: "context-smart-retrieve",
+		type: "retrieval",
+		inputs: [
+			{ name: "query", type: "string", required: true, description: "Search query" },
+			{ name: "graphId", type: "string", description: "Knowledge graph ID" },
+			{ name: "coreContext", type: "string", description: "Additional context" },
+		],
+		outputs: [
+			{ name: "context", type: "string", description: "Built context for LLM" },
+			{ name: "nodeCount", type: "number", description: "Retrieved nodes count" },
+			{ name: "edgeCount", type: "number", description: "Retrieved edges count" },
+		],
+		metadata: {
+			description: "Smart retrieval with context building",
+			algorithm: "Semantic search + graph expansion + re-ranking",
+		},
+	},
+	{
+		id: "step-context-quick-retrieve",
+		name: "context-quick-retrieve",
+		type: "retrieval",
+		inputs: [
+			{ name: "query", type: "string", required: true, description: "Search query" },
+			{ name: "graphId", type: "string", description: "Knowledge graph ID" },
+		],
+		outputs: [
+			{ name: "context", type: "string", description: "Built context for LLM" },
+			{ name: "nodeCount", type: "number", description: "Retrieved nodes count" },
+			{ name: "edgeCount", type: "number", description: "Retrieved edges count" },
+		],
+		metadata: {
+			description: "Quick retrieval with context building",
+			algorithm: "Semantic search + graph growth",
+		},
 	},
 ];
 

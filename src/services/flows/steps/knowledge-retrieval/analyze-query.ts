@@ -32,6 +32,8 @@ export interface AnalyzeQueryOutput {
 	errors?: string[];
 }
 
+export type AnalyzeQueryServices = Pick<AllServices, 'llm'>
+
 // ============================================================================
 // SYSTEM PROMPT
 // ============================================================================
@@ -59,7 +61,7 @@ Respond in this exact JSON format:
 const definition = defineStep<
 	AnalyzeQueryInput,
 	AnalyzeQueryOutput,
-	AllServices
+	AnalyzeQueryServices
 >({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
@@ -154,7 +156,7 @@ const definition = defineStep<
 type AnalyzeQuerySpec = StepSpecFromDefinition<typeof definition>;
 
 export const createAnalyzeQueryStep: StepFactoryFromSpec<AnalyzeQuerySpec> = (
-	services: AllServices,
+	services: AnalyzeQueryServices,
 ) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createAnalyzeQueryStep);

@@ -34,7 +34,7 @@
 		"selectMode": "Select chat mode"
 	},
 	"topic": {
-		"select": "Select topic",
+		"select": "Default",
 		"all": "Default",
 		"default": "Default",
 		"loading": "Loading topics..."

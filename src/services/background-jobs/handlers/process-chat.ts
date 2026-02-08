@@ -465,11 +465,11 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				streamBuffer.flush();
 
 				if (finalState) {
-					const finalMessage = finalState.finalMessage;
+					const response = finalState.response;
 
 					// If found and different from current content, update
-					if (finalMessage && finalMessage !== currentContent) {
-						currentContent = finalMessage;
+					if (response && response !== currentContent) {
+						currentContent = response;
 
 						// Send a final update to replace the streamed content with cited version
 						await dependencies.updateJobProgress(jobId, {
@@ -477,7 +477,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 							progress: 95,
 							result: {
 								type: "final",
-								content: finalMessage,
+								content: response,
 								metadata: { actions },
 							} as ChatResult,
 						});

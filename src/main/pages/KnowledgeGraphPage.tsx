@@ -77,7 +77,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 				// Strip "topic_" prefix to get actual UUID
 				const graphFilter =
 					selectedTopicId === "default"
-						? ""
+						? "default"
 						: selectedTopicId.replace(/^topic_/, "");
 
 				logInfo("[KNOWLEDGE_GRAPH] Loading graph data:", {
@@ -94,7 +94,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 								.from(schema.nodes)
 								.where(
 									or(
-										eq(schema.nodes.graph, ""),
+										eq(schema.nodes.graph, "default"),
 										sql`${schema.nodes.graph} IS NULL`,
 									),
 								)
@@ -111,7 +111,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 								.from(schema.edges)
 								.where(
 									or(
-										eq(schema.edges.graph, ""),
+										eq(schema.edges.graph, "default"),
 										sql`${schema.edges.graph} IS NULL`,
 									),
 								)

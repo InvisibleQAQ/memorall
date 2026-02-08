@@ -1,5 +1,13 @@
 import type { BoundStep, StepFactory } from "./interfaces/step";
 
+// Base shape that all step registry entries must follow
+export interface StepSpec {
+	input: unknown;
+	output: unknown;
+	services: unknown;
+	config: unknown;
+}
+
 // Global step type registry for smart type inference
 // Step modules extend this interface to register their step types and required services
 declare global {
@@ -39,14 +47,16 @@ export class StepRegistryManager {
 	 * Register a step factory.
 	 * Normalizes factories that don't need services (arity 0) to accept unused args.
 	 */
-	register<T extends keyof StepTypeRegistry>(
+	register<T extends keyof StepTypeRegistry & string>(
 		stepName: T,
-		factory: StepFactory<
-			StepTypeRegistry[T]["input"],
-			StepTypeRegistry[T]["output"],
-			StepTypeRegistry[T]["services"],
-			StepTypeRegistry[T]["config"]
-		>,
+		factory: StepTypeRegistry[T] extends StepSpec
+			? StepFactory<
+					StepTypeRegistry[T]["input"],
+					StepTypeRegistry[T]["output"],
+					StepTypeRegistry[T]["services"],
+					StepTypeRegistry[T]["config"]
+				>
+			: never,
 	): void {
 		const normalizedFactory: StoredFactory = (
 			services: unknown,
@@ -65,24 +75,27 @@ export class StepRegistryManager {
 	/**
 	 * Get a bound step instance with services (type-safe version).
 	 */
-	getStep<T extends keyof StepTypeRegistry>(
+	getStep<T extends keyof StepTypeRegistry & string>(
 		stepName: T,
-		...args: StepTypeRegistry[T]["services"] extends undefined
-			? []
-			: [
-					services: StepTypeRegistry[T]["services"],
-					config?: StepTypeRegistry[T]["config"],
-				]
-	): BoundStep<StepTypeRegistry[T]["input"], StepTypeRegistry[T]["output"]> {
+		...args: StepTypeRegistry[T] extends StepSpec
+			? StepTypeRegistry[T]["services"] extends undefined
+				? []
+				: [
+						services: StepTypeRegistry[T]["services"],
+						config?: StepTypeRegistry[T]["config"],
+					]
+			: [services?: unknown, config?: unknown]
+	): StepTypeRegistry[T] extends StepSpec
+		? BoundStep<StepTypeRegistry[T]["input"], StepTypeRegistry[T]["output"]>
+		: BoundStep<unknown, unknown> {
 		const factory = this.factories.get(stepName as string);
 		if (!factory) {
 			throw new Error(`No step registered for name: ${String(stepName)}`);
 		}
 		const [services, config] = args as [unknown, unknown];
-		return factory(services, config) as BoundStep<
-			StepTypeRegistry[T]["input"],
-			StepTypeRegistry[T]["output"]
-		>;
+		return factory(services, config) as StepTypeRegistry[T] extends StepSpec
+			? BoundStep<StepTypeRegistry[T]["input"], StepTypeRegistry[T]["output"]>
+			: BoundStep<unknown, unknown>;
 	}
 
 	/**

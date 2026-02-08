@@ -8,19 +8,44 @@ import {
 } from "@/utils/aes";
 import secureSession from "@/utils/secure-session";
 import { logInfo, logError } from "@/utils/logger";
+import {
+	hasMasterKey,
+	getMasterStrongPassword,
+	decryptWithMasterPassword,
+	getEncryptedProviders as getMasterEncryptedProviders,
+} from "@/utils/master-key";
+
+type AuthProvider = "openai" | "openrouter";
 
 /**
- * Decrypt and restore an authentication provider (OpenAI or OpenRouter)
- * This works in both UI thread (proxy) and offscreen thread (main)
+ * Restore all encrypted providers at once using master key
+ * This is the preferred method when master key is unlocked
  */
-export async function restoreAuthProvider(
-	provider: "openai" | "openrouter",
-	passkey: string,
+export async function restoreAllProviders(
+	masterStrongPassword: string,
+): Promise<void> {
+	const providers = await getMasterEncryptedProviders();
+
+	for (const provider of providers) {
+		try {
+			await restoreProviderWithMasterPassword(provider, masterStrongPassword);
+			logInfo(`✅ ${provider} service restored`);
+		} catch (error) {
+			logError(`Failed to restore ${provider}:`, error);
+			// Continue with other providers
+		}
+	}
+}
+
+/**
+ * Restore a single provider using master strong password
+ */
+async function restoreProviderWithMasterPassword(
+	provider: AuthProvider,
+	masterStrongPassword: string,
 ): Promise<void> {
 	const configKey = `${provider}_config`;
 	const readyKey = `${provider}_ready`;
-	const passkeyKey = `${provider}_passkey`;
-	const combinedKeyKey = `${provider}_combined_key`;
 
 	try {
 		// 1. Fetch encrypted config from database
@@ -37,44 +62,106 @@ export async function restoreAuthProvider(
 			throw new Error(`No ${provider} configuration found in database`);
 		}
 
-		// 2. Decrypt strong password using user-entered passkey
-		const passkeyKey_derived = await deriveAesKeyFromString(passkey);
-		const strongPassword = await decryptStringAes(
-			encryptedConfig.advancedSeed || "",
-			passkeyKey_derived,
-		);
-
-		// 3. Combine with fixed key and decrypt config
-		const combinedKey = await deriveAesKeyFromCombined(
-			strongPassword,
-			FIXED_ENCRYPTION_KEY,
-		);
-		const decryptedData = await decryptStringAes(
+		// 2. Decrypt config using master key
+		const decryptedData = await decryptWithMasterPassword(
 			encryptedConfig.encryptedData,
-			combinedKey,
+			masterStrongPassword,
 		);
 		const config = JSON.parse(decryptedData);
 
-		// 4. Create service in LLM service manager
-		// This works for both proxy (UI thread) and main (offscreen thread)
-		const serviceName = provider; // Service names match provider names
-		if (serviceManager.llmService.has(serviceName)) {
-			serviceManager.llmService.remove(serviceName);
+		// 3. Create service in LLM service manager
+		if (serviceManager.llmService.has(provider)) {
+			serviceManager.llmService.remove(provider);
 		}
 
-		await serviceManager.llmService.create(serviceName, {
+		await serviceManager.llmService.create(provider, {
 			type: provider,
 			apiKey: config.apiKey,
 			baseURL: config.baseUrl,
 		});
 
-		// 5. Mark as ready in secure session
+		// 4. Mark as ready in secure session
 		await secureSession.set(readyKey, "true");
-		await secureSession.set(passkeyKey, passkey);
-		await secureSession.set(
-			combinedKeyKey,
-			strongPassword + FIXED_ENCRYPTION_KEY,
-		);
+	} catch (error) {
+		logError(`Failed to restore ${provider} service:`, error);
+		throw error;
+	}
+}
+
+/**
+ * Decrypt and restore an authentication provider
+ * Supports both master key format and legacy format
+ */
+export async function restoreAuthProvider(
+	provider: AuthProvider,
+	passkey: string,
+): Promise<void> {
+	const configKey = `${provider}_config`;
+	const readyKey = `${provider}_ready`;
+
+	try {
+		// 1. Fetch encrypted config from database
+		const encryptedConfig = (
+			await serviceManager.databaseService.use(({ db, schema }) => {
+				return db
+					.select()
+					.from(schema.encryption)
+					.where(eq(schema.encryption.key, configKey));
+			})
+		)[0];
+
+		if (!encryptedConfig) {
+			throw new Error(`No ${provider} configuration found in database`);
+		}
+
+		let config: { apiKey: string; baseUrl: string };
+
+		// Check if this is master key format (no advancedSeed) or legacy format
+		if (encryptedConfig.advancedSeed) {
+			// Legacy format: decrypt using per-provider passkey
+			const passkeyKey = await deriveAesKeyFromString(passkey);
+			const strongPassword = await decryptStringAes(
+				encryptedConfig.advancedSeed,
+				passkeyKey,
+			);
+
+			const combinedKey = await deriveAesKeyFromCombined(
+				strongPassword,
+				FIXED_ENCRYPTION_KEY,
+			);
+			const decryptedData = await decryptStringAes(
+				encryptedConfig.encryptedData,
+				combinedKey,
+			);
+			config = JSON.parse(decryptedData);
+		} else {
+			// Master key format: passkey is actually the master passkey
+			// First unlock the master key, then decrypt config
+			const masterStrongPassword = await getMasterStrongPassword();
+			if (!masterStrongPassword) {
+				throw new Error("Master key is not unlocked");
+			}
+
+			const decryptedData = await decryptWithMasterPassword(
+				encryptedConfig.encryptedData,
+				masterStrongPassword,
+			);
+			config = JSON.parse(decryptedData);
+		}
+
+		// 3. Create service in LLM service manager
+		if (serviceManager.llmService.has(provider)) {
+			serviceManager.llmService.remove(provider);
+		}
+
+		await serviceManager.llmService.create(provider, {
+			type: provider,
+			apiKey: config.apiKey,
+			baseURL: config.baseUrl,
+		});
+
+		// 4. Mark as ready in secure session
+		await secureSession.set(readyKey, "true");
 
 		logInfo(`✅ ${provider} service restored successfully`);
 	} catch (error) {
@@ -84,10 +171,32 @@ export async function restoreAuthProvider(
 }
 
 /**
+ * Check if any provider needs restoration
+ */
+export async function checkAnyProviderNeedsRestore(): Promise<boolean> {
+	const providers = await getMasterEncryptedProviders();
+
+	for (const provider of providers) {
+		if (await checkProviderNeedsRestore(provider)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Get list of all encrypted provider configs
+ */
+export async function getEncryptedProviders(): Promise<AuthProvider[]> {
+	return getMasterEncryptedProviders();
+}
+
+/**
  * Check if a provider needs restoration (has config but not loaded)
  */
 export async function checkProviderNeedsRestore(
-	provider: "openai" | "openrouter",
+	provider: AuthProvider,
 ): Promise<boolean> {
 	const configKey = `${provider}_config`;
 	const readyKey = `${provider}_ready`;

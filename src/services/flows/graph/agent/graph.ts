@@ -200,7 +200,7 @@ export class AgentGraph extends GraphBase<
 
 			return {
 				messages: updatedMessages,
-				finalMessage: content,
+				response: content,
 				currentIteration: state.currentIteration + 1,
 			};
 		} catch (error) {

@@ -34,7 +34,7 @@
 		"selectMode": "Chọn chế độ trò chuyện"
 	},
 	"topic": {
-		"select": "Chọn chủ đề",
+		"select": "Mặc định",
 		"default": "Mặc định",
 		"all": "Mặc định",
 		"loading": "Đang tải chủ đề..."

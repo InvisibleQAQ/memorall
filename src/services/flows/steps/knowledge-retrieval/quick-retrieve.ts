@@ -63,6 +63,8 @@ export interface QuickRetrieveOutput {
 	errors?: string[];
 }
 
+export type QuickRetrieveSerices = Pick<AllServices, 'database' | 'embedding'>
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -285,7 +287,7 @@ async function growKnowledgeGraph(
 const definition = defineStep<
 	QuickRetrieveInput,
 	QuickRetrieveOutput,
-	AllServices,
+	QuickRetrieveSerices,
 	QuickRetrieveConfig
 >({
 	name: STEP_NAME,
@@ -400,7 +402,7 @@ const definition = defineStep<
 type QuickRetrieveSpec = StepSpecFromDefinition<typeof definition>;
 
 export const createQuickRetrieveStep: StepFactoryFromSpec<QuickRetrieveSpec> = (
-	services: AllServices,
+	services: QuickRetrieveSerices,
 	config?: QuickRetrieveConfig,
 ) => bindStep(definition, services, config);
 

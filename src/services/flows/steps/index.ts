@@ -12,11 +12,17 @@ import "./knowledge-grow/load-entities";
 import "./knowledge-grow/load-facts";
 
 // RAG steps
-import "./knowledge-grow/analyze-query";
+import "./knowledge-retrieval/analyze-query";
 import "./knowledge-retrieval/retrieve-knowledge";
 import "./knowledge-retrieval/quick-retrieve";
 import "./knowledge-retrieval/smart-retrieve";
 import "./knowledge-retrieval/entities-facts-to-context";
 import "./knowledge-retrieval/entities-facts-citation";
+import "./knowledge-retrieval/context-smart-retrieve";
+import "./knowledge-retrieval/context-quick-retrieve";
+import "./knowledge-retrieval/context-llm-retrieve";
+
+// Common steps
 import "./common/chat-completion";
 import "./common/agent-completion";
+import "./common/add-system";

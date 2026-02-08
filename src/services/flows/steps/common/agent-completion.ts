@@ -26,7 +26,7 @@ export interface AgentCompletionStepInput {
 }
 
 export interface AgentCompletionStepOutput {
-	finalMessage: string;
+	response: string;
 }
 
 export type AgentCompletionStepServices = AllServices;
@@ -58,7 +58,7 @@ const definition = defineStep<
 			},
 		);
 
-		let finalMessage = "";
+		let response = "";
 
 		for await (const partial of stream) {
 			const { mode, payload } = normalizeLangGraphStreamChunk(partial);
@@ -70,8 +70,8 @@ const definition = defineStep<
 
 			if (mode === "values") {
 				const stateValues = payload as Record<string, unknown>;
-				if (stateValues?.finalMessage) {
-					finalMessage = stateValues.finalMessage as string;
+				if (stateValues?.response) {
+					response = stateValues.response as string;
 				}
 			}
 		}
@@ -83,14 +83,14 @@ const definition = defineStep<
 					id: crypto.randomUUID(),
 					name: "agent_response",
 					description: "Generated response using agent workflow",
-					metadata: { responseLength: finalMessage.length },
+					metadata: { responseLength: response.length },
 				},
 			],
 		});
 
 		return {
 			output: {
-				finalMessage,
+				response,
 			},
 		};
 	},

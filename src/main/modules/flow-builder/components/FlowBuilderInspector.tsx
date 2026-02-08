@@ -58,7 +58,7 @@ const ARRAY_ELEMENT_TYPES = [
 	"enum",
 	"object",
 ] as const;
-const BASE_STATE_NAMES = new Set(["messages", "finalMessage"]);
+const BASE_STATE_NAMES = new Set(["messages", "response"]);
 
 type StateType = (typeof STATE_TYPES)[number];
 type ArrayElementType = (typeof ARRAY_ELEMENT_TYPES)[number];
