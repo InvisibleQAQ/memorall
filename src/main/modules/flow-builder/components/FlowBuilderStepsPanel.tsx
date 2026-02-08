@@ -14,7 +14,10 @@ import {
 	TooltipTrigger,
 } from "@/main/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { CatalogStep, StepIOField } from "@/services/flows/flow-builder-catalog";
+import type {
+	CatalogStep,
+	StepIOField,
+} from "@/services/flows/flow-builder-catalog";
 
 interface FlowBuilderStepsPanelProps {
 	steps: CatalogStep[];
@@ -35,7 +38,10 @@ export const FlowBuilderStepsPanel: React.FC<FlowBuilderStepsPanelProps> = ({
 
 	const visibleSteps = steps.filter((step) => step.type !== "system");
 
-	const renderIOFields = (fields: StepIOField[] | undefined, isInput: boolean) => {
+	const renderIOFields = (
+		fields: StepIOField[] | undefined,
+		isInput: boolean,
+	) => {
 		if (!fields || fields.length === 0) return null;
 		return (
 			<div className="mt-1">
@@ -63,7 +69,7 @@ export const FlowBuilderStepsPanel: React.FC<FlowBuilderStepsPanelProps> = ({
 											isInput
 												? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
 												: "bg-green-500/10 text-green-600 dark:text-green-400",
-											field.required && isInput && "font-medium"
+											field.required && isInput && "font-medium",
 										)}
 									>
 										{field.name}
@@ -72,7 +78,9 @@ export const FlowBuilderStepsPanel: React.FC<FlowBuilderStepsPanelProps> = ({
 								</TooltipTrigger>
 								<TooltipContent side="right" className="max-w-xs">
 									<div className="text-xs">
-										<div className="font-medium">{field.name}: {field.type}</div>
+										<div className="font-medium">
+											{field.name}: {field.type}
+										</div>
 										{field.description && (
 											<div className="text-muted-foreground mt-0.5">
 												{field.description}

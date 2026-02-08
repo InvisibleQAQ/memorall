@@ -12,6 +12,7 @@ export interface ChatServiceOptions {
 	model: string;
 	mode: ChatMode;
 	topicId?: string;
+	agentFlowId?: string;
 	streamConfig?: ChatStreamConfig;
 }
 
@@ -60,7 +61,8 @@ export class ChatService {
 		callbacks?: ChatStreamCallbacks,
 		signal?: AbortSignal,
 	): Promise<ChatStreamResult> {
-		const { messages, model, mode, topicId, streamConfig } = options;
+		const { messages, model, mode, topicId, agentFlowId, streamConfig } =
+			options;
 
 		const abortController = new AbortController();
 		const jobId = `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -77,12 +79,6 @@ export class ChatService {
 				});
 			}
 
-			// Get the query from the last user message for knowledge mode
-			const lastUserMessage = messages
-				.filter((msg) => msg.role === "user")
-				.pop();
-			const query = mode === "knowledge" ? lastUserMessage?.content : undefined;
-
 			// Execute chat job with streaming
 			const result = await backgroundJob.execute(
 				"chat",
@@ -90,8 +86,8 @@ export class ChatService {
 					messages,
 					model,
 					mode,
-					query,
 					topicId,
+					agentFlowId,
 					streamConfig: streamConfig || {
 						minWordsToStream: 5,
 						streamToolCallsImmediately: true,

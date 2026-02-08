@@ -10,13 +10,35 @@ export interface BaseStateBase {
 	response?: string;
 }
 
+export type SystemPlacement = "append" | "top" | "replace";
+
+export interface NormalizeChatMessageOptions {
+	placement?: SystemPlacement;
+}
+
+const getSystemContent = (message: ChatCompletionMessageParam): string => {
+	if (typeof message.content === "string") {
+		return message.content.trim();
+	}
+	if (Array.isArray(message.content)) {
+		return message.content
+			.filter((part) => part.type === "text")
+			.map((part) => (part as { type: "text"; text: string }).text)
+			.join("\n")
+			.trim();
+	}
+	return "";
+};
+
 export const normalizeChatMessages = (
 	messages: ChatCompletionMessageParam[] | undefined,
 	systemContent?: string,
+	options?: NormalizeChatMessageOptions,
 ): ChatCompletionMessageParam[] => {
 	const list = Array.isArray(messages) ? messages : [];
 	const systemMessages = list.filter((m) => m.role === "system");
 	const nonSystem = list.filter((m) => m.role !== "system");
+	const placement = options?.placement ?? "append";
 
 	const toolById = new Map<string, ChatCompletionMessageParam[]>();
 	const orphanTools: ChatCompletionMessageParam[] = [];
@@ -52,20 +74,27 @@ export const normalizeChatMessages = (
 		logWarn("[NormalizeChatMessages] orphanTools", orphanTools);
 	}
 
-	const systemParts = [
-		systemContent?.trim(),
-		...systemMessages.map(({ content }) =>
-			typeof content === "string"
-				? content.trim()
-				: Array.isArray(content)
-					? content
-							.filter((part) => part.type === "text")
-							.map((part) => (part as { type: "text"; text: string }).text)
-							.join("\n")
-							.trim()
-					: "",
-		),
-	].filter(Boolean) as string[];
+	const existingSystemParts = systemMessages
+		.map((message) => getSystemContent(message))
+		.filter(Boolean);
+	const newSystemContent = systemContent?.trim();
+	let systemParts: string[] = [];
+
+	if (placement === "replace") {
+		systemParts = newSystemContent ? [newSystemContent] : [];
+	} else if (placement === "top") {
+		systemParts = [newSystemContent, ...existingSystemParts].filter(
+			Boolean,
+		) as string[];
+	} else {
+		systemParts = [...existingSystemParts, newSystemContent].filter(
+			Boolean,
+		) as string[];
+	}
+
+	if (systemParts.length === 0) {
+		return ordered;
+	}
 
 	return [{ role: "system", content: systemParts.join("\n\n") }, ...ordered];
 };
@@ -103,8 +132,9 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 		system: (
 			messages: ChatCompletionMessageParam[],
 			systemContent: string,
+			options?: NormalizeChatMessageOptions,
 		): ChatCompletionMessageParam[] =>
-			normalizeChatMessages(messages, systemContent),
+			normalizeChatMessages(messages, systemContent, options),
 		assistant: (
 			messages: ChatCompletionMessageParam[],
 			content: string | null,

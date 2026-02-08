@@ -263,7 +263,9 @@ export async function encryptWithMasterKey(data: string): Promise<string> {
  * Decrypt data using the master key
  * Requires master key to be unlocked first
  */
-export async function decryptWithMasterKey(encryptedData: string): Promise<string> {
+export async function decryptWithMasterKey(
+	encryptedData: string,
+): Promise<string> {
 	const masterStrongPassword = await getMasterStrongPassword();
 	if (!masterStrongPassword) {
 		throw new Error("Master key is not unlocked");
@@ -346,7 +348,10 @@ export async function migrateLegacyConfig(
 			masterStrongPassword,
 			FIXED_ENCRYPTION_KEY,
 		);
-		const newEncryptedData = await encryptStringAes(decryptedConfig, newCombinedKey);
+		const newEncryptedData = await encryptStringAes(
+			decryptedConfig,
+			newCombinedKey,
+		);
 
 		// 5. Update database record - clear advancedSeed (no longer needed)
 		await serviceManager.databaseService.use(({ db, schema }) =>
@@ -388,14 +393,18 @@ export async function saveProviderConfig(
 			masterStrongPassword,
 			FIXED_ENCRYPTION_KEY,
 		);
-		const encryptedData = await encryptStringAes(JSON.stringify(config), combinedKey);
+		const encryptedData = await encryptStringAes(
+			JSON.stringify(config),
+			combinedKey,
+		);
 
 		// Save to database (no advancedSeed for new format)
-		const existing = await serviceManager.databaseService.use(({ db, schema }) =>
-			db
-				.select()
-				.from(schema.encryption)
-				.where(eq(schema.encryption.key, configKey)),
+		const existing = await serviceManager.databaseService.use(
+			({ db, schema }) =>
+				db
+					.select()
+					.from(schema.encryption)
+					.where(eq(schema.encryption.key, configKey)),
 		);
 
 		if (existing.length > 0) {

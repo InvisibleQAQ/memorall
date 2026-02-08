@@ -6,7 +6,9 @@ import type {
 	FlowStep,
 	FlowConnection,
 	FlowService,
+	FlowConfig,
 } from "@/services/database/types";
+import type { PredefinedFlowKey } from "@/services/database/entities/flows";
 import type {
 	FlowCatalog,
 	FlowConnectionInput,
@@ -16,8 +18,53 @@ import type {
 	FlowStateInput,
 	FlowStepInput,
 } from "./interfaces/flow-builder";
+import {
+	DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
+	KNOWLEDGE_RAG_CONFIG_KEYS,
+	type KnowledgeRAGPredefinedConfig,
+} from "./graph/knowledge-rag/state";
 import { logError, logInfo } from "@/utils/logger";
 import { getFlowCatalog } from "./flow-builder-catalog";
+
+type PredefinedFlowConfigMap = {
+	"knowledge-rag": KnowledgeRAGPredefinedConfig;
+};
+
+type FlowConfigRef = { flowId: string } | { predefinedFlow: PredefinedFlowKey };
+
+const getFlowConfigMetaForPredefined = (flowKey: PredefinedFlowKey) => {
+	switch (flowKey) {
+		case "knowledge-rag":
+			return {
+				keys: KNOWLEDGE_RAG_CONFIG_KEYS,
+				defaults: DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
+			};
+	}
+};
+
+const isValidConfigValue = (type: string, value: unknown): boolean => {
+	switch (type) {
+		case "string":
+			return typeof value === "string";
+		case "boolean":
+			return typeof value === "boolean";
+		case "array":
+			return Array.isArray(value);
+		default:
+			return false;
+	}
+};
+
+const inferConfigType = (value: unknown): string => {
+	if (Array.isArray(value)) return "array";
+	if (typeof value === "boolean") return "boolean";
+	if (typeof value === "string") return "string";
+	if (typeof value === "number") return "number";
+	if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+		return "object";
+	}
+	return "unknown";
+};
 
 const buildFlowServices = (
 	flowId: string,
@@ -48,6 +95,37 @@ export class FlowBuilderService {
 		);
 	}
 
+	async listPredefinedFlows(flowKey: PredefinedFlowKey): Promise<Flow[]> {
+		// Ensure default predefined flow exists before listing.
+		await this.resolveFlow({ predefinedFlow: flowKey });
+		return this.databaseService.use(async ({ db, schema }) =>
+			db
+				.select()
+				.from(schema.flows)
+				.where(eq(schema.flows.predefinedFlow, flowKey))
+				.orderBy(desc(schema.flows.updatedAt)),
+		);
+	}
+
+	async createPredefinedFlow(
+		flowKey: PredefinedFlowKey,
+		name: string,
+	): Promise<Flow> {
+		const normalizedName = name.trim() || flowKey;
+		return this.databaseService.transaction(async ({ db, schema }) => {
+			const [flow] = await db
+				.insert(schema.flows)
+				.values({
+					name: normalizedName,
+					predefinedFlow: flowKey,
+					status: "active",
+					serviceKeys: [],
+				})
+				.returning();
+			return flow;
+		});
+	}
+
 	async getFlowDefinition(flowId: string): Promise<FlowDefinition | null> {
 		return this.databaseService.use(async ({ db, schema }) => {
 			const [flow] = await db
@@ -58,24 +136,29 @@ export class FlowBuilderService {
 
 			if (!flow) return null;
 
-			const [states, services, steps, connections] = await Promise.all([
-				db
-					.select()
-					.from(schema.flowStates)
-					.where(eq(schema.flowStates.flowId, flowId)),
-				db
-					.select()
-					.from(schema.flowServices)
-					.where(eq(schema.flowServices.flowId, flowId)),
-				db
-					.select()
-					.from(schema.flowSteps)
-					.where(eq(schema.flowSteps.flowId, flowId)),
-				db
-					.select()
-					.from(schema.flowConnections)
-					.where(eq(schema.flowConnections.flowId, flowId)),
-			]);
+			const [states, services, steps, connections, flowConfigs] =
+				await Promise.all([
+					db
+						.select()
+						.from(schema.flowStates)
+						.where(eq(schema.flowStates.flowId, flowId)),
+					db
+						.select()
+						.from(schema.flowServices)
+						.where(eq(schema.flowServices.flowId, flowId)),
+					db
+						.select()
+						.from(schema.flowSteps)
+						.where(eq(schema.flowSteps.flowId, flowId)),
+					db
+						.select()
+						.from(schema.flowConnections)
+						.where(eq(schema.flowConnections.flowId, flowId)),
+					db
+						.select()
+						.from(schema.flowConfigs)
+						.where(eq(schema.flowConfigs.flowId, flowId)),
+				]);
 
 			const layout =
 				(flow.metadata as { layout?: FlowLayout } | undefined)?.layout ??
@@ -87,6 +170,7 @@ export class FlowBuilderService {
 				states,
 				steps,
 				connections,
+				flowConfigs,
 				layout,
 			};
 		});
@@ -193,6 +277,7 @@ export class FlowBuilderService {
 					states: createdStates,
 					steps: createdSteps,
 					connections: createdConnections,
+					flowConfigs: [] as FlowConfig[],
 					layout,
 				};
 			});
@@ -328,6 +413,7 @@ export class FlowBuilderService {
 					states: createdStates,
 					steps: createdSteps,
 					connections: createdConnections,
+					flowConfigs: [] as FlowConfig[],
 					layout: resolvedLayout,
 				};
 			});
@@ -367,5 +453,205 @@ export class FlowBuilderService {
 	 */
 	getCatalog(): FlowCatalog {
 		return getFlowCatalog();
+	}
+
+	private async resolveFlow(ref: FlowConfigRef): Promise<Flow> {
+		return this.databaseService.use(async ({ db, schema }) => {
+			if ("flowId" in ref) {
+				const [byId] = await db
+					.select()
+					.from(schema.flows)
+					.where(eq(schema.flows.id, ref.flowId))
+					.limit(1);
+				if (!byId) {
+					throw new Error(`Flow with ID ${ref.flowId} not found`);
+				}
+				return byId;
+			}
+
+			const [existing] = await db
+				.select()
+				.from(schema.flows)
+				.where(eq(schema.flows.predefinedFlow, ref.predefinedFlow))
+				.limit(1);
+
+			if (existing) {
+				return existing;
+			}
+
+			const [inserted] = await db
+				.insert(schema.flows)
+				.values({
+					name: ref.predefinedFlow,
+					predefinedFlow: ref.predefinedFlow,
+					status: "active",
+					serviceKeys: [],
+				})
+				.returning();
+
+			return inserted;
+		});
+	}
+
+	async getFlowConfig<K extends PredefinedFlowKey>(ref: {
+		predefinedFlow: K;
+	}): Promise<PredefinedFlowConfigMap[K]>;
+	async getFlowConfig(ref: {
+		flowId: string;
+	}): Promise<Record<string, unknown>>;
+	async getFlowConfig(ref: FlowConfigRef): Promise<Record<string, unknown>> {
+		const flow = await this.resolveFlow(ref);
+		const predefinedFlow = flow.predefinedFlow as PredefinedFlowKey | null;
+
+		try {
+			const rows = await this.databaseService.use(async ({ db, schema }) =>
+				db
+					.select({
+						name: schema.flowConfigs.name,
+						value: schema.flowConfigs.value,
+						type: schema.flowConfigs.type,
+					})
+					.from(schema.flowConfigs)
+					.where(eq(schema.flowConfigs.flowId, flow.id)),
+			);
+
+			if (predefinedFlow) {
+				const { keys, defaults } =
+					getFlowConfigMetaForPredefined(predefinedFlow);
+				const rowMap = new Map(rows.map((row) => [row.name, row]));
+				const config: Record<string, unknown> = {};
+				for (const key of keys) {
+					const row = rowMap.get(key.name);
+					if (
+						row &&
+						row.type === key.type &&
+						isValidConfigValue(key.type, row.value)
+					) {
+						config[key.name] = row.value;
+					} else {
+						config[key.name] = defaults[key.name as keyof typeof defaults];
+					}
+				}
+				return config;
+			}
+
+			return Object.fromEntries(rows.map((row) => [row.name, row.value]));
+		} catch (error) {
+			logError("[FLOW_BUILDER] Failed to load flow config:", error);
+			if (predefinedFlow) {
+				const { defaults } = getFlowConfigMetaForPredefined(predefinedFlow);
+				return { ...defaults };
+			}
+			return {};
+		}
+	}
+
+	async saveFlowConfig<K extends PredefinedFlowKey>(
+		ref: { predefinedFlow: K },
+		config: PredefinedFlowConfigMap[K],
+	): Promise<void>;
+	async saveFlowConfig(
+		ref: { flowId: string },
+		config: Record<string, unknown>,
+	): Promise<void>;
+	async saveFlowConfig(
+		ref: FlowConfigRef,
+		config: Record<string, unknown>,
+	): Promise<void> {
+		const flow = await this.resolveFlow(ref);
+		const predefinedFlow = flow.predefinedFlow as PredefinedFlowKey | null;
+
+		await this.databaseService.transaction(async ({ db, schema }) => {
+			if (predefinedFlow) {
+				const { keys } = getFlowConfigMetaForPredefined(predefinedFlow);
+				for (const key of keys) {
+					const value = config[key.name as keyof typeof config];
+					const existing = await db
+						.select({ id: schema.flowConfigs.id })
+						.from(schema.flowConfigs)
+						.where(
+							and(
+								eq(schema.flowConfigs.flowId, flow.id),
+								eq(schema.flowConfigs.name, key.name),
+							),
+						)
+						.limit(1);
+
+					if (existing.length > 0) {
+						await db
+							.update(schema.flowConfigs)
+							.set({
+								type: key.type,
+								value,
+								updatedAt: new Date(),
+							})
+							.where(eq(schema.flowConfigs.id, existing[0].id));
+						continue;
+					}
+
+					await db.insert(schema.flowConfigs).values({
+						flowId: flow.id,
+						name: key.name,
+						type: key.type,
+						value,
+						metadata: {},
+					});
+				}
+				return;
+			}
+
+			for (const [name, value] of Object.entries(config)) {
+				const type = inferConfigType(value);
+				const existing = await db
+					.select({ id: schema.flowConfigs.id })
+					.from(schema.flowConfigs)
+					.where(
+						and(
+							eq(schema.flowConfigs.flowId, flow.id),
+							eq(schema.flowConfigs.name, name),
+						),
+					)
+					.limit(1);
+
+				if (existing.length > 0) {
+					await db
+						.update(schema.flowConfigs)
+						.set({
+							type,
+							value,
+							updatedAt: new Date(),
+						})
+						.where(eq(schema.flowConfigs.id, existing[0].id));
+					continue;
+				}
+				await db.insert(schema.flowConfigs).values({
+					flowId: flow.id,
+					name,
+					type,
+					value,
+					metadata: {},
+				});
+			}
+		});
+	}
+
+	async resetFlowConfig(ref: FlowConfigRef): Promise<void> {
+		const flow = await this.resolveFlow(ref);
+		const predefinedFlow = flow.predefinedFlow as PredefinedFlowKey | null;
+
+		if (predefinedFlow) {
+			const { defaults } = getFlowConfigMetaForPredefined(predefinedFlow);
+			await this.saveFlowConfig(
+				{ predefinedFlow },
+				defaults as PredefinedFlowConfigMap[typeof predefinedFlow],
+			);
+			return;
+		}
+
+		await this.databaseService.use(async ({ db, schema }) => {
+			await db
+				.delete(schema.flowConfigs)
+				.where(eq(schema.flowConfigs.flowId, flow.id));
+		});
 	}
 }

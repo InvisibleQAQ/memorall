@@ -17,6 +17,7 @@ interface ChatStore {
 	isLoading: boolean;
 	chatMode: ChatMode;
 	selectedTopic: string;
+	selectedAgentFlowId: string | null;
 
 	// Actions
 	addMessage: (message: Partial<Message>) => Promise<Message>;
@@ -30,6 +31,7 @@ interface ChatStore {
 	setLoading: (loading: boolean) => void;
 	setChatMode: (mode: ChatMode) => void;
 	setSelectedTopic: (topicId: string) => void;
+	setSelectedAgentFlowId: (flowId: string | null) => void;
 
 	// Database sync
 	syncWithDB: () => Promise<void>;
@@ -41,6 +43,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 	isLoading: false,
 	chatMode: "knowledge",
 	selectedTopic: "default",
+	selectedAgentFlowId: null,
 
 	addMessage: async (messageData) => {
 		let conversationId = messageData.conversationId;
@@ -255,6 +258,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
 	setSelectedTopic: (topicId: string) => {
 		set({ selectedTopic: topicId });
+	},
+
+	setSelectedAgentFlowId: (flowId: string | null) => {
+		set({ selectedAgentFlowId: flowId });
 	},
 
 	syncWithDB: async () => {

@@ -85,7 +85,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 			if (file.type === "pdf" || file.type === "image") {
 				setLoading(true);
 				try {
-					const content = await documentFileSystemService.getFileContent(file.id);
+					const content = await documentFileSystemService.getFileContent(
+						file.id,
+					);
 					// Create blob directly from Uint8Array
 					const blob = new Blob([content] as unknown as BlobPart[], {
 						type: file.mimeType,
@@ -100,7 +102,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 			} else if (file.type === "text" || file.type === "markdown") {
 				setLoading(true);
 				try {
-					const content = await documentFileSystemService.getFileContent(file.id);
+					const content = await documentFileSystemService.getFileContent(
+						file.id,
+					);
 					const textDecoder = new TextDecoder("utf-8");
 					const text = textDecoder.decode(content);
 					setTextContent(text);
@@ -113,7 +117,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				setLoading(true);
 				try {
 					logInfo("Loading Excel file content for:", file.name);
-					const content = await documentFileSystemService.getFileContent(file.id);
+					const content = await documentFileSystemService.getFileContent(
+						file.id,
+					);
 					logInfo("Excel content loaded, size:", content.length, "bytes");
 					setExcelData(content);
 					logInfo("Excel data set in state");

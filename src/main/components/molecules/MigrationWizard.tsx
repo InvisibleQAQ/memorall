@@ -35,10 +35,7 @@ interface MigrationWizardProps {
 	onCancel?: () => void;
 }
 
-type WizardStep =
-	| "setup-master"
-	| "migrate-providers"
-	| "complete";
+type WizardStep = "setup-master" | "migrate-providers" | "complete";
 
 export const MigrationWizard: React.FC<MigrationWizardProps> = ({
 	open,
@@ -49,7 +46,9 @@ export const MigrationWizard: React.FC<MigrationWizardProps> = ({
 	const [step, setStep] = useState<WizardStep>("setup-master");
 	const [legacyProviders, setLegacyProviders] = useState<AuthProvider[]>([]);
 	const [currentProviderIndex, setCurrentProviderIndex] = useState(0);
-	const [migratedProviders, setMigratedProviders] = useState<AuthProvider[]>([]);
+	const [migratedProviders, setMigratedProviders] = useState<AuthProvider[]>(
+		[],
+	);
 	const [skippedProviders, setSkippedProviders] = useState<AuthProvider[]>([]);
 
 	// Master key setup state
@@ -93,7 +92,9 @@ export const MigrationWizard: React.FC<MigrationWizardProps> = ({
 	const isMasterPasskeyValid = masterPasskey.length >= 6;
 	const masterPasskeysMatch = masterPasskey === confirmMasterPasskey;
 	const canSetupMaster =
-		isMasterPasskeyValid && masterPasskeysMatch && confirmMasterPasskey.length > 0;
+		isMasterPasskeyValid &&
+		masterPasskeysMatch &&
+		confirmMasterPasskey.length > 0;
 
 	// Handle master key setup
 	const handleSetupMasterKey = async () => {
@@ -136,7 +137,9 @@ export const MigrationWizard: React.FC<MigrationWizardProps> = ({
 			}
 		} catch (err) {
 			setError(
-				err instanceof Error ? err.message : t("migration.errors.migrateFailed"),
+				err instanceof Error
+					? err.message
+					: t("migration.errors.migrateFailed"),
 			);
 		} finally {
 			setIsLoading(false);
@@ -344,7 +347,11 @@ export const MigrationWizard: React.FC<MigrationWizardProps> = ({
 						</>
 					)}
 				</Button>
-				<Button onClick={handleSkipProvider} variant="outline" disabled={isLoading}>
+				<Button
+					onClick={handleSkipProvider}
+					variant="outline"
+					disabled={isLoading}
+				>
 					{t("migration.skip")}
 				</Button>
 			</div>

@@ -114,7 +114,9 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 			setConverting(true);
 
 			// Get file content from storage and convert to text in main thread
-			const fileContent = await documentFileSystemService.getFileContent(file.id);
+			const fileContent = await documentFileSystemService.getFileContent(
+				file.id,
+			);
 			const pageNumbers = Array.from(selectedPages).sort((a, b) => a - b);
 
 			logInfo(

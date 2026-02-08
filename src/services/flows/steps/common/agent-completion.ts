@@ -76,18 +76,6 @@ const definition = defineStep<
 			}
 		}
 
-		runConfig?.writer?.({
-			type: "actions",
-			actions: [
-				{
-					id: crypto.randomUUID(),
-					name: "agent_response",
-					description: "Generated response using agent workflow",
-					metadata: { responseLength: response.length },
-				},
-			],
-		});
-
 		return {
 			output: {
 				response,

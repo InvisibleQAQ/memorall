@@ -5,6 +5,7 @@ import "./process-embedding-operations";
 import "./process-knowledge-graph";
 import "./process-llm-operations";
 import "./process-topic-operations";
+import "./process-flow-operations";
 import "./process-chat";
 import "./process-activity-tracking";
 

@@ -1,8 +1,6 @@
 import { logError } from "@/utils/logger";
 import * as pdfjsLib from "pdfjs-dist";
-import type {
-	TextItem,
-} from "pdfjs-dist/types/src/display/api";
+import type { TextItem } from "pdfjs-dist/types/src/display/api";
 
 // Configure PDF.js worker to use bundled worker file
 // The worker file is copied to public/vendors/pdfjs by the build script

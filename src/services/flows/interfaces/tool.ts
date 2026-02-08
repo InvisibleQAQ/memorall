@@ -9,7 +9,7 @@ export interface AllServices {
 	llm: ILLMService;
 	embedding: IEmbeddingService;
 	database: IDatabaseService;
-	documentFileSystem?: DocumentFileSystem
+	documentFileSystem?: DocumentFileSystem;
 }
 
 // Base tool interface for runtime storage (no generic constraints)

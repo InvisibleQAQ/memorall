@@ -4,6 +4,7 @@ import type {
 	FlowStep,
 	FlowConnection,
 	FlowService,
+	FlowConfig,
 } from "@/services/database/types";
 import type { CatalogService, CatalogStep } from "../flow-builder-catalog";
 
@@ -24,6 +25,7 @@ export interface FlowDefinition {
 	states: FlowState[];
 	steps: FlowStep[];
 	connections: FlowConnection[];
+	flowConfigs: FlowConfig[];
 	layout?: FlowLayout;
 }
 

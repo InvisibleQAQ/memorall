@@ -16,7 +16,58 @@ export interface KnowledgeRAGConfig {
 	maxIterations?: number;
 	maxGrowthLevels?: number;
 	searchLimit?: number;
+	/** Custom system prompt (overrides default). Use {context} placeholder for knowledge context. */
+	systemPrompt?: string;
+	/** Custom context prompt (overrides default RESPONSE_GENERATION_PROMPT). */
+	contextPrompt?: string;
+	/** Whether to retrieve knowledge context before responding (default: true) */
+	enableContextRetrieval?: boolean;
+	/** Whether to add citations to responses (default: true) */
+	enableCitations?: boolean;
 }
+
+export const DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT = `
+You are a knowledgeable assistant.
+Use the provided system context and answer clearly, accurately, and with structured sections when useful.
+`.trim();
+
+export const DEFAULT_KNOWLEDGE_RAG_CONTEXT_PROMPT = `
+# Context
+Available Knowledge Context:
+<context>
+{context}
+</context>
+
+## Context usage buideline
+Using the provided knowledge context, provide a comprehensive and accurate answer to the user's query.
+If the knowledge graph doesn't contain enough information to fully answer the question, mention what information is available and what might be missing.
+Following below order of information:
+1. If information to answer available in knowledge graph use it to answer the question.
+2. If information to answer not available in knowledge graph use your general knowledge to answer the question.
+Structure your answer in clear sections when appropriate.
+`.trim();
+
+/** Default predefined config values (used by service for defaults + UI for reset) */
+export const DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG = {
+	systemPrompt: "",
+	contextPrompt: "",
+	tools: ["current_time", "js_execute"] as string[],
+	enableContextRetrieval: true,
+	enableCitations: true,
+};
+
+/** Type for the subset of KnowledgeRAGConfig that is user-configurable */
+export type KnowledgeRAGPredefinedConfig =
+	typeof DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG;
+
+/** Canonical config keys that map to flow_configs rows */
+export const KNOWLEDGE_RAG_CONFIG_KEYS = [
+	{ name: "systemPrompt", type: "string" },
+	{ name: "contextPrompt", type: "string" },
+	{ name: "tools", type: "array" },
+	{ name: "enableContextRetrieval", type: "boolean" },
+	{ name: "enableCitations", type: "boolean" },
+] as const;
 
 // Graph growth configuration
 export interface GraphGrowthConfig {
@@ -27,10 +78,9 @@ export interface GraphGrowthConfig {
 
 export interface KnowledgeRAGState extends BaseStateBase {
 	// Input
-	query: string;
 	graphId?: string;
-	// Core context for general knowledge retrieval (topic name + description)
-	coreContext?: string;
+	// Additional search contexts (for example selected topic metadata)
+	contextQueries: string[];
 
 	// Agent config (from input)
 	tools?: ChatCompletionTool[];
@@ -61,22 +111,18 @@ export interface KnowledgeRAGState extends BaseStateBase {
 	}>;
 
 	// Context Building
-	knowledgeContext: string;
+	context: string;
 }
 
 export const KnowledgeRAGAnnotation = {
 	...BaseAnnotation,
-	query: Annotation<string>({
-		value: (x, y) => y ?? x ?? "",
-		default: () => "",
-	}),
 	graphId: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,
 		default: () => undefined,
 	}),
-	coreContext: Annotation<string | undefined>({
-		value: (x, y) => y ?? x,
-		default: () => undefined,
+	contextQueries: Annotation<string[]>({
+		value: (x, y) => y ?? x ?? [],
+		default: () => [],
 	}),
 	tools: Annotation<ChatCompletionTool[] | undefined>({
 		value: (x, y) => y ?? x,
@@ -102,7 +148,7 @@ export const KnowledgeRAGAnnotation = {
 		value: (x, y) => y ?? x ?? [],
 		default: () => [],
 	}),
-	knowledgeContext: Annotation<string>({
+	context: Annotation<string>({
 		value: (x, y) => y ?? x ?? "",
 		default: () => "",
 	}),

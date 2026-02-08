@@ -33,12 +33,16 @@ export const useChat = (model: string) => {
 	// State selectors - only re-render when specific value changes
 	const messages = useChatStore((state) => state.messages);
 	const isLoading = useChatStore((state) => state.isLoading);
-	const chatMode = useChatStore((state) => state.chatMode);
 	const selectedTopic = useChatStore((state) => state.selectedTopic);
+	const selectedAgentFlowId = useChatStore(
+		(state) => state.selectedAgentFlowId,
+	);
 
 	// Action selectors - stable references, won't cause re-renders
-	const setChatMode = useChatStore((state) => state.setChatMode);
 	const setSelectedTopic = useChatStore((state) => state.setSelectedTopic);
+	const setSelectedAgentFlowId = useChatStore(
+		(state) => state.setSelectedAgentFlowId,
+	);
 	const addMessage = useChatStore((state) => state.addMessage);
 	const finalizeMessage = useChatStore((state) => state.finalizeMessage);
 	const setLoading = useChatStore((state) => state.setLoading);
@@ -46,6 +50,9 @@ export const useChat = (model: string) => {
 		(state) => state.ensureMainConversation,
 	);
 	const deleteMessages = useChatStore((state) => state.deleteMessages);
+
+	const isKnowledgeMode =
+		selectedAgentFlowId !== null && selectedAgentFlowId !== "chat";
 
 	// Initialize conversation
 	useEffect(() => {
@@ -64,7 +71,7 @@ export const useChat = (model: string) => {
 
 	// Sync selectedTopic with last message's topic only if no topic has been selected yet
 	useEffect(() => {
-		if (chatMode !== "knowledge") return;
+		if (!isKnowledgeMode) return;
 		if (selectedTopic !== "default") return;
 
 		// Find the last user or assistant message (skip separators)
@@ -75,7 +82,7 @@ export const useChat = (model: string) => {
 		if (lastMessage?.topicId) {
 			setSelectedTopic(lastMessage.topicId);
 		}
-	}, [messages, chatMode]);
+	}, [messages, isKnowledgeMode]);
 
 	// Stop current chat request
 	const handleStop = () => {
@@ -138,7 +145,7 @@ export const useChat = (model: string) => {
 				content: userMessageContent,
 				// Include topicId when in knowledge mode with a selected topic
 				topicId:
-					chatMode === "knowledge" &&
+					isKnowledgeMode &&
 					selectedTopic &&
 					selectedTopic !== "default" &&
 					selectedTopic !== "__all__"
@@ -194,11 +201,12 @@ export const useChat = (model: string) => {
 				{
 					messages: sendMessages,
 					model: model,
-					mode: chatMode,
+					mode: isKnowledgeMode ? "knowledge" : "normal",
 					topicId:
-						selectedTopic && selectedTopic !== "__all__"
+						isKnowledgeMode && selectedTopic && selectedTopic !== "__all__"
 							? selectedTopic
 							: undefined,
+					agentFlowId: selectedAgentFlowId ?? undefined,
 					streamConfig: {
 						minWordsToStream: 5,
 						streamToolCallsImmediately: true,
@@ -337,10 +345,12 @@ export const useChat = (model: string) => {
 		inputValue,
 		setInputValue,
 		status,
-		chatMode,
-		setChatMode,
+		chatMode: isKnowledgeMode ? "knowledge" : "normal",
+		setChatMode: () => undefined,
 		selectedTopic,
 		setSelectedTopic,
+		selectedAgentFlowId,
+		setSelectedAgentFlowId,
 		messages,
 		isLoading,
 		abortController,

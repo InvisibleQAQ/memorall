@@ -4,11 +4,13 @@
  * Combines semantic search with intelligent graph expansion and completeness verification.
  *
  * Algorithm Phases:
- * 1. Semantic Seed Retrieval - Vector search for initial highly relevant nodes/edges
- * 2. Smart Graph Expansion - Multi-level expansion with semantic filtering
- * 3. Completeness Verification - Ensure all query components are covered
- * 4. Multi-Factor Re-Ranking - Combine semantic, structural, and coverage scores
- * 5. Post-Expansion - Connect standalone nodes and edges
+ * 1. Primary Query Seed Retrieval - Vector search for main query
+ * 2. Context Query Seed Retrieval - Vector search for each context query
+ * 3. Seed Merge - Merge primary + context seeds
+ * 4. Smart Graph Expansion - Multi-level expansion with semantic filtering
+ * 5. Completeness Verification - Ensure all query/context components are covered
+ * 6. Multi-Factor Re-Ranking - Combine semantic, structural, and coverage scores
+ * 7. Post-Expansion - Connect standalone nodes and edges
  */
 
 import { logInfo, logError } from "@/utils/logger";
@@ -53,7 +55,7 @@ export interface RelevantEdge {
 export interface SmartRetrieveInput {
 	query: string;
 	graphId?: string;
-	coreContext?: string;
+	contextQueries?: string[];
 }
 
 export interface SmartRetrieveOutput {
@@ -65,7 +67,7 @@ export interface SmartRetrieveOutput {
 	errors?: string[];
 }
 
-export type SmartRetrieveServices = Pick<AllServices, 'database' | 'embedding'>
+export type SmartRetrieveServices = Pick<AllServices, "database" | "embedding">;
 
 // ============================================================================
 // CONFIGURATION TYPES
@@ -572,9 +574,10 @@ const definition = defineStep<
 			}
 
 			logInfo(`[SMART_RETRIEVE] Starting for graphId: ${input.graphId}`);
+			const baseQuery = input.query.trim();
 
-			// Phase 1: Semantic Seed Retrieval
-			const queryEmbedding = await defaultEmbedding.textToVector(input.query);
+			// Phase 1: Primary Query Seed Retrieval
+			const queryEmbedding = await defaultEmbedding.textToVector(baseQuery);
 
 			const mmrConfig = config.seed.mmr ?? DEFAULT_MMR_CONFIG;
 			const candidateMultiplier = mmrConfig.enabled
@@ -586,7 +589,7 @@ const definition = defineStep<
 			const nodeResults = await vectorSearchNodes(
 				database,
 				defaultEmbedding,
-				[input.query],
+				[baseQuery],
 				nodeCandidateLimit,
 				input.graphId,
 			);
@@ -594,7 +597,7 @@ const definition = defineStep<
 			const edgeResults = await vectorSearchEdges(
 				database,
 				defaultEmbedding,
-				[input.query],
+				[baseQuery],
 				config.seed.edgeLimit,
 				input.graphId,
 			);
@@ -605,34 +608,118 @@ const definition = defineStep<
 					toEnhancedNode(result.item, result.similarity, 0, "seed"),
 				);
 
-			let seedNodes: EnhancedNode[];
+			let primarySeedNodes: EnhancedNode[];
 			if (mmrConfig.enabled && nodeCandidates.length > config.seed.nodeLimit) {
-				seedNodes = applyMMR(
+				primarySeedNodes = applyMMR(
 					nodeCandidates,
 					queryEmbedding,
 					config.seed.nodeLimit,
 					getMMRLambda(mmrConfig),
 				);
 			} else {
-				seedNodes = nodeCandidates.slice(0, config.seed.nodeLimit);
+				primarySeedNodes = nodeCandidates.slice(0, config.seed.nodeLimit);
 			}
 
-			const seedEdges: EnhancedEdge[] = edgeResults
+			const primarySeedEdges: EnhancedEdge[] = edgeResults
 				.filter((result) => result.similarity >= config.seed.edgeThreshold)
 				.map((result) =>
 					toEnhancedEdge(result.item, result.similarity, 0, "seed"),
 				);
 
 			logInfo(
-				`[SMART_RETRIEVE] Phase 1: ${seedNodes.length} seed nodes, ${seedEdges.length} seed edges`,
+				`[SMART_RETRIEVE] Phase 1: ${primarySeedNodes.length} primary seed nodes, ${primarySeedEdges.length} primary seed edges`,
 			);
 
-			// Phase 2: Smart Graph Expansion
+			// Phase 2: Context Query Seed Retrieval (separate from primary query)
+			const contextSeedNodesMap = new Map<string, EnhancedNode>();
+			const contextSeedEdgesMap = new Map<string, EnhancedEdge>();
+
+			const contextQueries = (input.contextQueries ?? [])
+				.map((text) => text.trim())
+				.filter((text) => text.length > 0 && text !== baseQuery);
+
+			for (const contextQuery of contextQueries) {
+				const contextEmbedding =
+					await defaultEmbedding.textToVector(contextQuery);
+				const contextNodeResults = await vectorSearchNodes(
+					database,
+					defaultEmbedding,
+					[contextQuery],
+					nodeCandidateLimit,
+					input.graphId,
+				);
+				const contextEdgeResults = await vectorSearchEdges(
+					database,
+					defaultEmbedding,
+					[contextQuery],
+					config.seed.edgeLimit,
+					input.graphId,
+				);
+
+				const contextCandidates: EnhancedNode[] = contextNodeResults
+					.filter((result) => result.similarity >= config.seed.nodeThreshold)
+					.map((result) =>
+						toEnhancedNode(result.item, result.similarity, 0, "seed"),
+					);
+
+				const contextSelected =
+					mmrConfig.enabled && contextCandidates.length > config.seed.nodeLimit
+						? applyMMR(
+								contextCandidates,
+								contextEmbedding,
+								config.seed.nodeLimit,
+								getMMRLambda(mmrConfig),
+							)
+						: contextCandidates.slice(0, config.seed.nodeLimit);
+
+				contextSelected.forEach((node) => {
+					const existing = contextSeedNodesMap.get(node.id);
+					if (!existing || node.semanticScore > existing.semanticScore) {
+						contextSeedNodesMap.set(node.id, node);
+					}
+				});
+
+				contextEdgeResults
+					.filter((result) => result.similarity >= config.seed.edgeThreshold)
+					.map((result) =>
+						toEnhancedEdge(result.item, result.similarity, 0, "seed"),
+					)
+					.forEach((edge) => {
+						const existing = contextSeedEdgesMap.get(edge.id);
+						if (!existing || edge.semanticScore > existing.semanticScore) {
+							contextSeedEdgesMap.set(edge.id, edge);
+						}
+					});
+			}
+
+			logInfo(
+				`[SMART_RETRIEVE] Phase 2: ${contextSeedNodesMap.size} context seed nodes, ${contextSeedEdgesMap.size} context seed edges`,
+			);
+
+			// Phase 3: Merge primary + context seeds
 			const allNodes = new Map<string, EnhancedNode>();
 			const allEdges = new Map<string, EnhancedEdge>();
 
-			seedNodes.forEach((node) => allNodes.set(node.id, node));
-			seedEdges.forEach((edge) => allEdges.set(edge.id, edge));
+			primarySeedNodes.forEach((node) => allNodes.set(node.id, node));
+			primarySeedEdges.forEach((edge) => allEdges.set(edge.id, edge));
+			contextSeedNodesMap.forEach((node, id) => {
+				const existing = allNodes.get(id);
+				if (!existing || node.semanticScore > existing.semanticScore) {
+					allNodes.set(id, node);
+				}
+			});
+			contextSeedEdgesMap.forEach((edge, id) => {
+				const existing = allEdges.get(id);
+				if (!existing || edge.semanticScore > existing.semanticScore) {
+					allEdges.set(id, edge);
+				}
+			});
+
+			logInfo(
+				`[SMART_RETRIEVE] Phase 3: ${allNodes.size} merged seed nodes, ${allEdges.size} merged seed edges`,
+			);
+
+			// Phase 4: Smart Graph Expansion
 
 			for (let level = 1; level <= config.expansion.maxLevels; level++) {
 				const threshold = config.expansion.levelThresholds[level - 1] ?? 0.2;
@@ -711,20 +798,31 @@ const definition = defineStep<
 			}
 
 			logInfo(
-				`[SMART_RETRIEVE] Phase 2: ${allNodes.size} total nodes, ${allEdges.size} total edges`,
+				`[SMART_RETRIEVE] Phase 4: ${allNodes.size} total nodes, ${allEdges.size} total edges`,
 			);
 
-			// Phase 3: Completeness Verification
-			const queryComponents = extractQueryComponents(
-				input.query,
-				config.completeness.minComponentLength,
-			);
+			// Phase 5: Completeness Verification (merge components from query + contexts)
+			const queryComponentsMap = new Map<string, QueryComponent>();
+			[baseQuery, ...contextQueries].forEach((queryText) => {
+				extractQueryComponents(
+					queryText,
+					config.completeness.minComponentLength,
+				).forEach((component) => {
+					if (!queryComponentsMap.has(component.text)) {
+						queryComponentsMap.set(component.text, component);
+					}
+				});
+			});
+			const queryComponents = Array.from(queryComponentsMap.values());
 			let currentNodes = Array.from(allNodes.values());
 			let iterations = 0;
 
 			while (iterations < config.completeness.maxIterations) {
 				iterations++;
 				const coverage = checkCoverage(currentNodes, queryComponents);
+				if (coverage.total === 0) {
+					break;
+				}
 				const coverageRatio = coverage.covered / coverage.total;
 
 				if (coverageRatio >= config.completeness.threshold) break;
@@ -759,10 +857,10 @@ const definition = defineStep<
 			}
 
 			logInfo(
-				`[SMART_RETRIEVE] Phase 3: ${allNodes.size} nodes after gap filling`,
+				`[SMART_RETRIEVE] Phase 5: ${allNodes.size} nodes after gap filling`,
 			);
 
-			// Phase 4: Re-Ranking
+			// Phase 6: Re-Ranking
 			const nodes = Array.from(allNodes.values());
 			const edges = Array.from(allEdges.values());
 			const graphMetrics = calculateGraphMetrics(nodes, edges);
@@ -798,10 +896,10 @@ const definition = defineStep<
 			const topEdges = filteredEdges.slice(0, config.output.maxEdges);
 
 			logInfo(
-				`[SMART_RETRIEVE] Phase 4: ${topNodes.length} final nodes, ${topEdges.length} final edges`,
+				`[SMART_RETRIEVE] Phase 6: ${topNodes.length} final nodes, ${topEdges.length} final edges`,
 			);
 
-			// Phase 5: Post-Expansion (simplified)
+			// Phase 7: Post-Expansion (simplified)
 			let finalNodes = topNodes;
 			let finalEdges = topEdges;
 

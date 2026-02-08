@@ -30,7 +30,9 @@
 	},
 	"edge": {
 		"incoming": "Incoming",
-		"outgoing": "Outgoing"
+		"outgoing": "Outgoing",
+		"delete": "Delete edge",
+		"deleteConfirm": "Delete this edge? This action cannot be undone."
 	},
 	"stats": {
 		"nodes": "Nodes",

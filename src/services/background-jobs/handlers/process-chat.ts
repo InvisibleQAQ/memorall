@@ -12,9 +12,16 @@ import {
 	type FlowAction,
 } from "@/services/flows/utils/langgraph-stream";
 import { handlerRegistry } from "./handler-registry";
-import type { KnowledgeRAGState } from "@/services/flows/graph/knowledge-rag/state";
+import type {
+	KnowledgeRAGState,
+	KnowledgeRAGPredefinedConfig,
+} from "@/services/flows/graph/knowledge-rag/state";
 import { sql } from "drizzle-orm";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
+import {
+	toolRegistry,
+	convertToolsToOpenAI,
+} from "@/services/flows/tool-registry";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
@@ -28,6 +35,7 @@ export interface ChatPayload {
 	model: string;
 	mode: "normal" | "agent" | "knowledge";
 	topicId?: string; // For topic filtering in knowledge mode
+	agentFlowId?: string;
 	streamConfig?: ChatStreamConfig;
 }
 
@@ -71,25 +79,6 @@ export type ChatJob = BaseJob & {
 	jobType: typeof JOB_NAMES.chat;
 	payload: ChatPayload;
 };
-
-/**
- * Helper function to extract text content from OpenAI message content format
- */
-function extractTextContent(
-	content: ChatMessage["content"] | null | undefined,
-): string {
-	if (!content) {
-		return "";
-	}
-	if (typeof content === "string") {
-		return content;
-	}
-	// For array content, concatenate all text parts
-	return content
-		.filter((part) => part.type === "text")
-		.map((part) => (part as { type: "text"; text: string }).text)
-		.join("\n");
-}
 
 /**
  * Helper class to buffer streaming content and emit when threshold is reached
@@ -292,7 +281,8 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		job: ChatJob,
 		dependencies: ProcessDependencies,
 	): Promise<ItemHandlerResult> {
-		const { messages, model, mode, topicId, streamConfig } = job.payload;
+		const { messages, model, mode, topicId, agentFlowId, streamConfig } =
+			job.payload;
 
 		// Apply default stream config
 		const config: Required<ChatStreamConfig> = {
@@ -335,6 +325,51 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			});
 
 			if (mode === "knowledge") {
+				// Load agent config from predefined flow (fall back to defaults on failure)
+				let agentConfig: KnowledgeRAGPredefinedConfig | null = null;
+				try {
+					const config = agentFlowId
+						? await serviceManager.flowBuilderService.getFlowConfig({
+								flowId: agentFlowId,
+							})
+						: await serviceManager.flowBuilderService.getFlowConfig({
+								predefinedFlow: "knowledge-rag",
+							});
+					agentConfig = config as KnowledgeRAGPredefinedConfig;
+				} catch (err) {
+					await dependencies.logger.warn(
+						"Failed to load agent config, using defaults",
+						`${err}`,
+						"offscreen",
+					);
+				}
+
+				// Resolve tool name strings to ChatCompletionTool[]
+				let resolvedTools:
+					| import("@/types/openai").ChatCompletionTool[]
+					| undefined;
+				if (agentConfig?.tools && agentConfig.tools.length > 0) {
+					try {
+						const allServices = {
+							llm: serviceManager.llmService,
+							embedding: serviceManager.embeddingService,
+							database: serviceManager.databaseService,
+							documentFileSystem: documentFileSystemService,
+						};
+						const toolInstances = toolRegistry.getTools(
+							agentConfig.tools,
+							allServices,
+						);
+						resolvedTools = convertToolsToOpenAI(toolInstances);
+					} catch (err) {
+						await dependencies.logger.warn(
+							"Failed to resolve tools, using none",
+							`${err}`,
+							"offscreen",
+						);
+					}
+				}
+
 				// Use KnowledgeRAGFlow for knowledge mode (following use-chat.ts pattern)
 				const graph = serviceManager.flowsService.createGraph(
 					"knowledge-rag",
@@ -342,10 +377,15 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						llm: serviceManager.llmService,
 						embedding: serviceManager.embeddingService,
 						database: serviceManager.databaseService,
-						documentFileSystem: documentFileSystemService
+						documentFileSystem: documentFileSystemService,
 					},
 					{
 						responseMode: "agent",
+						systemPrompt: agentConfig?.systemPrompt || undefined,
+						contextPrompt: agentConfig?.contextPrompt || undefined,
+						enableContextRetrieval: agentConfig?.enableContextRetrieval,
+						enableCitations: agentConfig?.enableCitations,
+						tools: resolvedTools,
 					},
 				);
 
@@ -354,16 +394,8 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					progress: 20,
 				});
 
-				// Extract query from last user message for knowledge search
-				const lastUserMessage = messages
-					.filter((msg) => msg.role === "user")
-					.pop();
-				const queryText = lastUserMessage
-					? extractTextContent(lastUserMessage.content)
-					: "";
-
-				// Fetch topic info for core context if topicId exists
-				let coreContext: string | undefined;
+				// Fetch topic info for retrieval context queries if topicId exists
+				const contextQueries: string[] = [];
 				if (topicId) {
 					try {
 						const topicInfo = await serviceManager.databaseService.use(
@@ -378,13 +410,15 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 									const graph = graphs[0];
 									const name = graph.name || "Unknown Topic";
 									const desc = graph.description || graph.name || "";
-									// Combine name and description for core context query
+									// Combine name and description into a contextual query
 									return desc ? `${name}: ${desc}` : name;
 								}
 								return undefined;
 							},
 						);
-						coreContext = topicInfo;
+						if (topicInfo) {
+							contextQueries.push(topicInfo);
+						}
 					} catch (error) {
 						await dependencies.logger.warn(
 							`Failed to fetch topic info for ${topicId}:`,
@@ -399,10 +433,9 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 				const stream = await graph.stream(
 					{
-						messages: messages, // Keep full multimodal messages for LLM
-						query: queryText, // Use text-only query for search
-						graphId: topicId, // For scoping
-						coreContext, // For general context retrieval
+						messages: messages,
+						graphId: topicId,
+						contextQueries,
 					},
 					{
 						streamMode: ["custom", "updates", "values"],

@@ -61,7 +61,8 @@ export const MasterKeySetupDialog: React.FC<MasterKeySetupDialogProps> = ({
 
 	const isValidPasskey = passkey.length >= 6;
 	const passkeysMatch = passkey === confirmPasskey;
-	const canSubmit = isValidPasskey && passkeysMatch && confirmPasskey.length > 0;
+	const canSubmit =
+		isValidPasskey && passkeysMatch && confirmPasskey.length > 0;
 
 	const handleSubmit = async () => {
 		if (!canSubmit) {
@@ -173,7 +174,9 @@ export const MasterKeySetupDialog: React.FC<MasterKeySetupDialogProps> = ({
 									</span>
 									{passkey.length < 6 && (
 										<span className="text-xs text-muted-foreground">
-											{t("masterKeySetup.minLength", { current: passkey.length })}
+											{t("masterKeySetup.minLength", {
+												current: passkey.length,
+											})}
 										</span>
 									)}
 								</div>
@@ -261,11 +264,7 @@ export const MasterKeySetupDialog: React.FC<MasterKeySetupDialogProps> = ({
 							)}
 						</Button>
 						{onCancel && (
-							<Button
-								onClick={onCancel}
-								disabled={isLoading}
-								variant="outline"
-							>
+							<Button onClick={onCancel} disabled={isLoading} variant="outline">
 								{t("buttons.cancel")}
 							</Button>
 						)}

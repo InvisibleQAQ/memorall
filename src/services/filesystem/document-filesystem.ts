@@ -750,7 +750,8 @@ export class DocumentFileSystem {
 		await this.initialize();
 		const fullPath = `${DOCUMENTS_ROOT}${folderId}`;
 		const stats = await fs.promises.stat(fullPath);
-		if (!stats.isDirectory()) throw new Error(`Path is not a folder: ${folderId}`);
+		if (!stats.isDirectory())
+			throw new Error(`Path is not a folder: ${folderId}`);
 		await this.deleteDirectoryRecursive(fullPath);
 		logInfo(`Deleted folder recursively: ${folderId}`);
 		this.notifyFilesystemChanged();

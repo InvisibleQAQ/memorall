@@ -37,10 +37,10 @@ export const ActivityChatPanel: React.FC<ActivityChatPanelProps> = ({
 		inputValue,
 		setInputValue,
 		status,
-		chatMode,
-		setChatMode,
 		selectedTopic,
 		setSelectedTopic,
+		selectedAgentFlowId,
+		setSelectedAgentFlowId,
 		messages,
 		isLoading,
 		abortController,
@@ -135,8 +135,6 @@ export const ActivityChatPanel: React.FC<ActivityChatPanelProps> = ({
 							isLoading={isLoading}
 							model={model}
 							status={status}
-							chatMode={chatMode}
-							setChatMode={setChatMode}
 							selectedTopic={selectedTopic}
 							setSelectedTopic={setSelectedTopic}
 							onInsertSeparator={insertSeparator}
@@ -145,6 +143,9 @@ export const ActivityChatPanel: React.FC<ActivityChatPanelProps> = ({
 							abortController={abortController}
 							isLoadingTopics={false}
 							topics={[]}
+							agentFlows={[]}
+							selectedAgentFlowId={selectedAgentFlowId}
+							setSelectedAgentFlowId={setSelectedAgentFlowId}
 						/>
 					</div>
 				)}

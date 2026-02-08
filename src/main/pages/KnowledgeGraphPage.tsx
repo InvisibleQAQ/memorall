@@ -142,6 +142,17 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 		setSelectedNodeId(null);
 	};
 
+	const handleEdgeDeleted = async (edgeId: string) => {
+		try {
+			await serviceManager.databaseService.use(async ({ db, schema }) => {
+				await db.delete(schema.edges).where(eq(schema.edges.id, edgeId));
+			});
+			await loadGraphData();
+		} catch (error) {
+			logError("Failed to delete edge:", error);
+		}
+	};
+
 	const filteredNodes = nodes.filter((node) =>
 		node.name.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
@@ -270,6 +281,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 								graphData={{ nodes, edges }}
 								selectedNodeId={selectedNodeId || undefined}
 								onNodeDeleted={handleNodeDeleted}
+								onEdgeDeleted={handleEdgeDeleted}
 								onNodeSelect={setSelectedNodeId}
 							/>
 						</div>

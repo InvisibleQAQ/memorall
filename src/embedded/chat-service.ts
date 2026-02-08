@@ -10,6 +10,7 @@ export interface ChatServiceOptions {
 	model: string;
 	mode: "normal" | "agent" | "knowledge";
 	topicId?: string;
+	agentFlowId?: string;
 }
 
 export interface ChatAction {
@@ -57,6 +58,7 @@ export class EmbeddedChatService {
 			model,
 			mode,
 			topicId,
+			agentFlowId,
 			onProgress,
 			onAction,
 			onError,
@@ -114,6 +116,7 @@ export class EmbeddedChatService {
 				model,
 				mode,
 				topicId,
+				agentFlowId,
 			};
 
 			// Execute chat job with streaming

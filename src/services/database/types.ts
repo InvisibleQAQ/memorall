@@ -74,7 +74,7 @@ export type {
 	NewActivity,
 } from "./entities/activities";
 
-export type { Flow, NewFlow } from "./entities/flows";
+export type { Flow, NewFlow, PredefinedFlowKey } from "./entities/flows";
 
 export type { FlowState, NewFlowState } from "./entities/flow-states";
 
@@ -86,6 +86,8 @@ export type {
 	FlowConnection,
 	NewFlowConnection,
 } from "./entities/flow-connections";
+
+export type { FlowConfig, NewFlowConfig } from "./entities/flow-configs";
 
 // Re-export lightweight runtime utilities that don't depend on drizzle
 export { getEffectiveSourceStatus } from "./utils/source-utils";

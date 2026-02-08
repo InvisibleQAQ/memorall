@@ -55,14 +55,19 @@ export function useMasterKey(): MasterKeyState & MasterKeyActions {
 		setState((prev) => ({ ...prev, isLoading: true }));
 
 		try {
-			const [hasMaster, isUnlocked, format, encryptedProviders, legacyProviders] =
-				await Promise.all([
-					checkHasMasterKey(),
-					isMasterKeyUnlocked(),
-					detectEncryptionFormat(),
-					getEncryptedProviders(),
-					getLegacyProviders(),
-				]);
+			const [
+				hasMaster,
+				isUnlocked,
+				format,
+				encryptedProviders,
+				legacyProviders,
+			] = await Promise.all([
+				checkHasMasterKey(),
+				isMasterKeyUnlocked(),
+				detectEncryptionFormat(),
+				getEncryptedProviders(),
+				getLegacyProviders(),
+			]);
 
 			setState({
 				hasMasterKey: hasMaster,

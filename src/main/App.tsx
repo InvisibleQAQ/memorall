@@ -59,8 +59,7 @@ const App: React.FC = () => {
 	>("loading");
 	const [initError, setInitError] = useState<string | null>(null);
 	const [uiProgress, setUiProgress] = useState(0);
-	const [encryptionFormat, setEncryptionFormat] =
-		useState<EncryptionFormat>("none");
+	const [_, setEncryptionFormat] = useState<EncryptionFormat>("none");
 	const [encryptedProviders, setEncryptedProviders] = useState<string[]>([]);
 
 	// Bridge component to access navigate from message listener once Router is active
@@ -169,7 +168,9 @@ const App: React.FC = () => {
 						// Get list of encrypted providers
 						const providers = await getEncryptedProviders();
 						setEncryptedProviders(providers);
-						logInfo(`Master key authentication required for: ${providers.join(", ")}`);
+						logInfo(
+							`Master key authentication required for: ${providers.join(", ")}`,
+						);
 						setServicesStatus("awaiting-passkey");
 						return;
 					}
@@ -225,7 +226,9 @@ const App: React.FC = () => {
 		}
 
 		setServicesStatus("ready"); // Continue without the auth providers
-		logInfo("User cancelled passkey prompt - continuing without auth providers");
+		logInfo(
+			"User cancelled passkey prompt - continuing without auth providers",
+		);
 	};
 
 	// Handle migration completion

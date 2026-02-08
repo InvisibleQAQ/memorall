@@ -1,5 +1,9 @@
 import z from "zod";
-import type { Tool, ToolFactory, AllServices } from "@/services/flows/interfaces/tool";
+import type {
+	Tool,
+	ToolFactory,
+	AllServices,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import type { DocumentTreeNode } from "@/types/document-library";
 
@@ -44,7 +48,7 @@ export const createDocMoveTool: ToolFactory<Input, Services> = (
 
 		const dfs = services.documentFileSystem;
 		if (!dfs) {
-			return 'Documents not existe.'
+			return "Documents not existe.";
 		}
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);

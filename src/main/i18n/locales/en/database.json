@@ -24,7 +24,11 @@
 	"details": {
 		"title": "{{entityType}} Details",
 		"back": "Back",
-		"id": "ID: {{id}}"
+		"id": "ID: {{id}}",
+		"delete": "Delete",
+		"deleting": "Deleting...",
+		"deleteConfirm": "Delete this {{entityType}} record ({{id}})? This action cannot be undone.",
+		"deleteFailed": "Failed to delete record"
 	},
 	"stats": {
 		"title": "Entity Statistics"

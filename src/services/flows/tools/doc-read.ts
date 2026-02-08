@@ -1,5 +1,9 @@
 import z from "zod";
-import type { Tool, ToolFactory, AllServices } from "@/services/flows/interfaces/tool";
+import type {
+	Tool,
+	ToolFactory,
+	AllServices,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import type { DocumentTreeNode, DocumentType } from "@/types/document-library";
 import { readPDFFile } from "@/main/modules/documents/handlers/pdf-extraction";
@@ -12,10 +16,7 @@ const TOOL_NAME = "doc_read" as const;
 
 const schema = z.object({
 	file_path: z.string().describe("Document path to read"),
-	offset: z
-		.number()
-		.optional()
-		.describe("Start line, 1-based (default: 1)"),
+	offset: z.number().optional().describe("Start line, 1-based (default: 1)"),
 	limit: z.number().optional().describe("Max lines to return"),
 });
 
@@ -59,7 +60,9 @@ async function extractReadableText(
 
 	if (fileType === "pdf") {
 		const pdfContent = await readPDFFile(toArrayBuffer(content));
-		return pdfContent.fullText || pdfContent.pages.map((p) => p.text).join("\n\n");
+		return (
+			pdfContent.fullText || pdfContent.pages.map((p) => p.text).join("\n\n")
+		);
 	}
 
 	if (fileType === "excel") {
@@ -82,7 +85,7 @@ export const createDocReadTool: ToolFactory<Input, Services> = (
 
 		const dfs = services.documentFileSystem;
 		if (!dfs) {
-			return 'Documents not existe.'
+			return "Documents not existe.";
 		}
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);

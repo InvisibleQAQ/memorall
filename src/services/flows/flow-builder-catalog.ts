@@ -68,11 +68,25 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		name: "add-system",
 		type: "common",
 		inputs: [
-			{ name: "messages", type: "Message[]", required: true, description: "Chat messages" },
-			{ name: "systemPrompt", type: "string", required: true, description: "System prompt to add" },
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Chat messages",
+			},
+			{
+				name: "systemPrompt",
+				type: "string",
+				required: true,
+				description: "System prompt to add",
+			},
 		],
 		outputs: [
-			{ name: "messages", type: "Message[]", description: "Messages with system prompt" },
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with system prompt",
+			},
 		],
 		metadata: { description: "Append system prompt" },
 	},
@@ -81,8 +95,17 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		name: "chat-completion",
 		type: "common",
 		inputs: [
-			{ name: "messages", type: "Message[]", required: true, description: "Chat messages" },
-			{ name: "temperature", type: "number", description: "Sampling temperature" },
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Chat messages",
+			},
+			{
+				name: "temperature",
+				type: "number",
+				description: "Sampling temperature",
+			},
 			{ name: "stream", type: "boolean", description: "Enable streaming" },
 		],
 		outputs: [
@@ -95,9 +118,18 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		name: "agent-completion",
 		type: "common",
 		inputs: [
-			{ name: "messages", type: "Message[]", required: true, description: "Chat messages" },
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Chat messages",
+			},
 			{ name: "tools", type: "Tool[]", description: "Available tools" },
-			{ name: "maxIterations", type: "number", description: "Max tool iterations" },
+			{
+				name: "maxIterations",
+				type: "number",
+				description: "Max tool iterations",
+			},
 		],
 		outputs: [
 			{ name: "response", type: "string", description: "Agent response" },
@@ -109,14 +141,31 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		name: "context-smart-retrieve",
 		type: "retrieval",
 		inputs: [
-			{ name: "query", type: "string", required: true, description: "Search query" },
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Chat messages",
+			},
 			{ name: "graphId", type: "string", description: "Knowledge graph ID" },
-			{ name: "coreContext", type: "string", description: "Additional context" },
+			{
+				name: "contextQueries",
+				type: "string[]",
+				description: "Additional retrieval context queries",
+			},
 		],
 		outputs: [
 			{ name: "context", type: "string", description: "Built context for LLM" },
-			{ name: "nodeCount", type: "number", description: "Retrieved nodes count" },
-			{ name: "edgeCount", type: "number", description: "Retrieved edges count" },
+			{
+				name: "nodeCount",
+				type: "number",
+				description: "Retrieved nodes count",
+			},
+			{
+				name: "edgeCount",
+				type: "number",
+				description: "Retrieved edges count",
+			},
 		],
 		metadata: {
 			description: "Smart retrieval with context building",
@@ -128,13 +177,26 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		name: "context-quick-retrieve",
 		type: "retrieval",
 		inputs: [
-			{ name: "query", type: "string", required: true, description: "Search query" },
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Chat messages",
+			},
 			{ name: "graphId", type: "string", description: "Knowledge graph ID" },
 		],
 		outputs: [
 			{ name: "context", type: "string", description: "Built context for LLM" },
-			{ name: "nodeCount", type: "number", description: "Retrieved nodes count" },
-			{ name: "edgeCount", type: "number", description: "Retrieved edges count" },
+			{
+				name: "nodeCount",
+				type: "number",
+				description: "Retrieved nodes count",
+			},
+			{
+				name: "edgeCount",
+				type: "number",
+				description: "Retrieved edges count",
+			},
 		],
 		metadata: {
 			description: "Quick retrieval with context building",

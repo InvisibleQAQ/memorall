@@ -9,92 +9,15 @@ import {
 import type { Language } from "@/constants/language";
 import { EMBEDDED_TRANSLATIONS } from "../language";
 
-// Chat mode type
-type ChatMode = "general" | "knowledge";
-
-// Icon components
-const MessageCircleIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
-	<svg
-		width={size}
-		height={size}
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-	</svg>
-);
-
-const BrainIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
-	<svg
-		width={size}
-		height={size}
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-		<path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
-		<path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
-		<path d="M17.599 6.5a3 3 0 0 0 .399-1.375" />
-		<path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
-		<path d="M3.477 10.896a4 4 0 0 1 .585-.396" />
-		<path d="M19.938 10.5a4 4 0 0 1 .585.396" />
-		<path d="M6 18a4 4 0 0 1-1.967-.516" />
-		<path d="M19.967 17.484A4 4 0 0 1 18 18" />
-	</svg>
-);
-
-const TagsIcon: React.FC<{ size?: number; className?: string }> = ({
-	size = 12,
-	className,
-}) => (
-	<svg
-		width={size}
-		height={size}
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		className={className}
-	>
-		<path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5Z" />
-		<path d="M6 9.01V9" />
-		<path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19" />
-	</svg>
-);
-
-const ChevronDownIcon: React.FC<{ size?: number }> = ({ size = 10 }) => (
-	<svg
-		width={size}
-		height={size}
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<path d="m6 9 6 6 6-6" />
-	</svg>
-);
-
 interface EmbeddedChatInputProps {
 	inputValue: string;
 	setInputValue: (value: string) => void;
 	onSubmit: React.FormEventHandler<HTMLFormElement>;
 	isTyping: boolean;
 	modelAvailable: boolean;
-	chatMode: ChatMode;
-	setChatMode: (mode: ChatMode) => void;
+	selectedAgentFlowId: string;
+	setSelectedAgentFlowId: (flowId: string) => void;
+	agentFlows: Array<{ id: string; name: string }>;
 	selectedTopic: string;
 	setSelectedTopic: (topicId: string) => void;
 	topics: Array<{ id: string; name: string }>;
@@ -103,6 +26,7 @@ interface EmbeddedChatInputProps {
 	messages: any[];
 	onDeleteChat: () => void;
 	onStop: () => void;
+	onOpenSettings: () => void;
 	language: Language;
 }
 
@@ -112,8 +36,9 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 	onSubmit,
 	isTyping,
 	modelAvailable,
-	chatMode,
-	setChatMode,
+	selectedAgentFlowId,
+	setSelectedAgentFlowId,
+	agentFlows,
 	selectedTopic,
 	setSelectedTopic,
 	topics,
@@ -122,19 +47,15 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 	messages,
 	onDeleteChat,
 	onStop,
+	onOpenSettings,
 	language,
 }) => {
 	const texts = EMBEDDED_TRANSLATIONS[language];
-
-	// Helper functions for chat mode
-	const getModeIcon = (mode: ChatMode) => {
-		switch (mode) {
-			case "general":
-				return <MessageCircleIcon size={14} />;
-			case "knowledge":
-				return <BrainIcon size={14} />;
-		}
-	};
+	const isKnowledgeMode = selectedAgentFlowId !== "chat";
+	const flowOptions = [
+		{ id: "chat", name: texts.input.modeGeneral },
+		...agentFlows,
+	];
 
 	return (
 		<div className="border-t p-3 flex-shrink-0">
@@ -154,42 +75,26 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 						{/* Scrollable tools container */}
 						<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
 							<PromptInputTools>
-								{/* Chat Mode Toggle */}
-								<button
-									type="button"
-									disabled={isTyping}
-									onClick={() =>
-										setChatMode(
-											chatMode === "knowledge" ? "general" : "knowledge",
-										)
-									}
-									className={`
-										relative flex items-center gap-1 text-xs whitespace-nowrap px-2 py-1 rounded-md
-										transition-all duration-200 ease-in-out
-										hover:scale-105 active:scale-95
-										${
-											chatMode === "knowledge"
-												? "bg-blue-500/10 text-blue-600 hover:bg-blue-500/15"
-												: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-										}
-									`}
-									title={texts.input.selectMode}
-								>
-									<div
-										className={`
-										transition-transform duration-200 ease-in-out
-										${chatMode === "knowledge" ? "scale-110" : "scale-100"}
-									`}
+								<div className="flex items-center gap-1.5">
+									<select
+										value={selectedAgentFlowId}
+										onChange={(e) => setSelectedAgentFlowId(e.target.value)}
+										disabled={isTyping}
+										className="text-xs px-2 py-1 rounded-md border bg-background text-foreground border-border min-w-24 hover:border-accent-foreground focus:border-primary focus:outline-none"
+										onKeyDown={(e) => e.stopPropagation()}
+										onKeyUp={(e) => e.stopPropagation()}
+										onKeyPress={(e) => e.stopPropagation()}
 									>
-										{getModeIcon(chatMode)}
-									</div>
-									{chatMode === "knowledge" && (
-										<div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-									)}
-								</button>
+										{flowOptions.map((flow) => (
+											<option key={flow.id} value={flow.id}>
+												{flow.name}
+											</option>
+										))}
+									</select>
+								</div>
 
 								{/* Topic Selector - Only show when in knowledge mode */}
-								{chatMode === "knowledge" && (
+								{isKnowledgeMode && (
 									<div className="flex items-center gap-1.5">
 										<select
 											value={selectedTopic}
@@ -216,10 +121,36 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 									</div>
 								)}
 
-								{!hasTopics && chatMode === "knowledge" && (
-									<span className="text-xs text-muted-foreground px-3 py-1.5">
-										{texts.input.noTopics}
-									</span>
+								{isKnowledgeMode && (
+									<button
+										type="button"
+										onClick={onOpenSettings}
+										className="flex items-center justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+										onKeyDown={(e) => e.stopPropagation()}
+										onKeyUp={(e) => e.stopPropagation()}
+										onKeyPress={(e) => e.stopPropagation()}
+										title={texts.messageControl.openFullVersion}
+									>
+										<svg
+											className="w-4 h-4"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+											/>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+											/>
+										</svg>
+									</button>
 								)}
 							</PromptInputTools>
 						</div>

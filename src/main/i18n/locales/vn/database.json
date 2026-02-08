@@ -1,26 +1,59 @@
 {
 	"title": "Cơ sở dữ liệu",
-	"tables": {
-		"title": "Bảng",
-		"name": "Tên bảng",
-		"rows": "Hàng",
-		"columns": "Cột"
+	"queryBuilder": {
+		"title": "Trình dựng truy vấn",
+		"reset": "Đặt lại",
+		"query": "Truy vấn",
+		"entity": "Thực thể",
+		"sort": "Sắp xếp",
+		"limit": "Giới hạn",
+		"offset": "Độ lệch",
+		"conditions": "Điều kiện",
+		"addCondition": "Thêm điều kiện",
+		"sortAscending": "Sắp xếp tăng dần",
+		"sortDescending": "Sắp xếp giảm dần"
 	},
-	"query": {
-		"title": "Truy vấn",
-		"execute": "Thực thi",
-		"clear": "Xóa",
-		"result": "Kết quả truy vấn",
-		"error": "Lỗi truy vấn"
+	"results": {
+		"title": "Kết quả ({{count}}) - {{entityType}}",
+		"previous": "Trước",
+		"next": "Sau",
+		"noItems": "Không có bản ghi phù hợp truy vấn",
+		"selectItem": "Chọn một bản ghi để xem chi tiết",
+		"selectItemHelp": "Chạy truy vấn và chọn một bản ghi từ kết quả"
 	},
-	"export": {
-		"button": "Xuất",
-		"success": "Xuất cơ sở dữ liệu thành công",
-		"error": "Không thể xuất cơ sở dữ liệu"
+	"details": {
+		"title": "Chi tiết {{entityType}}",
+		"back": "Quay lại",
+		"id": "ID: {{id}}",
+		"delete": "Xóa",
+		"deleting": "Đang xóa...",
+		"deleteConfirm": "Xóa bản ghi {{entityType}} ({{id}})? Hành động này không thể hoàn tác.",
+		"deleteFailed": "Xóa bản ghi thất bại"
 	},
-	"import": {
-		"button": "Nhập",
-		"success": "Nhập cơ sở dữ liệu thành công",
-		"error": "Không thể nhập cơ sở dữ liệu"
+	"stats": {
+		"title": "Thống kê thực thể"
+	},
+	"quickActions": {
+		"title": "Thao tác nhanh",
+		"createSample": "Tạo hội thoại mẫu",
+		"refreshStats": "Làm mới thống kê"
+	},
+	"operators": {
+		"equals": "Bằng",
+		"notEquals": "Không bằng",
+		"contains": "Chứa",
+		"greaterThan": "Lớn hơn",
+		"greaterThanOrEqual": "Lớn hơn hoặc bằng",
+		"lessThan": "Nhỏ hơn",
+		"lessThanOrEqual": "Nhỏ hơn hoặc bằng",
+		"isNull": "Là null",
+		"isNotNull": "Không null"
+	},
+	"status": {
+		"notInitialized": "Cơ sở dữ liệu chưa được khởi tạo. Vui lòng chờ khởi động ứng dụng hoàn tất.",
+		"loading": "Đang tải..."
+	},
+	"placeholders": {
+		"value": "Giá trị"
 	}
 }

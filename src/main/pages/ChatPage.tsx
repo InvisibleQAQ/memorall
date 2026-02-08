@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
 import {
 	Conversation,
 	ConversationContent,
@@ -16,10 +17,14 @@ import {
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
 import { groupMessagesBySeparators } from "@/main/modules/chat/utils/message-grouping";
 import { topicService } from "@/main/modules/topics/services/topic-service";
+import { AgentSettingsPanel } from "@/main/modules/chat/components/AgentSettingsPanel";
+import { useAgentConfigStore } from "@/main/stores/agent-config";
 import {
 	useDownloadProgress,
 	ModelDownloadingScreen,
 } from "@/main/modules/llm/components";
+import { cn } from "@/lib/utils";
+import { serviceManager } from "@/services";
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
@@ -27,14 +32,19 @@ export const ChatPage: React.FC = () => {
 	const { downloadProgress, quickDownloadModel } = useDownloadProgress();
 	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
 	const [isLoadingTopics, setIsLoadingTopics] = useState(false);
+	const [agentFlows, setAgentFlows] = useState<
+		Array<{ id: string; name: string }>
+	>([]);
+	const { isOpen, open, close } = useAgentConfigStore();
 	const {
 		inputValue,
 		setInputValue,
 		status,
 		chatMode,
-		setChatMode,
 		selectedTopic,
 		setSelectedTopic,
+		selectedAgentFlowId,
+		setSelectedAgentFlowId,
 		messages,
 		isLoading,
 		abortController,
@@ -93,6 +103,51 @@ export const ChatPage: React.FC = () => {
 		}
 	}, [chatMode]);
 
+	useEffect(() => {
+		const loadFlows = async () => {
+			try {
+				const flows =
+					await serviceManager.flowBuilderService.listPredefinedFlows(
+						"knowledge-rag",
+					);
+				const mapped = flows.map((flow) => ({ id: flow.id, name: flow.name }));
+				setAgentFlows(mapped);
+				if (!selectedAgentFlowId && mapped.length > 0) {
+					setSelectedAgentFlowId(mapped[0].id);
+				}
+			} catch {
+				setAgentFlows([]);
+			}
+		};
+		loadFlows();
+	}, [selectedAgentFlowId, setSelectedAgentFlowId]);
+
+	useEffect(() => {
+		if (!isOpen) return;
+		void useAgentConfigStore.getState().initialize(selectedAgentFlowId);
+	}, [isOpen, selectedAgentFlowId]);
+
+	const handleCreateAgentFlow = async () => {
+		const input = window.prompt("Flow name", "");
+		const name = input?.trim();
+		if (!name) return;
+		try {
+			const created =
+				await serviceManager.flowBuilderService.createPredefinedFlow(
+					"knowledge-rag",
+					name,
+				);
+			const nextFlows = [{ id: created.id, name: created.name }, ...agentFlows];
+			setAgentFlows(nextFlows);
+			setSelectedAgentFlowId(created.id);
+			if (isOpen) {
+				await useAgentConfigStore.getState().initialize(created.id);
+			}
+		} catch {
+			// no-op for now
+		}
+	};
+
 	// Navigate to models tab
 	const navigateToModels = () => {
 		navigate("/llm");
@@ -127,44 +182,83 @@ export const ChatPage: React.FC = () => {
 	}
 
 	return (
-		<div className="flex flex-col h-full bg-background">
-			<Conversation className="flex-1 min-h-0">
-				<ConversationContent className="max-w-3xl mx-auto space-y-6">
-					{/* Completed groups - memoized components, never re-render during streaming */}
-					{completedMessageGroups}
+		<div className="flex h-full bg-background">
+			<div className="flex flex-col flex-1 min-w-0">
+				<Conversation className="flex-1 min-h-0">
+					<ConversationContent className="max-w-3xl mx-auto space-y-6">
+						{/* Completed groups - memoized components, never re-render during streaming */}
+						{completedMessageGroups}
 
-					{inprogressGroup ? (
-						<MessageGroup
-							key={inprogressGroup.id}
-							group={inprogressGroup}
-							isLoading={true}
-							inProgressMessage={inProgressMessage}
-							defaultCollapsed={false}
-							selectedTopic={selectedTopic}
+						{inprogressGroup ? (
+							<MessageGroup
+								key={inprogressGroup.id}
+								group={inprogressGroup}
+								isLoading={true}
+								inProgressMessage={inProgressMessage}
+								defaultCollapsed={false}
+								selectedTopic={selectedTopic}
+							/>
+						) : undefined}
+					</ConversationContent>
+					<ConversationScrollButton />
+				</Conversation>
+
+				<ChatInput
+					inputValue={inputValue}
+					setInputValue={setInputValue}
+					onSubmit={handleSubmit}
+					isLoading={isLoading}
+					model={model}
+					status={status}
+					selectedTopic={selectedTopic}
+					setSelectedTopic={setSelectedTopic}
+					onInsertSeparator={insertSeparator}
+					onStop={handleStop}
+					onDeleteChat={deleteMessages}
+					abortController={abortController}
+					isLoadingTopics={isLoadingTopics}
+					topics={topics}
+					agentFlows={agentFlows}
+					selectedAgentFlowId={selectedAgentFlowId}
+					setSelectedAgentFlowId={setSelectedAgentFlowId}
+					onCreateAgentFlow={handleCreateAgentFlow}
+					onOpenAgentSettings={() => {
+						if (isOpen) {
+							close();
+							return;
+						}
+						open(selectedAgentFlowId);
+					}}
+				/>
+			</div>
+
+			<AnimatePresence>
+				{isOpen && (
+					<>
+						<motion.div
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.18, ease: "easeOut" }}
+							className="fixed inset-0 bg-black/50 z-40 md:hidden"
+							onClick={close}
 						/>
-					) : undefined}
-				</ConversationContent>
-				<ConversationScrollButton />
-			</Conversation>
-
-			<ChatInput
-				inputValue={inputValue}
-				setInputValue={setInputValue}
-				onSubmit={handleSubmit}
-				isLoading={isLoading}
-				model={model}
-				status={status}
-				chatMode={chatMode}
-				setChatMode={setChatMode}
-				selectedTopic={selectedTopic}
-				setSelectedTopic={setSelectedTopic}
-				onInsertSeparator={insertSeparator}
-				onStop={handleStop}
-				onDeleteChat={deleteMessages}
-				abortController={abortController}
-				isLoadingTopics={isLoadingTopics}
-				topics={topics}
-			/>
+						<motion.div
+							initial={{ opacity: 0, x: 24 }}
+							animate={{ opacity: 1, x: 0 }}
+							exit={{ opacity: 0, x: 24 }}
+							transition={{ duration: 0.2, ease: "easeOut" }}
+							className={cn(
+								"flex-shrink-0 border-l bg-background",
+								"fixed top-12 bottom-0 right-0 left-0 z-50",
+								"md:relative md:top-auto md:bottom-auto md:left-auto md:w-[380px] md:z-auto",
+							)}
+						>
+							<AgentSettingsPanel />
+						</motion.div>
+					</>
+				)}
+			</AnimatePresence>
 		</div>
 	);
 };

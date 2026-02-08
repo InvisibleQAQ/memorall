@@ -16,8 +16,15 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
-import type { SmartRetrieveOutput, RelevantNode, RelevantEdge, SmartRetrieveServices } from "./smart-retrieve";
+import type {
+	SmartRetrieveOutput,
+	RelevantNode,
+	RelevantEdge,
+	SmartRetrieveServices,
+} from "./smart-retrieve";
 import type { EntitiesFactsToContextOutput } from "./entities-facts-to-context";
+import type { ChatCompletionMessageParam } from "@/types/openai";
+import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
 
 const STEP_NAME = "context-smart-retrieve" as const;
 
@@ -26,9 +33,9 @@ const STEP_NAME = "context-smart-retrieve" as const;
 // ============================================================================
 
 export interface ContextSmartRetrieveInput {
-	query: string;
+	messages: ChatCompletionMessageParam[];
 	graphId?: string;
-	coreContext?: string;
+	contextQueries?: string[];
 }
 
 export interface ContextSmartRetrieveOutput {
@@ -45,7 +52,7 @@ export interface ContextSmartRetrieveConfig {
 	maxEdges?: number;
 }
 
-export type ContextSmartRetrieveServices = SmartRetrieveServices
+export type ContextSmartRetrieveServices = SmartRetrieveServices;
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -63,6 +70,7 @@ const definition = defineStep<
 			logInfo(
 				`[CONTEXT_SMART_RETRIEVE] Starting for graphId: ${input.graphId}`,
 			);
+			const query = extractRetrievalTextFromMessages(input.messages);
 
 			// Step 1: Run smart-retrieve
 			// Use getStepByName to avoid circular type reference
@@ -72,9 +80,9 @@ const definition = defineStep<
 			);
 			const retrieveResult = (await smartRetrieveStep.execute(
 				{
-					query: input.query,
+					query,
 					graphId: input.graphId,
-					coreContext: input.coreContext,
+					contextQueries: input.contextQueries,
 				},
 				runConfig,
 			)) as StepOutput<SmartRetrieveOutput>;
@@ -152,8 +160,10 @@ type ContextSmartRetrieveSpec = StepSpecFromDefinition<typeof definition>;
 
 export const createContextSmartRetrieveStep: StepFactoryFromSpec<
 	ContextSmartRetrieveSpec
-> = (services: ContextSmartRetrieveServices, config?: ContextSmartRetrieveConfig) =>
-	bindStep(definition, services, config);
+> = (
+	services: ContextSmartRetrieveServices,
+	config?: ContextSmartRetrieveConfig,
+) => bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createContextSmartRetrieveStep);
 

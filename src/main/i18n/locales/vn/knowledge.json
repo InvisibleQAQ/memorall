@@ -30,7 +30,9 @@
 	},
 	"edge": {
 		"incoming": "Đến",
-		"outgoing": "Đi"
+		"outgoing": "Đi",
+		"delete": "Xóa cạnh",
+		"deleteConfirm": "Xóa cạnh này? Hành động này không thể hoàn tác."
 	},
 	"stats": {
 		"nodes": "Nút",

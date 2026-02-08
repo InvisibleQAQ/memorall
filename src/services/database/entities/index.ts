@@ -24,3 +24,4 @@ export * from "./flow-states";
 export * from "./flow-services";
 export * from "./flow-steps";
 export * from "./flow-connections";
+export * from "./flow-configs";

@@ -63,7 +63,7 @@ export interface QuickRetrieveOutput {
 	errors?: string[];
 }
 
-export type QuickRetrieveSerices = Pick<AllServices, 'database' | 'embedding'>
+export type QuickRetrieveSerices = Pick<AllServices, "database" | "embedding">;
 
 // ============================================================================
 // HELPER FUNCTIONS

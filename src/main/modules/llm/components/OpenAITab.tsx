@@ -314,7 +314,8 @@ export const OpenAITab: React.FC<OpenAITabProps> = ({ onModelLoaded }) => {
 	};
 
 	// Validation helpers
-	const isValidNewConfig = tempApiKey.trim().length > 0 && tempBaseUrl.trim().length > 0;
+	const isValidNewConfig =
+		tempApiKey.trim().length > 0 && tempBaseUrl.trim().length > 0;
 
 	return (
 		<div className="space-y-4">

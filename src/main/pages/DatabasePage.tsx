@@ -7,6 +7,7 @@ import {
 	XCircle,
 	Play,
 	Zap,
+	Trash2,
 } from "lucide-react";
 import {
 	desc,
@@ -156,6 +157,7 @@ const OPERATORS: Record<string, { nameKey: string; types: string[] }> = {
 export const DatabasePage: React.FC = () => {
 	const { t } = useTranslation("database");
 	const [loading, setLoading] = useState(false);
+	const [deleting, setDeleting] = useState(false);
 	const [items, setItems] = useState<DatabaseRecord[]>([]);
 	const [stats, setStats] = useState<Partial<Record<EntityType, number>>>({});
 	const [selectedItem, setSelectedItem] = useState<DatabaseRecord | null>(null);
@@ -419,6 +421,59 @@ export const DatabasePage: React.FC = () => {
 
 	const handleBackToList = () => {
 		setShowMobileDetail(false);
+	};
+
+	const handleDeleteSelected = async () => {
+		if (!selectedItem) return;
+
+		const selectedId = selectedItem.id?.toString();
+		if (!selectedId) {
+			return;
+		}
+
+		const confirmed = window.confirm(
+			t("details.deleteConfirm", {
+				entityType: queryParams.entityType,
+				id: selectedId.slice(0, 8),
+			}),
+		);
+		if (!confirmed) {
+			return;
+		}
+
+		setDeleting(true);
+		try {
+			await serviceManager.databaseService.use(async ({ db, schema }) => {
+				const table = schema[queryParams.entityType] as unknown as Record<
+					string,
+					unknown
+				>;
+				const idField = table.id;
+				if (!idField) {
+					throw new Error(
+						`Cannot delete record: no id field for ${queryParams.entityType}`,
+					);
+				}
+
+				await (db
+					.delete(schema[queryParams.entityType])
+					.where(eq(idField as never, selectedId)) as Promise<unknown>);
+			});
+
+			setItems((prev) =>
+				prev.filter((item) => item.id?.toString() !== selectedId),
+			);
+			setSelectedItem(null);
+			setShowMobileDetail(false);
+
+			await loadStats();
+			await loadData();
+		} catch (error) {
+			logError("Failed to delete record:", error);
+			window.alert(t("details.deleteFailed"));
+		} finally {
+			setDeleting(false);
+		}
 	};
 
 	const formatDate = (date: string | Date | undefined | null) => {
@@ -942,14 +997,25 @@ export const DatabasePage: React.FC = () => {
 								<h2 className="text-lg font-semibold">
 									{t("details.title", { entityType: queryParams.entityType })}
 								</h2>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={handleBackToList}
-									className="sm:hidden"
-								>
-									{t("details.back")}
-								</Button>
+								<div className="flex items-center gap-2">
+									<Button
+										variant="destructive"
+										size="sm"
+										onClick={handleDeleteSelected}
+										disabled={deleting}
+									>
+										<Trash2 className="h-3 w-3 mr-1" />
+										{deleting ? t("details.deleting") : t("details.delete")}
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={handleBackToList}
+										className="sm:hidden"
+									>
+										{t("details.back")}
+									</Button>
+								</div>
 							</div>
 							<div className="text-sm text-muted-foreground mt-1">
 								{t("details.id", {

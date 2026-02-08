@@ -96,11 +96,14 @@ export class BackgroundJob {
 	/**
 	 * Subscribe to job completion events
 	 */
-	subscribeToJobCompletion(
+	subscribeToJobCompletion<TResult extends JobResult = JobResult>(
 		jobId: string,
-		callback: (result: JobResult) => void,
+		callback: (result: TResult) => void,
 	): void {
-		this.jobCompletionListeners.set(jobId, callback);
+		this.jobCompletionListeners.set(
+			jobId,
+			callback as (result: JobResult) => void,
+		);
 	}
 
 	private async notifyListeners(): Promise<void> {
@@ -171,11 +174,49 @@ export class BackgroundJob {
 			this.attachProgressForwarder(jobId, true); // createJob uses queue-based completion
 			return { jobId, stream };
 		} else {
-			// Create promise that resolves on completion
+			// Create promise that resolves on completion.
+			// In cross-context callers (e.g. content/embedded), completion can arrive
+			// via bridge notifications instead of local queue callbacks.
 			const promise = new Promise<
 				JobResultFor<T extends keyof JobResultRegistry ? T : never>
-			>((resolve) => {
-				this.subscribeToJobCompletion(jobId, resolve as any); // TODO: Fix type system
+			>((resolve, reject) => {
+				let settled = false;
+				const settle = (
+					result: JobResultFor<T extends keyof JobResultRegistry ? T : never>,
+				) => {
+					if (settled) return;
+					settled = true;
+					this.jobCompletionListeners.delete(jobId);
+					unsubscribeBridge();
+					resolve(result);
+				};
+				const fail = (error: Error) => {
+					if (settled) return;
+					settled = true;
+					this.jobCompletionListeners.delete(jobId);
+					unsubscribeBridge();
+					reject(error);
+				};
+
+				this.subscribeToJobCompletion(jobId, settle);
+
+				const unsubscribeBridge = this.notificationBridge.subscribe(
+					"JOB_COMPLETED",
+					(message: JobNotificationMessage) => {
+						if (message.jobId !== jobId) {
+							return;
+						}
+						if (!message.result) {
+							fail(new Error("Job completed without result"));
+							return;
+						}
+						settle(
+							message.result as JobResultFor<
+								T extends keyof JobResultRegistry ? T : never
+							>,
+						);
+					},
+				);
 			});
 			return { jobId, promise };
 		}
@@ -342,7 +383,20 @@ export class BackgroundJob {
 						status: "completed",
 					});
 					controller.close();
-					return stream as any as AsyncIterable<{
+					return {
+						async *[Symbol.asyncIterator]() {
+							const reader = stream.getReader();
+							try {
+								while (true) {
+									const { done, value } = await reader.read();
+									if (done) break;
+									yield value;
+								}
+							} finally {
+								reader.releaseLock();
+							}
+						},
+					} as AsyncIterable<{
 						stage: string;
 						progress: number;
 						status: string;

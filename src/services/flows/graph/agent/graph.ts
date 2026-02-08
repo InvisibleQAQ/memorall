@@ -10,67 +10,73 @@ import type {
 	BaseTool,
 	CombinedServices,
 } from "@/services/flows/interfaces/tool";
-import type {
-	ChatCompletionChunk,
-	ChatCompletionMessageParam,
-} from "@/types/openai";
+import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
 
 // Tool names available to the agent
-const TOOL_NAMES = [
-	"current_time",
-	"js_execute",
-	"doc_search",
-	"doc_read",
-	"doc_write",
-	"doc_edit",
-	"doc_remove",
-	"doc_move",
-] as const;
+const DEFAULT_TOOL_NAMES = ["current_time", "js_execute"] as const;
+
+// "doc_search",
+// 	"doc_read",
+// 	"doc_write",
+// 	"doc_edit",
+// 	"doc_remove",
+// 	"doc_move",
 
 // Derive services from tools + graph's own needs (llm for calling the model)
-type AgentServices = CombinedServices<typeof TOOL_NAMES, "llm">;
+type AgentServices = CombinedServices<typeof DEFAULT_TOOL_NAMES, "llm">;
+
+type AgentGraphConfig = {
+	systemPrompt?: string;
+	tools?: string[];
+};
 
 const AGENT_SYSTEM_PROMPT = `You are an intelligent assistant that can use tools to help answer user questions. Use tools when needed to provide accurate answers.`;
 
 /**
  * Simple Agent Graph with 2 nodes:
+ * - initial: update system prompt
  * - agent: Calls LLM to decide whether to use tools or respond
  * - tools: Executes tool calls and returns results
  *
  * Flow:
- * START -> agent -> (tool_calls?) -> tools -> agent (loop)
+ * START -> initial -> agent -> (tool_calls?) -> tools -> agent (loop)
  *                -> (no tool_calls) -> END
  */
 export class AgentGraph extends GraphBase<
-	"agent" | "tools",
+	"initial" | "agent" | "tools",
 	AgentState,
 	AgentServices
 > {
 	private tools: BaseTool[];
 	private toolsMap: Map<string, BaseTool>;
+	private systemPrompt = AGENT_SYSTEM_PROMPT;
 
-	constructor(services: AgentServices) {
+	constructor(services: AgentServices, config: AgentGraphConfig = {}) {
 		super(services);
 
+		if (config.systemPrompt) {
+			this.systemPrompt = config.systemPrompt;
+		}
+
 		// Create bound tools with services
-		this.tools = toolRegistry.getTools(TOOL_NAMES, services);
+		this.tools = toolRegistry.getTools(
+			config.tools || DEFAULT_TOOL_NAMES,
+			services,
+		);
 		this.toolsMap = new Map(this.tools.map((t) => [t.name, t]));
 
 		this.workflow = new StateGraph(AgentAnnotation);
 
 		// Add nodes
+		this.workflow.addNode("initial", this.initialNode);
 		this.workflow.addNode("agent", this.agentNode);
 		this.workflow.addNode("tools", this.toolsNode);
 
-		// START -> agent
-		this.workflow.addEdge(START, "agent");
-
-		// agent -> tools (if tool_calls) OR END (if no tool_calls)
+		this.workflow.addEdge(START, "initial");
+		this.workflow.addEdge("initial", "agent");
 		this.workflow.addConditionalEdges("agent", this.routeAfterAgent);
-
-		// tools -> agent (loop back)
 		this.workflow.addEdge("tools", "agent");
 
 		this.compile();
@@ -99,12 +105,11 @@ export class AgentGraph extends GraphBase<
 		return END;
 	};
 
-	/**
-	 * Build conversation history from messages for LLM
-	 */
-	private buildConversation(state: AgentState): ChatCompletionMessageParam[] {
-		return this.chat.system(state.messages, AGENT_SYSTEM_PROMPT);
-	}
+	initialNode = (state: AgentState): Partial<AgentState> => {
+		return {
+			messages: this.chat.system(state.messages, this.systemPrompt),
+		};
+	};
 
 	/**
 	 * Agent node: Call LLM with tools (streaming) to decide on tool use or final response
@@ -120,7 +125,7 @@ export class AgentGraph extends GraphBase<
 		}
 
 		try {
-			const messages = this.buildConversation(state);
+			const messages = state.messages;
 			const tools = convertToolsToOpenAI(this.tools);
 
 			logInfo(

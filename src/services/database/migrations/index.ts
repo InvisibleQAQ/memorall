@@ -21,6 +21,10 @@ import {
 	up as addFlowBuilderUp,
 	down as addFlowBuilderDown,
 } from "./006_add_flow_builder";
+import {
+	up as addPredefinedFlowUp,
+	down as addPredefinedFlowDown,
+} from "./007_add_predefined_flow_and_flow_configs";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -78,6 +82,13 @@ export const migrations: Migration[] = [
 			"Add flow builder tables (flows, flow_states, flow_services, flow_steps, flow_connections)",
 		up: addFlowBuilderUp,
 		down: addFlowBuilderDown,
+	},
+	{
+		id: "add_predefined_flow_and_flow_configs",
+		version: 7,
+		description: "Add predefined_flow column to flows and flow_configs table",
+		up: addPredefinedFlowUp,
+		down: addPredefinedFlowDown,
 	},
 	// Example of how to add future migrations:
 	// {

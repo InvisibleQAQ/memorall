@@ -16,8 +16,18 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
-import type { QuickRetrieveOutput, RelevantNode, RelevantEdge, QuickRetrieveSerices } from "./quick-retrieve";
-import type { EntitiesFactsToContextOutput, EntitiesFactsToContextServices } from "./entities-facts-to-context";
+import type {
+	QuickRetrieveOutput,
+	RelevantNode,
+	RelevantEdge,
+	QuickRetrieveSerices,
+} from "./quick-retrieve";
+import type {
+	EntitiesFactsToContextOutput,
+	EntitiesFactsToContextServices,
+} from "./entities-facts-to-context";
+import type { ChatCompletionMessageParam } from "@/types/openai";
+import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
 
 const STEP_NAME = "context-quick-retrieve" as const;
 
@@ -26,7 +36,7 @@ const STEP_NAME = "context-quick-retrieve" as const;
 // ============================================================================
 
 export interface ContextQuickRetrieveInput {
-	query: string;
+	messages: ChatCompletionMessageParam[];
 	graphId?: string;
 }
 
@@ -44,7 +54,8 @@ export interface ContextQuickRetrieveConfig {
 	searchLimit?: number;
 }
 
-export type ContextQuickRetrieveServices = QuickRetrieveSerices & EntitiesFactsToContextServices
+export type ContextQuickRetrieveServices = QuickRetrieveSerices &
+	EntitiesFactsToContextServices;
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -62,6 +73,7 @@ const definition = defineStep<
 			logInfo(
 				`[CONTEXT_QUICK_RETRIEVE] Starting for graphId: ${input.graphId}`,
 			);
+			const query = extractRetrievalTextFromMessages(input.messages);
 
 			// Step 1: Run quick-retrieve
 			// Use getStepByName to avoid circular type reference
@@ -75,7 +87,7 @@ const definition = defineStep<
 			);
 			const retrieveResult = (await quickRetrieveStep.execute(
 				{
-					query: input.query,
+					query,
 					graphId: input.graphId,
 				},
 				runConfig,
@@ -167,8 +179,10 @@ type ContextQuickRetrieveSpec = StepSpecFromDefinition<typeof definition>;
 
 export const createContextQuickRetrieveStep: StepFactoryFromSpec<
 	ContextQuickRetrieveSpec
-> = (services: ContextQuickRetrieveServices, config?: ContextQuickRetrieveConfig) =>
-	bindStep(definition, services, config);
+> = (
+	services: ContextQuickRetrieveServices,
+	config?: ContextQuickRetrieveConfig,
+) => bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createContextQuickRetrieveStep);
 

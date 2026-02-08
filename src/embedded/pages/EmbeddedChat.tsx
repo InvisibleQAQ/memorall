@@ -35,9 +35,6 @@ import { EmbeddedChatInput } from "@/embedded/components/EmbeddedChatInput";
 import { customStyles } from "@/embedded/styles/customStyles";
 import { createShadowPage } from "@/embedded/utils/create-shadow-page";
 
-// Chat mode type
-type ChatMode = "general" | "knowledge";
-
 interface EmbeddedChatProps extends ChatModalProps {
 	language?: Language;
 }
@@ -57,12 +54,17 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	const [selectedProvider, setSelectedProvider] = useState<string>("");
 	const [modelAvailable, setModelAvailable] = useState(false);
 	const [needsPasskey, setNeedsPasskey] = useState(false);
+	const [encryptedProviders, setEncryptedProviders] = useState<string[]>([]);
 	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
+	const [agentFlows, setAgentFlows] = useState<
+		Array<{ id: string; name: string }>
+	>([]);
 	const [selectedTopic, setSelectedTopic] = useState<string>("");
 	const [topicsLoading, setTopicsLoading] = useState(true);
 	const [, setStreamingMessageId] = useState<string | null>(null);
 	const [isTyping, setIsTyping] = useState(false);
-	const [chatMode, setChatMode] = useState<ChatMode>("knowledge"); // Default to knowledge mode for embedded
+	const [selectedAgentFlowId, setSelectedAgentFlowId] =
+		useState<string>("chat");
 
 	// Get translation texts based on current language
 	const texts = EMBEDDED_TRANSLATIONS[language];
@@ -132,12 +134,46 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	// Topic status
 	const hasTopics = topics.length > 0;
 
+	const checkProvidersNeedRestore = useCallback(async () => {
+		const providers: Array<"openai" | "openrouter"> = ["openai", "openrouter"];
+		const checks = await Promise.all(
+			providers.map(async (provider) => {
+				const checkResult = await backgroundJob.createJob(
+					"check-provider-needs-restore",
+					{ provider },
+					{ stream: false },
+				);
+
+				if (!("promise" in checkResult)) {
+					return { provider, needsRestore: false };
+				}
+
+				const checkJobResult = await checkResult.promise;
+				return {
+					provider,
+					needsRestore:
+						checkJobResult.status === "completed" &&
+						!!checkJobResult.result?.needsRestore,
+				};
+			}),
+		);
+
+		const restoringProviders = checks
+			.filter((check) => check.needsRestore)
+			.map((check) => check.provider);
+
+		return {
+			needsRestore: restoringProviders.length > 0,
+			providers: restoringProviders,
+		};
+	}, []);
+
 	// Initialize model on mount
 	useEffect(() => {
 		const initializeModel = async () => {
 			try {
 				// Get current model from the service
-				const result = await backgroundJob.execute(
+				const result = await backgroundJob.createJob(
 					"get-current-model",
 					{},
 					{ stream: false },
@@ -162,32 +198,35 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 						setSelectedModel(`${modelInfo.modelId}`);
 						setSelectedProvider(provider);
 
-						// Check if provider needs passkey restoration (openai/openrouter)
+						// Check if provider needs passkey restoration.
 						if (provider === "openai" || provider === "openrouter") {
-							const checkResult = await backgroundJob.execute(
-								"check-provider-needs-restore",
-								{ provider: provider as "openai" | "openrouter" },
-								{ stream: false },
-							);
-
-							if ("promise" in checkResult) {
-								const checkJobResult = await checkResult.promise;
-								if (
-									checkJobResult.status === "completed" &&
-									checkJobResult.result?.needsRestore
-								) {
-									logInfo(
-										`[EmbeddedChat] Provider ${provider} needs passkey restoration`,
-									);
-									setNeedsPasskey(true);
-									setModelAvailable(false);
-									return;
-								}
+							const restoreState = await checkProvidersNeedRestore();
+							if (restoreState.needsRestore) {
+								logInfo(
+									`[EmbeddedChat] Provider restore required: ${restoreState.providers.join(", ")}`,
+								);
+								setEncryptedProviders(restoreState.providers);
+								setNeedsPasskey(true);
+								setModelAvailable(false);
+								return;
 							}
 						}
 
 						setModelAvailable(true);
 					} else {
+						const restoreState = await checkProvidersNeedRestore();
+						if (restoreState.needsRestore) {
+							logInfo(
+								`[EmbeddedChat] No model loaded and encrypted providers need restore: ${restoreState.providers.join(", ")}`,
+							);
+							setEncryptedProviders(restoreState.providers);
+							setNeedsPasskey(true);
+							setModelAvailable(false);
+							return;
+						}
+
+						setNeedsPasskey(false);
+						setEncryptedProviders([]);
 						setModelAvailable(false);
 					}
 				}
@@ -197,14 +236,14 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 			}
 		};
 		initializeModel();
-	}, []);
+	}, [checkProvidersNeedRestore]);
 
 	// Load topics on mount
 	useEffect(() => {
 		const loadTopics = async () => {
 			try {
 				setTopicsLoading(true);
-				const result = await backgroundJob.execute(
+				const result = await backgroundJob.createJob(
 					"get-topics",
 					{},
 					{ stream: false },
@@ -237,6 +276,41 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 			}
 		};
 		loadTopics();
+	}, []);
+
+	// Load predefined agent flows and default to latest flow item (not chat)
+	useEffect(() => {
+		const loadPredefinedFlows = async () => {
+			try {
+				const result = await backgroundJob.createJob(
+					"get-predefined-flows",
+					{ flowKey: "knowledge-rag" },
+					{ stream: false },
+				);
+				if (!("promise" in result)) {
+					return;
+				}
+
+				const jobResult = await result.promise;
+				if (
+					jobResult.status === "completed" &&
+					jobResult.result &&
+					"flows" in jobResult.result
+				) {
+					const flowList = jobResult.result.flows;
+					if (Array.isArray(flowList)) {
+						const flows = flowList as Array<{ id: string; name: string }>;
+						setAgentFlows(flows);
+						if (flows.length > 0) {
+							setSelectedAgentFlowId(flows[0].id);
+						}
+					}
+				}
+			} catch (error) {
+				logError("Failed to load predefined flows:", error);
+			}
+		};
+		loadPredefinedFlows();
 	}, []);
 
 	// Auto-scroll to bottom helper
@@ -383,13 +457,16 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 				];
 
 				const topicId = selectedTopic === "" ? undefined : selectedTopic;
-				const serviceMode = chatMode === "knowledge" ? "knowledge" : "normal";
+				const serviceMode =
+					selectedAgentFlowId === "chat" ? "normal" : "knowledge";
 
 				await embeddedChatService.chatStream({
 					messages: messagesForAPI,
 					model: selectedModel,
 					mode: serviceMode,
 					topicId,
+					agentFlowId:
+						selectedAgentFlowId === "chat" ? undefined : selectedAgentFlowId,
 					signal: controller.signal,
 					onProgress: (content: string, isComplete: boolean) => {
 						setMessages((prev) =>
@@ -468,7 +545,14 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 				setTimeout(() => scrollToBottom(), 100);
 			}
 		},
-		[inputValue, isTyping, modelAvailable, messages, chatMode, scrollToBottom],
+		[
+			inputValue,
+			isTyping,
+			modelAvailable,
+			messages,
+			selectedAgentFlowId,
+			scrollToBottom,
+		],
 	);
 
 	return (
@@ -530,7 +614,11 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 								</h3>
 								<p className="text-muted-foreground text-xs leading-relaxed mb-4">
 									{texts.chat.authRequiredDescription ||
-										`Your ${selectedProvider} model requires authentication. Please open the main app to enter your passkey.`}
+										`${
+											encryptedProviders.length > 0
+												? `Your ${encryptedProviders.join(", ")} provider`
+												: `Your ${selectedProvider} model`
+										} requires authentication. Please open the main app to enter your passkey.`}
 								</p>
 								<button
 									onClick={() => {
@@ -666,8 +754,9 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					onSubmit={handleSubmit}
 					isTyping={isTyping}
 					modelAvailable={modelAvailable}
-					chatMode={chatMode}
-					setChatMode={setChatMode}
+					selectedAgentFlowId={selectedAgentFlowId}
+					setSelectedAgentFlowId={setSelectedAgentFlowId}
+					agentFlows={agentFlows}
 					selectedTopic={selectedTopic}
 					setSelectedTopic={setSelectedTopic}
 					topics={topics}
@@ -676,6 +765,12 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					messages={messages}
 					onDeleteChat={handleDeleteChat}
 					onStop={handleStop}
+					onOpenSettings={() => {
+						chrome.runtime.sendMessage({
+							type: "OPEN_FULL_PAGE",
+						});
+						onClose();
+					}}
 					language={language}
 				/>
 

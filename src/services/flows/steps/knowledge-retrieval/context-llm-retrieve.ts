@@ -22,8 +22,13 @@ import type {
 	RelevantEdge,
 	RetrieveKnowledgeServices,
 } from "./retrieve-knowledge";
-import type { AnalyzeQueryOutput, } from "./analyze-query";
-import type { EntitiesFactsToContextOutput, EntitiesFactsToContextServices } from "./entities-facts-to-context";
+import type { AnalyzeQueryOutput } from "./analyze-query";
+import type {
+	EntitiesFactsToContextOutput,
+	EntitiesFactsToContextServices,
+} from "./entities-facts-to-context";
+import type { ChatCompletionMessageParam } from "@/types/openai";
+import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
 
 const STEP_NAME = "context-llm-retrieve" as const;
 
@@ -32,7 +37,7 @@ const STEP_NAME = "context-llm-retrieve" as const;
 // ============================================================================
 
 export interface ContextLLMRetrieveInput {
-	query: string;
+	messages: ChatCompletionMessageParam[];
 	graphId?: string;
 }
 
@@ -47,7 +52,8 @@ export interface ContextLLMRetrieveOutput {
 
 export interface ContextLLMRetrieveConfig {}
 
-export type ContextLLMRetrieveServices = RetrieveKnowledgeServices & EntitiesFactsToContextServices
+export type ContextLLMRetrieveServices = RetrieveKnowledgeServices &
+	EntitiesFactsToContextServices;
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -65,6 +71,7 @@ const definition = defineStep<
 			logInfo(
 				`[CONTEXT_RETRIEVE_KNOWLEDGE] Starting for graphId: ${input.graphId}`,
 			);
+			const query = extractRetrievalTextFromMessages(input.messages);
 
 			// Step 1: Analyze query to extract entities
 			const analyzeQueryStep = stepRegistry.getStepByName(
@@ -73,7 +80,7 @@ const definition = defineStep<
 			);
 			const analyzeResult = (await analyzeQueryStep.execute(
 				{
-					query: input.query,
+					query,
 				},
 				runConfig,
 			)) as StepOutput<AnalyzeQueryOutput>;

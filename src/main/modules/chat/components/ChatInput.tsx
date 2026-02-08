@@ -9,6 +9,7 @@ import {
 	Tags,
 	Trash2,
 	MoreHorizontal,
+	Settings2,
 } from "lucide-react";
 import {
 	PromptInput,
@@ -31,7 +32,6 @@ import {
 	TooltipTrigger,
 } from "@/main/components/ui/tooltip";
 import type { ChatStatus } from "@/types/chat";
-import type { ChatMode } from "@/main/modules/chat/services/chat-service";
 
 interface ChatInputProps {
 	inputValue: string;
@@ -40,8 +40,6 @@ interface ChatInputProps {
 	isLoading: boolean;
 	model: string;
 	status: ChatStatus;
-	chatMode: ChatMode;
-	setChatMode: (mode: ChatMode) => void;
 	selectedTopic: string;
 	setSelectedTopic: (topicId: string) => void;
 	onInsertSeparator: () => void;
@@ -49,7 +47,12 @@ interface ChatInputProps {
 	abortController: AbortController | null;
 	isLoadingTopics: boolean;
 	topics: Array<{ id: string; name: string }>;
+	agentFlows: Array<{ id: string; name: string }>;
+	selectedAgentFlowId: string | null;
+	setSelectedAgentFlowId: (flowId: string) => void;
+	onCreateAgentFlow?: () => void;
 	onDeleteChat: () => void;
+	onOpenAgentSettings?: () => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -59,8 +62,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	isLoading,
 	model,
 	status,
-	chatMode,
-	setChatMode,
 	selectedTopic,
 	setSelectedTopic,
 	onInsertSeparator,
@@ -69,16 +70,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	isLoadingTopics,
 	onDeleteChat,
 	topics,
+	agentFlows,
+	selectedAgentFlowId,
+	setSelectedAgentFlowId,
+	onCreateAgentFlow,
+	onOpenAgentSettings,
 }) => {
 	const { t } = useTranslation("chat");
-	const getModeIcon = (mode: ChatMode) => {
-		switch (mode) {
-			case "normal":
-				return <MessageCircle size={14} />;
-			case "knowledge":
-				return <Brain size={14} />;
-		}
-	};
+	const isKnowledgeMode = selectedAgentFlowId !== "chat";
+	const flowOptions = [
+		{ id: "chat", name: t("flowSelector.chat") },
+		...agentFlows,
+	];
+	const selectedFlow = flowOptions.find(
+		(flow) => flow.id === selectedAgentFlowId,
+	);
 
 	return (
 		<TooltipProvider>
@@ -98,105 +104,134 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 								{/* Scrollable tools container */}
 								<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
 									<PromptInputTools>
-										{/* Compact Mode Toggle */}
 										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button
-													type="button"
-													variant="ghost"
-													size="sm"
-													disabled={isLoading}
-													onClick={() =>
-														setChatMode(
-															chatMode === "knowledge" ? "normal" : "knowledge",
-														)
-													}
-													className={`
-													relative flex items-center gap-1 text-xs whitespace-nowrap px-2
-													transition-all duration-200 ease-in-out
-													hover:scale-105 active:scale-95
-													${
-														chatMode === "knowledge"
-															? "bg-blue-500/10 border border-blue-500/20 text-blue-600 hover:bg-blue-500/15"
-															: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-													}
-												`}
-												>
-													<div
-														className={`
-													transition-transform duration-200 ease-in-out
-													${chatMode === "knowledge" ? "scale-110" : "scale-100"}
-												`}
+											<DropdownMenu>
+												<TooltipTrigger asChild>
+													<DropdownMenuTrigger asChild>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
+														>
+															{selectedFlow?.id === "chat" ? (
+																<MessageCircle size={12} />
+															) : (
+																<Brain size={12} />
+															)}
+															<span className="max-w-24 truncate">
+																{selectedFlow?.name ?? t("flowSelector.chat")}
+															</span>
+															<ChevronDown size={10} className="opacity-50" />
+														</Button>
+													</DropdownMenuTrigger>
+												</TooltipTrigger>
+												<DropdownMenuContent align="start">
+													{flowOptions.map((flow) => (
+														<DropdownMenuItem
+															key={flow.id}
+															onClick={() => setSelectedAgentFlowId(flow.id)}
+															className="flex items-center gap-2"
+														>
+															{flow.id === "chat" ? (
+																<MessageCircle size={14} />
+															) : (
+																<Brain size={14} />
+															)}
+															<span>{flow.name}</span>
+														</DropdownMenuItem>
+													))}
+													<DropdownMenuItem
+														onClick={onCreateAgentFlow}
+														className="flex items-center gap-2"
 													>
-														{getModeIcon(chatMode)}
-													</div>
-													{chatMode === "knowledge" && (
-														<div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-													)}
-												</Button>
-											</TooltipTrigger>
+														<Plus size={14} />
+														<span>{t("flowSelector.create")}</span>
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
 											<TooltipContent>
-												<p className="text-xs">
-													{chatMode === "knowledge"
-														? t("tooltips.knowledgeMode")
-														: t("tooltips.normalMode")}
-												</p>
+												<p className="text-xs">{t("tooltips.flowSelector")}</p>
 											</TooltipContent>
 										</Tooltip>
 
-										{/* Topic Selector - Only show when in knowledge mode */}
-										{chatMode === "knowledge" && (
-											<Tooltip>
-												<DropdownMenu>
-													<TooltipTrigger asChild>
-														<DropdownMenuTrigger asChild>
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																disabled={isLoadingTopics}
-																className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
-															>
-																<Tags size={12} />
-																<span className="max-w-20 truncate">
-																	{isLoadingTopics
-																		? t("topic.loading")
-																		: selectedTopic === "__all__"
-																			? t("topic.all")
-																			: topics.find(
-																					(topic) => topic.id === selectedTopic,
-																				)?.name || t("topic.select")}
-																</span>
-																<ChevronDown size={10} className="opacity-50" />
-															</Button>
-														</DropdownMenuTrigger>
-													</TooltipTrigger>
-													<DropdownMenuContent align="start">
-														<DropdownMenuItem
-															onClick={() => setSelectedTopic("default")}
-															className="flex items-center gap-2"
-														>
-															<Tags size={14} />
-															<span>{t("topic.default")}</span>
-														</DropdownMenuItem>
-														{topics.map((topic) => (
+										{isKnowledgeMode && (
+											<>
+												<Tooltip>
+													<DropdownMenu>
+														<TooltipTrigger asChild>
+															<DropdownMenuTrigger asChild>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	disabled={isLoadingTopics}
+																	className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
+																>
+																	<Tags size={12} />
+																	<span className="max-w-20 truncate">
+																		{isLoadingTopics
+																			? t("topic.loading")
+																			: selectedTopic === "__all__"
+																				? t("topic.all")
+																				: topics.find(
+																						(topic) =>
+																							topic.id === selectedTopic,
+																					)?.name || t("topic.select")}
+																	</span>
+																	<ChevronDown
+																		size={10}
+																		className="opacity-50"
+																	/>
+																</Button>
+															</DropdownMenuTrigger>
+														</TooltipTrigger>
+														<DropdownMenuContent align="start">
 															<DropdownMenuItem
-																key={topic.id}
-																onClick={() => setSelectedTopic(topic.id)}
+																onClick={() => setSelectedTopic("default")}
 																className="flex items-center gap-2"
 															>
 																<Tags size={14} />
-																<span>{topic.name}</span>
+																<span>{t("topic.default")}</span>
 															</DropdownMenuItem>
-														))}
-													</DropdownMenuContent>
-												</DropdownMenu>
-												<TooltipContent>
-													<p className="text-xs">
-														{t("tooltips.topicSelector")}
-													</p>
-												</TooltipContent>
-											</Tooltip>
+															{topics.map((topic) => (
+																<DropdownMenuItem
+																	key={topic.id}
+																	onClick={() => setSelectedTopic(topic.id)}
+																	className="flex items-center gap-2"
+																>
+																	<Tags size={14} />
+																	<span>{topic.name}</span>
+																</DropdownMenuItem>
+															))}
+														</DropdownMenuContent>
+													</DropdownMenu>
+													<TooltipContent>
+														<p className="text-xs">
+															{t("tooltips.topicSelector")}
+														</p>
+													</TooltipContent>
+												</Tooltip>
+
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															onClick={onOpenAgentSettings}
+															className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
+														>
+															<Settings2 size={12} />
+														</Button>
+													</TooltipTrigger>
+													<TooltipContent>
+														<p className="text-xs">
+															{t("tooltips.agentSettings")}
+														</p>
+													</TooltipContent>
+												</Tooltip>
+											</>
 										)}
 									</PromptInputTools>
 								</div>

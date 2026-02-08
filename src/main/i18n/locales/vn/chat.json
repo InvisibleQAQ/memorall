@@ -39,6 +39,10 @@
 		"all": "Mặc định",
 		"loading": "Đang tải chủ đề..."
 	},
+	"flowSelector": {
+		"chat": "Trò chuyện",
+		"create": "Tạo flow mới"
+	},
 	"actions": {
 		"deleteChat": "Xóa cuộc trò chuyện",
 		"moreActions": "Thêm hành động",
@@ -114,9 +118,33 @@
 		"normalMode": "Chế độ trò chuyện thường - Đàm thoại đơn giản không có ngữ cảnh kiến thức",
 		"knowledgeMode": "Chế độ tri thức - Trò chuyện với quyền truy cập vào kiến thức và ngữ cảnh đã lưu",
 		"topicSelector": "Chọn chủ đề để lọc ngữ cảnh kiến thức",
+		"flowSelector": "Chọn flow hội thoại",
 		"newMessage": "Bắt đầu chuỗi tin nhắn mới trong cuộc trò chuyện hiện tại",
 		"moreActions": "Thêm hành động và cài đặt",
 		"stopGeneration": "Dừng tạo phản hồi",
-		"sendMessage": "Gửi tin nhắn (Enter)"
+		"sendMessage": "Gửi tin nhắn (Enter)",
+		"agentSettings": "Cài đặt tác nhân"
+	},
+	"agentSettings": {
+		"title": "Cài đặt Tác nhân",
+		"subtitle": "Cấu hình hành vi tác nhân tri thức",
+		"systemPrompt": "Lời nhắc hệ thống",
+		"systemPromptPlaceholder": "Nhập lời nhắc hệ thống tuỳ chỉnh... Dùng {context} để chèn ngữ cảnh kiến thức.",
+		"systemPromptHint": "Để trống để sử dụng lời nhắc mặc định. Dùng {context} làm chỗ chèn ngữ cảnh kiến thức.",
+		"charCount": "{{count}} ký tự",
+		"capabilities": "Khả năng",
+		"contextRetrieval": "Truy xuất ngữ cảnh",
+		"contextRetrievalDesc": "Truy xuất ngữ cảnh kiến thức liên quan trước khi tạo phản hồi",
+		"citations": "Trích dẫn",
+		"citationsDesc": "Thêm trích dẫn nguồn vào phản hồi",
+		"tools": "Công cụ",
+		"enableAll": "Bật tất cả",
+		"disableAll": "Tắt tất cả",
+		"saved": "Đã lưu",
+		"unsaved": "Chưa lưu",
+		"save": "Lưu",
+		"revert": "Hoàn tác",
+		"resetDefaults": "Khôi phục mặc định",
+		"resetConfirm": "Thao tác này sẽ đặt lại tất cả cài đặt tác nhân về giá trị mặc định. Bản nháp hiện tại sẽ bị thay thế."
 	}
 }

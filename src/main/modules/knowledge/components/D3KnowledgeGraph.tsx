@@ -75,6 +75,7 @@ interface D3KnowledgeGraphProps {
 	width?: number;
 	height?: number;
 	onNodeDeleted?: () => void;
+	onEdgeDeleted?: (edgeId: string) => Promise<void> | void;
 	onNodeSelect?: (nodeId: string | null) => void;
 }
 
@@ -361,6 +362,8 @@ interface SelectedNodePanelProps {
 	isDark: boolean;
 	onClose: () => void;
 	onDelete: () => void;
+	onDeleteEdge: (edgeId: string) => void;
+	deletingEdgeId: string | null;
 	deleting: boolean;
 }
 
@@ -372,6 +375,8 @@ const SelectedNodePanel = memo(
 		isDark,
 		onClose,
 		onDelete,
+		onDeleteEdge,
+		deletingEdgeId,
 		deleting,
 	}: SelectedNodePanelProps) => {
 		const { t } = useTranslation("knowledge");
@@ -533,9 +538,9 @@ const SelectedNodePanel = memo(
 														: "bg-gray-50 border-gray-200 hover:bg-gray-100",
 												)}
 											>
-												<div className="flex items-center gap-2 mb-2">
+												<div className="flex items-center justify-between gap-2 mb-2">
 													{connection.direction === "outgoing" ? (
-														<>
+														<div className="flex items-center gap-2">
 															<span
 																className={cn(
 																	"font-semibold text-xs",
@@ -558,9 +563,9 @@ const SelectedNodePanel = memo(
 															>
 																{connection.connectedNode.name}
 															</span>
-														</>
+														</div>
 													) : (
-														<>
+														<div className="flex items-center gap-2">
 															<span
 																className={cn(
 																	"font-semibold text-xs",
@@ -583,8 +588,22 @@ const SelectedNodePanel = memo(
 															>
 																{node.name}
 															</span>
-														</>
+														</div>
 													)}
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => onDeleteEdge(connection.edge.id)}
+														disabled={deletingEdgeId === connection.edge.id}
+														className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+														title={t("edge.delete")}
+													>
+														{deletingEdgeId === connection.edge.id ? (
+															<Loader2 className="h-3 w-3 animate-spin" />
+														) : (
+															<Trash2 className="h-3 w-3" />
+														)}
+													</Button>
 												</div>
 
 												<div className="flex items-center gap-2 flex-wrap">
@@ -636,6 +655,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	width = 800,
 	height = 600,
 	onNodeDeleted,
+	onEdgeDeleted,
 	onNodeSelect,
 }) => {
 	const { t } = useTranslation("knowledge");
@@ -661,6 +681,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	>(null);
 	const [connectedEdges, setConnectedEdges] = useState<ConnectedEdge[]>([]);
 	const [deleting, setDeleting] = useState(false);
+	const [deletingEdgeId, setDeletingEdgeId] = useState<string | null>(null);
 
 	const { actualTheme } = useTheme();
 	const isDark = actualTheme === "dark";
@@ -1000,6 +1021,37 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 			setDeleting(false);
 		}
 	}, [selectedNode, selectedPageId, onNodeDeleted, loadGraphData]);
+
+	const handleDeleteEdge = useCallback(
+		async (edgeId: string) => {
+			const confirmed = window.confirm(t("edge.deleteConfirm"));
+			if (!confirmed) {
+				return;
+			}
+
+			try {
+				setDeletingEdgeId(edgeId);
+
+				if (onEdgeDeleted) {
+					await onEdgeDeleted(edgeId);
+				} else {
+					await serviceManager.databaseService.use(async ({ db, schema }) => {
+						await db.delete(schema.edges).where(eq(schema.edges.id, edgeId));
+					});
+					await loadGraphData();
+				}
+
+				setConnectedEdges((prev) =>
+					prev.filter((connection) => connection.edge.id !== edgeId),
+				);
+			} catch (error) {
+				logError("Failed to delete edge:", error);
+			} finally {
+				setDeletingEdgeId(null);
+			}
+		},
+		[onEdgeDeleted, loadGraphData, t],
+	);
 
 	const handleZoomIn = useCallback(() => {
 		if (svgRef.current && zoomBehaviorRef.current) {
@@ -1407,6 +1459,8 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 						onNodeSelect?.(null);
 					}}
 					onDelete={handleDeleteNode}
+					onDeleteEdge={handleDeleteEdge}
+					deletingEdgeId={deletingEdgeId}
 					deleting={deleting}
 				/>
 			)}

@@ -32,7 +32,7 @@ export interface AnalyzeQueryOutput {
 	errors?: string[];
 }
 
-export type AnalyzeQueryServices = Pick<AllServices, 'llm'>
+export type AnalyzeQueryServices = Pick<AllServices, "llm">;
 
 // ============================================================================
 // SYSTEM PROMPT

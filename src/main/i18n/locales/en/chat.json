@@ -39,6 +39,10 @@
 		"default": "Default",
 		"loading": "Loading topics..."
 	},
+	"flowSelector": {
+		"chat": "Chat",
+		"create": "Create new flow"
+	},
 	"actions": {
 		"deleteChat": "Delete Chat",
 		"moreActions": "More actions",
@@ -115,9 +119,33 @@
 		"normalMode": "Normal chat mode - Simple conversation without knowledge context",
 		"knowledgeMode": "Knowledge mode - Chat with access to your saved knowledge and context",
 		"topicSelector": "Select a topic to filter knowledge context",
+		"flowSelector": "Select conversation flow",
 		"newMessage": "Start a new message thread in the current conversation",
 		"moreActions": "More actions and settings",
 		"stopGeneration": "Stop generating response",
-		"sendMessage": "Send message (Enter)"
+		"sendMessage": "Send message (Enter)",
+		"agentSettings": "Agent settings"
+	},
+	"agentSettings": {
+		"title": "Agent Settings",
+		"subtitle": "Configure knowledge agent behavior",
+		"systemPrompt": "System Prompt",
+		"systemPromptPlaceholder": "Enter a custom system prompt... Use {context} to insert knowledge context.",
+		"systemPromptHint": "Leave empty to use the default prompt. Use {context} as a placeholder for knowledge context.",
+		"charCount": "{{count}} chars",
+		"capabilities": "Capabilities",
+		"contextRetrieval": "Context Retrieval",
+		"contextRetrievalDesc": "Retrieve relevant knowledge context before generating a response",
+		"citations": "Citations",
+		"citationsDesc": "Add source citations to responses",
+		"tools": "Tools",
+		"enableAll": "Enable all",
+		"disableAll": "Disable all",
+		"saved": "Saved",
+		"unsaved": "Unsaved",
+		"save": "Save",
+		"revert": "Revert",
+		"resetDefaults": "Reset to Defaults",
+		"resetConfirm": "This will reset all agent settings to their default values. Your current draft will be replaced."
 	}
 }

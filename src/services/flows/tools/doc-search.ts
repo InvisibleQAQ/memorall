@@ -1,5 +1,9 @@
 import z from "zod";
-import type { Tool, ToolFactory, AllServices } from "@/services/flows/interfaces/tool";
+import type {
+	Tool,
+	ToolFactory,
+	AllServices,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import type { DocumentTreeNode, DocumentType } from "@/types/document-library";
 import { readPDFFile } from "@/main/modules/documents/handlers/pdf-extraction";
@@ -17,10 +21,7 @@ const schema = z.object({
 		.describe(
 			"Regex pattern to search file content. If omitted, lists files only",
 		),
-	path: z
-		.string()
-		.optional()
-		.describe('Directory scope (default: "/")'),
+	path: z.string().optional().describe('Directory scope (default: "/")'),
 	file_pattern: z
 		.string()
 		.optional()
@@ -71,7 +72,9 @@ function toArrayBuffer(content: Uint8Array): ArrayBuffer {
 async function extractPdfText(content: Uint8Array): Promise<string> {
 	const arrayBuffer = toArrayBuffer(content);
 	const pdfContent = await readPDFFile(arrayBuffer);
-	return pdfContent.fullText || pdfContent.pages.map((p) => p.text).join("\n\n");
+	return (
+		pdfContent.fullText || pdfContent.pages.map((p) => p.text).join("\n\n")
+	);
 }
 
 async function extractExcelText(content: Uint8Array): Promise<string> {
@@ -111,7 +114,7 @@ export const createDocSearchTool: ToolFactory<Input, Services> = (
 
 		const dfs = services.documentFileSystem;
 		if (!dfs) {
-			return 'Documents not existe.'
+			return "Documents not existe.";
 		}
 
 		const tree = await dfs.getTree();
@@ -140,9 +143,7 @@ export const createDocSearchTool: ToolFactory<Input, Services> = (
 			}
 			for (const f of files) {
 				const file = f.file!;
-				lines.push(
-					`${f.path}  (${file.type}, ${formatFileSize(file.size)})`,
-				);
+				lines.push(`${f.path}  (${file.type}, ${formatFileSize(file.size)})`);
 			}
 
 			if (lines.length === 0) {
@@ -162,9 +163,7 @@ export const createDocSearchTool: ToolFactory<Input, Services> = (
 			regex = new RegExp(escaped, case_sensitive ? "g" : "gi");
 		}
 
-		const fileNodes = filteredNodes.filter(
-			(n) => n.type === "file" && n.file,
-		);
+		const fileNodes = filteredNodes.filter((n) => n.type === "file" && n.file);
 
 		const matches: string[] = [];
 		let matchCount = 0;

@@ -27,6 +27,7 @@ import * as flowStatesSchema from "./entities/flow-states";
 import * as flowServicesSchema from "./entities/flow-services";
 import * as flowStepsSchema from "./entities/flow-steps";
 import * as flowConnectionsSchema from "./entities/flow-connections";
+import * as flowConfigsSchema from "./entities/flow-configs";
 
 // Export consolidated schema object
 export const schema = {
@@ -55,4 +56,5 @@ export const schema = {
 	flowServices: flowServicesSchema.flowServices,
 	flowSteps: flowStepsSchema.flowSteps,
 	flowConnections: flowConnectionsSchema.flowConnections,
+	flowConfigs: flowConfigsSchema.flowConfigs,
 };

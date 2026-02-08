@@ -774,6 +774,32 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Handle messages from content scripts and UI
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	if (
+		message?.type === "JOB_NOTIFICATION_BRIDGE" &&
+		sender.tab?.id &&
+		message?.jobMessage?.destination === "offscreen"
+	) {
+		(async () => {
+			try {
+				// Content scripts cannot reliably reach offscreen directly in all cases.
+				// Ensure offscreen exists, then relay from background to extension contexts.
+				await offscreenWatchdogCheck();
+				await chrome.runtime.sendMessage(message);
+				sendResponse({ success: true });
+			} catch (error) {
+				logError(
+					"❌ Failed to relay JOB_NOTIFICATION_BRIDGE to offscreen:",
+					error,
+				);
+				sendResponse({
+					success: false,
+					error: error instanceof Error ? error.message : "Relay failed",
+				});
+			}
+		})();
+		return true;
+	}
+
 	if (message.type === BACKGROUND_EVENTS.POPUP_OPENED) {
 		logInfo("🪟 Popup opened");
 

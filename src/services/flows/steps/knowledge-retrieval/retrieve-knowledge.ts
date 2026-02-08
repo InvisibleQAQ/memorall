@@ -58,7 +58,10 @@ export interface RetrieveKnowledgeOutput {
 	errors?: string[];
 }
 
-export type RetrieveKnowledgeServices = Pick<AllServices, 'database' | 'embedding'>
+export type RetrieveKnowledgeServices = Pick<
+	AllServices,
+	"database" | "embedding"
+>;
 
 // ============================================================================
 // STEP IMPLEMENTATION
