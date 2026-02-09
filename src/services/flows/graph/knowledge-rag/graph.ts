@@ -19,7 +19,6 @@ export class KnowledgeRAGFlow extends GraphBase<
 > {
 	private mode: "standard" | "quick" | "smart";
 	private responseMode: "simple" | "agent";
-	private configTools?: KnowledgeRAGConfig["tools"];
 
 	constructor(services: AllServices, config: KnowledgeRAGConfig = {}) {
 		super(services);
@@ -27,7 +26,6 @@ export class KnowledgeRAGFlow extends GraphBase<
 		// Determine modes
 		this.mode = config.mode ?? "smart";
 		this.responseMode = config.responseMode ?? "simple";
-		this.configTools = config.tools;
 
 		const enableContextRetrieval = config.enableContextRetrieval !== false;
 		const enableCitations = config.enableCitations !== false;
@@ -41,14 +39,6 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
 
-		const chatCompletionStep = stepRegistry.getStep(
-			"chat-completion",
-			services,
-		);
-		const agentCompletionStep = stepRegistry.getStep(
-			"agent-completion",
-			services,
-		);
 		const emitContextStep = stepRegistry.getStep("add-system", {});
 
 		// Add citation node only if enabled
@@ -84,6 +74,13 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		// Add response node based on responseMode
 		if (this.responseMode === "agent") {
+			const agentCompletionStep = stepRegistry.getStep(
+				"agent-completion",
+				services,
+				{
+					tools: config.tools
+				}
+			);
 			this.workflow.addNode(
 				"final_response",
 				agentCompletionStep.toNode<KnowledgeRAGState>({
@@ -98,7 +95,6 @@ export class KnowledgeRAGFlow extends GraphBase<
 						return {
 							// Custom system prompt is injected right before response generation.
 							messages: responseMessages,
-							tools: state.tools ?? this.configTools,
 							maxIterations: state.maxIterations,
 						};
 					},
@@ -109,6 +105,10 @@ export class KnowledgeRAGFlow extends GraphBase<
 				}),
 			);
 		} else {
+			const chatCompletionStep = stepRegistry.getStep(
+				"chat-completion",
+				services,
+			);
 			this.workflow.addNode(
 				"final_response",
 				chatCompletionStep.toNode<KnowledgeRAGState>({
@@ -206,7 +206,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 		this.compile();
 
 		logInfo(
-			`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}, responseMode: ${this.responseMode}, contextRetrieval: ${enableContextRetrieval}, citations: ${enableCitations}`,
+			`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}, responseMode: ${this.responseMode}, contextRetrieval: ${enableContextRetrieval}, citations: ${enableCitations}, tools: ${config.tools}`,
 		);
 	}
 }

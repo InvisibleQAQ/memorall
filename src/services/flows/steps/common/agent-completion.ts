@@ -21,7 +21,6 @@ const STEP_NAME = "agent-completion" as const;
 
 export interface AgentCompletionStepInput {
 	messages: ChatMessage[];
-	tools?: ChatCompletionTool[];
 	maxIterations?: number;
 }
 
@@ -30,7 +29,9 @@ export interface AgentCompletionStepOutput {
 }
 
 export type AgentCompletionStepServices = AllServices;
-export type AgentCompletionStepConfig = {};
+export type AgentCompletionStepConfig = {
+	tools?: string[];
+};
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -43,10 +44,12 @@ const definition = defineStep<
 	AgentCompletionStepConfig
 >({
 	name: STEP_NAME,
-	execute: async ({ input, services, runConfig }) => {
+	execute: async ({ input, services, runConfig, config }) => {
 		logInfo("[AGENT_COMPLETION] Running agent completion");
 
-		const agentGraph = new AgentGraph(services);
+		const agentGraph = new AgentGraph(services, {
+			tools: config.tools,
+		});
 
 		const stream = await agentGraph.stream(
 			{

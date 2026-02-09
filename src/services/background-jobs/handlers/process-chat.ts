@@ -5,6 +5,7 @@ import type {
 	ChatCompletionRequest,
 	ChatMessage,
 	ChatCompletionChunk,
+	ChatCompletionTool,
 } from "@/types/openai";
 import {
 	isCustomChunkPayload,
@@ -344,32 +345,6 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					);
 				}
 
-				// Resolve tool name strings to ChatCompletionTool[]
-				let resolvedTools:
-					| import("@/types/openai").ChatCompletionTool[]
-					| undefined;
-				if (agentConfig?.tools && agentConfig.tools.length > 0) {
-					try {
-						const allServices = {
-							llm: serviceManager.llmService,
-							embedding: serviceManager.embeddingService,
-							database: serviceManager.databaseService,
-							documentFileSystem: documentFileSystemService,
-						};
-						const toolInstances = toolRegistry.getTools(
-							agentConfig.tools,
-							allServices,
-						);
-						resolvedTools = convertToolsToOpenAI(toolInstances);
-					} catch (err) {
-						await dependencies.logger.warn(
-							"Failed to resolve tools, using none",
-							`${err}`,
-							"offscreen",
-						);
-					}
-				}
-
 				// Use KnowledgeRAGFlow for knowledge mode (following use-chat.ts pattern)
 				const graph = serviceManager.flowsService.createGraph(
 					"knowledge-rag",
@@ -385,7 +360,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						contextPrompt: agentConfig?.contextPrompt || undefined,
 						enableContextRetrieval: agentConfig?.enableContextRetrieval,
 						enableCitations: agentConfig?.enableCitations,
-						tools: resolvedTools,
+						tools: agentConfig?.tools,
 					},
 				);
 

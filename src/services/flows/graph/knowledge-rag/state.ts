@@ -11,7 +11,7 @@ export interface KnowledgeRAGConfig {
 	/** Response mode: simple (single LLM call) or agent (tool calling loop) */
 	responseMode?: "simple" | "agent";
 	/** Tools available for agent mode */
-	tools?: ChatCompletionTool[];
+	tools?: string[];
 	/** Max iterations for agent mode (default: 10) */
 	maxIterations?: number;
 	maxGrowthLevels?: number;
@@ -82,8 +82,6 @@ export interface KnowledgeRAGState extends BaseStateBase {
 	// Additional search contexts (for example selected topic metadata)
 	contextQueries: string[];
 
-	// Agent config (from input)
-	tools?: ChatCompletionTool[];
 	maxIterations: number;
 
 	// Query Analysis
