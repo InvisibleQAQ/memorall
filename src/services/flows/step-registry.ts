@@ -1,4 +1,5 @@
 import type { BoundStep, StepFactory } from "./interfaces/step";
+import type { AllServices } from "./interfaces/tool";
 
 // Base shape that all step registry entries must follow
 export interface StepSpec {
@@ -101,16 +102,16 @@ export class StepRegistryManager {
 	/**
 	 * Get a step by name (loose typing for dynamic/runtime access).
 	 */
-	getStepByName(
+	getStepByName<IInput extends unknown, TOuput extends unknown>(
 		stepName: string,
 		services?: unknown,
 		config?: unknown,
-	): BoundStep<unknown, unknown> {
+	): BoundStep<IInput, TOuput> {
 		const factory = this.factories.get(stepName);
 		if (!factory) {
 			throw new Error(`No step registered for name: ${stepName}`);
 		}
-		return factory(services, config);
+		return factory(services, config) as BoundStep<IInput, TOuput>;
 	}
 
 	/**

@@ -24,7 +24,7 @@ import {
 	type KnowledgeRAGPredefinedConfig,
 } from "./graph/knowledge-rag/state";
 import { logError, logInfo } from "@/utils/logger";
-import { getFlowCatalog } from "./flow-builder-catalog";
+import { getFeatureCatalogSteps, getFlowCatalog } from "./flow-builder-catalog";
 
 type PredefinedFlowConfigMap = {
 	"knowledge-rag": KnowledgeRAGPredefinedConfig;
@@ -88,6 +88,12 @@ const buildFlowServices = (
 
 export class FlowBuilderService {
 	constructor(private databaseService: IDatabaseService) {}
+
+	private readonly FEATURE_STEP_TYPE = "feature";
+
+	private getFeatureNamesFromCatalog(): string[] {
+		return getFeatureCatalogSteps().map((step) => step.name);
+	}
 
 	async listFlows(): Promise<Flow[]> {
 		return this.databaseService.use(async ({ db, schema }) =>
@@ -652,6 +658,94 @@ export class FlowBuilderService {
 			await db
 				.delete(schema.flowConfigs)
 				.where(eq(schema.flowConfigs.flowId, flow.id));
+		});
+	}
+
+	async getFlowFeatureFlags(
+		ref: FlowConfigRef,
+	): Promise<Record<string, boolean>> {
+		const flow = await this.resolveFlow(ref);
+		const featureNames = this.getFeatureNamesFromCatalog();
+		const defaultFlags = Object.fromEntries(
+			featureNames.map((name) => [name, false]),
+		) as Record<string, boolean>;
+
+		const rows = await this.databaseService.use(async ({ db, schema }) =>
+			db
+				.select({
+					name: schema.flowSteps.name,
+					metadata: schema.flowSteps.metadata,
+				})
+				.from(schema.flowSteps)
+				.where(
+					and(
+						eq(schema.flowSteps.flowId, flow.id),
+						eq(schema.flowSteps.type, this.FEATURE_STEP_TYPE),
+					),
+				),
+		);
+
+		for (const row of rows) {
+			if (!featureNames.includes(row.name)) {
+				continue;
+			}
+			const enabled = Boolean(
+				(row.metadata as { enabled?: unknown } | null | undefined)?.enabled,
+			);
+			defaultFlags[row.name] = enabled;
+		}
+
+		return defaultFlags;
+	}
+
+	async saveFlowFeatureFlags(
+		ref: FlowConfigRef,
+		flags: Record<string, boolean>,
+	): Promise<void> {
+		const flow = await this.resolveFlow(ref);
+		const featureNames = this.getFeatureNamesFromCatalog();
+
+		await this.databaseService.transaction(async ({ db, schema }) => {
+			for (const featureName of featureNames) {
+				const existing = await db
+					.select({ id: schema.flowSteps.id, metadata: schema.flowSteps.metadata })
+					.from(schema.flowSteps)
+					.where(
+						and(
+							eq(schema.flowSteps.flowId, flow.id),
+							eq(schema.flowSteps.name, featureName),
+							eq(schema.flowSteps.type, this.FEATURE_STEP_TYPE),
+						),
+					)
+					.limit(1);
+
+				const metadata = {
+					...(existing[0]?.metadata ?? {}),
+					enabled: Boolean(flags[featureName]),
+					locked: true,
+					source: "agent-settings",
+				};
+
+				if (existing.length > 0) {
+					await db
+						.update(schema.flowSteps)
+						.set({
+							metadata,
+							updatedAt: new Date(),
+						})
+						.where(eq(schema.flowSteps.id, existing[0].id));
+					continue;
+				}
+
+				await db.insert(schema.flowSteps).values({
+					flowId: flow.id,
+					name: featureName,
+					type: this.FEATURE_STEP_TYPE,
+					isStart: false,
+					isEnd: false,
+					metadata,
+				});
+			}
 		});
 	}
 }

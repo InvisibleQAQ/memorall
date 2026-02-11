@@ -6,10 +6,27 @@ import {
 	type KnowledgeRAGPredefinedConfig,
 } from "@/services/flows/graph/knowledge-rag/state";
 import { logError } from "@/utils/logger";
+import type { FeatureCatalogMetadata } from "@/services/flows/flow-builder-catalog";
+
+export interface AgentFeatureDefinition {
+	name: string;
+	description: string;
+	tools: string[];
+	systemPrompt: string;
+	customizable: boolean;
+}
+
+type FeatureFlags = Record<string, boolean>;
+
+const createDefaultFeatureFlags = (featureNames: string[]): FeatureFlags =>
+	Object.fromEntries(featureNames.map((feature) => [feature, false])) as FeatureFlags;
 
 interface AgentConfigState {
 	savedConfig: KnowledgeRAGPredefinedConfig;
 	draftConfig: KnowledgeRAGPredefinedConfig;
+	savedFeatures: FeatureFlags;
+	draftFeatures: FeatureFlags;
+	featureDefinitions: AgentFeatureDefinition[];
 	availableTools: string[];
 	currentFlowId: string | null;
 
@@ -26,6 +43,7 @@ interface AgentConfigState {
 		field: K,
 		value: KnowledgeRAGPredefinedConfig[K],
 	) => void;
+	toggleFeature: (featureName: string) => void;
 	toggleTool: (toolName: string) => void;
 	save: () => Promise<void>;
 	revert: () => void;
@@ -35,11 +53,18 @@ interface AgentConfigState {
 const computeDirty = (
 	saved: KnowledgeRAGPredefinedConfig,
 	draft: KnowledgeRAGPredefinedConfig,
-): boolean => JSON.stringify(saved) !== JSON.stringify(draft);
+	savedFeatures: FeatureFlags,
+	draftFeatures: FeatureFlags,
+): boolean =>
+	JSON.stringify(saved) !== JSON.stringify(draft) ||
+	JSON.stringify(savedFeatures) !== JSON.stringify(draftFeatures);
 
 export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 	savedConfig: { ...DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG },
 	draftConfig: { ...DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG },
+	savedFeatures: {},
+	draftFeatures: {},
+	featureDefinitions: [],
 	availableTools: [],
 	currentFlowId: null,
 
@@ -76,10 +101,39 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 							predefinedFlow: "knowledge-rag",
 						})
 			) as KnowledgeRAGPredefinedConfig;
+			const catalog = serviceManager.flowBuilderService.getCatalog();
+			const featureDefinitions: AgentFeatureDefinition[] = catalog.steps
+				.filter((step) => step.type === "feature")
+				.map((step) => {
+					const meta = step.metadata as Partial<FeatureCatalogMetadata>;
+					return {
+						name: step.name,
+						description: meta.description ?? step.name,
+						tools: Array.isArray(meta.tools)
+							? meta.tools.map(String)
+							: [],
+						systemPrompt:
+							typeof meta.systemPrompt === "string" ? meta.systemPrompt : "",
+						customizable: Boolean(meta.customizable),
+					};
+				});
+			const defaultFeatures = createDefaultFeatureFlags(
+				featureDefinitions.map((feature) => feature.name),
+			);
+			const featureFlags = targetFlowId
+				? await serviceManager.flowBuilderService.getFlowFeatureFlags({
+						flowId: targetFlowId,
+					})
+				: await serviceManager.flowBuilderService.getFlowFeatureFlags({
+						predefinedFlow: "knowledge-rag",
+					});
 			const available = toolRegistry.getRegisteredToolNames();
 			set({
 				savedConfig: config,
 				draftConfig: { ...config },
+				savedFeatures: { ...defaultFeatures, ...featureFlags },
+				draftFeatures: { ...defaultFeatures, ...featureFlags },
+				featureDefinitions,
 				availableTools: available,
 				currentFlowId: targetFlowId ?? null,
 				isDirty: false,
@@ -98,7 +152,28 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 		const draft = { ...get().draftConfig, [field]: value };
 		set({
 			draftConfig: draft,
-			isDirty: computeDirty(get().savedConfig, draft),
+			isDirty: computeDirty(
+				get().savedConfig,
+				draft,
+				get().savedFeatures,
+				get().draftFeatures,
+			),
+		});
+	},
+
+	toggleFeature: (featureName) => {
+		const next = {
+			...get().draftFeatures,
+			[featureName]: !get().draftFeatures[featureName],
+		};
+		set({
+			draftFeatures: next,
+			isDirty: computeDirty(
+				get().savedConfig,
+				get().draftConfig,
+				get().savedFeatures,
+				next,
+			),
 		});
 	},
 
@@ -110,28 +185,42 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 		const draft = { ...get().draftConfig, tools: next };
 		set({
 			draftConfig: draft,
-			isDirty: computeDirty(get().savedConfig, draft),
+			isDirty: computeDirty(
+				get().savedConfig,
+				draft,
+				get().savedFeatures,
+				get().draftFeatures,
+			),
 		});
 	},
 
 	save: async () => {
 		set({ isSaving: true, error: null });
 		try {
-			const { draftConfig } = get();
+			const { draftConfig, draftFeatures } = get();
 			const targetFlowId = get().currentFlowId;
 			if (targetFlowId) {
 				await serviceManager.flowBuilderService.saveFlowConfig(
 					{ flowId: targetFlowId },
 					draftConfig,
 				);
+				await serviceManager.flowBuilderService.saveFlowFeatureFlags(
+					{ flowId: targetFlowId },
+					draftFeatures,
+				);
 			} else {
 				await serviceManager.flowBuilderService.saveFlowConfig(
 					{ predefinedFlow: "knowledge-rag" },
 					draftConfig,
 				);
+				await serviceManager.flowBuilderService.saveFlowFeatureFlags(
+					{ predefinedFlow: "knowledge-rag" },
+					draftFeatures,
+				);
 			}
 			set({
 				savedConfig: { ...draftConfig },
+				savedFeatures: { ...draftFeatures },
 				isDirty: false,
 				isSaving: false,
 			});
@@ -146,17 +235,28 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 
 	revert: () => {
 		const saved = get().savedConfig;
+		const savedFeatures = get().savedFeatures;
 		set({
 			draftConfig: { ...saved },
+			draftFeatures: { ...savedFeatures },
 			isDirty: false,
 		});
 	},
 
 	resetToDefaults: () => {
 		const draft = { ...DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG };
+		const featureFlags = createDefaultFeatureFlags(
+			get().featureDefinitions.map((feature) => feature.name),
+		);
 		set({
 			draftConfig: draft,
-			isDirty: computeDirty(get().savedConfig, draft),
+			draftFeatures: featureFlags,
+			isDirty: computeDirty(
+				get().savedConfig,
+				draft,
+				get().savedFeatures,
+				featureFlags,
+			),
 		});
 	},
 }));

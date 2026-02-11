@@ -8,7 +8,25 @@ import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
 
 // Tool names available to the agent
-const DEFAULT_TOOL_NAMES = ["current_time", "js_execute"] as const;
+const DEFAULT_TOOL_NAMES = [
+	"current_time",
+	"js_execute",
+	"container_run_code",
+	"container_install_package",
+	"container_start_server",
+	"container_stop_server",
+	"container_list_servers",
+	"container_get_logs",
+	"container_clear_logs",
+	"container_write_file",
+	"container_read_file",
+	"container_mkdir",
+	"container_readdir",
+	"container_exists",
+	"container_rename",
+	"container_unlink",
+	"container_fetch_resource",
+] as const;
 
 // Derive services from tools + graph's own needs (llm for calling the model)
 type AgentServices = CombinedServices<typeof DEFAULT_TOOL_NAMES, "llm">;

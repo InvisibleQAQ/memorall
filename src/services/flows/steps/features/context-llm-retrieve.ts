@@ -17,16 +17,18 @@ import type {
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type {
+	LLMRetrieveInput,
 	LLMRetrieveOutput,
 	RelevantNode,
 	RelevantEdge,
 	LLMRetrieveServices,
-} from "../knowledge-retrieval/llm-retrieve";
-import type { AnalyzeQueryOutput } from "../knowledge-retrieval/analyze-query";
+} from "@/services/flows/steps/knowledge-retrieval/llm-retrieve";
+import type { AnalyzeQueryOutput } from "@/services/flows/steps/knowledge-retrieval/analyze-query";
 import type {
 	EntitiesFactsToContextOutput,
 	EntitiesFactsToContextServices,
-} from "../knowledge-retrieval/entities-facts-to-context";
+} from "@/services/flows/steps/knowledge-retrieval/entities-facts-to-context";
+import type { ContextToSystemConfig, ContextToSystemInput, ContextToSystemOutput } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
 
@@ -36,21 +38,14 @@ const STEP_NAME = "context-llm-retrieve" as const;
 // STEP-SPECIFIC TYPES
 // ============================================================================
 
-export interface ContextLLMRetrieveInput {
-	messages: ChatCompletionMessageParam[];
-	graphId?: string;
+export interface ContextLLMRetrieveInput extends LLMRetrieveInput, ContextToSystemInput {
 }
 
-export interface ContextLLMRetrieveOutput {
-	context: string;
-	relevantNodes?: RelevantNode[];
-	relevantEdges?: RelevantEdge[];
-	nodeCount?: number;
-	edgeCount?: number;
-	errors?: string[];
+export interface ContextLLMRetrieveOutput extends LLMRetrieveOutput, ContextToSystemOutput {
+	context: string
 }
 
-export interface ContextLLMRetrieveConfig {}
+export interface ContextLLMRetrieveConfig extends ContextToSystemConfig {}
 
 export type ContextLLMRetrieveServices = LLMRetrieveServices &
 	EntitiesFactsToContextServices;
@@ -154,6 +149,20 @@ const definition = defineStep<
 			];
 			runConfig?.writer?.({ type: "actions", actions });
 
+			const contextToSystem = stepRegistry.getStepByName<ContextToSystemInput, ContextToSystemOutput>(
+				"context-to-system",
+				services,
+				{},
+			)
+
+			const contextToSystemResult = (await contextToSystem.execute(
+				{
+					context,
+					messages: input.messages,
+				},
+				runConfig,
+			));
+
 			return {
 				output: {
 					context,
@@ -161,6 +170,7 @@ const definition = defineStep<
 					relevantEdges,
 					nodeCount: relevantNodes.length,
 					edgeCount: relevantEdges.length,
+					messages: contextToSystemResult.output.messages,
 				},
 			};
 		} catch (error) {
@@ -179,6 +189,7 @@ const definition = defineStep<
 			return {
 				output: {
 					context: "",
+					messages: input.messages,
 					errors: [
 						error instanceof Error
 							? error.message

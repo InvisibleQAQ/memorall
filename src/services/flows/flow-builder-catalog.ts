@@ -1,3 +1,16 @@
+import {
+	DOCUMENTS_FEATURE_DESCRIPTION,
+	DOCUMENTS_FEATURE_NAME,
+	DOCUMENTS_FEATURE_SYSTEM_PROMPT,
+	DOCUMENTS_FEATURE_TOOLS,
+} from "./steps/features/documents-feature";
+import {
+	NODEJS_SANDBOX_FEATURE_DESCRIPTION,
+	NODEJS_SANDBOX_FEATURE_NAME,
+	NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
+	NODEJS_SANDBOX_FEATURE_TOOLS,
+} from "./steps/features/nodejs-sandbox-feature";
+
 /**
  * Flow Builder Catalog
  *
@@ -34,6 +47,13 @@ export interface CatalogStep {
 	inputs?: StepIOField[];
 	outputs?: StepIOField[];
 	metadata: Record<string, unknown>;
+}
+
+export interface FeatureCatalogMetadata extends Record<string, unknown> {
+	description: string;
+	tools: string[];
+	systemPrompt: string;
+	customizable: boolean;
 }
 
 /** In-memory catalog of available services */
@@ -203,7 +223,85 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			algorithm: "Semantic search + graph growth",
 		},
 	},
+	{
+		id: "step-documents-feature",
+		name: DOCUMENTS_FEATURE_NAME,
+		type: "feature",
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with documents feature instruction",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description: "Tools extended with documents toolset",
+			},
+		],
+		metadata: {
+			description: DOCUMENTS_FEATURE_DESCRIPTION,
+			tools: [...DOCUMENTS_FEATURE_TOOLS],
+			systemPrompt: DOCUMENTS_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-nodejs-sandbox-feature",
+		name: NODEJS_SANDBOX_FEATURE_NAME,
+		type: "feature",
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with Node.js sandbox usage instruction",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description: "Tools extended with container toolset",
+			},
+		],
+		metadata: {
+			description: NODEJS_SANDBOX_FEATURE_DESCRIPTION,
+			tools: [...NODEJS_SANDBOX_FEATURE_TOOLS],
+			systemPrompt: NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
 ];
+
+export function getFeatureCatalogSteps(): CatalogStep[] {
+	return DEFAULT_FLOW_STEPS.filter((step) => step.type === "feature");
+}
 
 /** Get the in-memory catalog */
 export function getFlowCatalog() {

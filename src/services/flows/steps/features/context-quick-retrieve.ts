@@ -17,17 +17,17 @@ import type {
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type {
+	QuickRetrieveInput,
 	QuickRetrieveOutput,
-	RelevantNode,
-	RelevantEdge,
 	QuickRetrieveSerices,
+	QuickRetrieveConfig
 } from "../knowledge-retrieval/quick-retrieve";
 import type {
 	EntitiesFactsToContextOutput,
 	EntitiesFactsToContextServices,
 } from "../knowledge-retrieval/entities-facts-to-context";
-import type { ChatCompletionMessageParam } from "@/types/openai";
 import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
+import type { ContextToSystemConfig, ContextToSystemInput, ContextToSystemOutput } from "../knowledge-retrieval/context-to-system";
 
 const STEP_NAME = "context-quick-retrieve" as const;
 
@@ -35,24 +35,13 @@ const STEP_NAME = "context-quick-retrieve" as const;
 // STEP-SPECIFIC TYPES
 // ============================================================================
 
-export interface ContextQuickRetrieveInput {
-	messages: ChatCompletionMessageParam[];
-	graphId?: string;
+export interface ContextQuickRetrieveInput extends ContextToSystemInput, QuickRetrieveInput {}
+
+export interface ContextQuickRetrieveOutput extends ContextToSystemOutput, QuickRetrieveOutput {
+	context: string
 }
 
-export interface ContextQuickRetrieveOutput {
-	context: string;
-	relevantNodes?: RelevantNode[];
-	relevantEdges?: RelevantEdge[];
-	nodeCount?: number;
-	edgeCount?: number;
-	errors?: string[];
-}
-
-export interface ContextQuickRetrieveConfig {
-	maxGrowthLevels?: number;
-	searchLimit?: number;
-}
+export interface ContextQuickRetrieveConfig extends ContextToSystemConfig, QuickRetrieveConfig {}
 
 export type ContextQuickRetrieveServices = QuickRetrieveSerices &
 	EntitiesFactsToContextServices;
@@ -139,6 +128,20 @@ const definition = defineStep<
 			];
 			runConfig?.writer?.({ type: "actions", actions });
 
+			const contextToSystem = stepRegistry.getStepByName<ContextToSystemInput, ContextToSystemOutput>(
+				"context-to-system",
+				services,
+				{},
+			)
+
+			const contextToSystemResult = (await contextToSystem.execute(
+				{
+					context,
+					messages: input.messages,
+				},
+				runConfig,
+			));
+
 			return {
 				output: {
 					context,
@@ -146,6 +149,7 @@ const definition = defineStep<
 					relevantEdges,
 					nodeCount: relevantNodes.length,
 					edgeCount: relevantEdges.length,
+					messages: contextToSystemResult.output.messages
 				},
 			};
 		} catch (error) {
@@ -164,6 +168,7 @@ const definition = defineStep<
 			return {
 				output: {
 					context: "",
+					messages: input.messages,
 					errors: [
 						error instanceof Error
 							? error.message
