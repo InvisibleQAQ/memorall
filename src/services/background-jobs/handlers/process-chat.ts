@@ -361,7 +361,6 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						contextPrompt: agentConfig?.contextPrompt || undefined,
 						enableContextRetrieval: agentConfig?.enableContextRetrieval,
 						enableCitations: agentConfig?.enableCitations,
-						tools: agentConfig?.tools as `${ToolName}`[],
 					},
 				);
 
@@ -412,6 +411,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						messages: messages,
 						graphId: topicId,
 						contextQueries,
+						tools: agentConfig?.tools as `${ToolName}`[],
 					},
 					{
 						streamMode: ["custom", "updates", "values"],

@@ -73,7 +73,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 							},
 						);
 						return {
-							tools: config.tools,
+							tools: state.tools,
 							messages: responseMessages,
 							maxIterations: state.maxIterations,
 						};
@@ -101,7 +101,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 							},
 						);
 						return {
-							// Custom system prompt is injected right before response generation.
+							tools: state.tools,
 							messages: responseMessages,
 							temperature: 0.2,
 							stream: true,
