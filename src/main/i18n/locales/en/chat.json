@@ -53,7 +53,10 @@
 		"context_graph": "Context Graph",
 		"context_knowledge": "Context Knowledge",
 		"response_generation": "Response Generation",
-		"quick_knowledge_retrieval": "Quick Knowledge Retrieval"
+		"quick_knowledge_retrieval": "Quick Knowledge Retrieval",
+		"container_web_access": "Web Access",
+		"web_access": "Web Access",
+		"web access": "Web Access"
 	},
 	"messages": {
 		"thinking": "Thinking...",

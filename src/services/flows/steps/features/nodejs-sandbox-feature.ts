@@ -30,11 +30,12 @@ const SYSTEM_PROMPT_INSTRUCTION = `
 You have access to an isolated browser-based sandbox container with virtual filesystem, npm package management (loaded from CDN), runtime execution, and HTTP resource access.
 
 ## IMPORTANT RUNTIME CONSTRAINTS
-- The sandbox is browser-based (NOT native Node.js). Native Node.js built-in modules (fs, path, http, child_process, etc.) are NOT available.
-- \`require()\` is available for: (1) packages installed via container_install_package, (2) files in the virtual filesystem.
+- The sandbox runs on almostnode in the browser (not OS Node.js), but it provides broad built-in API shims including \`fs\`, \`path\`, \`url\`, \`util\`, \`events\`, \`os\`, \`crypto\`, and more.
+- \`require()\` is available for built-in shims, installed npm packages, and files in the virtual filesystem.
+- \`require("fs")\` operates on the virtual filesystem; \`/documents\` is mounted read-only from outer document storage.
 - Always install packages with container_install_package BEFORE using require() in container_run_code.
 - Use browser APIs (fetch, URL, TextEncoder, crypto, etc.) instead of Node.js built-ins.
-- For file operations, use the container filesystem tools (container_write_file, container_read_file, etc.) instead of require('fs').
+- Prefer container filesystem tools (container_write_file, container_read_file, etc.) for deterministic file operations and mutations.
 
 ## WHEN TO USE THIS FEATURE
 - Use container tools when the user asks to:
@@ -62,6 +63,8 @@ You have access to an isolated browser-based sandbox container with virtual file
 - "container_start_server" -> "container_list_servers" -> "container_stop_server"
 6) Network checks:
 - "container_fetch_resource" for API (JSON) or UI server (HTML/text)
+7) Browser-like web access:
+- "container_web_access" to access a URL (especially started Next/Vite servers) and return URL + HTML for preview/simulation.
 7) Diagnostics:
 - "container_get_logs", then optionally "container_clear_logs"
 
@@ -81,6 +84,7 @@ You have access to an isolated browser-based sandbox container with virtual file
 - "container_rename"
 - "container_unlink"
 - "container_fetch_resource"
+- "container_web_access"
 `;
 export const NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT =
 	SYSTEM_PROMPT_INSTRUCTION.trim();
@@ -100,6 +104,7 @@ export const NODEJS_SANDBOX_FEATURE_TOOLS = [
 	"container_rename",
 	"container_unlink",
 	"container_fetch_resource",
+	"container_web_access",
 ] as const;
 export const NODEJS_SANDBOX_FEATURE_DESCRIPTION =
 	"Enable isolated Node.js container tools for runtime execution, npm, filesystem, server lifecycle, logs, and resource fetch.";

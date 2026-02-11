@@ -6,8 +6,14 @@ import { sandboxContainerService } from "@/services/sandbox-container";
 const TOOL_NAME = "container_rename" as const;
 
 const schema = z.object({
-	oldPath: z.string().min(1).describe("Current absolute virtual path."),
-	newPath: z.string().min(1).describe("New absolute virtual path."),
+	oldPath: z
+		.string()
+		.min(1)
+		.describe("Current virtual path (absolute or relative)."),
+	newPath: z
+		.string()
+		.min(1)
+		.describe("New virtual path (absolute or relative)."),
 });
 
 type Input = z.infer<typeof schema>;

@@ -24,7 +24,7 @@ export interface ContextToSystemOutput {
 
 export type ContextToSystemServices = {};
 export type ContextToSystemConfig = {
-	prompt?: string
+	prompt?: string;
 };
 
 // ============================================================================
@@ -45,21 +45,26 @@ Following below order of information:
 1. If information to answer available in knowledge graph use it to answer the question.
 2. If information to answer not available in knowledge graph use your general knowledge to answer the question.
 Structure your answer in clear sections when appropriate.
-`
+`;
 
-const definition = defineStep<ContextToSystemInput, ContextToSystemOutput, ContextToSystemServices, ContextToSystemConfig>({
+const definition = defineStep<
+	ContextToSystemInput,
+	ContextToSystemOutput,
+	ContextToSystemServices,
+	ContextToSystemConfig
+>({
 	name: STEP_NAME,
 	execute: async ({ input, config }) => {
-		const contextPrompt = config.prompt?.trim()
-			const contextPromptTemplate = contextPrompt
-				? contextPrompt.includes("{context}")
-					? contextPrompt
-					: `${contextPrompt}\n\n{context}`
-				: DEFAULT_CONTEXT_SYSTEM_PROMPT;
+		const contextPrompt = config.prompt?.trim();
+		const contextPromptTemplate = contextPrompt
+			? contextPrompt.includes("{context}")
+				? contextPrompt
+				: `${contextPrompt}\n\n{context}`
+			: DEFAULT_CONTEXT_SYSTEM_PROMPT;
 
 		const updatedMessages = GraphBase.chat.systemMessage(
 			input.messages || [],
-			contextPromptTemplate.replace('{context}', input.context || ''),
+			contextPromptTemplate.replace("{context}", input.context || ""),
 		);
 
 		return {

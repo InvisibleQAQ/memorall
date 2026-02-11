@@ -3,9 +3,7 @@ import { useTranslation } from "react-i18next";
 import { X, Settings2, Save, Undo2, RotateCcw } from "lucide-react";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
 import { TOOL_DISPLAY_INFO } from "@/main/modules/chat/utils/tool-display-info";
-import {
-	DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
-} from "@/services/flows/graph/knowledge-rag/state";
+import { DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT } from "@/services/flows/graph/knowledge-rag/state";
 import { Switch } from "@/main/components/ui/switch";
 import { Button } from "@/main/components/ui/button";
 import { Textarea } from "@/main/components/ui/textarea";
@@ -44,7 +42,9 @@ export const AgentSettingsPanel: React.FC = () => {
 		revert,
 		resetToDefaults,
 	} = useAgentConfigStore();
-	const [selectedFeature, setSelectedFeature] = React.useState<string | null>(null);
+	const [selectedFeature, setSelectedFeature] = React.useState<string | null>(
+		null,
+	);
 
 	const featureToolSet = React.useMemo(() => {
 		const set = new Set<string>();
@@ -64,7 +64,9 @@ export const AgentSettingsPanel: React.FC = () => {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-full">
-				<div className="text-sm text-muted-foreground">{t("agentSettings.loading")}</div>
+				<div className="text-sm text-muted-foreground">
+					{t("agentSettings.loading")}
+				</div>
 			</div>
 		);
 	}
@@ -168,7 +170,9 @@ export const AgentSettingsPanel: React.FC = () => {
 
 						{draftConfig.enableContextRetrieval && (
 							<div className="space-y-2">
-								<Label className="text-xs font-medium">{t("agentSettings.contextPrompt")}</Label>
+								<Label className="text-xs font-medium">
+									{t("agentSettings.contextPrompt")}
+								</Label>
 								<Textarea
 									value={draftConfig.contextPrompt}
 									onChange={(e) => updateField("contextPrompt", e.target.value)}
@@ -204,7 +208,9 @@ export const AgentSettingsPanel: React.FC = () => {
 
 					{/* Feature Tools */}
 					<div className="space-y-3">
-						<Label className="text-xs font-medium">{t("agentSettings.features")}</Label>
+						<Label className="text-xs font-medium">
+							{t("agentSettings.features")}
+						</Label>
 
 						<div className="space-y-2">
 							{featureDefinitions.map((feature) => {
@@ -229,19 +235,21 @@ export const AgentSettingsPanel: React.FC = () => {
 										</div>
 										<div className="flex items-center justify-between">
 											<p className="text-[10px] text-muted-foreground">
-												{t("agentSettings.toolCount", { count: feature.tools.length })}
+												{t("agentSettings.toolCount", {
+													count: feature.tools.length,
+												})}
 											</p>
 											<Button
 												variant="ghost"
 												size="sm"
 												className="h-6 px-2 text-[10px]"
 												onClick={() =>
-													setSelectedFeature(
-														isSelected ? null : feature.name,
-													)
+													setSelectedFeature(isSelected ? null : feature.name)
 												}
 											>
-												{isSelected ? t("agentSettings.hideDetail") : t("agentSettings.detail")}
+												{isSelected
+													? t("agentSettings.hideDetail")
+													: t("agentSettings.detail")}
 											</Button>
 										</div>
 									</div>
@@ -252,7 +260,9 @@ export const AgentSettingsPanel: React.FC = () => {
 						{selectedFeatureDefinition && (
 							<div className="space-y-2 rounded-md border px-3 py-3">
 								<Label className="text-xs font-medium">
-									{t("agentSettings.featureDetail", { name: selectedFeatureDefinition.name })}
+									{t("agentSettings.featureDetail", {
+										name: selectedFeatureDefinition.name,
+									})}
 								</Label>
 								<div className="space-y-1">
 									<p className="text-[10px] font-medium text-muted-foreground">

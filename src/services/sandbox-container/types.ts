@@ -1,9 +1,4 @@
-export type SandboxLogLevel =
-	| "log"
-	| "info"
-	| "warn"
-	| "error"
-	| "debug";
+export type SandboxLogLevel = "log" | "info" | "warn" | "error" | "debug";
 
 export interface SandboxLogEntry {
 	level: SandboxLogLevel;
@@ -92,6 +87,27 @@ export interface SandboxFsReaddirResult {
 export interface SandboxFsExistsResult {
 	path: string;
 	exists: boolean;
+}
+
+export interface SandboxFsMountDocumentsRequest {
+	directories: string[];
+	files: string[];
+}
+
+export interface SandboxFsMountDocumentsResult {
+	mounted: true;
+	directoryCount: number;
+	fileCount: number;
+}
+
+export interface SandboxFsMaterializeDocumentFileRequest {
+	path: string;
+	content: string;
+}
+
+export interface SandboxFsMaterializeDocumentFileResult {
+	path: string;
+	materialized: true;
 }
 
 export interface SandboxNpmInstallRequest {
@@ -204,6 +220,8 @@ export type SandboxOperation =
 	| "fs.unlink"
 	| "fs.rename"
 	| "fs.exists"
+	| "fs.mountDocuments"
+	| "fs.materializeDocumentFile"
 	| "npm.install"
 	| "npm.installFromPackageJson"
 	| "npm.list"
@@ -230,6 +248,8 @@ export type SandboxOperationPayloadMap = {
 	"fs.unlink": SandboxFsUnlinkRequest;
 	"fs.rename": SandboxFsRenameRequest;
 	"fs.exists": SandboxFsExistsRequest;
+	"fs.mountDocuments": SandboxFsMountDocumentsRequest;
+	"fs.materializeDocumentFile": SandboxFsMaterializeDocumentFileRequest;
 	"npm.install": SandboxNpmInstallRequest;
 	"npm.installFromPackageJson": SandboxNpmInstallFromPackageJsonRequest;
 	"npm.list": undefined;
@@ -257,6 +277,8 @@ export type SandboxOperationResultMap = {
 	"fs.unlink": { path: string };
 	"fs.rename": { oldPath: string; newPath: string };
 	"fs.exists": SandboxFsExistsResult;
+	"fs.mountDocuments": SandboxFsMountDocumentsResult;
+	"fs.materializeDocumentFile": SandboxFsMaterializeDocumentFileResult;
 	"npm.install": SandboxNpmInstallResult;
 	"npm.installFromPackageJson": SandboxNpmInstallResult;
 	"npm.list": SandboxNpmListResult;

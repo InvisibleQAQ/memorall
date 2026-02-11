@@ -19,7 +19,9 @@ export interface AgentFeatureDefinition {
 type FeatureFlags = Record<string, boolean>;
 
 const createDefaultFeatureFlags = (featureNames: string[]): FeatureFlags =>
-	Object.fromEntries(featureNames.map((feature) => [feature, false])) as FeatureFlags;
+	Object.fromEntries(
+		featureNames.map((feature) => [feature, false]),
+	) as FeatureFlags;
 
 interface AgentConfigState {
 	savedConfig: KnowledgeRAGPredefinedConfig;
@@ -109,9 +111,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 					return {
 						name: step.name,
 						description: meta.description ?? step.name,
-						tools: Array.isArray(meta.tools)
-							? meta.tools.map(String)
-							: [],
+						tools: Array.isArray(meta.tools) ? meta.tools.map(String) : [],
 						systemPrompt:
 							typeof meta.systemPrompt === "string" ? meta.systemPrompt : "",
 						customizable: Boolean(meta.customizable),

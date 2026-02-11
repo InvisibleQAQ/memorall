@@ -188,7 +188,10 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 		],
 		lastMessage: (messages: ChatCompletionMessageParam[]) =>
 			messages[messages.length - 1],
-		getToolCallMessage: (messages: ChatCompletionMessageParam[], toolCallId: string) =>
+		getToolCallMessage: (
+			messages: ChatCompletionMessageParam[],
+			toolCallId: string,
+		) =>
 			messages.find(
 				(message) =>
 					message.role === "tool" && message.tool_call_id === toolCallId,

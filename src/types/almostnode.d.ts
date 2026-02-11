@@ -1,10 +1,5 @@
 declare module "almostnode" {
-	export type ConsoleLogLevel =
-		| "log"
-		| "info"
-		| "warn"
-		| "error"
-		| "debug";
+	export type ConsoleLogLevel = "log" | "info" | "warn" | "error" | "debug";
 
 	export interface RuntimeExecutionOptions {
 		filename?: string;

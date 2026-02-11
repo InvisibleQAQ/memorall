@@ -6,7 +6,12 @@ import { sandboxContainerService } from "@/services/sandbox-container";
 const TOOL_NAME = "container_stop_server" as const;
 
 const schema = z.object({
-	port: z.number().int().min(1).max(65535).describe("Port of the server to stop."),
+	port: z
+		.number()
+		.int()
+		.min(1)
+		.max(65535)
+		.describe("Port of the server to stop."),
 });
 
 type Input = z.infer<typeof schema>;

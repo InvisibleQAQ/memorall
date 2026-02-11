@@ -28,7 +28,11 @@ import type {
 	EntitiesFactsToContextOutput,
 	EntitiesFactsToContextServices,
 } from "@/services/flows/steps/knowledge-retrieval/entities-facts-to-context";
-import type { ContextToSystemConfig, ContextToSystemInput, ContextToSystemOutput } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+import type {
+	ContextToSystemConfig,
+	ContextToSystemInput,
+	ContextToSystemOutput,
+} from "@/services/flows/steps/knowledge-retrieval/context-to-system";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
 
@@ -38,11 +42,14 @@ const STEP_NAME = "context-llm-retrieve" as const;
 // STEP-SPECIFIC TYPES
 // ============================================================================
 
-export interface ContextLLMRetrieveInput extends LLMRetrieveInput, ContextToSystemInput {
-}
+export interface ContextLLMRetrieveInput
+	extends LLMRetrieveInput,
+		ContextToSystemInput {}
 
-export interface ContextLLMRetrieveOutput extends LLMRetrieveOutput, ContextToSystemOutput {
-	context: string
+export interface ContextLLMRetrieveOutput
+	extends LLMRetrieveOutput,
+		ContextToSystemOutput {
+	context: string;
 }
 
 export interface ContextLLMRetrieveConfig extends ContextToSystemConfig {}
@@ -149,19 +156,18 @@ const definition = defineStep<
 			];
 			runConfig?.writer?.({ type: "actions", actions });
 
-			const contextToSystem = stepRegistry.getStepByName<ContextToSystemInput, ContextToSystemOutput>(
-				"context-to-system",
-				services,
-				{},
-			)
+			const contextToSystem = stepRegistry.getStepByName<
+				ContextToSystemInput,
+				ContextToSystemOutput
+			>("context-to-system", services, {});
 
-			const contextToSystemResult = (await contextToSystem.execute(
+			const contextToSystemResult = await contextToSystem.execute(
 				{
 					context,
 					messages: input.messages,
 				},
 				runConfig,
-			));
+			);
 
 			return {
 				output: {

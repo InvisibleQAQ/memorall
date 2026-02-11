@@ -18,7 +18,7 @@ import "./knowledge-retrieval/quick-retrieve";
 import "./knowledge-retrieval/smart-retrieve";
 import "./knowledge-retrieval/entities-facts-to-context";
 import "./knowledge-retrieval/entities-facts-citation";
-import './knowledge-retrieval/context-to-system';
+import "./knowledge-retrieval/context-to-system";
 
 // Common steps
 import "./common/chat-completion";
