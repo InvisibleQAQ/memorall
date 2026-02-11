@@ -23,6 +23,7 @@ import {
 	toolRegistry,
 	convertToolsToOpenAI,
 } from "@/services/flows/tool-registry";
+import type { ToolName } from "@/services/flows/graph/graph.base";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
@@ -360,7 +361,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						contextPrompt: agentConfig?.contextPrompt || undefined,
 						enableContextRetrieval: agentConfig?.enableContextRetrieval,
 						enableCitations: agentConfig?.enableCitations,
-						tools: agentConfig?.tools,
+						tools: agentConfig?.tools as `${ToolName}`[],
 					},
 				);
 

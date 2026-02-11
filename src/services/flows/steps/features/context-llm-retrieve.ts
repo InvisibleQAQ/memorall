@@ -1,7 +1,7 @@
 /**
  * Context Retrieve Knowledge Step
  *
- * Combines analyze-query, retrieve-knowledge and entities-facts-to-context into a single step.
+ * Combines analyze-query, llm-retrieve and entities-facts-to-context into a single step.
  * Output: "context" string ready for LLM consumption, plus relevantNodes/relevantEdges for citation.
  */
 
@@ -17,16 +17,16 @@ import type {
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type {
-	RetrieveKnowledgeOutput,
+	LLMRetrieveOutput,
 	RelevantNode,
 	RelevantEdge,
-	RetrieveKnowledgeServices,
-} from "./retrieve-knowledge";
-import type { AnalyzeQueryOutput } from "./analyze-query";
+	LLMRetrieveServices,
+} from "../knowledge-retrieval/llm-retrieve";
+import type { AnalyzeQueryOutput } from "../knowledge-retrieval/analyze-query";
 import type {
 	EntitiesFactsToContextOutput,
 	EntitiesFactsToContextServices,
-} from "./entities-facts-to-context";
+} from "../knowledge-retrieval/entities-facts-to-context";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
 
@@ -52,7 +52,7 @@ export interface ContextLLMRetrieveOutput {
 
 export interface ContextLLMRetrieveConfig {}
 
-export type ContextLLMRetrieveServices = RetrieveKnowledgeServices &
+export type ContextLLMRetrieveServices = LLMRetrieveServices &
 	EntitiesFactsToContextServices;
 
 // ============================================================================
@@ -96,18 +96,18 @@ const definition = defineStep<
 
 			const extractedEntities = analyzeResult.output.extractedEntities ?? [];
 
-			// Step 2: Run retrieve-knowledge
-			const retrieveKnowledgeStep = stepRegistry.getStepByName(
-				"retrieve-knowledge",
+			// Step 2: Run llm-retrieve
+			const retrieveLLMStep = stepRegistry.getStepByName(
+				"llm-retrieve",
 				services,
 			);
-			const retrieveResult = (await retrieveKnowledgeStep.execute(
+			const retrieveResult = (await retrieveLLMStep.execute(
 				{
 					extractedEntities,
 					graphId: input.graphId,
 				},
 				runConfig,
-			)) as StepOutput<RetrieveKnowledgeOutput>;
+			)) as StepOutput<LLMRetrieveOutput>;
 
 			if (retrieveResult.output.errors?.length) {
 				return {

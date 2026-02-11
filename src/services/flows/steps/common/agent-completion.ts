@@ -5,13 +5,14 @@ import type {
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
-import type { ChatCompletionTool, ChatMessage } from "@/types/openai";
+import type { ChatMessage } from "@/types/openai";
 import { AgentGraph } from "@/services/flows/graph/agent";
 import { logInfo } from "@/utils/logger";
 import {
 	isCustomChunkPayload,
 	normalizeLangGraphStreamChunk,
 } from "@/services/flows/utils/langgraph-stream";
+import type { ToolName } from "../../graph/graph.base";
 
 const STEP_NAME = "agent-completion" as const;
 
@@ -22,6 +23,7 @@ const STEP_NAME = "agent-completion" as const;
 export interface AgentCompletionStepInput {
 	messages: ChatMessage[];
 	maxIterations?: number;
+	tools?: `${ToolName}`[];
 }
 
 export interface AgentCompletionStepOutput {
@@ -30,7 +32,7 @@ export interface AgentCompletionStepOutput {
 
 export type AgentCompletionStepServices = AllServices;
 export type AgentCompletionStepConfig = {
-	tools?: string[];
+	tools?: `${ToolName}`[];
 };
 
 // ============================================================================
@@ -48,7 +50,7 @@ const definition = defineStep<
 		logInfo("[AGENT_COMPLETION] Running agent completion");
 
 		const agentGraph = new AgentGraph(services, {
-			tools: config.tools,
+			tools: input.tools || config.tools,
 		});
 
 		const stream = await agentGraph.stream(

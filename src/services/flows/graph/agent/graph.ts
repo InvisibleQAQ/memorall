@@ -1,15 +1,8 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
 import { AgentAnnotation, type AgentState } from "./state";
-import { GraphBase } from "@/services/flows/graph/graph.base";
-import {
-	toolRegistry,
-	convertToolsToOpenAI,
-} from "@/services/flows/tool-registry";
-import type {
-	BaseTool,
-	CombinedServices,
-} from "@/services/flows/interfaces/tool";
+import { GraphBase, type CombinedTool, type ToolName } from "@/services/flows/graph/graph.base";
+import type { CombinedServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
@@ -17,19 +10,12 @@ import { flowRegistry } from "@/services/flows/flow-registry";
 // Tool names available to the agent
 const DEFAULT_TOOL_NAMES = ["current_time", "js_execute"] as const;
 
-// "doc_search",
-// 	"doc_read",
-// 	"doc_write",
-// 	"doc_edit",
-// 	"doc_remove",
-// 	"doc_move",
-
 // Derive services from tools + graph's own needs (llm for calling the model)
 type AgentServices = CombinedServices<typeof DEFAULT_TOOL_NAMES, "llm">;
 
 type AgentGraphConfig = {
 	systemPrompt?: string;
-	tools?: string[];
+	tools?: `${ToolName}`[];
 };
 
 const AGENT_SYSTEM_PROMPT = `You are an intelligent assistant that can use tools to help answer user questions. Use tools when needed to provide accurate answers.`;
@@ -49,8 +35,8 @@ export class AgentGraph extends GraphBase<
 	AgentState,
 	AgentServices
 > {
-	private tools: BaseTool[];
-	private toolsMap: Map<string, BaseTool>;
+	private combinedTools: CombinedTool[];
+	private executorMap: Map<string, CombinedTool>;
 	private systemPrompt = AGENT_SYSTEM_PROMPT;
 
 	constructor(services: AgentServices, config: AgentGraphConfig = {}) {
@@ -61,11 +47,11 @@ export class AgentGraph extends GraphBase<
 		}
 
 		// Create bound tools with services
-		this.tools = toolRegistry.getTools(
-			config.tools || DEFAULT_TOOL_NAMES,
+		this.combinedTools = this.chat.combineTools(
+			config.tools || [...DEFAULT_TOOL_NAMES],
 			services,
 		);
-		this.toolsMap = new Map(this.tools.map((t) => [t.name, t]));
+		this.executorMap = new Map(this.combinedTools.map((t) => [t.executor.name, t]));
 
 		this.workflow = new StateGraph(AgentAnnotation);
 
@@ -86,7 +72,7 @@ export class AgentGraph extends GraphBase<
 	 * Route after agent node: go to tools if there are tool calls, otherwise end
 	 */
 	private routeAfterAgent = (state: AgentState): "tools" | typeof END => {
-		const lastMessage = this.chat.last(state.messages);
+		const lastMessage = this.chat.lastMessage(state.messages);
 
 		// Check for max iterations
 		if (state.currentIteration >= state.maxIterations) {
@@ -107,7 +93,7 @@ export class AgentGraph extends GraphBase<
 
 	initialNode = (state: AgentState): Partial<AgentState> => {
 		return {
-			messages: this.chat.system(state.messages, this.systemPrompt),
+			messages: this.chat.systemMessage(state.messages, this.systemPrompt),
 		};
 	};
 
@@ -126,7 +112,7 @@ export class AgentGraph extends GraphBase<
 
 		try {
 			const messages = state.messages;
-			const tools = convertToolsToOpenAI(this.tools);
+			const tools = this.combinedTools.map((t) => t.tool);
 
 			logInfo(
 				"[AGENT] Calling LLM with",
@@ -198,7 +184,7 @@ export class AgentGraph extends GraphBase<
 
 			// Check if LLM wants to call tools
 			if (toolCalls.length > 0) {
-				const updatedMessages = this.chat.assistant(
+				const updatedMessages = this.chat.assistantMessage(
 					messages,
 					content || null,
 					toolCalls,
@@ -210,7 +196,7 @@ export class AgentGraph extends GraphBase<
 				};
 			}
 
-			const updatedMessages = this.chat.assistant(messages, content || null);
+			const updatedMessages = this.chat.assistantMessage(messages, content || null);
 
 			return {
 				messages: updatedMessages,
@@ -230,7 +216,7 @@ export class AgentGraph extends GraphBase<
 		state: AgentState,
 		runConfig?: LangGraphRunnableConfig,
 	): Promise<Partial<AgentState>> => {
-		const lastMessage = this.chat.last(state.messages);
+		const lastMessage = this.chat.lastMessage(state.messages);
 
 		if (
 			lastMessage?.role !== "assistant" ||
@@ -249,7 +235,7 @@ export class AgentGraph extends GraphBase<
 
 		for (const toolCall of lastMessage.tool_calls) {
 			const toolName = toolCall.function.name;
-			const tool = this.toolsMap.get(toolName);
+			const combined = this.executorMap.get(toolName);
 			runConfig?.writer?.({
 				type: "execute-start",
 				node: "tools",
@@ -259,9 +245,9 @@ export class AgentGraph extends GraphBase<
 				},
 			});
 
-			if (!tool) {
+			if (!combined) {
 				const content = `Error: Tool '${toolName}' not found`;
-				updatedMessages = this.chat.tool(updatedMessages, toolCall.id, content);
+				updatedMessages = this.chat.toolMessage(updatedMessages, toolCall.id, content);
 				toolResults.push({
 					toolName,
 					content,
@@ -274,10 +260,10 @@ export class AgentGraph extends GraphBase<
 				const args = JSON.parse(toolCall.function.arguments);
 
 				// Validate and execute the tool (services already bound via factory)
-				const validatedArgs = tool.schema.parse(args);
-				const result = await tool.execute(validatedArgs);
+				const validatedArgs = combined.executor.schema.parse(args);
+				const result = await combined.executor.execute(validatedArgs);
 
-				updatedMessages = this.chat.tool(updatedMessages, toolCall.id, result);
+				updatedMessages = this.chat.toolMessage(updatedMessages, toolCall.id, result);
 				toolResults.push({
 					toolName,
 					content: result,
@@ -289,7 +275,7 @@ export class AgentGraph extends GraphBase<
 				logError(`[TOOLS] Error executing ${toolName}:`, error);
 
 				const content = `Error: ${errorMessage}`;
-				updatedMessages = this.chat.tool(updatedMessages, toolCall.id, content);
+				updatedMessages = this.chat.toolMessage(updatedMessages, toolCall.id, content);
 				toolResults.push({
 					toolName,
 					content,

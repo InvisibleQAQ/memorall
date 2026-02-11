@@ -38,7 +38,7 @@ const definition = defineStep<Input, Output, Services, Config>({
 			};
 		}
 
-		const updatedMessages = GraphBase.chat.system(
+		const updatedMessages = GraphBase.chat.systemMessage(
 			input.messages || [],
 			input.content,
 		);

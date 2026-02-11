@@ -21,8 +21,8 @@ import type {
 	RelevantNode,
 	RelevantEdge,
 	SmartRetrieveServices,
-} from "./smart-retrieve";
-import type { EntitiesFactsToContextOutput } from "./entities-facts-to-context";
+} from "../knowledge-retrieval/smart-retrieve";
+import type { EntitiesFactsToContextOutput } from "../knowledge-retrieval/entities-facts-to-context";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
 
