@@ -13,16 +13,19 @@ import "./knowledge-grow/load-facts";
 
 // RAG steps
 import "./knowledge-retrieval/analyze-query";
-import "./knowledge-retrieval/retrieve-knowledge";
+import "./knowledge-retrieval/llm-retrieve";
 import "./knowledge-retrieval/quick-retrieve";
 import "./knowledge-retrieval/smart-retrieve";
 import "./knowledge-retrieval/entities-facts-to-context";
 import "./knowledge-retrieval/entities-facts-citation";
-import "./knowledge-retrieval/context-smart-retrieve";
-import "./knowledge-retrieval/context-quick-retrieve";
-import "./knowledge-retrieval/context-llm-retrieve";
 
 // Common steps
 import "./common/chat-completion";
 import "./common/agent-completion";
 import "./common/add-system";
+
+// Feature steps
+import "./features/context-smart-retrieve";
+import "./features/context-quick-retrieve";
+import "./features/context-llm-retrieve";
+import "./features/documents-feature";

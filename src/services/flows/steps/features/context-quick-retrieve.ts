@@ -21,11 +21,11 @@ import type {
 	RelevantNode,
 	RelevantEdge,
 	QuickRetrieveSerices,
-} from "./quick-retrieve";
+} from "../knowledge-retrieval/quick-retrieve";
 import type {
 	EntitiesFactsToContextOutput,
 	EntitiesFactsToContextServices,
-} from "./entities-facts-to-context";
+} from "../knowledge-retrieval/entities-facts-to-context";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
 

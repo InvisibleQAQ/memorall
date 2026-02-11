@@ -21,7 +21,7 @@ import type {
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 
-const STEP_NAME = "retrieve-knowledge" as const;
+const STEP_NAME = "llm-retrieve" as const;
 
 // ============================================================================
 // STEP-SPECIFIC TYPES
@@ -46,19 +46,19 @@ export interface RelevantEdge {
 	relevanceScore: number;
 }
 
-export interface RetrieveKnowledgeInput {
+export interface LLMRetrieveInput {
 	extractedEntities: string[];
 	graphId?: string;
 }
 
-export interface RetrieveKnowledgeOutput {
+export interface LLMRetrieveOutput {
 	relevantNodes?: RelevantNode[];
 	relevantEdges?: RelevantEdge[];
 	next?: string;
 	errors?: string[];
 }
 
-export type RetrieveKnowledgeServices = Pick<
+export type LLMRetrieveServices = Pick<
 	AllServices,
 	"database" | "embedding"
 >;
@@ -68,9 +68,9 @@ export type RetrieveKnowledgeServices = Pick<
 // ============================================================================
 
 const definition = defineStep<
-	RetrieveKnowledgeInput,
-	RetrieveKnowledgeOutput,
-	RetrieveKnowledgeServices
+	LLMRetrieveInput,
+	LLMRetrieveOutput,
+	LLMRetrieveServices
 >({
 	name: STEP_NAME,
 	execute: async ({ input, services, runConfig }) => {
@@ -453,16 +453,16 @@ const definition = defineStep<
 	},
 });
 
-type RetrieveKnowledgeSpec = StepSpecFromDefinition<typeof definition>;
+type LLMRetrieveSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createRetrieveKnowledgeStep: StepFactoryFromSpec<
-	RetrieveKnowledgeSpec
-> = (services: RetrieveKnowledgeServices) => bindStep(definition, services);
+export const createStep: StepFactoryFromSpec<
+	LLMRetrieveSpec
+> = (services: LLMRetrieveServices) => bindStep(definition, services);
 
-stepRegistry.register(STEP_NAME, createRetrieveKnowledgeStep);
+stepRegistry.register(STEP_NAME, createStep);
 
 declare global {
 	interface StepTypeRegistry {
-		[STEP_NAME]: RetrieveKnowledgeSpec;
+		[STEP_NAME]: LLMRetrieveSpec;
 	}
 }

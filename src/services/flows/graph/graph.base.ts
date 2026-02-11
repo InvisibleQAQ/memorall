@@ -2,12 +2,26 @@ import { Annotation, END, START, StateGraph } from "@langchain/langgraph/web";
 import type {
 	ChatCompletionMessageParam,
 	ChatCompletionMessageToolCall,
+	ChatCompletionTool,
 } from "@/types/openai";
+import {
+	toolRegistry,
+	convertToolsToOpenAI,
+} from "@/services/flows/tool-registry";
+import type { BaseTool } from "@/services/flows/interfaces/tool";
 import { logWarn } from "@/utils/logger";
+
+export type ToolName = `${keyof ToolTypeRegistry & string}`;
+
+export interface CombinedTool {
+	executor: BaseTool;
+	tool: ChatCompletionTool;
+}
 
 export interface BaseStateBase {
 	messages: ChatCompletionMessageParam[];
 	response?: string;
+	tools: ToolName[];
 }
 
 export type SystemPlacement = "append" | "top" | "replace";
@@ -108,6 +122,10 @@ export const BaseAnnotation = {
 		value: (x, y) => y ?? x,
 		default: () => "",
 	}),
+	tools: Annotation<ToolName[]>({
+		value: (x, y) => y ?? x,
+		default: () => [],
+	}),
 };
 // Proper LangGraph types
 type CompiledGraph<T> = ReturnType<
@@ -129,13 +147,13 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 	}
 
 	static chat = {
-		system: (
+		systemMessage: (
 			messages: ChatCompletionMessageParam[],
 			systemContent: string,
 			options?: NormalizeChatMessageOptions,
 		): ChatCompletionMessageParam[] =>
 			normalizeChatMessages(messages, systemContent, options),
-		assistant: (
+		assistantMessage: (
 			messages: ChatCompletionMessageParam[],
 			content: string | null,
 			tool_calls?: ChatCompletionMessageToolCall[],
@@ -147,7 +165,7 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 				tool_calls,
 			},
 		],
-		tool: (
+		toolMessage: (
 			messages: ChatCompletionMessageParam[],
 			tool_call_id: string,
 			content: string,
@@ -159,14 +177,38 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 				tool_call_id,
 			},
 		],
-		last: (messages: ChatCompletionMessageParam[]) =>
+		lastMessage: (messages: ChatCompletionMessageParam[]) =>
 			messages[messages.length - 1],
-		getToolCall: (messages: ChatCompletionMessageParam[], toolCallId: string) =>
+		getToolCallMessage: (messages: ChatCompletionMessageParam[], toolCallId: string) =>
 			messages.find(
 				(message) =>
 					message.role === "tool" && message.tool_call_id === toolCallId,
 			),
+		addTool: (current: ToolName[], ...names: ToolName[]): ToolName[] => [
+			...current,
+			...names.filter((n) => !current.includes(n)),
+		],
+		removeTool: (current: ToolName[], ...names: ToolName[]): ToolName[] =>
+			current.filter((n) => !names.includes(n)),
+		replaceTool: (
+			current: ToolName[],
+			oldName: ToolName,
+			newName: ToolName,
+		): ToolName[] => current.map((n) => (n === oldName ? newName : n)),
+		clearTools: (): ToolName[] => [],
+		combineTools: (
+			toolNames: readonly ToolName[],
+			services?: unknown,
+		): CombinedTool[] => {
+			const executors = toolRegistry.getTools(toolNames, services);
+			const openaiTools = convertToolsToOpenAI(executors);
+			return executors.map((executor, i) => ({
+				executor,
+				tool: openaiTools[i],
+			}));
+		},
 	};
+
 	protected chat = GraphBase.chat;
 
 	protected compile(

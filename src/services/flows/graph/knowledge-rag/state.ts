@@ -1,7 +1,7 @@
 import { Annotation } from "@langchain/langgraph/web";
-import type { ChatCompletionTool } from "@/types/openai";
 import {
 	type BaseStateBase,
+	type ToolName,
 	BaseAnnotation,
 } from "@/services/flows/graph/graph.base";
 
@@ -11,7 +11,7 @@ export interface KnowledgeRAGConfig {
 	/** Response mode: simple (single LLM call) or agent (tool calling loop) */
 	responseMode?: "simple" | "agent";
 	/** Tools available for agent mode */
-	tools?: string[];
+	tools?: `${ToolName}`[];
 	/** Max iterations for agent mode (default: 10) */
 	maxIterations?: number;
 	maxGrowthLevels?: number;
@@ -121,10 +121,6 @@ export const KnowledgeRAGAnnotation = {
 	contextQueries: Annotation<string[]>({
 		value: (x, y) => y ?? x ?? [],
 		default: () => [],
-	}),
-	tools: Annotation<ChatCompletionTool[] | undefined>({
-		value: (x, y) => y ?? x,
-		default: () => undefined,
 	}),
 	maxIterations: Annotation<number>({
 		value: (x, y) => y ?? x,

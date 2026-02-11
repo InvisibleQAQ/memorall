@@ -13,7 +13,7 @@ import { flowRegistry } from "@/services/flows/flow-registry";
 import { stepRegistry } from "@/services/flows/step-registry";
 
 export class KnowledgeRAGFlow extends GraphBase<
-	"context_retrieve" | "final_response" | "emit_context" | "citation",
+	"context_retrieve" | "completion" | "citation",
 	KnowledgeRAGState,
 	AllServices
 > {
@@ -29,17 +29,20 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		const enableContextRetrieval = config.enableContextRetrieval !== false;
 		const enableCitations = config.enableCitations !== false;
-		const customSystemPrompt = config.systemPrompt?.trim();
-		const customContextPrompt = config.contextPrompt?.trim();
-		const contextPromptTemplate = customContextPrompt
-			? customContextPrompt.includes("{context}")
-				? customContextPrompt
-				: `${customContextPrompt}\n\n{context}`
+
+		// Prompt construct
+		const contextPrompt = config.contextPrompt?.trim()
+		const contextPromptTemplate = contextPrompt
+			? contextPrompt.includes("{context}")
+				? contextPrompt
+				: `${contextPrompt}\n\n{context}`
 			: DEFAULT_KNOWLEDGE_RAG_CONTEXT_PROMPT;
+		const agentPrompt = [
+			config.systemPrompt?.trim() || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
+			contextPromptTemplate,
+		].join('\n');
 
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
-
-		const emitContextStep = stepRegistry.getStep("add-system", {});
 
 		// Add citation node only if enabled
 		if (enableCitations) {
@@ -50,26 +53,6 @@ export class KnowledgeRAGFlow extends GraphBase<
 			this.workflow.addNode("citation", citationStep.toNode());
 		}
 
-		this.workflow.addNode(
-			"emit_context",
-			emitContextStep.toNode<KnowledgeRAGState>({
-				mapInput: (state) => {
-					const systemMessage = contextPromptTemplate.replace(
-						"{context}",
-						state.context,
-					);
-					return {
-						// Context prompt is appended after any existing system prompt.
-						messages: this.chat.system(state.messages, systemMessage, {
-							placement: "append",
-						}),
-						content: state.context,
-					};
-				},
-			}),
-		);
-
-		// Determine the node after final_response
 		const afterFinalResponse = enableCitations ? "citation" : undefined;
 
 		// Add response node based on responseMode
@@ -77,23 +60,20 @@ export class KnowledgeRAGFlow extends GraphBase<
 			const agentCompletionStep = stepRegistry.getStep(
 				"agent-completion",
 				services,
-				{
-					tools: config.tools
-				}
 			);
 			this.workflow.addNode(
-				"final_response",
+				"completion",
 				agentCompletionStep.toNode<KnowledgeRAGState>({
 					mapInput: (state) => {
-						const responseMessages = this.chat.system(
+						const responseMessages = this.chat.systemMessage(
 							state.messages,
-							customSystemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
+							agentPrompt.replace('{context}', state.context),
 							{
 								placement: "top",
 							},
 						);
 						return {
-							// Custom system prompt is injected right before response generation.
+							tools: config.tools,
 							messages: responseMessages,
 							maxIterations: state.maxIterations,
 						};
@@ -110,12 +90,12 @@ export class KnowledgeRAGFlow extends GraphBase<
 				services,
 			);
 			this.workflow.addNode(
-				"final_response",
+				"completion",
 				chatCompletionStep.toNode<KnowledgeRAGState>({
 					mapInput: (state) => {
-						const responseMessages = this.chat.system(
+						const responseMessages = this.chat.systemMessage(
 							state.messages,
-							customSystemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
+							agentPrompt.replace('{context}', state.context),
 							{
 								placement: "top",
 							},
@@ -188,19 +168,17 @@ export class KnowledgeRAGFlow extends GraphBase<
 				);
 			}
 			this.workflow.addEdge(START, "context_retrieve");
-			this.workflow.addEdge("context_retrieve", "emit_context");
+			this.workflow.addEdge("context_retrieve", "completion");
 		} else {
-			// Skip context retrieval: START -> emit_context directly
-			this.workflow.addEdge(START, "emit_context");
+			// Skip context retrieval: START -> completion directly
+			this.workflow.addEdge(START, "completion");
 		}
 
-		// Common edges
-		this.workflow.addEdge("emit_context", "final_response");
 		if (enableCitations) {
-			this.workflow.addEdge("final_response", "citation");
+			this.workflow.addEdge("completion", "citation");
 			this.workflow.addEdge("citation", END);
 		} else {
-			this.workflow.addEdge("final_response", END);
+			this.workflow.addEdge("completion", END);
 		}
 
 		this.compile();
