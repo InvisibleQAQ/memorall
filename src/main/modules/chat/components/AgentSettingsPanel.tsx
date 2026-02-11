@@ -46,14 +46,6 @@ export const AgentSettingsPanel: React.FC = () => {
 	} = useAgentConfigStore();
 	const [selectedFeature, setSelectedFeature] = React.useState<string | null>(null);
 
-	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center h-full">
-				<div className="text-sm text-muted-foreground">Loading...</div>
-			</div>
-		);
-	}
-
 	const featureToolSet = React.useMemo(() => {
 		const set = new Set<string>();
 		for (const feature of featureDefinitions) {
@@ -68,6 +60,14 @@ export const AgentSettingsPanel: React.FC = () => {
 		() => availableTools.filter((toolName) => !featureToolSet.has(toolName)),
 		[availableTools, featureToolSet],
 	);
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center justify-center h-full">
+				<div className="text-sm text-muted-foreground">{t("agentSettings.loading")}</div>
+			</div>
+		);
+	}
 
 	const enableAllTools = () => {
 		updateField("tools", [...standaloneTools]);
@@ -168,7 +168,7 @@ export const AgentSettingsPanel: React.FC = () => {
 
 						{draftConfig.enableContextRetrieval && (
 							<div className="space-y-2">
-								<Label className="text-xs font-medium">Context Prompt</Label>
+								<Label className="text-xs font-medium">{t("agentSettings.contextPrompt")}</Label>
 								<Textarea
 									value={draftConfig.contextPrompt}
 									onChange={(e) => updateField("contextPrompt", e.target.value)}
@@ -176,8 +176,7 @@ export const AgentSettingsPanel: React.FC = () => {
 									className="min-h-[120px] font-mono text-xs resize-y"
 								/>
 								<p className="text-[10px] text-muted-foreground">
-									Default prompt is shown when empty. If {"{context}"} is
-									missing, it is appended at the bottom.
+									{t("agentSettings.contextPromptHint")}
 								</p>
 							</div>
 						)}
@@ -205,7 +204,7 @@ export const AgentSettingsPanel: React.FC = () => {
 
 					{/* Feature Tools */}
 					<div className="space-y-3">
-						<Label className="text-xs font-medium">Features</Label>
+						<Label className="text-xs font-medium">{t("agentSettings.features")}</Label>
 
 						<div className="space-y-2">
 							{featureDefinitions.map((feature) => {
@@ -230,7 +229,7 @@ export const AgentSettingsPanel: React.FC = () => {
 										</div>
 										<div className="flex items-center justify-between">
 											<p className="text-[10px] text-muted-foreground">
-												{feature.tools.length} tools
+												{t("agentSettings.toolCount", { count: feature.tools.length })}
 											</p>
 											<Button
 												variant="ghost"
@@ -242,7 +241,7 @@ export const AgentSettingsPanel: React.FC = () => {
 													)
 												}
 											>
-												{isSelected ? "Hide Detail" : "Detail"}
+												{isSelected ? t("agentSettings.hideDetail") : t("agentSettings.detail")}
 											</Button>
 										</div>
 									</div>
@@ -253,11 +252,11 @@ export const AgentSettingsPanel: React.FC = () => {
 						{selectedFeatureDefinition && (
 							<div className="space-y-2 rounded-md border px-3 py-3">
 								<Label className="text-xs font-medium">
-									Feature Detail: {selectedFeatureDefinition.name}
+									{t("agentSettings.featureDetail", { name: selectedFeatureDefinition.name })}
 								</Label>
 								<div className="space-y-1">
 									<p className="text-[10px] font-medium text-muted-foreground">
-										Tools
+										{t("agentSettings.featureTools")}
 									</p>
 									<div className="flex flex-wrap gap-1">
 										{selectedFeatureDefinition.tools.map((tool) => (
@@ -273,7 +272,7 @@ export const AgentSettingsPanel: React.FC = () => {
 								</div>
 								<div className="space-y-1">
 									<p className="text-[10px] font-medium text-muted-foreground">
-										System Prompt (Read-only)
+										{t("agentSettings.featureSystemPrompt")}
 									</p>
 									<Textarea
 										value={selectedFeatureDefinition.systemPrompt}
@@ -291,7 +290,7 @@ export const AgentSettingsPanel: React.FC = () => {
 					<div className="space-y-3">
 						<div className="flex items-center justify-between">
 							<Label className="text-xs font-medium">
-								Standalone Tools
+								{t("agentSettings.standaloneTools")}
 							</Label>
 							<div className="flex items-center gap-1">
 								<Button
@@ -362,7 +361,7 @@ export const AgentSettingsPanel: React.FC = () => {
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<AlertDialogFooter>
-							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogCancel>{t("agentSettings.cancel")}</AlertDialogCancel>
 							<AlertDialogAction onClick={resetToDefaults}>
 								{t("agentSettings.resetDefaults")}
 							</AlertDialogAction>

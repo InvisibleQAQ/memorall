@@ -346,6 +346,24 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					);
 				}
 
+				// Load feature flags to pass to graph (features add tools + system prompts)
+				let featureFlags: Record<string, boolean> = {};
+				try {
+					featureFlags = agentFlowId
+						? await serviceManager.flowBuilderService.getFlowFeatureFlags({
+								flowId: agentFlowId,
+							})
+						: await serviceManager.flowBuilderService.getFlowFeatureFlags({
+								predefinedFlow: "knowledge-rag",
+							});
+				} catch (err) {
+					await dependencies.logger.warn(
+						"Failed to load feature flags, using defaults",
+						`${err}`,
+						"offscreen",
+					);
+				}
+
 				// Use KnowledgeRAGFlow for knowledge mode (following use-chat.ts pattern)
 				const graph = serviceManager.flowsService.createGraph(
 					"knowledge-rag",
@@ -361,6 +379,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						contextPrompt: agentConfig?.contextPrompt || undefined,
 						enableContextRetrieval: agentConfig?.enableContextRetrieval,
 						enableCitations: agentConfig?.enableCitations,
+						featureFlags,
 					},
 				);
 

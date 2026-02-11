@@ -27,14 +27,20 @@ export type NodejsSandboxFeatureServices = {};
 
 const SYSTEM_PROMPT_INSTRUCTION = `
 # NODEJS SANDBOX FEATURE
-You have access to an isolated Node.js-like container runtime with virtual filesystem, npm package management, runtime execution, local dev servers, and HTTP resource access.
+You have access to an isolated browser-based sandbox container with virtual filesystem, npm package management (loaded from CDN), runtime execution, and HTTP resource access.
+
+## IMPORTANT RUNTIME CONSTRAINTS
+- The sandbox is browser-based (NOT native Node.js). Native Node.js built-in modules (fs, path, http, child_process, etc.) are NOT available.
+- \`require()\` is available for: (1) packages installed via container_install_package, (2) files in the virtual filesystem.
+- Always install packages with container_install_package BEFORE using require() in container_run_code.
+- Use browser APIs (fetch, URL, TextEncoder, crypto, etc.) instead of Node.js built-ins.
+- For file operations, use the container filesystem tools (container_write_file, container_read_file, etc.) instead of require('fs').
 
 ## WHEN TO USE THIS FEATURE
 - Use container tools when the user asks to:
   - run or test code in isolation
   - install npm packages
   - create/update/read project files
-  - start or inspect local framework servers (Express/Vite/Next)
   - fetch API/HTML resources from within the container runtime context
 - Prefer container tools for multi-step coding tasks where reproducible runtime state matters.
 

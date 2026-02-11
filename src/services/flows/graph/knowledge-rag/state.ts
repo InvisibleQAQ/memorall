@@ -24,6 +24,8 @@ export interface KnowledgeRAGConfig {
 	enableContextRetrieval?: boolean;
 	/** Whether to add citations to responses (default: true) */
 	enableCitations?: boolean;
+	/** Enabled feature flags (feature step name -> enabled) */
+	featureFlags?: Record<string, boolean>;
 }
 
 export const DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT = `

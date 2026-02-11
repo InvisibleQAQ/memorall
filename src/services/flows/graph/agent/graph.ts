@@ -11,21 +11,6 @@ import { flowRegistry } from "@/services/flows/flow-registry";
 const DEFAULT_TOOL_NAMES = [
 	"current_time",
 	"js_execute",
-	"container_run_code",
-	"container_install_package",
-	"container_start_server",
-	"container_stop_server",
-	"container_list_servers",
-	"container_get_logs",
-	"container_clear_logs",
-	"container_write_file",
-	"container_read_file",
-	"container_mkdir",
-	"container_readdir",
-	"container_exists",
-	"container_rename",
-	"container_unlink",
-	"container_fetch_resource",
 ] as const;
 
 // Derive services from tools + graph's own needs (llm for calling the model)
@@ -49,7 +34,7 @@ const AGENT_SYSTEM_PROMPT = `You are an intelligent assistant that can use tools
  *                -> (no tool_calls) -> END
  */
 export class AgentGraph extends GraphBase<
-	"initial" | "agent" | "tools",
+	"initial" | "agent" | "tool_executor",
 	AgentState,
 	AgentServices
 > {
@@ -76,12 +61,12 @@ export class AgentGraph extends GraphBase<
 		// Add nodes
 		this.workflow.addNode("initial", this.initialNode);
 		this.workflow.addNode("agent", this.agentNode);
-		this.workflow.addNode("tools", this.toolsNode);
+		this.workflow.addNode("tool_executor", this.toolsNode);
 
 		this.workflow.addEdge(START, "initial");
 		this.workflow.addEdge("initial", "agent");
 		this.workflow.addConditionalEdges("agent", this.routeAfterAgent);
-		this.workflow.addEdge("tools", "agent");
+		this.workflow.addEdge("tool_executor", "agent");
 
 		this.compile();
 	}
@@ -89,7 +74,7 @@ export class AgentGraph extends GraphBase<
 	/**
 	 * Route after agent node: go to tools if there are tool calls, otherwise end
 	 */
-	private routeAfterAgent = (state: AgentState): "tools" | typeof END => {
+	private routeAfterAgent = (state: AgentState): "tool_executor" | typeof END => {
 		const lastMessage = this.chat.lastMessage(state.messages);
 
 		// Check for max iterations
@@ -102,7 +87,7 @@ export class AgentGraph extends GraphBase<
 
 		// If last step has tool calls, route to tools node
 		if (lastMessage?.role === "assistant" && lastMessage.tool_calls?.length) {
-			return "tools";
+			return "tool_executor";
 		}
 
 		// No tool calls means we have a final response
@@ -251,12 +236,17 @@ export class AgentGraph extends GraphBase<
 			toolCall: (typeof lastMessage.tool_calls)[number];
 		}> = [];
 
+		logInfo(
+			"[TOOL EXECUTE] Start tool call",
+			lastMessage.tool_calls
+		);
+
 		for (const toolCall of lastMessage.tool_calls) {
 			const toolName = toolCall.function.name;
 			const combined = this.executorMap.get(toolName);
 			runConfig?.writer?.({
 				type: "execute-start",
-				node: "tools",
+				node: "tool_executor",
 				metadata: {
 					tool: toolName,
 					tool_call_id: toolCall.id,
@@ -280,6 +270,11 @@ export class AgentGraph extends GraphBase<
 				// Validate and execute the tool (services already bound via factory)
 				const validatedArgs = combined.executor.schema.parse(args);
 				const result = await combined.executor.execute(validatedArgs);
+				logInfo(
+					"[TOOL EXECUTE] Tool call result",
+					toolCall,
+					result
+				);
 
 				updatedMessages = this.chat.toolMessage(updatedMessages, toolCall.id, result);
 				toolResults.push({
