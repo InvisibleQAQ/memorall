@@ -4,7 +4,6 @@ import { X, Settings2, Save, Undo2, RotateCcw } from "lucide-react";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
 import { TOOL_DISPLAY_INFO } from "@/main/modules/chat/utils/tool-display-info";
 import {
-	DEFAULT_KNOWLEDGE_RAG_CONTEXT_PROMPT,
 	DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
 } from "@/services/flows/graph/knowledge-rag/state";
 import { Switch } from "@/main/components/ui/switch";
@@ -25,22 +24,27 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/main/components/ui/alert-dialog";
+import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
 
 export const AgentSettingsPanel: React.FC = () => {
 	const { t } = useTranslation("chat");
 	const {
 		draftConfig,
+		draftFeatures,
+		featureDefinitions,
 		availableTools,
 		isLoading,
 		isSaving,
 		isDirty,
 		close,
 		updateField,
+		toggleFeature,
 		toggleTool,
 		save,
 		revert,
 		resetToDefaults,
 	} = useAgentConfigStore();
+	const [selectedFeature, setSelectedFeature] = React.useState<string | null>(null);
 
 	if (isLoading) {
 		return (
@@ -50,13 +54,32 @@ export const AgentSettingsPanel: React.FC = () => {
 		);
 	}
 
+	const featureToolSet = React.useMemo(() => {
+		const set = new Set<string>();
+		for (const feature of featureDefinitions) {
+			for (const tool of feature.tools) {
+				set.add(tool);
+			}
+		}
+		return set;
+	}, [featureDefinitions]);
+
+	const standaloneTools = React.useMemo(
+		() => availableTools.filter((toolName) => !featureToolSet.has(toolName)),
+		[availableTools, featureToolSet],
+	);
+
 	const enableAllTools = () => {
-		updateField("tools", [...availableTools]);
+		updateField("tools", [...standaloneTools]);
 	};
 
 	const disableAllTools = () => {
 		updateField("tools", []);
 	};
+
+	const selectedFeatureDefinition =
+		featureDefinitions.find((feature) => feature.name === selectedFeature) ??
+		null;
 
 	return (
 		<div className="flex flex-col h-full">
@@ -149,7 +172,7 @@ export const AgentSettingsPanel: React.FC = () => {
 								<Textarea
 									value={draftConfig.contextPrompt}
 									onChange={(e) => updateField("contextPrompt", e.target.value)}
-									placeholder={DEFAULT_KNOWLEDGE_RAG_CONTEXT_PROMPT}
+									placeholder={DEFAULT_CONTEXT_SYSTEM_PROMPT}
 									className="min-h-[120px] font-mono text-xs resize-y"
 								/>
 								<p className="text-[10px] text-muted-foreground">
@@ -180,11 +203,95 @@ export const AgentSettingsPanel: React.FC = () => {
 
 					<Separator />
 
+					{/* Feature Tools */}
+					<div className="space-y-3">
+						<Label className="text-xs font-medium">Features</Label>
+
+						<div className="space-y-2">
+							{featureDefinitions.map((feature) => {
+								const enabled = Boolean(draftFeatures[feature.name]);
+								const isSelected = selectedFeature === feature.name;
+								return (
+									<div
+										key={feature.name}
+										className="rounded-md border px-3 py-2 space-y-2"
+									>
+										<div className="flex items-start justify-between gap-3">
+											<div className="space-y-0.5">
+												<p className="text-xs font-medium">{feature.name}</p>
+												<p className="text-[10px] text-muted-foreground leading-tight">
+													{feature.description}
+												</p>
+											</div>
+											<Switch
+												checked={enabled}
+												onCheckedChange={() => toggleFeature(feature.name)}
+											/>
+										</div>
+										<div className="flex items-center justify-between">
+											<p className="text-[10px] text-muted-foreground">
+												{feature.tools.length} tools
+											</p>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="h-6 px-2 text-[10px]"
+												onClick={() =>
+													setSelectedFeature(
+														isSelected ? null : feature.name,
+													)
+												}
+											>
+												{isSelected ? "Hide Detail" : "Detail"}
+											</Button>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+
+						{selectedFeatureDefinition && (
+							<div className="space-y-2 rounded-md border px-3 py-3">
+								<Label className="text-xs font-medium">
+									Feature Detail: {selectedFeatureDefinition.name}
+								</Label>
+								<div className="space-y-1">
+									<p className="text-[10px] font-medium text-muted-foreground">
+										Tools
+									</p>
+									<div className="flex flex-wrap gap-1">
+										{selectedFeatureDefinition.tools.map((tool) => (
+											<Badge
+												key={tool}
+												variant="outline"
+												className="text-[10px] font-mono"
+											>
+												{tool}
+											</Badge>
+										))}
+									</div>
+								</div>
+								<div className="space-y-1">
+									<p className="text-[10px] font-medium text-muted-foreground">
+										System Prompt (Read-only)
+									</p>
+									<Textarea
+										value={selectedFeatureDefinition.systemPrompt}
+										readOnly
+										className="min-h-[140px] font-mono text-xs resize-y"
+									/>
+								</div>
+							</div>
+						)}
+					</div>
+
+					<Separator />
+
 					{/* Tools */}
 					<div className="space-y-3">
 						<div className="flex items-center justify-between">
 							<Label className="text-xs font-medium">
-								{t("agentSettings.tools")}
+								Standalone Tools
 							</Label>
 							<div className="flex items-center gap-1">
 								<Button
@@ -207,7 +314,7 @@ export const AgentSettingsPanel: React.FC = () => {
 						</div>
 
 						<div className="space-y-2">
-							{availableTools.map((toolName) => {
+							{standaloneTools.map((toolName) => {
 								const info = TOOL_DISPLAY_INFO[toolName];
 								return (
 									<div

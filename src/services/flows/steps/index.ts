@@ -18,6 +18,7 @@ import "./knowledge-retrieval/quick-retrieve";
 import "./knowledge-retrieval/smart-retrieve";
 import "./knowledge-retrieval/entities-facts-to-context";
 import "./knowledge-retrieval/entities-facts-citation";
+import './knowledge-retrieval/context-to-system';
 
 // Common steps
 import "./common/chat-completion";
@@ -29,3 +30,4 @@ import "./features/context-smart-retrieve";
 import "./features/context-quick-retrieve";
 import "./features/context-llm-retrieve";
 import "./features/documents-feature";
+import "./features/nodejs-sandbox-feature";

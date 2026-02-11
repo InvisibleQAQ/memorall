@@ -63,6 +63,6 @@
     "sandbox": "sandbox allow-scripts; script-src 'self' 'unsafe-eval'; object-src 'self';"
   },
   "sandbox": {
-    "pages": ["sandbox/js-execute.html"]
+    "pages": ["sandbox/js-execute.html", "sandbox/sandbox-container-runtime.html"]
   }
 }

@@ -8,6 +8,7 @@ import "./process-topic-operations";
 import "./process-flow-operations";
 import "./process-chat";
 import "./process-activity-tracking";
+import "./process-sandbox-operations";
 
 export { backgroundProcessFactory, ProcessFactory } from "./process-factory";
 export { handlerRegistry } from "./handler-registry";

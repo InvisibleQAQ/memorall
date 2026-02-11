@@ -1,7 +1,6 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import {
 	KnowledgeRAGAnnotation,
-	DEFAULT_KNOWLEDGE_RAG_CONTEXT_PROMPT,
 	DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
 	type KnowledgeRAGConfig,
 	type KnowledgeRAGState,
@@ -31,16 +30,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 		const enableCitations = config.enableCitations !== false;
 
 		// Prompt construct
-		const contextPrompt = config.contextPrompt?.trim()
-		const contextPromptTemplate = contextPrompt
-			? contextPrompt.includes("{context}")
-				? contextPrompt
-				: `${contextPrompt}\n\n{context}`
-			: DEFAULT_KNOWLEDGE_RAG_CONTEXT_PROMPT;
-		const agentPrompt = [
-			config.systemPrompt?.trim() || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
-			contextPromptTemplate,
-		].join('\n');
+		const agentPrompt = config.systemPrompt?.trim() || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT;
 
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
 
@@ -67,7 +57,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					mapInput: (state) => {
 						const responseMessages = this.chat.systemMessage(
 							state.messages,
-							agentPrompt.replace('{context}', state.context),
+							agentPrompt,
 							{
 								placement: "top",
 							},
@@ -95,7 +85,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					mapInput: (state) => {
 						const responseMessages = this.chat.systemMessage(
 							state.messages,
-							agentPrompt.replace('{context}', state.context),
+							agentPrompt,
 							{
 								placement: "top",
 							},
@@ -127,6 +117,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					contextSmartRetrieveStep.toNode<KnowledgeRAGState>({
 						mapOutput: (output) => ({
 							context: output.context,
+							messages: output.messages,
 							relevantNodes: output.relevantNodes ?? [],
 							relevantEdges: output.relevantEdges ?? [],
 						}),
@@ -146,6 +137,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					contextQuickRetrieveStep.toNode<KnowledgeRAGState>({
 						mapOutput: (output) => ({
 							context: output.context,
+							messages: output.messages,
 							relevantNodes: output.relevantNodes ?? [],
 							relevantEdges: output.relevantEdges ?? [],
 						}),
@@ -161,6 +153,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					contextRetrieveKnowledgeStep.toNode<KnowledgeRAGState>({
 						mapOutput: (output) => ({
 							context: output.context,
+							messages: output.messages,
 							relevantNodes: output.relevantNodes ?? [],
 							relevantEdges: output.relevantEdges ?? [],
 						}),
