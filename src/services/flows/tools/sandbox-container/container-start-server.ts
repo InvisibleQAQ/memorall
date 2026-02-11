@@ -13,10 +13,7 @@ const schema = z.object({
 		.optional()
 		.describe("Optional hostname (default runtime value)."),
 	rootDir: z.string().optional().describe("Optional project root path."),
-	entryPath: z
-		.string()
-		.optional()
-		.describe("Entry path for express mode."),
+	entryPath: z.string().optional().describe("Entry path for express mode."),
 });
 
 type Input = z.infer<typeof schema>;

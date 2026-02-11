@@ -52,7 +52,10 @@
 		"context_graph": "Biểu đồ ngữ cảnh",
 		"context_knowledge": "Kiến thức ngữ cảnh",
 		"response_generation": "Tạo phản hồi",
-		"quick_knowledge_retrieval": "Truy xuất kiến thức nhanh"
+		"quick_knowledge_retrieval": "Truy xuất kiến thức nhanh",
+		"container_web_access": "Truy cập Web",
+		"web_access": "Truy cập Web",
+		"web access": "Truy cập Web"
 	},
 	"messages": {
 		"thinking": "Đang suy nghĩ...",

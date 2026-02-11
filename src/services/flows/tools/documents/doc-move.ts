@@ -6,6 +6,7 @@ import type {
 } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import type { DocumentTreeNode } from "@/types/document-library";
+import { normalizeDocumentPath } from "./util";
 
 const TOOL_NAME = "doc_move" as const;
 
@@ -45,6 +46,11 @@ export const createDocMoveTool: ToolFactory<Input, Services> = (
 	schema,
 	execute: async (input) => {
 		const { source_path, new_name, target_folder } = input;
+		const sourcePath = normalizeDocumentPath(source_path);
+		const targetFolder =
+			typeof target_folder === "string"
+				? normalizeDocumentPath(target_folder)
+				: undefined;
 
 		const dfs = services.documentFileSystem;
 		if (!dfs) {
@@ -52,26 +58,26 @@ export const createDocMoveTool: ToolFactory<Input, Services> = (
 		}
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);
-		const node = allNodes.find((n) => n.path === source_path);
+		const node = allNodes.find((n) => n.path === sourcePath);
 
 		if (!node) {
-			return `Error: Path not found: ${source_path}`;
+			return `Error: Path not found: ${sourcePath}`;
 		}
 
 		const isFile = node.type === "file";
-		let currentPath = source_path;
+		let currentPath = sourcePath;
 		const actions: string[] = [];
 
-		// Move first (if target_folder provided)
-		if (target_folder) {
+		// Move first (if targetFolder provided)
+		if (targetFolder) {
 			if (isFile) {
-				const result = await dfs.moveFile(currentPath, target_folder);
+				const result = await dfs.moveFile(currentPath, targetFolder);
 				currentPath = result.path;
 			} else {
-				const result = await dfs.moveFolder(currentPath, target_folder);
+				const result = await dfs.moveFolder(currentPath, targetFolder);
 				currentPath = result.path;
 			}
-			actions.push(`moved to ${target_folder}`);
+			actions.push(`moved to ${targetFolder}`);
 		}
 
 		// Then rename (if new_name provided)
@@ -86,7 +92,7 @@ export const createDocMoveTool: ToolFactory<Input, Services> = (
 			actions.push(`renamed to "${new_name}"`);
 		}
 
-		return `${isFile ? "File" : "Folder"} ${source_path}: ${actions.join(", ")} → ${currentPath}`;
+		return `${isFile ? "File" : "Folder"} ${sourcePath}: ${actions.join(", ")} → ${currentPath}`;
 	},
 });
 

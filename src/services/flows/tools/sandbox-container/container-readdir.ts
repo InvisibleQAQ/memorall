@@ -6,7 +6,10 @@ import { sandboxContainerService } from "@/services/sandbox-container";
 const TOOL_NAME = "container_readdir" as const;
 
 const schema = z.object({
-	path: z.string().min(1).describe("Absolute virtual directory path."),
+	path: z
+		.string()
+		.min(1)
+		.describe("Virtual directory path (absolute or relative)."),
 });
 
 type Input = z.infer<typeof schema>;

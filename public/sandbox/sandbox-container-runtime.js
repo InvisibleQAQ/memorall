@@ -1,17 +1,25 @@
+import * as AlmostNodeLib from "./vendors/almostnode.bundle.js";
+
 const SANDBOX_CHANNEL = "memorall-sandbox-container";
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_LOG_ENTRIES = 20;
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
 const MAX_RUNTIME_LOG_ENTRIES = 500;
+const DOCUMENTS_MOUNT_ROOT = "/documents";
 
 const initializedAt = Date.now();
 const runtimeLogs = [];
 const repls = new Map();
-const files = new Map();
-const directories = new Set(["/"]);
+const mountedDocumentFiles = new Set();
+const mountedDocumentDirectories = new Set();
+const materializedMountedFiles = new Map();
+let documentsMountLoaded = false;
 const installedPackages = new Map();
-const packageCache = new Map();
 const servers = new Map();
+
+let container = null;
+let currentExecutionContext = null;
+const VFS_DOCUMENTS_OVERLAY_FLAG = "__documentsOverlayInstalled";
 
 const safeSerialize = (value) => {
 	if (typeof value === "string") return value;
@@ -36,228 +44,296 @@ const toError = (error) => {
 	return { message: safeSerialize(error) };
 };
 
-const appendLog = (logs, entry, maxEntries) => {
-	if (logs.length < maxEntries) {
-		logs.push(entry);
+const appendBounded = (list, value, limit) => {
+	if (list.length < limit) {
+		list.push(value);
 		return 0;
 	}
-	logs.shift();
-	logs.push(entry);
+	list.shift();
+	list.push(value);
 	return 1;
 };
 
 const pushRuntimeLog = (level, message) => {
-	appendLog(
-		runtimeLogs,
-		{
-			level,
-			message,
-			timestamp: Date.now(),
-		},
-		MAX_RUNTIME_LOG_ENTRIES,
-	);
+	appendBounded(runtimeLogs, { level, message, timestamp: Date.now() }, MAX_RUNTIME_LOG_ENTRIES);
 };
 
-const withTimeout = async (task, timeoutMs) =>
-	Promise.race([
-		task,
-		new Promise((resolve) => setTimeout(() => resolve("__timeout__"), timeoutMs)),
-	]);
+const normalizePath = (inputPath) => {
+	if (typeof inputPath !== "string" || inputPath.length === 0) {
+		throw new Error("Path must be a non-empty string");
+	}
+	const raw = inputPath.trim().replace(/\\/g, "/");
+	if (!raw) throw new Error("Path must be a non-empty string");
+	const candidate = (raw.startsWith("/") ? raw : `/${raw}`).replace(/\/+/g, "/");
+	const parts = candidate.split("/").filter(Boolean);
+	const resolved = [];
+	for (const part of parts) {
+		if (part === ".") continue;
+		if (part === "..") {
+			resolved.pop();
+			continue;
+		}
+		resolved.push(part);
+	}
+	return resolved.length ? `/${resolved.join("/")}` : "/";
+};
 
 const dirname = (inputPath) => {
-	const normalized = inputPath.replace(/\/+/g, "/");
+	const normalized = normalizePath(inputPath);
 	const idx = normalized.lastIndexOf("/");
 	if (idx <= 0) return "/";
 	return normalized.slice(0, idx);
 };
 
-const ensureDir = (path) => {
-	const normalized = path.replace(/\/+/g, "/");
-	if (!normalized.startsWith("/")) {
-		throw new Error(`Path must be absolute: ${path}`);
-	}
-	const parts = normalized.split("/").filter(Boolean);
-	let current = "/";
-	directories.add("/");
-	for (const part of parts) {
-		current = current === "/" ? `/${part}` : `${current}/${part}`;
-		directories.add(current);
+const isDocumentsPath = (path) => path === DOCUMENTS_MOUNT_ROOT || path.startsWith(`${DOCUMENTS_MOUNT_ROOT}/`);
+const assertDocumentsMountLoaded = () => {
+	if (!documentsMountLoaded) {
+		throw new Error("Documents mount is not loaded in sandbox runtime");
 	}
 };
 
-const listDir = (path) => {
-	const normalized = path.replace(/\/+/g, "/");
+const createFsError = (code, syscall, path) => {
+	const messageByCode = {
+		ENOENT: "no such file or directory",
+		ENOTDIR: "not a directory",
+		EISDIR: "illegal operation on a directory",
+	};
+	const message = messageByCode[code] || "filesystem error";
+	const err = new Error(`${code}: ${message}, ${syscall} '${path}'`);
+	err.code = code;
+	err.syscall = syscall;
+	err.path = path;
+	return err;
+};
+
+const listMountedDir = (path) => {
+	const normalized = normalizePath(path);
 	const prefix = normalized === "/" ? "/" : `${normalized}/`;
 	const entries = new Set();
 
-	for (const dir of directories) {
+	for (const dir of mountedDocumentDirectories) {
 		if (!dir.startsWith(prefix) || dir === normalized) continue;
 		const rest = dir.slice(prefix.length);
 		if (!rest || rest.includes("/")) continue;
 		entries.add(rest);
 	}
-	for (const filePath of files.keys()) {
+
+	for (const filePath of mountedDocumentFiles) {
 		if (!filePath.startsWith(prefix)) continue;
 		const rest = filePath.slice(prefix.length);
 		if (!rest || rest.includes("/")) continue;
 		entries.add(rest);
 	}
+
 	return Array.from(entries).sort();
 };
 
-const parsePackageName = (spec) => {
-	if (spec.startsWith("@")) {
-		const rest = spec.slice(1);
-		const slashIdx = rest.indexOf("/");
-		if (slashIdx === -1) return spec;
-		const afterSlash = rest.slice(slashIdx + 1);
-		const atIdx = afterSlash.indexOf("@");
-		return atIdx === -1 ? spec : `@${rest.slice(0, slashIdx + 1 + atIdx)}`;
-	}
-	const atIdx = spec.indexOf("@");
-	return atIdx <= 0 ? spec : spec.slice(0, atIdx);
+const createMountedStat = (path, isDirectory, size = 0) => {
+	const mtime = new Date();
+	return {
+		size,
+		mtime,
+		isFile: () => !isDirectory,
+		isDirectory: () => isDirectory,
+		isSymbolicLink: () => false,
+		path,
+	};
 };
 
-const loadPackageFromCDN = async (packageSpec) => {
-	const name = parsePackageName(packageSpec);
-	if (packageCache.has(name)) return packageCache.get(name);
+const installDocumentsVfsOverlay = (vfs) => {
+	if (!vfs || vfs[VFS_DOCUMENTS_OVERLAY_FLAG]) return;
 
-	const url = `https://cdn.jsdelivr.net/npm/${packageSpec}`;
-	const resp = await fetchWithTimeout(url, {}, DEFAULT_FETCH_TIMEOUT_MS);
-	if (!resp.ok) {
-		throw new Error(`Failed to fetch ${packageSpec} from CDN (${resp.status})`);
-	}
-	const code = await resp.text();
+	const original = {
+		readdirSync: typeof vfs.readdirSync === "function" ? vfs.readdirSync.bind(vfs) : null,
+		readFileSync: typeof vfs.readFileSync === "function" ? vfs.readFileSync.bind(vfs) : null,
+		existsSync: typeof vfs.existsSync === "function" ? vfs.existsSync.bind(vfs) : null,
+		statSync: typeof vfs.statSync === "function" ? vfs.statSync.bind(vfs) : null,
+		lstatSync: typeof vfs.lstatSync === "function" ? vfs.lstatSync.bind(vfs) : null,
+		accessSync: typeof vfs.accessSync === "function" ? vfs.accessSync.bind(vfs) : null,
+	};
 
-	const mod = { exports: {} };
-	try {
-		const fn = new Function("module", "exports", "require", code);
-		fn(mod, mod.exports, (dep) => {
-			if (packageCache.has(dep)) return packageCache.get(dep);
-			throw new Error(
-				`Nested dependency '${dep}' not installed. Use container_install_package first.`,
-			);
-		});
-	} catch {
-		try {
-			const beforeKeys = new Set(Object.keys(globalThis));
-			new Function(code)();
-			const newKeys = Object.keys(globalThis).filter((k) => !beforeKeys.has(k));
-			if (newKeys.length === 1) {
-				mod.exports = globalThis[newKeys[0]];
-			} else if (newKeys.length > 1) {
-				mod.exports = {};
-				for (const k of newKeys) mod.exports[k] = globalThis[k];
+	vfs.readdirSync = (inputPath, ...rest) => {
+		const path = normalizePath(String(inputPath));
+		if (isDocumentsPath(path)) {
+			assertDocumentsMountLoaded();
+			if (!mountedDocumentDirectories.has(path)) {
+				throw createFsError("ENOENT", "scandir", path);
 			}
-		} catch (evalErr) {
-			throw new Error(`Failed to load package '${name}': ${evalErr.message}`);
+			return listMountedDir(path);
 		}
-	}
+		if (!original.readdirSync) {
+			throw new Error("vfs.readdirSync is not available");
+		}
+		return original.readdirSync(inputPath, ...rest);
+	};
 
-	packageCache.set(name, mod.exports);
-	return mod.exports;
+	vfs.existsSync = (inputPath, ...rest) => {
+		const path = normalizePath(String(inputPath));
+		if (isDocumentsPath(path)) {
+			if (!documentsMountLoaded) return false;
+			return mountedDocumentFiles.has(path) || mountedDocumentDirectories.has(path);
+		}
+		if (!original.existsSync) return false;
+		return original.existsSync(inputPath, ...rest);
+	};
+
+	vfs.readFileSync = (inputPath, encoding, ...rest) => {
+		const path = normalizePath(String(inputPath));
+		if (isDocumentsPath(path)) {
+			assertDocumentsMountLoaded();
+			if (!mountedDocumentFiles.has(path)) {
+				throw createFsError("ENOENT", "open", path);
+			}
+			if (!materializedMountedFiles.has(path)) {
+				throw new Error(`Mounted file is not materialized in sandbox runtime: ${path}`);
+			}
+			const content = materializedMountedFiles.get(path) || "";
+			if (!encoding || encoding === "utf8" || encoding === "utf-8") {
+				return content;
+			}
+			return new TextEncoder().encode(content);
+		}
+		if (!original.readFileSync) {
+			throw new Error("vfs.readFileSync is not available");
+		}
+		return original.readFileSync(inputPath, encoding, ...rest);
+	};
+
+	const statLike = (inputPath, ...rest) => {
+		const path = normalizePath(String(inputPath));
+		if (isDocumentsPath(path)) {
+			assertDocumentsMountLoaded();
+			if (mountedDocumentDirectories.has(path)) {
+				return createMountedStat(path, true, 0);
+			}
+			if (mountedDocumentFiles.has(path)) {
+				const content = materializedMountedFiles.get(path) || "";
+				return createMountedStat(path, false, content.length);
+			}
+			throw createFsError("ENOENT", "stat", path);
+		}
+		if (!original.statSync) {
+			throw new Error("vfs.statSync is not available");
+		}
+		return original.statSync(inputPath, ...rest);
+	};
+	vfs.statSync = statLike;
+	vfs.lstatSync = (...args) => statLike(...args);
+
+	vfs.accessSync = (inputPath, ...rest) => {
+		const path = normalizePath(String(inputPath));
+		if (isDocumentsPath(path)) {
+			assertDocumentsMountLoaded();
+			if (!mountedDocumentFiles.has(path) && !mountedDocumentDirectories.has(path)) {
+				throw createFsError("ENOENT", "access", path);
+			}
+			return;
+		}
+		if (original.accessSync) {
+			return original.accessSync(inputPath, ...rest);
+		}
+	};
+
+	vfs[VFS_DOCUMENTS_OVERLAY_FLAG] = true;
 };
 
-const createRequire = () => (specifier) => {
-	if (packageCache.has(specifier)) return packageCache.get(specifier);
+const normalizeClientHostname = (hostname) => {
+	if (hostname === "0.0.0.0" || hostname === "::") return "127.0.0.1";
+	return hostname || "127.0.0.1";
+};
 
-	const possiblePaths = [
-		specifier,
-		`/${specifier}`,
-		`/${specifier}.js`,
-		`/${specifier}/index.js`,
-	];
-	for (const p of possiblePaths) {
-		if (files.has(p)) {
-			const fileCode = files.get(p);
-			const mod = { exports: {} };
-			const fn = new Function("module", "exports", "require", fileCode);
-			fn(mod, mod.exports, createRequire());
-			return mod.exports;
+const normalizeClientUrl = (rawUrl) => {
+	try {
+		const parsed = new URL(rawUrl);
+		if (parsed.hostname === "0.0.0.0" || parsed.hostname === "::") {
+			parsed.hostname = "127.0.0.1";
 		}
+		return parsed.toString();
+	} catch {
+		return rawUrl;
 	}
+};
 
-	throw new Error(
-		`Cannot find module '${specifier}'. Use container_install_package to install npm packages first.`,
-	);
+const withTimeout = async (task, timeoutMs) => {
+	const timeoutSymbol = Symbol("timeout");
+	const value = await Promise.race([
+		task,
+		new Promise((resolve) => setTimeout(() => resolve(timeoutSymbol), timeoutMs)),
+	]);
+	return { timedOut: value === timeoutSymbol, value };
+};
+
+const ensureAlmostNodeReady = async () => {
+	if (AlmostNodeLib && typeof AlmostNodeLib.__tla?.then === "function") {
+		await AlmostNodeLib.__tla;
+	}
+	if (!AlmostNodeLib || typeof AlmostNodeLib.createContainer !== "function") {
+		throw new Error("almostnode runtime bundle not loaded or invalid");
+	}
+};
+
+const createContainerInstance = async () => {
+	await ensureAlmostNodeReady();
+	const c = AlmostNodeLib.createContainer({
+		cwd: "/",
+		onConsole: (level, args) => {
+			const message = Array.isArray(args)
+				? args.map((arg) => safeSerialize(arg)).join(" ")
+				: safeSerialize(args);
+			pushRuntimeLog(level, message);
+			if (currentExecutionContext) {
+				const dropped = appendBounded(
+					currentExecutionContext.logs,
+					{ level, message, timestamp: Date.now() },
+					currentExecutionContext.maxEntries,
+				);
+				currentExecutionContext.truncated += dropped;
+			}
+		},
+	});
+	installDocumentsVfsOverlay(c.vfs);
+	return c;
+};
+
+const ensureContainer = async () => {
+	if (!container) {
+		container = await createContainerInstance();
+	}
+	return container;
 };
 
 const executeCode = async (code, timeoutMs, maxLogEntries, filename) => {
+	const c = await ensureContainer();
 	const startedAt = Date.now();
 	const logs = [];
-	let truncatedLogs = 0;
-
-	const sandboxConsole = {
-		log: (...args) => {
-			const message = args.map(safeSerialize).join(" ");
-			truncatedLogs += appendLog(
-				logs,
-				{ level: "log", message, timestamp: Date.now() },
-				maxLogEntries,
-			);
-			pushRuntimeLog("log", message);
-		},
-		info: (...args) => {
-			const message = args.map(safeSerialize).join(" ");
-			truncatedLogs += appendLog(
-				logs,
-				{ level: "info", message, timestamp: Date.now() },
-				maxLogEntries,
-			);
-			pushRuntimeLog("info", message);
-		},
-		warn: (...args) => {
-			const message = args.map(safeSerialize).join(" ");
-			truncatedLogs += appendLog(
-				logs,
-				{ level: "warn", message, timestamp: Date.now() },
-				maxLogEntries,
-			);
-			pushRuntimeLog("warn", message);
-		},
-		error: (...args) => {
-			const message = args.map(safeSerialize).join(" ");
-			truncatedLogs += appendLog(
-				logs,
-				{ level: "error", message, timestamp: Date.now() },
-				maxLogEntries,
-			);
-			pushRuntimeLog("error", message);
-		},
-		debug: (...args) => {
-			const message = args.map(safeSerialize).join(" ");
-			truncatedLogs += appendLog(
-				logs,
-				{ level: "debug", message, timestamp: Date.now() },
-				maxLogEntries,
-			);
-			pushRuntimeLog("debug", message);
-		},
+	currentExecutionContext = {
+		logs,
+		maxEntries: maxLogEntries,
+		truncated: 0,
 	};
 
 	try {
-		const runner = new Function(
-			"console",
-			"require",
-			`"use strict"; return (async () => { ${code}\n})();`,
-		);
-
-		const completed = await withTimeout(
-			Promise.resolve(runner(sandboxConsole, createRequire())),
+		const { timedOut, value } = await withTimeout(
+			Promise.resolve(c.execute(String(code), filename || "/index.js")),
 			timeoutMs,
 		);
 		const durationMs = Date.now() - startedAt;
-
-		if (completed === "__timeout__") {
-			return { status: "timeout", durationMs, logs, truncatedLogs };
+		if (timedOut) {
+			return {
+				status: "timeout",
+				durationMs,
+				logs,
+				truncatedLogs: currentExecutionContext.truncated,
+			};
 		}
 
+		const resultValue = value && typeof value === "object" && "exports" in value ? value.exports : value;
 		return {
 			status: "ok",
 			durationMs,
-			result: safeSerialize(completed),
+			result: safeSerialize(resultValue),
 			logs,
-			truncatedLogs,
+			truncatedLogs: currentExecutionContext.truncated,
 			filename,
 		};
 	} catch (error) {
@@ -268,19 +344,67 @@ const executeCode = async (code, timeoutMs, maxLogEntries, filename) => {
 			error: safeSerialize(error instanceof Error ? error.message : error),
 			stack: error instanceof Error ? error.stack : undefined,
 			logs,
-			truncatedLogs,
+			truncatedLogs: currentExecutionContext.truncated,
 			filename,
 		};
+	} finally {
+		currentExecutionContext = null;
 	}
 };
 
 const runFile = async (path, timeoutMs, maxLogEntries) => {
-	if (!files.has(path)) {
-		throw new Error(`File not found: ${path}`);
+	const c = await ensureContainer();
+	const normalized = normalizePath(path);
+	if (isDocumentsPath(normalized)) {
+		throw new Error(`Cannot execute mounted documents path: ${normalized}`);
 	}
-	const code = files.get(path) || "";
-	const result = await executeCode(code, timeoutMs, maxLogEntries, path);
-	return { ...result, path };
+	if (!c.vfs.existsSync(normalized)) {
+		throw new Error(`File not found: ${normalized}`);
+	}
+
+	const startedAt = Date.now();
+	const logs = [];
+	currentExecutionContext = {
+		logs,
+		maxEntries: maxLogEntries,
+		truncated: 0,
+	};
+
+	try {
+		const { timedOut, value } = await withTimeout(Promise.resolve(c.runFile(normalized)), timeoutMs);
+		const durationMs = Date.now() - startedAt;
+		if (timedOut) {
+			return {
+				status: "timeout",
+				durationMs,
+				logs,
+				truncatedLogs: currentExecutionContext.truncated,
+				path: normalized,
+			};
+		}
+		const resultValue = value && typeof value === "object" && "exports" in value ? value.exports : value;
+		return {
+			status: "ok",
+			durationMs,
+			result: safeSerialize(resultValue),
+			logs,
+			truncatedLogs: currentExecutionContext.truncated,
+			path: normalized,
+		};
+	} catch (error) {
+		const durationMs = Date.now() - startedAt;
+		return {
+			status: "error",
+			durationMs,
+			error: safeSerialize(error instanceof Error ? error.message : error),
+			stack: error instanceof Error ? error.stack : undefined,
+			logs,
+			truncatedLogs: currentExecutionContext.truncated,
+			path: normalized,
+		};
+	} finally {
+		currentExecutionContext = null;
+	}
 };
 
 const fetchWithTimeout = async (input, init, timeoutMs) => {
@@ -298,26 +422,21 @@ const fetchWithTimeout = async (input, init, timeoutMs) => {
 };
 
 const resolveResponseType = (contentType, requestedType) => {
-	if (requestedType !== "auto") {
-		return requestedType;
-	}
+	if (requestedType !== "auto") return requestedType;
 	const normalized = String(contentType || "").toLowerCase();
-	if (normalized.includes("application/json")) {
-		return "json";
-	}
-	if (normalized.includes("text/html")) {
-		return "html";
-	}
+	if (normalized.includes("application/json")) return "json";
+	if (normalized.includes("text/html")) return "html";
 	return "text";
 };
 
-const resetRuntime = () => {
+const resetRuntime = async () => {
 	repls.clear();
-	files.clear();
-	directories.clear();
-	directories.add("/");
+	container = await createContainerInstance();
+	mountedDocumentFiles.clear();
+	mountedDocumentDirectories.clear();
+	materializedMountedFiles.clear();
+	documentsMountLoaded = false;
 	installedPackages.clear();
-	packageCache.clear();
 	servers.clear();
 	runtimeLogs.length = 0;
 	pushRuntimeLog("info", "Sandbox runtime reset");
@@ -325,46 +444,44 @@ const resetRuntime = () => {
 
 const handleOperation = async (request) => {
 	const payload = request.payload;
+	const c = await ensureContainer();
 
 	switch (request.operation) {
 		case "health":
 			return { ready: true, initializedAt };
 		case "runtime.executeCode":
-			return executeCode(
-				payload.code,
-				payload.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-				payload.maxLogEntries ?? DEFAULT_MAX_LOG_ENTRIES,
-				payload.filename,
-			);
+			return executeCode(payload.code, payload.timeoutMs ?? DEFAULT_TIMEOUT_MS, payload.maxLogEntries ?? DEFAULT_MAX_LOG_ENTRIES, payload.filename);
 		case "runtime.runFile":
-			return runFile(
-				payload.path,
-				payload.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-				payload.maxLogEntries ?? DEFAULT_MAX_LOG_ENTRIES,
-			);
+			return runFile(payload.path, payload.timeoutMs ?? DEFAULT_TIMEOUT_MS, payload.maxLogEntries ?? DEFAULT_MAX_LOG_ENTRIES);
 		case "runtime.createRepl": {
 			const replId = crypto.randomUUID();
-			repls.set(replId, []);
+			repls.set(replId, c.createREPL());
 			return { replId };
 		}
 		case "runtime.replEval": {
-			if (!repls.has(payload.replId)) {
-				throw new Error(`REPL not found: ${payload.replId}`);
+			const repl = repls.get(payload.replId);
+			if (!repl) throw new Error(`REPL not found: ${payload.replId}`);
+			const startedAt = Date.now();
+			const { timedOut, value } = await withTimeout(Promise.resolve(repl.eval(String(payload.code))), payload.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+			if (timedOut) {
+				return {
+					status: "timeout",
+					durationMs: Date.now() - startedAt,
+					logs: [],
+					truncatedLogs: 0,
+				};
 			}
-			return executeCode(
-				payload.code,
-				payload.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-				DEFAULT_MAX_LOG_ENTRIES,
-			);
+			return {
+				status: "ok",
+				durationMs: Date.now() - startedAt,
+				result: safeSerialize(value),
+				logs: [],
+				truncatedLogs: 0,
+			};
 		}
 		case "runtime.getLogs": {
-			const limit = Math.max(
-				1,
-				Math.min(payload?.limit ?? 100, MAX_RUNTIME_LOG_ENTRIES),
-			);
-			const filtered = payload?.level
-				? runtimeLogs.filter((entry) => entry.level === payload.level)
-				: runtimeLogs;
+			const limit = Math.max(1, Math.min(payload?.limit ?? 100, MAX_RUNTIME_LOG_ENTRIES));
+			const filtered = payload?.level ? runtimeLogs.filter((entry) => entry.level === payload.level) : runtimeLogs;
 			return { logs: filtered.slice(-limit) };
 		}
 		case "runtime.clearLogs":
@@ -372,101 +489,133 @@ const handleOperation = async (request) => {
 			return { cleared: true };
 		case "network.fetch": {
 			const timeoutMs = payload.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+			const url = normalizeClientUrl(payload.url);
 			const response = await fetchWithTimeout(
-				payload.url,
-				{
-					method: payload.method ?? "GET",
-					headers: payload.headers,
-					body: payload.body,
-				},
+				url,
+				{ method: payload.method ?? "GET", headers: payload.headers, body: payload.body },
 				timeoutMs,
 			);
 			const contentType = response.headers.get("content-type") ?? "";
-			const responseType = resolveResponseType(
-				contentType,
-				payload.responseType ?? "auto",
-			);
+			const responseType = resolveResponseType(contentType, payload.responseType ?? "auto");
 			const text = await response.text();
-			const body =
-				responseType === "json"
-					? JSON.stringify(JSON.parse(text), null, 2)
-					: text;
-			return {
-				url: payload.url,
-				status: response.status,
-				ok: response.ok,
-				contentType,
-				responseType,
-				body,
-			};
+			const body = responseType === "json" ? JSON.stringify(JSON.parse(text), null, 2) : text;
+			return { url, status: response.status, ok: response.ok, contentType, responseType, body };
 		}
-		case "fs.writeFile":
-			ensureDir(dirname(payload.path));
-			files.set(payload.path, payload.content);
-			return { path: payload.path };
-		case "fs.readFile":
-			if (!files.has(payload.path)) {
-				throw new Error(`File not found: ${payload.path}`);
+		case "fs.writeFile": {
+			const p = normalizePath(payload.path);
+			if (isDocumentsPath(p)) throw new Error(`Path is read-only: ${p}`);
+			c.vfs.writeFileSync(p, payload.content);
+			return { path: p };
+		}
+		case "fs.readFile": {
+			const p = normalizePath(payload.path);
+			if (mountedDocumentFiles.has(p)) {
+				if (!materializedMountedFiles.has(p)) {
+					throw new Error(`Mounted file is not materialized in sandbox runtime: ${p}`);
+				}
+				return { path: p, content: materializedMountedFiles.get(p) || "" };
 			}
-			return { path: payload.path, content: files.get(payload.path) || "" };
-		case "fs.mkdir":
-			ensureDir(payload.path);
-			return { path: payload.path };
-		case "fs.readdir":
-			if (!directories.has(payload.path)) {
-				throw new Error(`Directory not found: ${payload.path}`);
+			if (isDocumentsPath(p)) {
+				assertDocumentsMountLoaded();
 			}
-			return { path: payload.path, entries: listDir(payload.path) };
-		case "fs.unlink":
-			files.delete(payload.path);
-			directories.delete(payload.path);
-			return { path: payload.path };
+			if (!c.vfs.existsSync(p)) throw new Error(`File not found: ${p}`);
+			return { path: p, content: c.vfs.readFileSync(p, "utf8") };
+		}
+		case "fs.mkdir": {
+			const p = normalizePath(payload.path);
+			if (isDocumentsPath(p)) throw new Error(`Path is read-only: ${p}`);
+			c.vfs.mkdirSync(p, { recursive: payload.recursive !== false });
+			return { path: p };
+		}
+		case "fs.readdir": {
+			const p = normalizePath(payload.path);
+			if (isDocumentsPath(p)) {
+				assertDocumentsMountLoaded();
+				if (!mountedDocumentDirectories.has(p)) throw new Error(`Directory not found: ${p}`);
+				return { path: p, entries: listMountedDir(p) };
+			}
+			return { path: p, entries: c.vfs.readdirSync(p) };
+		}
+		case "fs.unlink": {
+			const p = normalizePath(payload.path);
+			if (isDocumentsPath(p)) throw new Error(`Path is read-only: ${p}`);
+			c.vfs.unlinkSync(p);
+			return { path: p };
+		}
 		case "fs.rename": {
-			const content = files.get(payload.oldPath);
-			if (content === undefined) {
-				throw new Error(`File not found: ${payload.oldPath}`);
+			const oldPath = normalizePath(payload.oldPath);
+			const newPath = normalizePath(payload.newPath);
+			if (isDocumentsPath(oldPath) || isDocumentsPath(newPath)) {
+				throw new Error(`Mounted documents path is read-only: ${oldPath} -> ${newPath}`);
 			}
-			files.delete(payload.oldPath);
-			ensureDir(dirname(payload.newPath));
-			files.set(payload.newPath, content);
-			return { oldPath: payload.oldPath, newPath: payload.newPath };
+			c.vfs.renameSync(oldPath, newPath);
+			return { oldPath, newPath };
 		}
-		case "fs.exists":
+		case "fs.exists": {
+			const p = normalizePath(payload.path);
+			if (isDocumentsPath(p) && !documentsMountLoaded) {
+				return { path: p, exists: false };
+			}
 			return {
-				path: payload.path,
-				exists: files.has(payload.path) || directories.has(payload.path),
+				path: p,
+				exists: c.vfs.existsSync(p) || mountedDocumentFiles.has(p) || mountedDocumentDirectories.has(p),
 			};
+		}
+		case "fs.mountDocuments": {
+			mountedDocumentFiles.clear();
+			mountedDocumentDirectories.clear();
+			mountedDocumentDirectories.add(DOCUMENTS_MOUNT_ROOT);
+			materializedMountedFiles.clear();
+			documentsMountLoaded = true;
+
+			for (const dirPath of payload.directories ?? []) {
+				const p = normalizePath(dirPath);
+				if (isDocumentsPath(p)) mountedDocumentDirectories.add(p);
+			}
+			for (const filePath of payload.files ?? []) {
+				const p = normalizePath(filePath);
+				if (!isDocumentsPath(p)) continue;
+				mountedDocumentFiles.add(p);
+				mountedDocumentDirectories.add(dirname(p));
+			}
+			return {
+				mounted: true,
+				directoryCount: mountedDocumentDirectories.size,
+				fileCount: mountedDocumentFiles.size,
+			};
+		}
+		case "fs.materializeDocumentFile": {
+			const p = normalizePath(payload.path);
+			if (!mountedDocumentFiles.has(p)) throw new Error(`Mounted file not found: ${p}`);
+			materializedMountedFiles.set(p, payload.content);
+			return { path: p, materialized: true };
+		}
 		case "npm.install": {
-			const pkgName = parsePackageName(payload.packageSpec);
-			try {
-				await loadPackageFromCDN(payload.packageSpec);
-				installedPackages.set(pkgName, "latest");
-			} catch (err) {
-				installedPackages.set(pkgName, "latest");
-				pushRuntimeLog(
-					"warn",
-					`Package '${pkgName}' registered but CDN load failed: ${err.message}`,
-				);
+			const installed = await c.npm.install(payload.packageSpec, { save: payload.save, saveDev: payload.saveDev });
+			if (installed && typeof installed === "object") {
+				for (const [name, version] of Object.entries(installed)) {
+					installedPackages.set(name, String(version));
+				}
 			}
-			return {
-				success: true,
-				installed: Object.fromEntries(installedPackages.entries()),
-			};
+			return { success: true, installed };
 		}
-		case "npm.installFromPackageJson":
-			return {
-				success: true,
-				installed: Object.fromEntries(installedPackages.entries()),
-			};
-		case "npm.list":
-			return { packages: Object.fromEntries(installedPackages.entries()) };
+		case "npm.installFromPackageJson": {
+			const installed = await c.npm.installFromPackageJson({ save: payload.save, saveDev: payload.saveDev });
+			if (installed && typeof installed === "object") {
+				for (const [name, version] of Object.entries(installed)) {
+					installedPackages.set(name, String(version));
+				}
+			}
+			return { success: true, installed };
+		}
+		case "npm.list": {
+			const list = typeof c.npm.listInstalled === "function" ? await c.npm.listInstalled() : Object.fromEntries(installedPackages);
+			return { packages: list };
+		}
 		case "server.start": {
-			const url = `http://${payload.hostname || "127.0.0.1"}:${payload.port}`;
-			servers.set(payload.port, {
-				kind: payload.kind,
-				port: payload.port,
-				url,
-			});
+			const bindHostname = payload.hostname || "127.0.0.1";
+			const url = `http://${normalizeClientHostname(bindHostname)}:${payload.port}`;
+			servers.set(payload.port, { kind: payload.kind, port: payload.port, url });
 			return { kind: payload.kind, port: payload.port, url };
 		}
 		case "server.stop":
@@ -474,41 +623,21 @@ const handleOperation = async (request) => {
 			return { port: payload.port };
 		case "server.list":
 			return { servers: Array.from(servers.values()) };
-		case "snapshot.get":
+		case "snapshot.get": {
+			const snapshot = typeof c.vfs.toSnapshot === "function" ? c.vfs.toSnapshot() : { files: [] };
 			return {
 				snapshot: {
-					files: Array.from(files.entries()),
-					directories: Array.from(directories.values()),
-					installedPackages: Array.from(installedPackages.entries()),
+					...snapshot,
 					servers: Array.from(servers.values()),
+					installedPackages: Object.fromEntries(installedPackages),
 				},
 			};
+		}
 		case "snapshot.restore":
-			resetRuntime();
-			if (payload?.snapshot?.files && Array.isArray(payload.snapshot.files)) {
-				for (const [path, content] of payload.snapshot.files) {
-					files.set(path, content);
-				}
-			}
-			if (
-				payload?.snapshot?.directories &&
-				Array.isArray(payload.snapshot.directories)
-			) {
-				for (const dirPath of payload.snapshot.directories) {
-					directories.add(dirPath);
-				}
-			}
-			if (
-				payload?.snapshot?.installedPackages &&
-				Array.isArray(payload.snapshot.installedPackages)
-			) {
-				for (const [name, version] of payload.snapshot.installedPackages) {
-					installedPackages.set(name, version);
-				}
-			}
+			await resetRuntime();
 			return { restored: true };
 		case "runtime.reset":
-			resetRuntime();
+			await resetRuntime();
 			return { reset: true };
 		default:
 			throw new Error(`Unsupported sandbox operation: ${request.operation}`);
@@ -528,31 +657,25 @@ const isSandboxRequest = (value) => {
 };
 
 const sendSuccess = (request, result) => {
-	parent.postMessage(
-		{
-			channel: SANDBOX_CHANNEL,
-			direction: "response",
-			requestId: request.requestId,
-			operation: request.operation,
-			ok: true,
-			result,
-		},
-		"*",
-	);
+	parent.postMessage({
+		channel: SANDBOX_CHANNEL,
+		direction: "response",
+		requestId: request.requestId,
+		operation: request.operation,
+		ok: true,
+		result,
+	}, "*");
 };
 
 const sendError = (request, error) => {
-	parent.postMessage(
-		{
-			channel: SANDBOX_CHANNEL,
-			direction: "response",
-			requestId: request.requestId,
-			operation: request.operation,
-			ok: false,
-			error: toError(error),
-		},
-		"*",
-	);
+	parent.postMessage({
+		channel: SANDBOX_CHANNEL,
+		direction: "response",
+		requestId: request.requestId,
+		operation: request.operation,
+		ok: false,
+		error: toError(error),
+	}, "*");
 };
 
 window.addEventListener("message", (event) => {

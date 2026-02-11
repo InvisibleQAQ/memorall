@@ -14,6 +14,12 @@ import type {
 import { BACKGROUND_EVENTS } from "@/constants/events";
 
 const DOCUMENTS_ROOT = "/home/documents";
+const SANDBOX_DOCUMENTS_ROOT = "/documents";
+
+export interface SandboxDocumentsMountSnapshot {
+	directories: string[];
+	files: string[];
+}
 
 export class DocumentFileSystem {
 	private static instance: DocumentFileSystem;
@@ -537,7 +543,7 @@ export class DocumentFileSystem {
 		// If fileId doesn't start with /, it might be an old random ID
 		// In that case, scan to find the file
 		if (!fileId.startsWith("/")) {
-			const files = await this.scanFiles("/");
+			const files = await this.scanFiles();
 			const file = files.find((f) => f.id === fileId);
 
 			if (!file) {
@@ -567,7 +573,7 @@ export class DocumentFileSystem {
 		// If fileId doesn't start with /, it might be an old random ID
 		// In that case, scan to find the file
 		if (!fileId.startsWith("/")) {
-			const files = await this.scanFiles("/");
+			const files = await this.scanFiles();
 			const file = files.find((f) => f.id === fileId);
 
 			if (!file) {
@@ -705,7 +711,7 @@ export class DocumentFileSystem {
 	/**
 	 * Scan all files (helper for getFileContent)
 	 */
-	private async scanFiles(path: string): Promise<DocumentFile[]> {
+	private async scanFiles(): Promise<DocumentFile[]> {
 		const files: DocumentFile[] = [];
 		const tree = await this.getTree();
 
@@ -728,7 +734,7 @@ export class DocumentFileSystem {
 	 * Delete a file
 	 */
 	async deleteFile(fileId: string): Promise<void> {
-		const files = await this.scanFiles("/");
+		const files = await this.scanFiles();
 		const file = files.find((f) => f.id === fileId);
 
 		if (!file) {
@@ -763,7 +769,7 @@ export class DocumentFileSystem {
 	async renameFile(fileId: string, newName: string): Promise<DocumentFile> {
 		await this.initialize();
 
-		const files = await this.scanFiles("/");
+		const files = await this.scanFiles();
 		const file = files.find((f) => f.id === fileId);
 
 		if (!file) {
@@ -930,6 +936,70 @@ export class DocumentFileSystem {
 	 */
 	private normalizePath(path: string): string {
 		return path.replace(/\/+$/, "") || "/";
+	}
+
+	/**
+	 * Build a read-only document mount snapshot for the sandbox runtime.
+	 * Paths are projected from document logical paths ("/...") to "/documents/...".
+	 */
+	async getSandboxMountSnapshot(): Promise<SandboxDocumentsMountSnapshot> {
+		await this.initialize();
+
+		const directories = new Set<string>([SANDBOX_DOCUMENTS_ROOT]);
+		const files = new Set<string>();
+		const tree = await this.getTree();
+
+		const toSandboxPath = (logicalPath: string): string | null => {
+			if (!logicalPath.startsWith("/")) return null;
+			const segments = logicalPath
+				.replace(/\\/g, "/")
+				.split("/")
+				.filter(Boolean);
+
+			// Block path traversal/special segments from being projected into sandbox.
+			for (const segment of segments) {
+				if (segment === "." || segment === ".." || segment.includes("\0")) {
+					return null;
+				}
+			}
+
+			if (segments.length === 0) return SANDBOX_DOCUMENTS_ROOT;
+			return `${SANDBOX_DOCUMENTS_ROOT}/${segments.join("/")}`;
+		};
+
+		const ensureParentDirectories = (fullPath: string): void => {
+			const segments = fullPath.split("/").filter(Boolean);
+			let current = "";
+			for (let i = 0; i < segments.length - 1; i++) {
+				current += `/${segments[i]}`;
+				directories.add(current);
+			}
+		};
+
+		const walk = (nodes: DocumentTreeNode[]): void => {
+			for (const node of nodes) {
+				const sandboxPath = toSandboxPath(node.path);
+				if (!sandboxPath) continue;
+
+				if (node.type === "folder") {
+					directories.add(sandboxPath);
+				} else if (node.type === "file") {
+					files.add(sandboxPath);
+					ensureParentDirectories(sandboxPath);
+				}
+
+				if (node.children?.length) {
+					walk(node.children);
+				}
+			}
+		};
+
+		walk(tree);
+
+		return {
+			directories: Array.from(directories).sort(),
+			files: Array.from(files).sort(),
+		};
 	}
 
 	/**

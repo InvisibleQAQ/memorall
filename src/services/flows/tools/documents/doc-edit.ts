@@ -6,6 +6,7 @@ import type {
 } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import type { DocumentTreeNode, DocumentType } from "@/types/document-library";
+import { normalizeDocumentPath } from "./util";
 
 const TOOL_NAME = "doc_edit" as const;
 
@@ -46,6 +47,7 @@ export const createDocEditTool: ToolFactory<Input, Services> = (
 	schema,
 	execute: async (input) => {
 		const { file_path, old_string, new_string, replace_all = false } = input;
+		const filePath = normalizeDocumentPath(file_path);
 
 		const dfs = services.documentFileSystem;
 		if (!dfs) {
@@ -53,23 +55,21 @@ export const createDocEditTool: ToolFactory<Input, Services> = (
 		}
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);
-		const node = allNodes.find(
-			(n) => n.path === file_path && n.type === "file",
-		);
+		const node = allNodes.find((n) => n.path === filePath && n.type === "file");
 
 		if (!node || !node.file) {
-			return `Error: File not found: ${file_path}`;
+			return `Error: File not found: ${filePath}`;
 		}
 
 		if (!isTextFile(node.file.type)) {
 			return `Error: Cannot edit binary file (${node.file.type}): ${file_path}. Only text, markdown, and other text-based files can be edited.`;
 		}
 
-		const content = await dfs.getFileContent(file_path);
+		const content = await dfs.getFileContent(filePath);
 		const text = new TextDecoder().decode(content);
 
 		if (!text.includes(old_string)) {
-			return `Error: old_string not found in ${file_path}`;
+			return `Error: old_string not found in ${filePath}`;
 		}
 
 		let newText: string;
@@ -85,9 +85,9 @@ export const createDocEditTool: ToolFactory<Input, Services> = (
 		}
 
 		const encoded = new TextEncoder().encode(newText);
-		await dfs.updateFileContent(file_path, encoded);
+		await dfs.updateFileContent(filePath, encoded);
 
-		return `Edited ${file_path}: ${count} replacement${count !== 1 ? "s" : ""} made`;
+		return `Edited ${filePath}: ${count} replacement${count !== 1 ? "s" : ""} made`;
 	},
 });
 

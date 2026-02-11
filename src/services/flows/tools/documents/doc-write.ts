@@ -6,6 +6,7 @@ import type {
 } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import type { DocumentTreeNode } from "@/types/document-library";
+import { normalizeDocumentPath } from "./util";
 
 const TOOL_NAME = "doc_write" as const;
 
@@ -41,6 +42,7 @@ export const createDocWriteTool: ToolFactory<Input, Services> = (
 	schema,
 	execute: async (input) => {
 		const { file_path, content, create_folders = true } = input;
+		const filePath = normalizeDocumentPath(file_path);
 
 		const dfs = services.documentFileSystem;
 		if (!dfs) {
@@ -49,10 +51,10 @@ export const createDocWriteTool: ToolFactory<Input, Services> = (
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);
 		const existingNode = allNodes.find(
-			(n) => n.path === file_path && n.type === "file",
+			(n) => n.path === filePath && n.type === "file",
 		);
 
-		const lowerPath = file_path.toLowerCase();
+		const lowerPath = filePath.toLowerCase();
 		const isPdfPath = lowerPath.endsWith(".pdf");
 		const isExcelPath =
 			lowerPath.endsWith(".xls") ||
@@ -66,8 +68,8 @@ export const createDocWriteTool: ToolFactory<Input, Services> = (
 			}
 			// Update existing file
 			const encoded = new TextEncoder().encode(content);
-			await dfs.updateFileContent(file_path, encoded);
-			return `Updated file: ${file_path} (${content.length} characters)`;
+			await dfs.updateFileContent(filePath, encoded);
+			return `Updated file: ${filePath} (${content.length} characters)`;
 		}
 
 		if (isPdfPath || isExcelPath) {
@@ -75,9 +77,9 @@ export const createDocWriteTool: ToolFactory<Input, Services> = (
 		}
 
 		// Create new file
-		const lastSlash = file_path.lastIndexOf("/");
-		const parentPath = lastSlash > 0 ? file_path.substring(0, lastSlash) : "/";
-		const fileName = file_path.substring(lastSlash + 1);
+		const lastSlash = filePath.lastIndexOf("/");
+		const parentPath = lastSlash > 0 ? filePath.substring(0, lastSlash) : "/";
+		const fileName = filePath.substring(lastSlash + 1);
 
 		if (!fileName) {
 			return "Error: Invalid file path - no filename provided";
@@ -103,7 +105,7 @@ export const createDocWriteTool: ToolFactory<Input, Services> = (
 		const file = new File([content], fileName, { type: "text/plain" });
 		await dfs.uploadFile(file, parentPath);
 
-		return `Created file: ${file_path} (${content.length} characters)`;
+		return `Created file: ${filePath} (${content.length} characters)`;
 	},
 });
 

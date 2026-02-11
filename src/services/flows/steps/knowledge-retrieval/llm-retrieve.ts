@@ -58,10 +58,7 @@ export interface LLMRetrieveOutput {
 	errors?: string[];
 }
 
-export type LLMRetrieveServices = Pick<
-	AllServices,
-	"database" | "embedding"
->;
+export type LLMRetrieveServices = Pick<AllServices, "database" | "embedding">;
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -455,9 +452,9 @@ const definition = defineStep<
 
 type LLMRetrieveSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createStep: StepFactoryFromSpec<
-	LLMRetrieveSpec
-> = (services: LLMRetrieveServices) => bindStep(definition, services);
+export const createStep: StepFactoryFromSpec<LLMRetrieveSpec> = (
+	services: LLMRetrieveServices,
+) => bindStep(definition, services);
 
 stepRegistry.register(STEP_NAME, createStep);
 

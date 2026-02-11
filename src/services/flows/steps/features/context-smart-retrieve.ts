@@ -24,7 +24,11 @@ import type {
 } from "../knowledge-retrieval/smart-retrieve";
 import type { EntitiesFactsToContextOutput } from "../knowledge-retrieval/entities-facts-to-context";
 import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
-import type { ContextToSystemConfig, ContextToSystemInput, ContextToSystemOutput } from "../knowledge-retrieval/context-to-system";
+import type {
+	ContextToSystemConfig,
+	ContextToSystemInput,
+	ContextToSystemOutput,
+} from "../knowledge-retrieval/context-to-system";
 
 const STEP_NAME = "context-smart-retrieve" as const;
 
@@ -32,15 +36,19 @@ const STEP_NAME = "context-smart-retrieve" as const;
 // STEP-SPECIFIC TYPES
 // ============================================================================
 
-export interface ContextSmartRetrieveInput extends SmartRetrieveInput, ContextToSystemInput {
+export interface ContextSmartRetrieveInput
+	extends SmartRetrieveInput,
+		ContextToSystemInput {}
+
+export interface ContextSmartRetrieveOutput
+	extends SmartRetrieveOutput,
+		ContextToSystemOutput {
+	context: string;
 }
 
-export interface ContextSmartRetrieveOutput extends SmartRetrieveOutput, ContextToSystemOutput {
-	context: string
-}
-
-export interface ContextSmartRetrieveConfig extends SmartRetrievalConfig, ContextToSystemConfig {
-}
+export interface ContextSmartRetrieveConfig
+	extends SmartRetrievalConfig,
+		ContextToSystemConfig {}
 
 export type ContextSmartRetrieveServices = SmartRetrieveServices;
 
@@ -110,19 +118,18 @@ const definition = defineStep<
 				`[CONTEXT_SMART_RETRIEVE] Complete: ${relevantNodes.length} nodes, ${relevantEdges.length} edges`,
 			);
 
-			const contextToSystem = stepRegistry.getStepByName<ContextToSystemInput, ContextToSystemOutput>(
-				"context-to-system",
-				services,
-				{},
-			)
+			const contextToSystem = stepRegistry.getStepByName<
+				ContextToSystemInput,
+				ContextToSystemOutput
+			>("context-to-system", services, {});
 
-			const contextToSystemResult = (await contextToSystem.execute(
+			const contextToSystemResult = await contextToSystem.execute(
 				{
 					context,
 					messages: input.messages,
 				},
 				runConfig,
-			));
+			);
 
 			return {
 				output: {
@@ -131,7 +138,7 @@ const definition = defineStep<
 					relevantEdges,
 					nodeCount: relevantNodes.length,
 					edgeCount: relevantEdges.length,
-					messages: contextToSystemResult.output.messages
+					messages: contextToSystemResult.output.messages,
 				},
 			};
 		} catch (error) {

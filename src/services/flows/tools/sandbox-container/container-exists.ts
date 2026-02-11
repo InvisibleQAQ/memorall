@@ -6,7 +6,10 @@ import { sandboxContainerService } from "@/services/sandbox-container";
 const TOOL_NAME = "container_exists" as const;
 
 const schema = z.object({
-	path: z.string().min(1).describe("Absolute virtual path to check."),
+	path: z
+		.string()
+		.min(1)
+		.describe("Virtual path to check (absolute or relative)."),
 });
 
 type Input = z.infer<typeof schema>;

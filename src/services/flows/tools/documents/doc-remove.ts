@@ -6,6 +6,7 @@ import type {
 } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import type { DocumentTreeNode } from "@/types/document-library";
+import { normalizeDocumentPath } from "./util";
 
 const TOOL_NAME = "doc_remove" as const;
 
@@ -36,6 +37,7 @@ export const createDocRemoveTool: ToolFactory<Input, Services> = (
 	schema,
 	execute: async (input) => {
 		const { path } = input;
+		const filePath = normalizeDocumentPath(path);
 
 		const dfs = services.documentFileSystem;
 		if (!dfs) {
@@ -43,19 +45,19 @@ export const createDocRemoveTool: ToolFactory<Input, Services> = (
 		}
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);
-		const node = allNodes.find((n) => n.path === path);
+		const node = allNodes.find((n) => n.path === filePath);
 
 		if (!node) {
-			return `Error: Path not found: ${path}`;
+			return `Error: Path not found: ${filePath}`;
 		}
 
 		if (node.type === "file") {
 			await dfs.deleteFile(node.path);
-			return `Deleted file: ${path}`;
+			return `Deleted file: ${filePath}`;
 		}
 
 		await dfs.deleteFolder(node.path);
-		return `Deleted folder: ${path}`;
+		return `Deleted folder: ${filePath}`;
 	},
 });
 

@@ -32,7 +32,8 @@ export class KnowledgeRAGFlow extends GraphBase<
 		const featureFlags = config.featureFlags ?? {};
 
 		// Prompt construct
-		const agentPrompt = config.systemPrompt?.trim() || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT;
+		const agentPrompt =
+			config.systemPrompt?.trim() || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT;
 
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
 
@@ -42,13 +43,21 @@ export class KnowledgeRAGFlow extends GraphBase<
 		for (const catalogStep of catalogFeatures) {
 			if (!featureFlags[catalogStep.name]) continue;
 			if (!stepRegistry.hasStep(catalogStep.name)) {
-				logWarn(`[KNOWLEDGE_RAG] Feature step "${catalogStep.name}" not found in registry, skipping`);
+				logWarn(
+					`[KNOWLEDGE_RAG] Feature step "${catalogStep.name}" not found in registry, skipping`,
+				);
 				continue;
 			}
 
 			const featureStep = stepRegistry.getStepByName<
-				{ messages: KnowledgeRAGState["messages"]; tools: KnowledgeRAGState["tools"] },
-				{ messages?: KnowledgeRAGState["messages"]; tools?: KnowledgeRAGState["tools"] }
+				{
+					messages: KnowledgeRAGState["messages"];
+					tools: KnowledgeRAGState["tools"];
+				},
+				{
+					messages?: KnowledgeRAGState["messages"];
+					tools?: KnowledgeRAGState["tools"];
+				}
 			>(catalogStep.name);
 			const nodeName = `feature_${catalogStep.name}`;
 			this.workflow.addNode(
@@ -207,9 +216,15 @@ export class KnowledgeRAGFlow extends GraphBase<
 		if (enabledFeatureNodes.length > 0) {
 			this.workflow.addEdge(preCompletionNode, enabledFeatureNodes[0]);
 			for (let i = 0; i < enabledFeatureNodes.length - 1; i++) {
-				this.workflow.addEdge(enabledFeatureNodes[i], enabledFeatureNodes[i + 1]);
+				this.workflow.addEdge(
+					enabledFeatureNodes[i],
+					enabledFeatureNodes[i + 1],
+				);
 			}
-			this.workflow.addEdge(enabledFeatureNodes[enabledFeatureNodes.length - 1], "completion");
+			this.workflow.addEdge(
+				enabledFeatureNodes[enabledFeatureNodes.length - 1],
+				"completion",
+			);
 		} else {
 			this.workflow.addEdge(preCompletionNode, "completion");
 		}
@@ -223,7 +238,9 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		this.compile();
 
-		const enabledFeatures = enabledFeatureNodes.map((n) => n.replace("feature_", ""));
+		const enabledFeatures = enabledFeatureNodes.map((n) =>
+			n.replace("feature_", ""),
+		);
 		logInfo(
 			`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}, responseMode: ${this.responseMode}, contextRetrieval: ${enableContextRetrieval}, citations: ${enableCitations}, tools: ${config.tools}, features: [${enabledFeatures.join(", ")}]`,
 		);

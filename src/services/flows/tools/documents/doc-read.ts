@@ -11,6 +11,7 @@ import {
 	parseExcelFile,
 	workbookToMarkdown,
 } from "@/main/modules/documents/handlers/excel-extraction";
+import { normalizeDocumentPath } from "./util";
 
 const TOOL_NAME = "doc_read" as const;
 
@@ -81,7 +82,8 @@ export const createDocReadTool: ToolFactory<Input, Services> = (
 		"Read document file content with line numbers. Returns cat -n style output with a header showing total lines and range. Supports text/markdown/other and best-effort text extraction for PDF/Excel.",
 	schema,
 	execute: async (input) => {
-		const { file_path, offset = 1, limit } = input;
+		const { offset = 1, limit } = input;
+		const filePath = normalizeDocumentPath(input.file_path);
 
 		const dfs = services.documentFileSystem;
 		if (!dfs) {
@@ -89,19 +91,17 @@ export const createDocReadTool: ToolFactory<Input, Services> = (
 		}
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);
-		const node = allNodes.find(
-			(n) => n.path === file_path && n.type === "file",
-		);
+		const node = allNodes.find((n) => n.path === filePath && n.type === "file");
 
 		if (!node || !node.file) {
-			return `Error: File not found: ${file_path}`;
+			return `Error: File not found: ${input.file_path}`;
 		}
 
-		const content = await dfs.getFileContent(file_path);
+		const content = await dfs.getFileContent(filePath);
 		const text = await extractReadableText(node.file.type, content);
 
 		if (!text) {
-			return `Error: Cannot read binary file (${node.file.type}): ${file_path}. Only text, markdown, excel, and pdf files can be read.`;
+			return `Error: Cannot read binary file (${node.file.type}): ${input.file_path}. Only text, markdown, excel, and pdf files can be read.`;
 		}
 		const allLines = text.split("\n");
 		const totalLines = allLines.length;
@@ -123,7 +123,7 @@ export const createDocReadTool: ToolFactory<Input, Services> = (
 				? ` (showing lines ${startIdx + 1}-${endIdx})`
 				: "";
 
-		return `File: ${file_path} (${totalLines} lines)${rangeInfo}\n${numberedLines.join("\n")}`;
+		return `File: ${filePath} (${totalLines} lines)${rangeInfo}\n${numberedLines.join("\n")}`;
 	},
 });
 

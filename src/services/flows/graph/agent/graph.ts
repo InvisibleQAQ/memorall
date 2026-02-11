@@ -1,17 +1,18 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
 import { AgentAnnotation, type AgentState } from "./state";
-import { GraphBase, type CombinedTool, type ToolName } from "@/services/flows/graph/graph.base";
+import {
+	GraphBase,
+	type CombinedTool,
+	type ToolName,
+} from "@/services/flows/graph/graph.base";
 import type { CombinedServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
 
 // Tool names available to the agent
-const DEFAULT_TOOL_NAMES = [
-	"current_time",
-	"js_execute",
-] as const;
+const DEFAULT_TOOL_NAMES = ["current_time", "js_execute"] as const;
 
 // Derive services from tools + graph's own needs (llm for calling the model)
 type AgentServices = CombinedServices<typeof DEFAULT_TOOL_NAMES, "llm">;
@@ -54,7 +55,9 @@ export class AgentGraph extends GraphBase<
 			config.tools || [...DEFAULT_TOOL_NAMES],
 			services,
 		);
-		this.executorMap = new Map(this.combinedTools.map((t) => [t.executor.name, t]));
+		this.executorMap = new Map(
+			this.combinedTools.map((t) => [t.executor.name, t]),
+		);
 
 		this.workflow = new StateGraph(AgentAnnotation);
 
@@ -74,7 +77,9 @@ export class AgentGraph extends GraphBase<
 	/**
 	 * Route after agent node: go to tools if there are tool calls, otherwise end
 	 */
-	private routeAfterAgent = (state: AgentState): "tool_executor" | typeof END => {
+	private routeAfterAgent = (
+		state: AgentState,
+	): "tool_executor" | typeof END => {
 		const lastMessage = this.chat.lastMessage(state.messages);
 
 		// Check for max iterations
@@ -199,7 +204,10 @@ export class AgentGraph extends GraphBase<
 				};
 			}
 
-			const updatedMessages = this.chat.assistantMessage(messages, content || null);
+			const updatedMessages = this.chat.assistantMessage(
+				messages,
+				content || null,
+			);
 
 			return {
 				messages: updatedMessages,
@@ -236,10 +244,7 @@ export class AgentGraph extends GraphBase<
 			toolCall: (typeof lastMessage.tool_calls)[number];
 		}> = [];
 
-		logInfo(
-			"[TOOL EXECUTE] Start tool call",
-			lastMessage.tool_calls
-		);
+		logInfo("[TOOL EXECUTE] Start tool call", lastMessage.tool_calls);
 
 		for (const toolCall of lastMessage.tool_calls) {
 			const toolName = toolCall.function.name;
@@ -255,7 +260,11 @@ export class AgentGraph extends GraphBase<
 
 			if (!combined) {
 				const content = `Error: Tool '${toolName}' not found`;
-				updatedMessages = this.chat.toolMessage(updatedMessages, toolCall.id, content);
+				updatedMessages = this.chat.toolMessage(
+					updatedMessages,
+					toolCall.id,
+					content,
+				);
 				toolResults.push({
 					toolName,
 					content,
@@ -270,13 +279,13 @@ export class AgentGraph extends GraphBase<
 				// Validate and execute the tool (services already bound via factory)
 				const validatedArgs = combined.executor.schema.parse(args);
 				const result = await combined.executor.execute(validatedArgs);
-				logInfo(
-					"[TOOL EXECUTE] Tool call result",
-					toolCall,
-					result
-				);
+				logInfo("[TOOL EXECUTE] Tool call result", toolCall, result);
 
-				updatedMessages = this.chat.toolMessage(updatedMessages, toolCall.id, result);
+				updatedMessages = this.chat.toolMessage(
+					updatedMessages,
+					toolCall.id,
+					result,
+				);
 				toolResults.push({
 					toolName,
 					content: result,
@@ -288,7 +297,11 @@ export class AgentGraph extends GraphBase<
 				logError(`[TOOLS] Error executing ${toolName}:`, error);
 
 				const content = `Error: ${errorMessage}`;
-				updatedMessages = this.chat.toolMessage(updatedMessages, toolCall.id, content);
+				updatedMessages = this.chat.toolMessage(
+					updatedMessages,
+					toolCall.id,
+					content,
+				);
 				toolResults.push({
 					toolName,
 					content,

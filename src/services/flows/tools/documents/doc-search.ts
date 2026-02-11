@@ -11,6 +11,7 @@ import {
 	parseExcelFile,
 	workbookToMarkdown,
 } from "@/main/modules/documents/handlers/excel-extraction";
+import { normalizeDocumentPath } from "./util";
 
 const TOOL_NAME = "doc_search" as const;
 
@@ -96,6 +97,11 @@ function formatFileSize(bytes: number): string {
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function isInScope(nodePath: string, scopePath: string): boolean {
+	if (scopePath === "/") return true;
+	return nodePath === scopePath || nodePath.startsWith(`${scopePath}/`);
+}
+
 export const createDocSearchTool: ToolFactory<Input, Services> = (
 	services,
 ): Tool<Input> => ({
@@ -116,12 +122,15 @@ export const createDocSearchTool: ToolFactory<Input, Services> = (
 		if (!dfs) {
 			return "Documents not existe.";
 		}
+		const normalizedPath = normalizeDocumentPath(path);
 
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);
 
 		// Filter by path scope
-		const scopedNodes = allNodes.filter((n) => n.path.startsWith(path));
+		const scopedNodes = allNodes.filter((n) =>
+			isInScope(n.path, normalizedPath),
+		);
 
 		// Filter by file_pattern glob
 		const filePatternRegex = file_pattern ? globToRegex(file_pattern) : null;
@@ -147,7 +156,7 @@ export const createDocSearchTool: ToolFactory<Input, Services> = (
 			}
 
 			if (lines.length === 0) {
-				return `No files found under "${path}"${file_pattern ? ` matching "${file_pattern}"` : ""}`;
+				return `No files found under "${normalizedPath}"${file_pattern ? ` matching "${file_pattern}"` : ""}`;
 			}
 
 			return `${lines.length} items found:\n${lines.join("\n")}`;
@@ -245,7 +254,7 @@ export const createDocSearchTool: ToolFactory<Input, Services> = (
 							", ",
 						)}\n- Path-only matching used for skipped files`
 					: "";
-			return `No matches found for "${pattern}" in searchable content under "${path}"${note}`;
+			return `No matches found for "${pattern}" in searchable content under "${normalizedPath}"${note}`;
 		}
 
 		const notes =

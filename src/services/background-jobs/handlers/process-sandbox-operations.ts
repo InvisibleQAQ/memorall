@@ -57,7 +57,11 @@ export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
 		}
 
 		const { operation } = job.payload;
-		await logger.info("Starting sandbox operation", { jobId, operation }, "offscreen");
+		await logger.info(
+			"Starting sandbox operation",
+			{ jobId, operation },
+			"offscreen",
+		);
 
 		const result = await this.runWithStrongTypes(job.payload);
 
@@ -107,10 +111,20 @@ export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
 				return this.executeOperation("fs.rename", payload.payload);
 			case "fs.exists":
 				return this.executeOperation("fs.exists", payload.payload);
+			case "fs.mountDocuments":
+				return this.executeOperation("fs.mountDocuments", payload.payload);
+			case "fs.materializeDocumentFile":
+				return this.executeOperation(
+					"fs.materializeDocumentFile",
+					payload.payload,
+				);
 			case "npm.install":
 				return this.executeOperation("npm.install", payload.payload);
 			case "npm.installFromPackageJson":
-				return this.executeOperation("npm.installFromPackageJson", payload.payload);
+				return this.executeOperation(
+					"npm.installFromPackageJson",
+					payload.payload,
+				);
 			case "npm.list":
 				return this.executeOperation("npm.list", payload.payload);
 			case "server.start":

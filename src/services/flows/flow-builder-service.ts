@@ -708,7 +708,10 @@ export class FlowBuilderService {
 		await this.databaseService.transaction(async ({ db, schema }) => {
 			for (const featureName of featureNames) {
 				const existing = await db
-					.select({ id: schema.flowSteps.id, metadata: schema.flowSteps.metadata })
+					.select({
+						id: schema.flowSteps.id,
+						metadata: schema.flowSteps.metadata,
+					})
 					.from(schema.flowSteps)
 					.where(
 						and(

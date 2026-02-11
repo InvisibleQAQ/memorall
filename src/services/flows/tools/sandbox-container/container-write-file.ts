@@ -6,7 +6,12 @@ import { sandboxContainerService } from "@/services/sandbox-container";
 const TOOL_NAME = "container_write_file" as const;
 
 const schema = z.object({
-	path: z.string().min(1).describe("Absolute virtual path (e.g. /src/index.ts)."),
+	path: z
+		.string()
+		.min(1)
+		.describe(
+			"Virtual path (absolute or relative, e.g. /src/index.ts or src/index.ts).",
+		),
 	content: z.string().describe("File content to write."),
 });
 
