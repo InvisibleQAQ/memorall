@@ -5,6 +5,7 @@ import { useChatStore } from "@/main/stores/chat";
 import type { ChatStatus } from "@/types/chat";
 import { logError, logInfo } from "@/utils/logger";
 import { serviceManager } from "@/services";
+import { backgroundJob } from "@/services/background-jobs/background-job";
 import type { Message } from "@/services/database";
 
 export interface InProgressMessage {
@@ -94,7 +95,7 @@ export const useChat = (model: string) => {
 		}
 	};
 
-	// Insert a separator message
+	// Insert a separator message and reset sandbox container state
 	const insertSeparator = async () => {
 		if (isLoading) return;
 
@@ -105,6 +106,17 @@ export const useChat = (model: string) => {
 				type: "separator",
 				createdAt: new Date(),
 			});
+
+			// Reset sandbox container runtime in offscreen so the new conversation segment starts clean
+			backgroundJob
+				.execute(
+					"sandbox-operation",
+					{ operation: "runtime.reset" as const, payload: undefined },
+					{ stream: false },
+				)
+				.catch((error) => {
+					logError("Failed to reset sandbox container:", error);
+				});
 		} catch (error) {
 			logError("Failed to insert separator:", error);
 		}

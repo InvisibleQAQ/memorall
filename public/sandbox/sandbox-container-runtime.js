@@ -10,6 +10,7 @@ const repls = new Map();
 const files = new Map();
 const directories = new Set(["/"]);
 const installedPackages = new Map();
+const packageCache = new Map();
 const servers = new Map();
 
 const safeSerialize = (value) => {
@@ -104,6 +105,83 @@ const listDir = (path) => {
 	return Array.from(entries).sort();
 };
 
+const parsePackageName = (spec) => {
+	if (spec.startsWith("@")) {
+		const rest = spec.slice(1);
+		const slashIdx = rest.indexOf("/");
+		if (slashIdx === -1) return spec;
+		const afterSlash = rest.slice(slashIdx + 1);
+		const atIdx = afterSlash.indexOf("@");
+		return atIdx === -1 ? spec : `@${rest.slice(0, slashIdx + 1 + atIdx)}`;
+	}
+	const atIdx = spec.indexOf("@");
+	return atIdx <= 0 ? spec : spec.slice(0, atIdx);
+};
+
+const loadPackageFromCDN = async (packageSpec) => {
+	const name = parsePackageName(packageSpec);
+	if (packageCache.has(name)) return packageCache.get(name);
+
+	const url = `https://cdn.jsdelivr.net/npm/${packageSpec}`;
+	const resp = await fetchWithTimeout(url, {}, DEFAULT_FETCH_TIMEOUT_MS);
+	if (!resp.ok) {
+		throw new Error(`Failed to fetch ${packageSpec} from CDN (${resp.status})`);
+	}
+	const code = await resp.text();
+
+	const mod = { exports: {} };
+	try {
+		const fn = new Function("module", "exports", "require", code);
+		fn(mod, mod.exports, (dep) => {
+			if (packageCache.has(dep)) return packageCache.get(dep);
+			throw new Error(
+				`Nested dependency '${dep}' not installed. Use container_install_package first.`,
+			);
+		});
+	} catch {
+		try {
+			const beforeKeys = new Set(Object.keys(globalThis));
+			new Function(code)();
+			const newKeys = Object.keys(globalThis).filter((k) => !beforeKeys.has(k));
+			if (newKeys.length === 1) {
+				mod.exports = globalThis[newKeys[0]];
+			} else if (newKeys.length > 1) {
+				mod.exports = {};
+				for (const k of newKeys) mod.exports[k] = globalThis[k];
+			}
+		} catch (evalErr) {
+			throw new Error(`Failed to load package '${name}': ${evalErr.message}`);
+		}
+	}
+
+	packageCache.set(name, mod.exports);
+	return mod.exports;
+};
+
+const createRequire = () => (specifier) => {
+	if (packageCache.has(specifier)) return packageCache.get(specifier);
+
+	const possiblePaths = [
+		specifier,
+		`/${specifier}`,
+		`/${specifier}.js`,
+		`/${specifier}/index.js`,
+	];
+	for (const p of possiblePaths) {
+		if (files.has(p)) {
+			const fileCode = files.get(p);
+			const mod = { exports: {} };
+			const fn = new Function("module", "exports", "require", fileCode);
+			fn(mod, mod.exports, createRequire());
+			return mod.exports;
+		}
+	}
+
+	throw new Error(
+		`Cannot find module '${specifier}'. Use container_install_package to install npm packages first.`,
+	);
+};
+
 const executeCode = async (code, timeoutMs, maxLogEntries, filename) => {
 	const startedAt = Date.now();
 	const logs = [];
@@ -160,11 +238,12 @@ const executeCode = async (code, timeoutMs, maxLogEntries, filename) => {
 	try {
 		const runner = new Function(
 			"console",
+			"require",
 			`"use strict"; return (async () => { ${code}\n})();`,
 		);
 
 		const completed = await withTimeout(
-			Promise.resolve(runner(sandboxConsole)),
+			Promise.resolve(runner(sandboxConsole, createRequire())),
 			timeoutMs,
 		);
 		const durationMs = Date.now() - startedAt;
@@ -238,6 +317,7 @@ const resetRuntime = () => {
 	directories.clear();
 	directories.add("/");
 	installedPackages.clear();
+	packageCache.clear();
 	servers.clear();
 	runtimeLogs.length = 0;
 	pushRuntimeLog("info", "Sandbox runtime reset");
@@ -357,7 +437,17 @@ const handleOperation = async (request) => {
 				exists: files.has(payload.path) || directories.has(payload.path),
 			};
 		case "npm.install": {
-			installedPackages.set(payload.packageSpec, "latest");
+			const pkgName = parsePackageName(payload.packageSpec);
+			try {
+				await loadPackageFromCDN(payload.packageSpec);
+				installedPackages.set(pkgName, "latest");
+			} catch (err) {
+				installedPackages.set(pkgName, "latest");
+				pushRuntimeLog(
+					"warn",
+					`Package '${pkgName}' registered but CDN load failed: ${err.message}`,
+				);
+			}
 			return {
 				success: true,
 				installed: Object.fromEntries(installedPackages.entries()),

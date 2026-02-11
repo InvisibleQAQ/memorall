@@ -1,6 +1,6 @@
 import z from "zod";
-import type { Tool, ToolFactory } from "../interfaces/tool";
-import { toolRegistry } from "../tool-registry";
+import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
+import { toolRegistry } from "@/services/flows/tool-registry";
 import { sandboxContainerService } from "@/services/sandbox-container";
 
 const TOOL_NAME = "container_run_code" as const;
@@ -33,13 +33,13 @@ export const createContainerRunCodeTool: ToolFactory<
 > = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Run code in the sandbox container runtime and return structured result with logs.",
+		"Run JavaScript/TypeScript code in the sandbox container. The runtime is browser-based with `console` and `require` available. Use `require()` for installed packages (install via container_install_package first) or virtual filesystem modules. Native Node.js built-in modules (fs, path, http, etc.) are NOT available.",
 	schema,
 	execute: async (input) => {
 		const result = await sandboxContainerService.executeCode({
 			code: input.code,
 			filename: input.filename,
-			timeoutMs: input.timeoutMs ?? 5_000,
+			timeoutMs: input.timeoutMs ?? 60_000,
 			maxLogEntries: input.maxLogEntries ?? 50,
 		});
 		return JSON.stringify(result, null, 2);

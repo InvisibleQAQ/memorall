@@ -54,18 +54,26 @@ export const normalizeChatMessages = (
 	const nonSystem = list.filter((m) => m.role !== "system");
 	const placement = options?.placement ?? "append";
 
+	// Pre-collect all tool messages by tool_call_id so assistant messages
+	// can pull them regardless of ordering in the input array.
 	const toolById = new Map<string, ChatCompletionMessageParam[]>();
 	const orphanTools: ChatCompletionMessageParam[] = [];
 
+	for (const message of nonSystem) {
+		if (message.role === "tool") {
+			const bucket = message.tool_call_id
+				? (toolById.get(message.tool_call_id) ?? [])
+				: orphanTools;
+			bucket.push(message);
+			if (message.tool_call_id) toolById.set(message.tool_call_id, bucket);
+		}
+	}
+
+	// Second pass: order non-tool messages and insert tool results after their assistant
 	const ordered = nonSystem.reduce<ChatCompletionMessageParam[]>(
 		(acc, message) => {
 			if (message.role === "tool") {
-				const bucket = message.tool_call_id
-					? (toolById.get(message.tool_call_id) ?? [])
-					: orphanTools;
-				bucket.push(message);
-				if (message.tool_call_id) toolById.set(message.tool_call_id, bucket);
-				return acc;
+				return acc; // handled via buckets above
 			}
 
 			acc.push(message);
@@ -83,6 +91,7 @@ export const normalizeChatMessages = (
 		[],
 	);
 
+	// Append any remaining tool messages that didn't match an assistant
 	toolById.forEach((bucket) => ordered.push(...bucket));
 	if (orphanTools?.length) {
 		logWarn("[NormalizeChatMessages] orphanTools", orphanTools);

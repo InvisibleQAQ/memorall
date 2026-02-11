@@ -7,12 +7,13 @@ import {
 } from "./state";
 import { GraphBase } from "@/services/flows/graph/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
-import { logInfo } from "@/utils/logger";
+import { logInfo, logWarn } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
 import { stepRegistry } from "@/services/flows/step-registry";
+import { getFeatureCatalogSteps } from "@/services/flows/flow-builder-catalog";
 
 export class KnowledgeRAGFlow extends GraphBase<
-	"context_retrieve" | "completion" | "citation",
+	string,
 	KnowledgeRAGState,
 	AllServices
 > {
@@ -28,11 +29,43 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		const enableContextRetrieval = config.enableContextRetrieval !== false;
 		const enableCitations = config.enableCitations !== false;
+		const featureFlags = config.featureFlags ?? {};
 
 		// Prompt construct
 		const agentPrompt = config.systemPrompt?.trim() || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT;
 
 		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
+
+		// Collect enabled feature step names from catalog
+		const enabledFeatureNodes: string[] = [];
+		const catalogFeatures = getFeatureCatalogSteps();
+		for (const catalogStep of catalogFeatures) {
+			if (!featureFlags[catalogStep.name]) continue;
+			if (!stepRegistry.hasStep(catalogStep.name)) {
+				logWarn(`[KNOWLEDGE_RAG] Feature step "${catalogStep.name}" not found in registry, skipping`);
+				continue;
+			}
+
+			const featureStep = stepRegistry.getStepByName<
+				{ messages: KnowledgeRAGState["messages"]; tools: KnowledgeRAGState["tools"] },
+				{ messages?: KnowledgeRAGState["messages"]; tools?: KnowledgeRAGState["tools"] }
+			>(catalogStep.name);
+			const nodeName = `feature_${catalogStep.name}`;
+			this.workflow.addNode(
+				nodeName,
+				featureStep.toNode<KnowledgeRAGState>({
+					mapInput: (state) => ({
+						messages: state.messages,
+						tools: state.tools,
+					}),
+					mapOutput: (output) => ({
+						...(output.messages ? { messages: output.messages } : {}),
+						...(output.tools ? { tools: output.tools } : {}),
+					}),
+				}),
+			);
+			enabledFeatureNodes.push(nodeName);
+		}
 
 		// Add citation node only if enabled
 		if (enableCitations) {
@@ -105,6 +138,10 @@ export class KnowledgeRAGFlow extends GraphBase<
 			);
 		}
 
+		// Build edge chain: START -> [context_retrieve?] -> [features...] -> completion -> [citation?] -> END
+		// Determine the node before completion (features run after retrieval, before completion)
+		let preCompletionNode: string | typeof START;
+
 		// Add retrieval nodes and edges based on mode
 		if (enableContextRetrieval) {
 			if (this.mode === "smart") {
@@ -161,10 +198,20 @@ export class KnowledgeRAGFlow extends GraphBase<
 				);
 			}
 			this.workflow.addEdge(START, "context_retrieve");
-			this.workflow.addEdge("context_retrieve", "completion");
+			preCompletionNode = "context_retrieve";
 		} else {
-			// Skip context retrieval: START -> completion directly
-			this.workflow.addEdge(START, "completion");
+			preCompletionNode = START;
+		}
+
+		// Chain feature nodes: preCompletionNode -> feature1 -> feature2 -> ... -> completion
+		if (enabledFeatureNodes.length > 0) {
+			this.workflow.addEdge(preCompletionNode, enabledFeatureNodes[0]);
+			for (let i = 0; i < enabledFeatureNodes.length - 1; i++) {
+				this.workflow.addEdge(enabledFeatureNodes[i], enabledFeatureNodes[i + 1]);
+			}
+			this.workflow.addEdge(enabledFeatureNodes[enabledFeatureNodes.length - 1], "completion");
+		} else {
+			this.workflow.addEdge(preCompletionNode, "completion");
 		}
 
 		if (enableCitations) {
@@ -176,8 +223,9 @@ export class KnowledgeRAGFlow extends GraphBase<
 
 		this.compile();
 
+		const enabledFeatures = enabledFeatureNodes.map((n) => n.replace("feature_", ""));
 		logInfo(
-			`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}, responseMode: ${this.responseMode}, contextRetrieval: ${enableContextRetrieval}, citations: ${enableCitations}, tools: ${config.tools}`,
+			`[KNOWLEDGE_RAG] Initialized with mode: ${this.mode}, responseMode: ${this.responseMode}, contextRetrieval: ${enableContextRetrieval}, citations: ${enableCitations}, tools: ${config.tools}, features: [${enabledFeatures.join(", ")}]`,
 		);
 	}
 }
