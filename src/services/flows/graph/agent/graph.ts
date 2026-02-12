@@ -24,6 +24,20 @@ type AgentGraphConfig = {
 
 const AGENT_SYSTEM_PROMPT = `You are an intelligent assistant that can use tools to help answer user questions. Use tools when needed to provide accurate answers.`;
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null;
+
+const parseStructuredActionPayload = (
+	content: string,
+): Record<string, unknown> | null => {
+	try {
+		const parsed = JSON.parse(content);
+		return isObject(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+};
+
 /**
  * Simple Agent Graph with 2 nodes:
  * - initial: update system prompt
@@ -310,14 +324,27 @@ export class AgentGraph extends GraphBase<
 			}
 		}
 
-		const actions = toolResults.map((result) => ({
-			id: crypto.randomUUID(),
-			name: result.toolName,
-			description: result.content,
-			metadata: {
-				tool_call: result.toolCall,
-			},
-		}));
+		const actions = toolResults.map((result) => {
+			const structured = parseStructuredActionPayload(result.content);
+			const actionName =
+				typeof structured?.actionType === "string"
+					? structured.actionType
+					: result.toolName;
+			const actionDescription =
+				typeof structured?.description === "string"
+					? structured.description
+					: result.content;
+			return {
+				id: crypto.randomUUID(),
+				name: actionName,
+				description: actionDescription,
+				metadata: {
+					tool: result.toolName,
+					tool_call: result.toolCall,
+					...(structured || {}),
+				},
+			};
+		});
 		if (actions.length) {
 			runConfig?.writer?.({ type: "actions", actions });
 		}

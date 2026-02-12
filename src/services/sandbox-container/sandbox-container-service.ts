@@ -33,6 +33,10 @@ import type {
 	SandboxGetLogsResult,
 	SandboxNetworkFetchRequest,
 	SandboxNetworkFetchResult,
+	SandboxServerRequest,
+	SandboxServerRequestResult,
+	SandboxServerRenderUrlRequest,
+	SandboxServerRenderUrlResult,
 	SandboxResponseMessage,
 } from "./types";
 
@@ -142,6 +146,7 @@ export class SandboxContainerService {
 		const iframe = document.createElement("iframe");
 		iframe.style.display = "none";
 		iframe.sandbox.add("allow-scripts");
+		iframe.sandbox.add("allow-same-origin");
 		iframe.src = chrome.runtime.getURL(this.options.frameUrl);
 
 		const loaded = new Promise<void>((resolve, reject) => {
@@ -573,6 +578,18 @@ export class SandboxContainerService {
 
 	async listServers(): Promise<SandboxListServersResult> {
 		return this.request("server.list", undefined);
+	}
+
+	async requestServer(
+		request: SandboxServerRequest,
+	): Promise<SandboxServerRequestResult> {
+		return this.request("server.request", request, request.timeoutMs ?? 60_000);
+	}
+
+	async getServerRenderUrl(
+		request: SandboxServerRenderUrlRequest,
+	): Promise<SandboxServerRenderUrlResult> {
+		return this.request("server.renderUrl", request);
 	}
 
 	async getSnapshot(): Promise<{ snapshot: unknown }> {

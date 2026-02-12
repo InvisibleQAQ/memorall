@@ -45,51 +45,68 @@ const refreshFsCache = async (): Promise<void> => {
 
 	refreshInProgress = true;
 
+	const refreshPromise = (async () => {
+		try {
+			logInfo(
+				"🔄 Refreshing ZenFS cache (unmounting and reconfiguring filesystem)",
+			);
+
+			// Reset ready state before remounting.
+			fsReady = false;
+
+			// Unmount existing mounts to avoid "already in use" errors
+			try {
+				await fs.umount("/tmp");
+				logInfo("📤 Unmounted /tmp");
+			} catch (e) {
+				// Ignore if not mounted
+				logDebug("Could not unmount /tmp:", e);
+			}
+
+			try {
+				await fs.umount("/home");
+				logInfo("📤 Unmounted /home");
+			} catch (e) {
+				// Ignore if not mounted
+				logDebug("Could not unmount /home:", e);
+			}
+
+			// Small delay to ensure unmounting is complete
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			// Reconfigure the filesystem - this forces ZenFS to reload from IndexedDB
+			await configure({
+				mounts: {
+					"/tmp": InMemory,
+					"/home": IndexedDB,
+				},
+			});
+
+			fsReady = true;
+			logInfo("✅ ZenFS cache refreshed successfully");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			// If another configure won the race and mounts already exist, treat as success.
+			if (message.includes("Mount point is already in use")) {
+				logInfo(
+					"ℹ️ ZenFS mounts already configured, skipping duplicate refresh",
+				);
+				fsReady = true;
+				return;
+			}
+
+			logError("Failed to refresh ZenFS cache:", error);
+			// Reset state so next call can try again
+			fsReady = false;
+			throw error;
+		}
+	})();
+
+	// Share one promise across initialize/refresh so configure cannot run in parallel.
+	fsReadyPromise = refreshPromise;
+
 	try {
-		logInfo(
-			"🔄 Refreshing ZenFS cache (unmounting and reconfiguring filesystem)",
-		);
-
-		// Reset state to force reconfiguration
-		fsReady = false;
-		fsReadyPromise = null;
-
-		// Unmount existing mounts to avoid "already in use" errors
-		try {
-			await fs.umount("/tmp");
-			logInfo("📤 Unmounted /tmp");
-		} catch (e) {
-			// Ignore if not mounted
-			logDebug("Could not unmount /tmp:", e);
-		}
-
-		try {
-			await fs.umount("/home");
-			logInfo("📤 Unmounted /home");
-		} catch (e) {
-			// Ignore if not mounted
-			logDebug("Could not unmount /home:", e);
-		}
-
-		// Small delay to ensure unmounting is complete
-		await new Promise((resolve) => setTimeout(resolve, 50));
-
-		// Reconfigure the filesystem - this forces ZenFS to reload from IndexedDB
-		await configure({
-			mounts: {
-				"/tmp": InMemory,
-				"/home": IndexedDB,
-			},
-		});
-
-		fsReady = true;
-		logInfo("✅ ZenFS cache refreshed successfully");
-	} catch (error) {
-		logError("Failed to refresh ZenFS cache:", error);
-		// Reset state so next call can try again
-		fsReady = false;
-		fsReadyPromise = null;
-		throw error;
+		await refreshPromise;
 	} finally {
 		refreshInProgress = false;
 	}

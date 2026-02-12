@@ -161,10 +161,40 @@ export const DocumentLibraryPage: React.FC = () => {
 		try {
 			const treeData = await documentFileSystemService.getTree();
 			setTree(treeData);
-			// Select root by default if nothing selected
-			if (!selectedNode && treeData.length > 0) {
-				setSelectedNode(treeData[0]);
-			}
+
+			const findNodeByIdOrPath = (
+				nodes: DocumentTreeNode[],
+				target: { id?: string; path?: string },
+			): DocumentTreeNode | null => {
+				for (const node of nodes) {
+					if (
+						(target.id && node.id === target.id) ||
+						(target.path && node.path === target.path)
+					) {
+						return node;
+					}
+					if (node.children?.length) {
+						const found = findNodeByIdOrPath(node.children, target);
+						if (found) return found;
+					}
+				}
+				return null;
+			};
+
+			// Keep selected node in sync with the newly fetched tree objects.
+			// Without this, selectedNode can point to stale children and hide new files/folders.
+			setSelectedNode((prevSelected) => {
+				if (!prevSelected) {
+					return treeData.length > 0 ? treeData[0] : null;
+				}
+				return (
+					findNodeByIdOrPath(treeData, {
+						id: prevSelected.id,
+						path: prevSelected.path,
+					}) || null
+				);
+			});
+
 			return treeData;
 		} catch (err) {
 			logError("Failed to load tree:", err);

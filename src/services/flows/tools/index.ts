@@ -25,3 +25,5 @@ import "./sandbox-container/container-rename";
 import "./sandbox-container/container-unlink";
 import "./sandbox-container/container-fetch-resource";
 import "./sandbox-container/container-web-access";
+import "./sandbox-container/container-request-server";
+import "./sandbox-container/container-render-server";

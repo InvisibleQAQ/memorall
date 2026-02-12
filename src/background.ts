@@ -938,6 +938,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		// Return true to indicate async response
 		return true;
 	} else if (message.type === BACKGROUND_EVENTS.FILESYSTEM_CHANGED) {
+		const sourceContextId =
+			typeof message.sourceContextId === "string"
+				? message.sourceContextId
+				: undefined;
+		const eventId =
+			typeof message.eventId === "string" ? message.eventId : undefined;
+		const relayedByBackground = message.relayedByBackground === true;
+		if (relayedByBackground) {
+			return false;
+		}
+
 		// Relay filesystem change notifications to ALL contexts
 		// This ensures popup/UI receives updates even from offscreen document
 		logInfo("🔁 Relaying FILESYSTEM_CHANGED to all contexts");
@@ -946,6 +957,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		chrome.runtime
 			.sendMessage({
 				type: BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
+				sourceContextId,
+				eventId,
+				relayedByBackground: true,
 			})
 			.catch((err: Error) => {
 				// Ignore "no receiver" errors (normal when popup is closed)

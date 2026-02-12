@@ -144,6 +144,7 @@ export interface SandboxStartServerResult {
 	kind: SandboxServerKind;
 	port: number;
 	url: string;
+	renderUrl: string;
 }
 
 export interface SandboxStopServerRequest {
@@ -154,10 +155,42 @@ export interface SandboxServerInfo {
 	kind: SandboxServerKind;
 	port: number;
 	url: string;
+	renderUrl: string;
 }
 
 export interface SandboxListServersResult {
 	servers: SandboxServerInfo[];
+}
+
+export interface SandboxServerRequest {
+	port: number;
+	path?: string;
+	method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+	headers?: Record<string, string>;
+	body?: string;
+	timeoutMs?: number;
+	responseType?: "auto" | "json" | "text" | "html";
+}
+
+export interface SandboxServerRequestResult {
+	port: number;
+	url: string;
+	status: number;
+	ok: boolean;
+	contentType: string;
+	responseType: "json" | "text" | "html";
+	headers: Record<string, string>;
+	body: string;
+}
+
+export interface SandboxServerRenderUrlRequest {
+	port: number;
+	path?: string;
+}
+
+export interface SandboxServerRenderUrlResult {
+	port: number;
+	url: string;
 }
 
 export interface SandboxSnapshotResult {
@@ -228,6 +261,8 @@ export type SandboxOperation =
 	| "server.start"
 	| "server.stop"
 	| "server.list"
+	| "server.request"
+	| "server.renderUrl"
 	| "snapshot.get"
 	| "snapshot.restore"
 	| "runtime.reset";
@@ -256,6 +291,8 @@ export type SandboxOperationPayloadMap = {
 	"server.start": SandboxStartServerRequest;
 	"server.stop": SandboxStopServerRequest;
 	"server.list": undefined;
+	"server.request": SandboxServerRequest;
+	"server.renderUrl": SandboxServerRenderUrlRequest;
 	"snapshot.get": undefined;
 	"snapshot.restore": SandboxRestoreSnapshotRequest;
 	"runtime.reset": undefined;
@@ -285,6 +322,8 @@ export type SandboxOperationResultMap = {
 	"server.start": SandboxStartServerResult;
 	"server.stop": { port: number };
 	"server.list": SandboxListServersResult;
+	"server.request": SandboxServerRequestResult;
+	"server.renderUrl": SandboxServerRenderUrlResult;
 	"snapshot.get": SandboxSnapshotResult;
 	"snapshot.restore": { restored: true };
 	"runtime.reset": { reset: true };

@@ -26,10 +26,25 @@ export class DocumentFileSystem {
 	private initialized = false;
 	private changeListeners: Set<() => void> = new Set();
 	private messageListenerRegistered = false;
+	private readonly contextId =
+		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+			? crypto.randomUUID()
+			: `ctx-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	private readonly processedFilesystemEventIds = new Set<string>();
+	private static readonly MAX_PROCESSED_EVENT_IDS = 256;
 
 	// Internal cache with invalidation
 	private treeCache: DocumentTreeNode[] | null = null;
 	private treeCacheValid = false;
+
+	private isNotFoundError(error: unknown): boolean {
+		return !!(
+			error &&
+			typeof error === "object" &&
+			"code" in error &&
+			error.code === "ENOENT"
+		);
+	}
 
 	private constructor() {
 		// Register message listener immediately when service is created
@@ -114,6 +129,13 @@ export class DocumentFileSystem {
 			// reliably, so we also send to background worker explicitly
 			const message = {
 				type: BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
+				sourceContextId: this.contextId,
+				eventId:
+					typeof crypto !== "undefined" &&
+					typeof crypto.randomUUID === "function"
+						? crypto.randomUUID()
+						: `evt-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+				relayedByBackground: false,
 			};
 
 			chrome.runtime.sendMessage(message).catch((err: Error) => {
@@ -190,6 +212,38 @@ export class DocumentFileSystem {
 			"type" in message &&
 			message.type === BACKGROUND_EVENTS.FILESYSTEM_CHANGED
 		) {
+			const sourceContextId =
+				"sourceContextId" in message &&
+				typeof message.sourceContextId === "string"
+					? message.sourceContextId
+					: null;
+			const eventId =
+				"eventId" in message && typeof message.eventId === "string"
+					? message.eventId
+					: null;
+
+			if (eventId && this.processedFilesystemEventIds.has(eventId)) {
+				logDebug(`Ignoring duplicate FILESYSTEM_CHANGED event: ${eventId}`);
+				return;
+			}
+			if (eventId) {
+				this.processedFilesystemEventIds.add(eventId);
+				if (
+					this.processedFilesystemEventIds.size >
+					DocumentFileSystem.MAX_PROCESSED_EVENT_IDS
+				) {
+					const first = this.processedFilesystemEventIds.values().next().value;
+					if (first) this.processedFilesystemEventIds.delete(first);
+				}
+			}
+
+			// Ignore messages emitted by this exact context.
+			// Local listeners were already notified in notifyFilesystemChanged().
+			if (sourceContextId && sourceContextId === this.contextId) {
+				logDebug("Ignoring self-originated FILESYSTEM_CHANGED message");
+				return;
+			}
+
 			logInfo(
 				`📢 Received FILESYSTEM_CHANGED from ${sender.id || "unknown"} (${this.changeListeners.size} listeners)`,
 			);
@@ -606,6 +660,9 @@ export class DocumentFileSystem {
 	 */
 	async getTree(): Promise<DocumentTreeNode[]> {
 		await this.initialize();
+		// /home can be briefly unavailable while ZenFS cache is being refreshed
+		// from another context; ensure root path exists before scanning.
+		await this.ensureDirectory(DOCUMENTS_ROOT);
 
 		// Return cached data if valid
 		if (this.treeCacheValid && this.treeCache) {
@@ -697,12 +754,22 @@ export class DocumentFileSystem {
 							file,
 						});
 					} catch (error) {
-						logError(`Failed to stat file ${fullFsPath}:`, error);
+						// File may disappear between readdir and stat due to concurrent writes.
+						if (!this.isNotFoundError(error)) {
+							logError(`Failed to stat file ${fullFsPath}:`, error);
+						}
 					}
 				}
 			}
 		} catch (error) {
-			logError(`Failed to scan directory ${fsPath}:`, error);
+			// Directory may be transiently missing during cross-context FS refresh.
+			if (!this.isNotFoundError(error)) {
+				logError(`Failed to scan directory ${fsPath}:`, error);
+			} else {
+				logDebug(
+					`Directory not found while scanning (treated as empty): ${fsPath}`,
+				);
+			}
 		}
 
 		return nodes;

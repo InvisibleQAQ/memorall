@@ -133,6 +133,10 @@ export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
 				return this.executeOperation("server.stop", payload.payload);
 			case "server.list":
 				return this.executeOperation("server.list", payload.payload);
+			case "server.request":
+				return this.executeOperation("server.request", payload.payload);
+			case "server.renderUrl":
+				return this.executeOperation("server.renderUrl", payload.payload);
 			case "snapshot.get":
 				return this.executeOperation("snapshot.get", payload.payload);
 			case "snapshot.restore":

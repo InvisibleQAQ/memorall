@@ -16,6 +16,7 @@ const materializedMountedFiles = new Map();
 let documentsMountLoaded = false;
 const installedPackages = new Map();
 const servers = new Map();
+let serverBridgeReady = false;
 
 let container = null;
 let currentExecutionContext = null;
@@ -254,6 +255,257 @@ const normalizeClientUrl = (rawUrl) => {
 	}
 };
 
+const normalizeServerPath = (inputPath) => {
+	if (typeof inputPath !== "string" || !inputPath.trim()) {
+		return "/";
+	}
+	const trimmed = inputPath.trim();
+	if (trimmed.startsWith("?") || trimmed.startsWith("#")) {
+		return `/${trimmed}`;
+	}
+	if (trimmed.startsWith("/")) {
+		return trimmed;
+	}
+	return `/${trimmed}`;
+};
+
+const resolveServerRequestUrl = (baseUrl, path) => {
+	const normalizedPath = normalizeServerPath(path);
+	try {
+		return new URL(normalizedPath, baseUrl).toString();
+	} catch {
+		return `${String(baseUrl || "").replace(/\/+$/, "")}${normalizedPath}`;
+	}
+};
+
+const toRenderUrl = (url, port) => {
+	try {
+		const parsed = new URL(url, self.location?.origin || "http://localhost");
+		if (self.location?.origin && parsed.origin === self.location.origin) {
+			return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+		}
+		return parsed.toString();
+	} catch {
+		return `/__virtual__/${port}/`;
+	}
+};
+
+const toServerInfo = (serverState) => ({
+	kind: serverState.kind,
+	port: serverState.port,
+	url: serverState.url,
+	renderUrl: serverState.renderUrl,
+});
+
+const getServerBridge = (containerInstance) => {
+	const fromContainer = containerInstance?.serverBridge;
+	if (fromContainer && typeof fromContainer.getServerUrl === "function") {
+		return fromContainer;
+	}
+	if (typeof AlmostNodeLib.getServerBridge === "function") {
+		return AlmostNodeLib.getServerBridge();
+	}
+	return null;
+};
+
+const ensureServerBridgeReady = async (containerInstance) => {
+	const bridge = getServerBridge(containerInstance);
+	if (!bridge) return null;
+	if (!serverBridgeReady && typeof bridge.initServiceWorker === "function") {
+		try {
+			await bridge.initServiceWorker();
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : safeSerialize(error);
+			pushRuntimeLog(
+				"warn",
+				`Server bridge service worker init failed; continuing without service worker: ${message}`,
+			);
+		}
+		serverBridgeReady = true;
+	}
+	return bridge;
+};
+
+const installExpressLifecycleHooks = async (containerInstance) => {
+	await containerInstance.execute(
+		`
+(() => {
+	if (globalThis.__memorallExpressLifecycleInstalled) return;
+	globalThis.__memorallExpressLifecycleInstalled = true;
+	globalThis.__memorallExpressServers = globalThis.__memorallExpressServers || new Map();
+
+	let express;
+	try {
+		express = require("express");
+	} catch {
+		return;
+	}
+
+	const appProto = express?.application;
+	if (!appProto || appProto.__memorallListenPatched) return;
+
+	const originalListen = appProto.listen;
+	appProto.listen = function memorallPatchedListen(...args) {
+		const server = originalListen.apply(this, args);
+
+		let port = null;
+		if (typeof args[0] === "number") {
+			port = args[0];
+		} else if (args[0] && typeof args[0] === "object" && typeof args[0].port === "number") {
+			port = args[0].port;
+		} else if (typeof args[1] === "number") {
+			port = args[1];
+		}
+
+		if (typeof port === "number" && server) {
+			globalThis.__memorallExpressServers.set(port, server);
+			if (typeof server.on === "function") {
+				server.on("close", () => {
+					try {
+						globalThis.__memorallExpressServers.delete(port);
+					} catch {
+						// ignore
+					}
+				});
+			}
+		}
+
+		return server;
+	};
+
+	appProto.__memorallListenPatched = true;
+})();
+		`,
+		"/__memorall_express_lifecycle_patch.js",
+	);
+};
+
+const closeTrackedExpressServer = async (containerInstance, port) => {
+	const escapedPort = Number(port) || 0;
+	const result = await containerInstance.execute(
+		`
+(async () => {
+	const store = globalThis.__memorallExpressServers;
+	if (!store || typeof store.get !== "function") return false;
+	const server = store.get(${escapedPort});
+	if (!server || typeof server.close !== "function") return false;
+
+	await new Promise((resolve) => {
+		let done = false;
+		const finish = () => {
+			if (done) return;
+			done = true;
+			try {
+				store.delete(${escapedPort});
+			} catch {
+				// ignore
+			}
+			resolve();
+		};
+		try {
+			server.close(() => finish());
+		} catch {
+			finish();
+			return;
+		}
+		setTimeout(() => finish(), 1500);
+	});
+	return true;
+})()
+		`,
+		"/__memorall_express_close.js",
+	);
+	return Boolean(result);
+};
+
+const waitForServerPort = async (bridge, port, timeoutMs = 30_000) => {
+	const start = Date.now();
+	while (Date.now() - start < timeoutMs) {
+		const ports =
+			typeof bridge?.listServerPorts === "function" ? bridge.listServerPorts() : [];
+		if (Array.isArray(ports) && ports.includes(port)) {
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 50));
+	}
+	throw new Error(`Timed out waiting for server registration on port ${port}`);
+};
+
+const hasListeningLogForPort = (port) => {
+	const token = `:${port}`;
+	for (let i = runtimeLogs.length - 1; i >= 0; i--) {
+		const entry = runtimeLogs[i];
+		const message = String(entry?.message || "").toLowerCase();
+		if (!message.includes(token)) continue;
+		if (message.includes("listening") || message.includes("started") || message.includes("ready")) {
+			return true;
+		}
+	}
+	return false;
+};
+
+const waitForExpressStartup = async (bridge, baseUrl, port, timeoutMs = 3_000) => {
+	const startedAt = Date.now();
+	while (Date.now() - startedAt < timeoutMs) {
+		if (hasListeningLogForPort(port)) {
+			return true;
+		}
+
+		if (bridge && typeof bridge.listServerPorts === "function") {
+			const ports = bridge.listServerPorts();
+			if (Array.isArray(ports) && ports.includes(port)) {
+				return true;
+			}
+		}
+
+		try {
+			const response = await fetchWithTimeout(
+				baseUrl,
+				{ method: "GET" },
+				750,
+			);
+			if (response) {
+				return true;
+			}
+		} catch {
+			// Keep polling until grace timeout.
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, 100));
+	}
+	return false;
+};
+
+const stopServerState = async (port) => {
+	const state = servers.get(port);
+	if (!state) return;
+	try {
+		if (typeof state.stop === "function") {
+			await state.stop();
+		}
+	} finally {
+		servers.delete(port);
+	}
+};
+
+const stopAllServers = async () => {
+	const ports = Array.from(servers.keys());
+	for (const port of ports) {
+		await stopServerState(port);
+	}
+};
+
+const resolveServerBaseUrl = (bridge, port, hostname) => {
+	if (bridge && typeof bridge.getServerUrl === "function") {
+		const bridged = bridge.getServerUrl(port);
+		if (typeof bridged === "string" && bridged) {
+			return normalizeClientUrl(bridged);
+		}
+	}
+	return `http://${normalizeClientHostname(hostname)}:${port}`;
+};
+
 const withTimeout = async (task, timeoutMs) => {
 	const timeoutSymbol = Symbol("timeout");
 	const value = await Promise.race([
@@ -430,6 +682,7 @@ const resolveResponseType = (contentType, requestedType) => {
 };
 
 const resetRuntime = async () => {
+	await stopAllServers();
 	repls.clear();
 	container = await createContainerInstance();
 	mountedDocumentFiles.clear();
@@ -438,6 +691,7 @@ const resetRuntime = async () => {
 	documentsMountLoaded = false;
 	installedPackages.clear();
 	servers.clear();
+	serverBridgeReady = false;
 	runtimeLogs.length = 0;
 	pushRuntimeLog("info", "Sandbox runtime reset");
 };
@@ -614,21 +868,130 @@ const handleOperation = async (request) => {
 		}
 		case "server.start": {
 			const bindHostname = payload.hostname || "127.0.0.1";
-			const url = `http://${normalizeClientHostname(bindHostname)}:${payload.port}`;
-			servers.set(payload.port, { kind: payload.kind, port: payload.port, url });
-			return { kind: payload.kind, port: payload.port, url };
+			const kind = payload.kind;
+			const port = payload.port;
+
+			await stopServerState(port);
+
+			const bridge = await ensureServerBridgeReady(c);
+			let stop = async () => {
+				if (bridge && typeof bridge.unregisterServer === "function") {
+					bridge.unregisterServer(port);
+				}
+			};
+
+			if (kind === "express") {
+				await installExpressLifecycleHooks(c);
+				await closeTrackedExpressServer(c, port);
+				const entryPath = normalizePath(payload.entryPath || "/server.js");
+				await c.runFile(entryPath);
+				const probeUrl = `http://${normalizeClientHostname(bindHostname)}:${port}/`;
+				const started = await waitForExpressStartup(bridge, probeUrl, port, 3_000);
+				if (!started) {
+					pushRuntimeLog(
+						"warn",
+						`Express startup probe did not confirm readiness for port ${port}; continuing with optimistic server state`,
+					);
+				}
+				stop = async () => {
+					await closeTrackedExpressServer(c, port);
+					if (bridge && typeof bridge.unregisterServer === "function") {
+						bridge.unregisterServer(port);
+					}
+				};
+			} else if (kind === "vite") {
+				if (typeof AlmostNodeLib.ViteDevServer !== "function") {
+					throw new Error("ViteDevServer is not available in runtime bundle");
+				}
+				const viteServer = new AlmostNodeLib.ViteDevServer(c.runtime, c.vfs, {
+					port,
+					hostname: bindHostname,
+					rootDir: payload.rootDir || "/",
+				});
+				await viteServer.start();
+				stop = async () => {
+					await viteServer.stop();
+					if (bridge && typeof bridge.unregisterServer === "function") {
+						bridge.unregisterServer(port);
+					}
+				};
+			} else if (kind === "next") {
+				if (typeof AlmostNodeLib.NextDevServer !== "function") {
+					throw new Error("NextDevServer is not available in runtime bundle");
+				}
+				const nextServer = new AlmostNodeLib.NextDevServer(c.runtime, c.vfs, {
+					port,
+					hostname: bindHostname,
+					rootDir: payload.rootDir || "/",
+				});
+				await nextServer.start();
+				stop = async () => {
+					await nextServer.stop();
+					if (bridge && typeof bridge.unregisterServer === "function") {
+						bridge.unregisterServer(port);
+					}
+				};
+			} else {
+				throw new Error(`Unsupported server kind: ${kind}`);
+			}
+
+			const url = resolveServerBaseUrl(bridge, port, bindHostname);
+			const renderUrl = toRenderUrl(url, port);
+			const state = { kind, port, url, renderUrl, stop };
+			servers.set(port, state);
+			return toServerInfo(state);
 		}
 		case "server.stop":
-			servers.delete(payload.port);
+			await stopServerState(payload.port);
 			return { port: payload.port };
 		case "server.list":
-			return { servers: Array.from(servers.values()) };
+			return { servers: Array.from(servers.values()).map(toServerInfo) };
+		case "server.renderUrl": {
+			const server = servers.get(payload.port);
+			if (!server) {
+				throw new Error(`Server not found on port ${payload.port}`);
+			}
+			const url = resolveServerRequestUrl(server.renderUrl, payload.path || "/");
+			return { port: payload.port, url };
+		}
+		case "server.request": {
+			const server = servers.get(payload.port);
+			if (!server) {
+				throw new Error(`Server not found on port ${payload.port}`);
+			}
+			const timeoutMs = payload.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+			const url = resolveServerRequestUrl(server.url, payload.path || "/");
+			const response = await fetchWithTimeout(
+				url,
+				{
+					method: payload.method ?? "GET",
+					headers: payload.headers,
+					body: payload.body,
+				},
+				timeoutMs,
+			);
+			const contentType = response.headers.get("content-type") ?? "";
+			const responseType = resolveResponseType(contentType, payload.responseType ?? "auto");
+			const text = await response.text();
+			const headers = Object.fromEntries(response.headers.entries());
+			const body = responseType === "json" ? JSON.stringify(JSON.parse(text), null, 2) : text;
+			return {
+				port: payload.port,
+				url,
+				status: response.status,
+				ok: response.ok,
+				contentType,
+				responseType,
+				headers,
+				body,
+			};
+		}
 		case "snapshot.get": {
 			const snapshot = typeof c.vfs.toSnapshot === "function" ? c.vfs.toSnapshot() : { files: [] };
 			return {
 				snapshot: {
 					...snapshot,
-					servers: Array.from(servers.values()),
+					servers: Array.from(servers.values()).map(toServerInfo),
 					installedPackages: Object.fromEntries(installedPackages),
 				},
 			};
