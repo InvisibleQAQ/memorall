@@ -215,6 +215,27 @@ const MODEL_DATABASE: ModelSpec[] = [
 		},
 	},
 
+	// WebLLM - Qwen 3 0.6B (MLC optimized, smallest Qwen 3)
+	{
+		provider: "webllm",
+		providerName: PROVIDER_INFO.webllm.name,
+		modelId: "Qwen3-0.6B-q4f16_1-MLC",
+		displayName: "Qwen 3 0.6B",
+		size: "400MB",
+		sizeGB: 0.4,
+		contextLength: 32768,
+		requiresWebGPU: true,
+		minMemoryGB: 2,
+		releaseDate: "2025-04",
+		performanceScore: 95,
+		qualityScore: 70,
+		contextScore: 85,
+		config: {
+			provider: "webllm",
+			model: "Qwen3-0.6B-q4f16_1-MLC",
+		},
+	},
+
 	// WebLLM - Qwen 3 (MoE architecture, 40% better than Qwen 2.5)
 	{
 		provider: "webllm",
@@ -480,6 +501,94 @@ const MODEL_DATABASE: ModelSpec[] = [
 		config: {
 			provider: "webllm",
 			model: "Llama-3.2-3B-Instruct-q4f32_1-MLC",
+		},
+	},
+
+	// === GEMMA 2 2B (Released June 2024, Google) ===
+	// Efficient 2B model, strong quality-to-size ratio
+	{
+		provider: "webllm",
+		providerName: PROVIDER_INFO.webllm.name,
+		modelId: "gemma-2-2b-it-q4f16_1-MLC",
+		displayName: "Gemma 2 2B",
+		size: "1.4GB",
+		sizeGB: 1.4,
+		contextLength: 8192,
+		requiresWebGPU: true,
+		minMemoryGB: 4,
+		releaseDate: "2024-06",
+		performanceScore: 76,
+		qualityScore: 80,
+		contextScore: 60,
+		config: {
+			provider: "webllm",
+			model: "gemma-2-2b-it-q4f16_1-MLC",
+		},
+	},
+
+	// === SMOLLM2 1.7B (Released November 2024, HuggingFace) ===
+	// Compact, fast model from HuggingFace
+	{
+		provider: "webllm",
+		providerName: PROVIDER_INFO.webllm.name,
+		modelId: "SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+		displayName: "SmolLM2 1.7B",
+		size: "1.1GB",
+		sizeGB: 1.1,
+		contextLength: 8192,
+		requiresWebGPU: true,
+		minMemoryGB: 4,
+		releaseDate: "2024-11",
+		performanceScore: 83,
+		qualityScore: 68,
+		contextScore: 60,
+		config: {
+			provider: "webllm",
+			model: "SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+		},
+	},
+
+	// === QWEN 2.5 MODELS (Released September 2024, Qwen Team) ===
+	// Predecessor to Qwen 3, strong performance with 128K context
+	{
+		provider: "webllm",
+		providerName: PROVIDER_INFO.webllm.name,
+		modelId: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+		displayName: "Qwen 2.5 1.5B",
+		size: "1.0GB",
+		sizeGB: 1.0,
+		contextLength: 128000,
+		requiresWebGPU: true,
+		minMemoryGB: 3,
+		releaseDate: "2024-09",
+		performanceScore: 81,
+		qualityScore: 75,
+		contextScore: 98,
+		config: {
+			provider: "webllm",
+			model: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+		},
+	},
+
+	// === QWEN 2.5 CODER (Released November 2024, Qwen Team) ===
+	// Code-specialized Qwen 2.5 with 128K context
+	{
+		provider: "webllm",
+		providerName: PROVIDER_INFO.webllm.name,
+		modelId: "Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC",
+		displayName: "Qwen 2.5 Coder 1.5B",
+		size: "1.0GB",
+		sizeGB: 1.0,
+		contextLength: 128000,
+		requiresWebGPU: true,
+		minMemoryGB: 3,
+		releaseDate: "2024-11",
+		performanceScore: 79,
+		qualityScore: 78,
+		contextScore: 98,
+		config: {
+			provider: "webllm",
+			model: "Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC",
 		},
 	},
 ];

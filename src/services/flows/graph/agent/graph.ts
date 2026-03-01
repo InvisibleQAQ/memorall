@@ -10,6 +10,8 @@ import type { CombinedServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
+import type { BaseFlow } from "@/services/flows/flow-registry";
+import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 
 // Tool names available to the agent
 const DEFAULT_TOOL_NAMES = ["current_time", "js_execute"] as const;
@@ -357,7 +359,30 @@ export class AgentGraph extends GraphBase<
 // Self-register the flow
 flowRegistry.register({
 	flowType: "agent",
-	factory: (services) => new AgentGraph(services),
+	factory: (services, config) =>
+		new AgentGraph(services, config as AgentGraphConfig),
+});
+
+// Register as a chat-capable flow — pure agent with no RAG retrieval.
+// The agent graph uses tools configured at construction time (from config.tools).
+//
+// The `as unknown as BaseFlow` cast is required because TypeScript's invariant
+// generic checks on the compiled workflow's internal types are incompatible with
+// the BaseFlow alias (which uses `string` nodes and `AllServices`), even though
+// the runtime behaviour is fully correct.
+chatFlowRegistry.register("agent", (services, config) => {
+	const graph = new AgentGraph(services, {
+		systemPrompt: config.systemPrompt || undefined,
+		tools: (config.tools ?? []) as `${ToolName}`[],
+	});
+	return {
+		graph: graph as unknown as BaseFlow,
+		// Agent state only needs messages; extra fields (graphId, contextQueries)
+		// are part of KnowledgeRAGState and are simply absent from AgentAnnotation.
+		getInitialState: (ctx) => ({
+			messages: ctx.messages,
+		}),
+	};
 });
 
 // Extend global FlowTypeRegistry for type-safe flow creation
@@ -365,7 +390,7 @@ declare global {
 	interface FlowTypeRegistry {
 		agent: {
 			services: AgentServices;
-			config: undefined;
+			config: AgentGraphConfig;
 			flow: AgentGraph;
 		};
 	}

@@ -796,7 +796,6 @@ export const DocumentLibraryPage: React.FC = () => {
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
-
 					</div>
 				</div>
 

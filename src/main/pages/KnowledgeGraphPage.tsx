@@ -32,7 +32,10 @@ import {
 } from "@/main/components/ui/dropdown-menu";
 
 import { D3KnowledgeGraph } from "@/main/modules/knowledge/components/D3KnowledgeGraph";
-import { CreateTopicDialog, EditTopicDialog } from "@/main/modules/topics/modals";
+import {
+	CreateTopicDialog,
+	EditTopicDialog,
+} from "@/main/modules/topics/modals";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import type { Topic } from "@/services/database/entities/topics";
 import type { Node, Edge } from "@/services/database/types";
@@ -80,9 +83,7 @@ const TopicRow: React.FC<TopicRowProps> = ({
 			<div className="flex-1 min-w-0 flex items-center gap-2">
 				<span
 					className={`text-sm truncate ${
-						isSelected
-							? "font-medium text-foreground"
-							: "text-muted-foreground"
+						isSelected ? "font-medium text-foreground" : "text-muted-foreground"
 					}`}
 				>
 					{name}
@@ -162,7 +163,8 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 
 	// Topics state
 	const [topics, setTopics] = useState<TopicWithCount[]>([]);
-	const [selectedTopicId, setSelectedTopicId] = useState<string>(DEFAULT_TOPIC_ID);
+	const [selectedTopicId, setSelectedTopicId] =
+		useState<string>(DEFAULT_TOPIC_ID);
 	const [deletingTopicId, setDeletingTopicId] = useState<string | null>(null);
 
 	useEffect(() => {

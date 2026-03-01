@@ -208,7 +208,9 @@ const isFrameableUrl = (value: string): boolean => {
 	try {
 		const parsed = new URL(
 			value,
-			typeof window !== "undefined" ? window.location.origin : "http://localhost",
+			typeof window !== "undefined"
+				? window.location.origin
+				: "http://localhost",
 		);
 		return (
 			parsed.protocol === "http:" ||

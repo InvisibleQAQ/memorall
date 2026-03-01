@@ -40,6 +40,8 @@ export const DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG = {
 	tools: ["current_time", "js_execute"] as string[],
 	enableContextRetrieval: true,
 	enableCitations: true,
+	/** Which base graph runs this agent — "knowledge-rag" (RAG + agent) or "agent" (pure agent) */
+	graphType: "knowledge-rag" as "knowledge-rag" | "agent",
 };
 
 /** Type for the subset of KnowledgeRAGConfig that is user-configurable */
@@ -53,6 +55,7 @@ export const KNOWLEDGE_RAG_CONFIG_KEYS = [
 	{ name: "tools", type: "array" },
 	{ name: "enableContextRetrieval", type: "boolean" },
 	{ name: "enableCitations", type: "boolean" },
+	{ name: "graphType", type: "string" },
 ] as const;
 
 // Graph growth configuration

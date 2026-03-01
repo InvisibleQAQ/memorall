@@ -40,7 +40,12 @@ const normalizeClientUrl = async (rawUrl: string): Promise<string> => {
 		return `${normalizedPath}${parsed.search}${parsed.hash}`;
 	}
 
-	const localhostLikeHosts = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::"]);
+	const localhostLikeHosts = new Set([
+		"localhost",
+		"127.0.0.1",
+		"0.0.0.0",
+		"::",
+	]);
 	if (localhostLikeHosts.has(parsed.hostname) && parsed.port) {
 		const port = Number(parsed.port);
 		if (!Number.isNaN(port)) {
@@ -102,8 +107,7 @@ export const createContainerWebAccessTool: ToolFactory<
 				2,
 			);
 		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : String(error);
+			const message = error instanceof Error ? error.message : String(error);
 			return JSON.stringify(
 				{
 					actionType: "web_access",

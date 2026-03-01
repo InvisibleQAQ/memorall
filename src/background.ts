@@ -247,22 +247,22 @@ async function updateContextMenuText(): Promise<void> {
 			title: texts.recall,
 		});
 
-		await chrome.contextMenus.update(RECALL_IMAGE_CONTEXT_MENU_ID, {
-			title: texts.recallImage,
-		});
+		// await chrome.contextMenus.update(RECALL_IMAGE_CONTEXT_MENU_ID, {
+		// 	title: texts.recallImage,
+		// });
 
 		// Update activity tracking menu items
-		await chrome.contextMenus.update(START_CAPTURE_CONTEXT_MENU_ID, {
-			title: texts.startCapture,
-		});
+		// await chrome.contextMenus.update(START_CAPTURE_CONTEXT_MENU_ID, {
+		// 	title: texts.startCapture,
+		// });
 
-		await chrome.contextMenus.update(STOP_CAPTURE_CONTEXT_MENU_ID, {
-			title: texts.stopCapture,
-		});
+		// await chrome.contextMenus.update(STOP_CAPTURE_CONTEXT_MENU_ID, {
+		// 	title: texts.stopCapture,
+		// });
 
-		await chrome.contextMenus.update(VIEW_ACTIVITIES_CONTEXT_MENU_ID, {
-			title: texts.viewActivities,
-		});
+		// await chrome.contextMenus.update(VIEW_ACTIVITIES_CONTEXT_MENU_ID, {
+		// 	title: texts.viewActivities,
+		// });
 
 		await chrome.contextMenus.update(OPEN_PLATFORM_CONTEXT_MENU_ID, {
 			title: texts.openPlatform,
@@ -400,11 +400,11 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 			contexts: ["page", "selection"],
 		});
 
-		chrome.contextMenus.create({
-			id: RECALL_IMAGE_CONTEXT_MENU_ID,
-			title: texts.recallImage,
-			contexts: ["page"],
-		});
+		// chrome.contextMenus.create({
+		// 	id: RECALL_IMAGE_CONTEXT_MENU_ID,
+		// 	title: texts.recallImage,
+		// 	contexts: ["page"],
+		// });
 
 		chrome.contextMenus.create({
 			id: "recall-divider",
@@ -412,24 +412,24 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 		});
 
 		// === ACTIVITY TRACKING SECTION ===
-		chrome.contextMenus.create({
-			id: START_CAPTURE_CONTEXT_MENU_ID,
-			title: texts.startCapture,
-			contexts: ["page"],
-		});
+		// chrome.contextMenus.create({
+		// 	id: START_CAPTURE_CONTEXT_MENU_ID,
+		// 	title: texts.startCapture,
+		// 	contexts: ["page"],
+		// });
 
-		chrome.contextMenus.create({
-			id: STOP_CAPTURE_CONTEXT_MENU_ID,
-			title: texts.stopCapture,
-			contexts: ["page"],
-			visible: false, // Hidden until capture starts
-		});
+		// chrome.contextMenus.create({
+		// 	id: STOP_CAPTURE_CONTEXT_MENU_ID,
+		// 	title: texts.stopCapture,
+		// 	contexts: ["page"],
+		// 	visible: false, // Hidden until capture starts
+		// });
 
-		chrome.contextMenus.create({
-			id: VIEW_ACTIVITIES_CONTEXT_MENU_ID,
-			title: texts.viewActivities,
-			contexts: ["page"],
-		});
+		// chrome.contextMenus.create({
+		// 	id: VIEW_ACTIVITIES_CONTEXT_MENU_ID,
+		// 	title: texts.viewActivities,
+		// 	contexts: ["page"],
+		// });
 
 		chrome.contextMenus.create({
 			id: "activity-divider",

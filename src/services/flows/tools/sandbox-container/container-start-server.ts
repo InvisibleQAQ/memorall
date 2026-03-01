@@ -44,8 +44,7 @@ export const createContainerStartServerTool: ToolFactory<
 				2,
 			);
 		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : String(error);
+			const message = error instanceof Error ? error.message : String(error);
 
 			return JSON.stringify(
 				{

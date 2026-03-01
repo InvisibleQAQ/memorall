@@ -1,9 +1,19 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { X, Settings2, Save, Undo2, RotateCcw } from "lucide-react";
+import {
+	X,
+	Settings2,
+	Save,
+	Undo2,
+	RotateCcw,
+	ChevronDown,
+	ChevronUp,
+	Wrench,
+} from "lucide-react";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
 import { TOOL_DISPLAY_INFO } from "@/main/modules/chat/utils/tool-display-info";
 import { DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT } from "@/services/flows/graph/knowledge-rag/state";
+import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
 import { Switch } from "@/main/components/ui/switch";
 import { Button } from "@/main/components/ui/button";
 import { Textarea } from "@/main/components/ui/textarea";
@@ -11,6 +21,7 @@ import { Badge } from "@/main/components/ui/badge";
 import { ScrollArea } from "@/main/components/ui/scroll-area";
 import { Label } from "@/main/components/ui/label";
 import { Separator } from "@/main/components/ui/separator";
+import { cn } from "@/lib/utils";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -22,7 +33,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/main/components/ui/alert-dialog";
-import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+import type { KnowledgeRAGPredefinedConfig } from "@/services/flows/graph/knowledge-rag/state";
 
 export const AgentSettingsPanel: React.FC = () => {
 	const { t } = useTranslation("chat");
@@ -31,35 +42,86 @@ export const AgentSettingsPanel: React.FC = () => {
 		draftFeatures,
 		featureDefinitions,
 		availableTools,
+		currentGraphType,
 		isLoading,
 		isSaving,
 		isDirty,
 		close,
 		updateField,
+		setGraphType,
 		toggleFeature,
 		toggleTool,
 		save,
 		revert,
 		resetToDefaults,
 	} = useAgentConfigStore();
-	const [selectedFeature, setSelectedFeature] = React.useState<string | null>(
-		null,
+
+	const [expandedId, setExpandedId] = React.useState<string | null>(null);
+
+	// Local display values: show the effective default when the stored value is empty.
+	const [systemPromptValue, setSystemPromptValue] = React.useState(
+		draftConfig.systemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
+	);
+	const [contextPromptValue, setContextPromptValue] = React.useState(
+		draftConfig.contextPrompt || DEFAULT_CONTEXT_SYSTEM_PROMPT,
 	);
 
+	React.useEffect(() => {
+		setSystemPromptValue(
+			draftConfig.systemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
+		);
+	}, [draftConfig.systemPrompt]);
+
+	React.useEffect(() => {
+		setContextPromptValue(
+			draftConfig.contextPrompt || DEFAULT_CONTEXT_SYSTEM_PROMPT,
+		);
+	}, [draftConfig.contextPrompt]);
+
+	const handleSystemPromptChange = (value: string) => {
+		setSystemPromptValue(value);
+		updateField(
+			"systemPrompt",
+			value === DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT ? "" : value,
+		);
+	};
+
+	const handleContextPromptChange = (value: string) => {
+		setContextPromptValue(value);
+		updateField(
+			"contextPrompt",
+			value === DEFAULT_CONTEXT_SYSTEM_PROMPT ? "" : value,
+		);
+	};
+
+	// Tools claimed by catalog features (knowledge-rag only)
 	const featureToolSet = React.useMemo(() => {
 		const set = new Set<string>();
-		for (const feature of featureDefinitions) {
-			for (const tool of feature.tools) {
-				set.add(tool);
-			}
+		for (const f of featureDefinitions) {
+			for (const tool of f.tools) set.add(tool);
 		}
 		return set;
 	}, [featureDefinitions]);
 
-	const standaloneTools = React.useMemo(
-		() => availableTools.filter((toolName) => !featureToolSet.has(toolName)),
-		[availableTools, featureToolSet],
+	// For knowledge-rag: tools not claimed by any feature → fed to the agent node.
+	// For agent: all available tools → fed to the agent node.
+	const agentNodeTools = React.useMemo(
+		() =>
+			currentGraphType === "agent"
+				? availableTools
+				: availableTools.filter((t) => !featureToolSet.has(t)),
+		[availableTools, featureToolSet, currentGraphType],
 	);
+
+	const enableAllAgentTools = () =>
+		updateField(
+			"tools",
+			currentGraphType === "agent" ? [...availableTools] : [...agentNodeTools],
+		);
+	const disableAllAgentTools = () => updateField("tools", []);
+
+	const toggleExpand = (id: string) =>
+		setExpandedId((prev) => (prev === id ? null : id));
 
 	if (isLoading) {
 		return (
@@ -70,18 +132,6 @@ export const AgentSettingsPanel: React.FC = () => {
 			</div>
 		);
 	}
-
-	const enableAllTools = () => {
-		updateField("tools", [...standaloneTools]);
-	};
-
-	const disableAllTools = () => {
-		updateField("tools", []);
-	};
-
-	const selectedFeatureDefinition =
-		featureDefinitions.find((feature) => feature.name === selectedFeature) ??
-		null;
 
 	return (
 		<div className="flex flex-col h-full">
@@ -125,10 +175,9 @@ export const AgentSettingsPanel: React.FC = () => {
 							{t("agentSettings.systemPrompt")}
 						</Label>
 						<Textarea
-							value={draftConfig.systemPrompt}
-							onChange={(e) => updateField("systemPrompt", e.target.value)}
-							placeholder={DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT}
-							className="min-h-[120px] font-mono text-xs resize-y"
+							value={systemPromptValue}
+							onChange={(e) => handleSystemPromptChange(e.target.value)}
+							className="min-h-[120px] font-mono text-xs resize-y w-full"
 						/>
 						<div className="flex items-center justify-between">
 							<p className="text-[10px] text-muted-foreground">
@@ -136,7 +185,7 @@ export const AgentSettingsPanel: React.FC = () => {
 							</p>
 							<span className="text-[10px] text-muted-foreground">
 								{t("agentSettings.charCount", {
-									count: draftConfig.systemPrompt.length,
+									count: systemPromptValue.length,
 								})}
 							</span>
 						</div>
@@ -144,169 +193,227 @@ export const AgentSettingsPanel: React.FC = () => {
 
 					<Separator />
 
-					{/* Capabilities */}
-					<div className="space-y-3">
+					{/* Base Graph Selector — interactive segmented control */}
+					<div className="space-y-2">
 						<Label className="text-xs font-medium">
-							{t("agentSettings.capabilities")}
+							{t("agentSettings.baseGraph")}
 						</Label>
-
-						{/* Context Retrieval */}
-						<div className="flex items-start justify-between gap-3">
-							<div className="space-y-0.5">
-								<p className="text-xs font-medium">
-									{t("agentSettings.contextRetrieval")}
-								</p>
-								<p className="text-[10px] text-muted-foreground leading-tight">
-									{t("agentSettings.contextRetrievalDesc")}
-								</p>
-							</div>
-							<Switch
-								checked={draftConfig.enableContextRetrieval}
-								onCheckedChange={(checked) =>
-									updateField("enableContextRetrieval", checked)
-								}
-							/>
+						<div className="flex rounded-md border overflow-hidden">
+							<button
+								type="button"
+								className={cn(
+									"flex-1 px-3 py-2 text-xs font-medium transition-colors",
+									currentGraphType === "knowledge-rag"
+										? "bg-primary text-primary-foreground"
+										: "bg-background text-muted-foreground hover:bg-muted",
+								)}
+								onClick={() => setGraphType("knowledge-rag")}
+							>
+								{t("agentSettings.graphKnowledgeRAG")}
+							</button>
+							<button
+								type="button"
+								className={cn(
+									"flex-1 px-3 py-2 text-xs font-medium border-l transition-colors",
+									currentGraphType === "agent"
+										? "bg-primary text-primary-foreground"
+										: "bg-background text-muted-foreground hover:bg-muted",
+								)}
+								onClick={() => setGraphType("agent")}
+							>
+								{t("agentSettings.graphAgent")}
+							</button>
 						</div>
-
-						{draftConfig.enableContextRetrieval && (
-							<div className="space-y-2">
-								<Label className="text-xs font-medium">
-									{t("agentSettings.contextPrompt")}
-								</Label>
-								<Textarea
-									value={draftConfig.contextPrompt}
-									onChange={(e) => updateField("contextPrompt", e.target.value)}
-									placeholder={DEFAULT_CONTEXT_SYSTEM_PROMPT}
-									className="min-h-[120px] font-mono text-xs resize-y"
-								/>
-								<p className="text-[10px] text-muted-foreground">
-									{t("agentSettings.contextPromptHint")}
-								</p>
-							</div>
-						)}
-
-						{/* Citations */}
-						<div className="flex items-start justify-between gap-3">
-							<div className="space-y-0.5">
-								<p className="text-xs font-medium">
-									{t("agentSettings.citations")}
-								</p>
-								<p className="text-[10px] text-muted-foreground leading-tight">
-									{t("agentSettings.citationsDesc")}
-								</p>
-							</div>
-							<Switch
-								checked={draftConfig.enableCitations}
-								onCheckedChange={(checked) =>
-									updateField("enableCitations", checked)
-								}
-							/>
-						</div>
+						<p className="text-[10px] text-muted-foreground">
+							{currentGraphType === "knowledge-rag"
+								? t("agentSettings.graphKnowledgeRAGDesc")
+								: t("agentSettings.graphAgentDesc")}
+						</p>
 					</div>
+
+					{/* knowledge-rag specific: Features section */}
+					{currentGraphType === "knowledge-rag" &&
+						featureDefinitions.length > 0 && (
+							<>
+								<Separator />
+								<div className="space-y-3">
+									<Label className="text-xs font-medium">
+										{t("agentSettings.features")}
+									</Label>
+
+									<div className="space-y-2">
+										{featureDefinitions.map((feature) => {
+											const isExpanded = expandedId === feature.name;
+
+											const enabled =
+												feature.type === "config"
+													? Boolean(
+															draftConfig[
+																feature.configKey as keyof KnowledgeRAGPredefinedConfig
+															],
+														)
+													: Boolean(draftFeatures[feature.name]);
+
+											const onToggle =
+												feature.type === "config"
+													? (checked: boolean) =>
+															updateField(
+																feature.configKey as keyof KnowledgeRAGPredefinedConfig,
+																checked as never,
+															)
+													: () => toggleFeature(feature.name);
+
+											const displayName =
+												feature.type === "config"
+													? t(feature.nameKey)
+													: feature.name;
+
+											const displayDesc =
+												feature.type === "config"
+													? t(feature.descKey)
+													: feature.description;
+
+											const hasDetail =
+												feature.type === "config"
+													? Boolean(feature.promptField)
+													: true;
+
+											return (
+												<div
+													key={feature.name}
+													className="rounded-md border px-3 py-2 space-y-2"
+												>
+													{/* Header row */}
+													<div className="flex items-start justify-between gap-3">
+														<div className="space-y-0.5">
+															<p className="text-xs font-medium">
+																{displayName}
+															</p>
+															<p className="text-[10px] text-muted-foreground leading-tight">
+																{displayDesc}
+															</p>
+														</div>
+														<Switch
+															checked={enabled}
+															onCheckedChange={onToggle}
+														/>
+													</div>
+
+													{/* Tool count (catalog only) + detail toggle */}
+													{(feature.type === "catalog" || hasDetail) && (
+														<div className="flex items-center justify-between">
+															{feature.type === "catalog" ? (
+																<p className="text-[10px] text-muted-foreground">
+																	{t("agentSettings.toolCount", {
+																		count: feature.tools.length,
+																	})}
+																</p>
+															) : (
+																<span />
+															)}
+															{hasDetail && (
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	className="h-6 px-2 text-[10px]"
+																	onClick={() => toggleExpand(feature.name)}
+																>
+																	{isExpanded ? (
+																		<>
+																			<ChevronUp size={10} className="mr-1" />
+																			{t("agentSettings.hideDetail")}
+																		</>
+																	) : (
+																		<>
+																			<ChevronDown size={10} className="mr-1" />
+																			{t("agentSettings.detail")}
+																		</>
+																	)}
+																</Button>
+															)}
+														</div>
+													)}
+
+													{/* Inline expanded detail */}
+													{isExpanded && (
+														<div className="space-y-3 pt-2 border-t">
+															{feature.type === "config" &&
+																feature.promptField && (
+																	<>
+																		<Label className="text-xs font-medium">
+																			{t(feature.promptField.labelKey)}
+																		</Label>
+																		<Textarea
+																			value={contextPromptValue}
+																			onChange={(e) =>
+																				handleContextPromptChange(
+																					e.target.value,
+																				)
+																			}
+																			className="min-h-[120px] font-mono text-xs resize-y w-full"
+																		/>
+																		<p className="text-[10px] text-muted-foreground">
+																			{t(feature.promptField.hintKey)}
+																		</p>
+																	</>
+																)}
+
+															{feature.type === "catalog" && (
+																<>
+																	<div className="space-y-1">
+																		<p className="text-[10px] font-medium text-muted-foreground">
+																			{t("agentSettings.featureTools")}
+																		</p>
+																		<div className="flex flex-wrap gap-1">
+																			{feature.tools.map((tool) => (
+																				<Badge
+																					key={tool}
+																					variant="outline"
+																					className="text-[10px] font-mono"
+																				>
+																					{tool}
+																				</Badge>
+																			))}
+																		</div>
+																	</div>
+																	<div className="space-y-1">
+																		<p className="text-[10px] font-medium text-muted-foreground">
+																			{t("agentSettings.featureSystemPrompt")}
+																		</p>
+																		<Textarea
+																			value={feature.systemPrompt}
+																			readOnly
+																			className="min-h-[140px] font-mono text-xs resize-y w-full"
+																		/>
+																	</div>
+																</>
+															)}
+														</div>
+													)}
+												</div>
+											);
+										})}
+									</div>
+								</div>
+							</>
+						)}
 
 					<Separator />
 
-					{/* Feature Tools */}
-					<div className="space-y-3">
-						<Label className="text-xs font-medium">
-							{t("agentSettings.features")}
-						</Label>
-
-						<div className="space-y-2">
-							{featureDefinitions.map((feature) => {
-								const enabled = Boolean(draftFeatures[feature.name]);
-								const isSelected = selectedFeature === feature.name;
-								return (
-									<div
-										key={feature.name}
-										className="rounded-md border px-3 py-2 space-y-2"
-									>
-										<div className="flex items-start justify-between gap-3">
-											<div className="space-y-0.5">
-												<p className="text-xs font-medium">{feature.name}</p>
-												<p className="text-[10px] text-muted-foreground leading-tight">
-													{feature.description}
-												</p>
-											</div>
-											<Switch
-												checked={enabled}
-												onCheckedChange={() => toggleFeature(feature.name)}
-											/>
-										</div>
-										<div className="flex items-center justify-between">
-											<p className="text-[10px] text-muted-foreground">
-												{t("agentSettings.toolCount", {
-													count: feature.tools.length,
-												})}
-											</p>
-											<Button
-												variant="ghost"
-												size="sm"
-												className="h-6 px-2 text-[10px]"
-												onClick={() =>
-													setSelectedFeature(isSelected ? null : feature.name)
-												}
-											>
-												{isSelected
-													? t("agentSettings.hideDetail")
-													: t("agentSettings.detail")}
-											</Button>
-										</div>
-									</div>
-								);
-							})}
-						</div>
-
-						{selectedFeatureDefinition && (
-							<div className="space-y-2 rounded-md border px-3 py-3">
-								<Label className="text-xs font-medium">
-									{t("agentSettings.featureDetail", {
-										name: selectedFeatureDefinition.name,
-									})}
-								</Label>
-								<div className="space-y-1">
-									<p className="text-[10px] font-medium text-muted-foreground">
-										{t("agentSettings.featureTools")}
-									</p>
-									<div className="flex flex-wrap gap-1">
-										{selectedFeatureDefinition.tools.map((tool) => (
-											<Badge
-												key={tool}
-												variant="outline"
-												className="text-[10px] font-mono"
-											>
-												{tool}
-											</Badge>
-										))}
-									</div>
-								</div>
-								<div className="space-y-1">
-									<p className="text-[10px] font-medium text-muted-foreground">
-										{t("agentSettings.featureSystemPrompt")}
-									</p>
-									<Textarea
-										value={selectedFeatureDefinition.systemPrompt}
-										readOnly
-										className="min-h-[140px] font-mono text-xs resize-y"
-									/>
-								</div>
-							</div>
-						)}
-					</div>
-
-					<Separator />
-
-					{/* Tools */}
+					{/* Agent Tools — tools passed directly to the agent node */}
 					<div className="space-y-3">
 						<div className="flex items-center justify-between">
-							<Label className="text-xs font-medium">
-								{t("agentSettings.standaloneTools")}
-							</Label>
+							<div className="flex items-center gap-1.5">
+								<Wrench size={12} className="text-muted-foreground" />
+								<Label className="text-xs font-medium">
+									{t("agentSettings.agentTools")}
+								</Label>
+							</div>
 							<div className="flex items-center gap-1">
 								<Button
 									variant="ghost"
 									size="sm"
-									onClick={enableAllTools}
+									onClick={enableAllAgentTools}
 									className="h-6 px-2 text-[10px]"
 								>
 									{t("agentSettings.enableAll")}
@@ -314,16 +421,21 @@ export const AgentSettingsPanel: React.FC = () => {
 								<Button
 									variant="ghost"
 									size="sm"
-									onClick={disableAllTools}
+									onClick={disableAllAgentTools}
 									className="h-6 px-2 text-[10px]"
 								>
 									{t("agentSettings.disableAll")}
 								</Button>
 							</div>
 						</div>
+						<p className="text-[10px] text-muted-foreground -mt-1">
+							{currentGraphType === "knowledge-rag"
+								? t("agentSettings.agentToolsHintRAG")
+								: t("agentSettings.agentToolsHintAgent")}
+						</p>
 
 						<div className="space-y-2">
-							{standaloneTools.map((toolName) => {
+							{agentNodeTools.map((toolName) => {
 								const info = TOOL_DISPLAY_INFO[toolName];
 								return (
 									<div

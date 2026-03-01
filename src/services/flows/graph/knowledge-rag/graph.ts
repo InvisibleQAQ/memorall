@@ -9,8 +9,10 @@ import { GraphBase } from "@/services/flows/graph/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import { logInfo, logWarn } from "@/utils/logger";
 import { flowRegistry } from "@/services/flows/flow-registry";
+import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 import { stepRegistry } from "@/services/flows/step-registry";
 import { getFeatureCatalogSteps } from "@/services/flows/flow-builder-catalog";
+import type { ToolName } from "@/services/flows/graph/graph.base";
 
 export class KnowledgeRAGFlow extends GraphBase<
 	string,
@@ -251,6 +253,28 @@ export class KnowledgeRAGFlow extends GraphBase<
 flowRegistry.register({
 	flowType: "knowledge-rag",
 	factory: (services, config) => new KnowledgeRAGFlow(services, config),
+});
+
+// Register as a chat-capable flow so process-chat.ts can create it generically
+chatFlowRegistry.register("knowledge-rag", (services, config, featureFlags) => {
+	const graph = new KnowledgeRAGFlow(services, {
+		responseMode: "agent",
+		systemPrompt: config.systemPrompt || undefined,
+		contextPrompt: config.contextPrompt || undefined,
+		enableContextRetrieval: config.enableContextRetrieval,
+		enableCitations: config.enableCitations,
+		tools: config.tools as `${ToolName}`[],
+		featureFlags,
+	});
+	return {
+		graph,
+		getInitialState: (ctx) => ({
+			messages: ctx.messages,
+			graphId: ctx.topicId,
+			contextQueries: ctx.contextQueries,
+			tools: (config.tools ?? []) as `${ToolName}`[],
+		}),
+	};
 });
 
 // Extend global FlowTypeRegistry for type-safe flow creation

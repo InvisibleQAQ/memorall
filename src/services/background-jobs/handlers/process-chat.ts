@@ -5,7 +5,6 @@ import type {
 	ChatCompletionRequest,
 	ChatMessage,
 	ChatCompletionChunk,
-	ChatCompletionTool,
 } from "@/types/openai";
 import {
 	isCustomChunkPayload,
@@ -17,13 +16,10 @@ import type {
 	KnowledgeRAGState,
 	KnowledgeRAGPredefinedConfig,
 } from "@/services/flows/graph/knowledge-rag/state";
+import { DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG as DEFAULT_AGENT_CONFIG } from "@/services/flows/graph/knowledge-rag/state";
+import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 import { sql } from "drizzle-orm";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
-import {
-	toolRegistry,
-	convertToolsToOpenAI,
-} from "@/services/flows/tool-registry";
-import type { ToolName } from "@/services/flows/graph/graph.base";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
@@ -364,23 +360,21 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					);
 				}
 
-				// Use KnowledgeRAGFlow for knowledge mode (following use-chat.ts pattern)
-				const graph = serviceManager.flowsService.createGraph(
-					"knowledge-rag",
-					{
-						llm: serviceManager.llmService,
-						embedding: serviceManager.embeddingService,
-						database: serviceManager.databaseService,
-						documentFileSystem: documentFileSystemService,
-					},
-					{
-						responseMode: "agent",
-						systemPrompt: agentConfig?.systemPrompt || undefined,
-						contextPrompt: agentConfig?.contextPrompt || undefined,
-						enableContextRetrieval: agentConfig?.enableContextRetrieval,
-						enableCitations: agentConfig?.enableCitations,
-						featureFlags,
-					},
+				// Resolve the chat flow via registry — no graph-type branching here.
+				// Each graph module self-registers its adapter in chat-flow-registry.ts.
+				const resolvedConfig = agentConfig ?? DEFAULT_AGENT_CONFIG;
+				const graphType = resolvedConfig.graphType ?? "knowledge-rag";
+				const allServices = {
+					llm: serviceManager.llmService,
+					embedding: serviceManager.embeddingService,
+					database: serviceManager.databaseService,
+					documentFileSystem: documentFileSystemService,
+				};
+				const { graph, getInitialState } = chatFlowRegistry.create(
+					graphType,
+					allServices,
+					resolvedConfig,
+					featureFlags,
 				);
 
 				await dependencies.updateJobProgress(jobId, {
@@ -394,17 +388,16 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					try {
 						const topicInfo = await serviceManager.databaseService.use(
 							async ({ db, schema }) => {
-								const graphs = await db
+								const rows = await db
 									.select()
 									.from(schema.topics)
 									.where(sql`${schema.topics.id} = ${topicId}`)
 									.limit(1);
 
-								if (graphs.length > 0) {
-									const graph = graphs[0];
-									const name = graph.name || "Unknown Topic";
-									const desc = graph.description || graph.name || "";
-									// Combine name and description into a contextual query
+								if (rows.length > 0) {
+									const row = rows[0];
+									const name = row.name || "Unknown Topic";
+									const desc = row.description || row.name || "";
 									return desc ? `${name}: ${desc}` : name;
 								}
 								return undefined;
@@ -419,19 +412,13 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 							`${error}`,
 							"offscreen",
 						);
-						// Continue without core context
 					}
 				}
 
 				let finalState: KnowledgeRAGState | null = null;
 
 				const stream = await graph.stream(
-					{
-						messages: messages,
-						graphId: topicId,
-						contextQueries,
-						tools: agentConfig?.tools as `${ToolName}`[],
-					},
+					getInitialState({ messages, topicId, contextQueries }),
 					{
 						streamMode: ["custom", "updates", "values"],
 					},

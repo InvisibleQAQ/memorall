@@ -44,6 +44,8 @@ export interface CatalogStep {
 	id: string;
 	name: string;
 	type: string;
+	/** Graph flow types that include this step (feature steps only). */
+	graphTypes?: string[];
 	inputs?: StepIOField[];
 	outputs?: StepIOField[];
 	metadata: Record<string, unknown>;
@@ -227,6 +229,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		id: "step-documents-feature",
 		name: DOCUMENTS_FEATURE_NAME,
 		type: "feature",
+		graphTypes: ["knowledge-rag"],
 		inputs: [
 			{
 				name: "messages",
@@ -264,6 +267,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		id: "step-nodejs-sandbox-feature",
 		name: NODEJS_SANDBOX_FEATURE_NAME,
 		type: "feature",
+		graphTypes: ["knowledge-rag"],
 		inputs: [
 			{
 				name: "messages",

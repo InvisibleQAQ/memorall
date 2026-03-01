@@ -251,7 +251,7 @@ export const ChatPage: React.FC = () => {
 							className={cn(
 								"flex-shrink-0 border-l bg-background",
 								"fixed top-12 bottom-0 right-0 left-0 z-50",
-								"md:relative md:top-auto md:bottom-auto md:left-auto md:w-[380px] md:z-auto",
+								"md:relative md:top-auto md:bottom-auto md:left-auto md:w-[480px] md:max-w-full md:z-auto",
 							)}
 						>
 							<AgentSettingsPanel />
