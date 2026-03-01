@@ -224,7 +224,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	};
 
 	return (
-		<div className="flex flex-col h-full bg-card">
+		<div className="flex flex-col h-full bg-card flex-1">
 			{/* Header */}
 			<div className="flex items-start justify-between p-4 border-b">
 				<div className="flex-1 min-w-0 mr-4">

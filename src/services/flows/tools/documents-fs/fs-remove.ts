@@ -53,9 +53,7 @@ export const createFsRemoveTool: ToolFactory<Input, Services> = (
 			// Check for children if non-recursive
 			if (!recursive) {
 				const hasChildren = allNodes.some(
-					(n) =>
-						n.path !== targetPath &&
-						n.path.startsWith(`${targetPath}/`),
+					(n) => n.path !== targetPath && n.path.startsWith(`${targetPath}/`),
 				);
 				if (hasChildren) {
 					return `Error: Directory is not empty — use recursive: true to delete it: ${targetPath}`;

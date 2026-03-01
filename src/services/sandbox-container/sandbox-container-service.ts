@@ -89,6 +89,7 @@ export class SandboxContainerService {
 	private readonly pending = new Map<string, PendingRequest>();
 	private readonly options: Required<SandboxContainerInitOptions>;
 	private mountDocumentsSyncPromise: Promise<void> | null = null;
+	private mountWorkspaceSyncPromise: Promise<void> | null = null;
 
 	private constructor(options: SandboxContainerInitOptions = {}) {
 		this.options = {
@@ -350,9 +351,16 @@ export class SandboxContainerService {
 	async writeFile(
 		request: SandboxFsWriteFileRequest,
 	): Promise<{ path: string }> {
+		const normalizedPath = this.normalizeVirtualPath(request.path);
+		if (this.isWorkspacePath(normalizedPath)) {
+			await documentFileSystemService.writeWorkspaceFile(
+				normalizedPath,
+				request.content,
+			);
+		}
 		return this.request("fs.writeFile", {
 			...request,
-			path: this.normalizeVirtualPath(request.path),
+			path: normalizedPath,
 		});
 	}
 
@@ -374,14 +382,26 @@ export class SandboxContainerService {
 				return this.request("fs.readFile", { path: normalizedPath });
 			}
 		}
+		if (this.isWorkspacePath(normalizedPath)) {
+			await this.syncWorkspaceMount();
+			const bytes =
+				await documentFileSystemService.getWorkspaceFileContent(normalizedPath);
+			const content = new TextDecoder().decode(bytes);
+			await this.request("fs.materializeWorkspaceFile", {
+				path: normalizedPath,
+				content,
+			});
+			return this.request("fs.readFile", { path: normalizedPath });
+		}
 		return this.request("fs.readFile", { path: normalizedPath });
 	}
 
 	async mkdir(request: SandboxFsMkdirRequest): Promise<{ path: string }> {
-		return this.request("fs.mkdir", {
-			...request,
-			path: this.normalizeVirtualPath(request.path),
-		});
+		const normalizedPath = this.normalizeVirtualPath(request.path);
+		if (this.isWorkspacePath(normalizedPath)) {
+			await documentFileSystemService.mkdirWorkspace(normalizedPath);
+		}
+		return this.request("fs.mkdir", { ...request, path: normalizedPath });
 	}
 
 	async readdir(
@@ -390,24 +410,30 @@ export class SandboxContainerService {
 		const normalizedPath = this.normalizeVirtualPath(request.path);
 		if (this.isDocumentsPath(normalizedPath)) {
 			await this.syncDocumentsMount();
+		} else if (this.isWorkspacePath(normalizedPath)) {
+			await this.syncWorkspaceMount();
 		}
 		return this.request("fs.readdir", { path: normalizedPath });
 	}
 
 	async unlink(request: SandboxFsUnlinkRequest): Promise<{ path: string }> {
-		return this.request("fs.unlink", {
-			...request,
-			path: this.normalizeVirtualPath(request.path),
-		});
+		const normalizedPath = this.normalizeVirtualPath(request.path);
+		if (this.isWorkspacePath(normalizedPath)) {
+			await documentFileSystemService.deleteWorkspaceFile(normalizedPath);
+		}
+		return this.request("fs.unlink", { ...request, path: normalizedPath });
 	}
 
 	async rename(
 		request: SandboxFsRenameRequest,
 	): Promise<{ oldPath: string; newPath: string }> {
-		return this.request("fs.rename", {
-			oldPath: this.normalizeVirtualPath(request.oldPath),
-			newPath: this.normalizeVirtualPath(request.newPath),
-		});
+		const oldPath = this.normalizeVirtualPath(request.oldPath);
+		const newPath = this.normalizeVirtualPath(request.newPath);
+		if (this.isWorkspacePath(oldPath)) {
+			const newName = newPath.split("/").pop()!;
+			await documentFileSystemService.renameWorkspaceFile(oldPath, newName);
+		}
+		return this.request("fs.rename", { oldPath, newPath });
 	}
 
 	async exists(
@@ -416,6 +442,8 @@ export class SandboxContainerService {
 		const normalizedPath = this.normalizeVirtualPath(request.path);
 		if (this.isDocumentsPath(normalizedPath)) {
 			await this.syncDocumentsMount();
+		} else if (this.isWorkspacePath(normalizedPath)) {
+			await this.syncWorkspaceMount();
 		}
 		return this.request("fs.exists", { path: normalizedPath });
 	}
@@ -507,6 +535,91 @@ export class SandboxContainerService {
 		}
 	}
 
+	// ── Workspace helpers ────────────────────────────────────────────────────
+
+	private isWorkspacePath(path: string): boolean {
+		return path === "/workspace" || path.startsWith("/workspace/");
+	}
+
+	private async syncWorkspaceMount(): Promise<void> {
+		if (this.mountWorkspaceSyncPromise) {
+			return this.mountWorkspaceSyncPromise;
+		}
+		this.mountWorkspaceSyncPromise = (async () => {
+			const snapshot =
+				await documentFileSystemService.getSandboxWorkspaceMountSnapshot();
+			await this.request("fs.mountWorkspace", snapshot);
+		})().finally(() => {
+			this.mountWorkspaceSyncPromise = null;
+		});
+		return this.mountWorkspaceSyncPromise;
+	}
+
+	private async materializeMountedWorkspaceFile(
+		sandboxPath: string,
+	): Promise<boolean> {
+		try {
+			const bytes =
+				await documentFileSystemService.getWorkspaceFileContent(sandboxPath);
+			const content = new TextDecoder().decode(bytes);
+			await this.request("fs.materializeWorkspaceFile", {
+				path: sandboxPath,
+				content,
+			});
+			return true;
+		} catch (error) {
+			logWarn("Failed to lazily materialize workspace file", {
+				sandboxPath,
+				error,
+			});
+			return false;
+		}
+	}
+
+	private extractUnmaterializedWorkspacePath(
+		errorMessage?: string,
+	): string | null {
+		if (!errorMessage) return null;
+		const match = errorMessage.match(
+			/Workspace file not materialized: (\/workspace\/[^\s]+)/,
+		);
+		return match?.[1] ?? null;
+	}
+
+	private isWorkspaceMountNotLoadedError(errorMessage?: string): boolean {
+		if (!errorMessage) return false;
+		return errorMessage.includes(
+			"Workspace mount is not loaded in sandbox runtime",
+		);
+	}
+
+	/** Drain pending workspace writes/deletes/renames and persist to ZenFS. */
+	private async flushWorkspaceWrites(): Promise<void> {
+		const { ops } = await this.request("fs.flushWorkspaceWrites", undefined);
+		for (const op of ops) {
+			try {
+				if (op.op === "write") {
+					await documentFileSystemService.writeWorkspaceFile(
+						op.path,
+						op.content,
+					);
+				} else if (op.op === "delete") {
+					await documentFileSystemService.deleteWorkspaceFile(op.path);
+				} else if (op.op === "rename") {
+					const newName = op.newPath.split("/").pop()!;
+					await documentFileSystemService.renameWorkspaceFile(
+						op.oldPath,
+						newName,
+					);
+				}
+			} catch (error) {
+				logWarn("Failed to flush workspace op", { op, error });
+			}
+		}
+	}
+
+	// ── End Workspace helpers ─────────────────────────────────────────────────
+
 	private async executeWithLazyDocumentsSupport<
 		T extends "runtime.executeCode" | "runtime.runFile",
 	>(
@@ -516,33 +629,54 @@ export class SandboxContainerService {
 		const maxRetries = 5;
 		const retriedPaths = new Set<string>();
 		let hasMountedDocuments = false;
+		let hasMountedWorkspace = false;
 
 		for (let attempt = 0; attempt <= maxRetries; attempt++) {
 			const result = await this.request(operation, payload);
 			if (result.status !== "error") {
+				await this.flushWorkspaceWrites().catch((err) =>
+					logWarn("Failed to flush workspace writes after execution", { err }),
+				);
 				return result;
 			}
 
 			if (this.isDocumentsMountNotLoadedError(result.error)) {
-				if (hasMountedDocuments) {
-					return result;
-				}
+				if (hasMountedDocuments) return result;
 				await this.syncDocumentsMount();
 				hasMountedDocuments = true;
 				continue;
 			}
 
-			const missingPath = this.extractUnmaterializedMountedPath(result.error);
-			if (!missingPath || retriedPaths.has(missingPath)) {
+			if (this.isWorkspaceMountNotLoadedError(result.error)) {
+				if (hasMountedWorkspace) return result;
+				await this.syncWorkspaceMount();
+				hasMountedWorkspace = true;
+				continue;
+			}
+
+			const missingDocPath = this.extractUnmaterializedMountedPath(
+				result.error,
+			);
+			if (missingDocPath && !retriedPaths.has(missingDocPath)) {
+				retriedPaths.add(missingDocPath);
+				const materialized =
+					await this.materializeMountedDocumentFile(missingDocPath);
+				if (materialized) continue;
 				return result;
 			}
 
-			retriedPaths.add(missingPath);
-			const materialized =
-				await this.materializeMountedDocumentFile(missingPath);
-			if (!materialized) {
+			const missingWsPath = this.extractUnmaterializedWorkspacePath(
+				result.error,
+			);
+			if (missingWsPath && !retriedPaths.has(missingWsPath)) {
+				retriedPaths.add(missingWsPath);
+				const materialized =
+					await this.materializeMountedWorkspaceFile(missingWsPath);
+				if (materialized) continue;
 				return result;
 			}
+
+			return result;
 		}
 
 		return this.request(operation, payload);

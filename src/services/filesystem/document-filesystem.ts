@@ -15,6 +15,8 @@ import { BACKGROUND_EVENTS } from "@/constants/events";
 
 const DOCUMENTS_ROOT = "/home/documents";
 const SANDBOX_DOCUMENTS_ROOT = "/documents";
+const WORKSPACE_ROOT = "/home/workspace";
+const SANDBOX_WORKSPACE_ROOT = "/workspace";
 
 export interface SandboxDocumentsMountSnapshot {
 	directories: string[];
@@ -1068,6 +1070,151 @@ export class DocumentFileSystem {
 			files: Array.from(files).sort(),
 		};
 	}
+
+	// ── Workspace ────────────────────────────────────────────────────────────
+
+	/** Scan /home/workspace and return a DocumentTreeNode tree. */
+	async getWorkspaceTree(): Promise<DocumentTreeNode[]> {
+		await this.initialize();
+		await this.ensureDirectory(WORKSPACE_ROOT);
+		return this.scanDirectory(WORKSPACE_ROOT, "/");
+	}
+
+	/**
+	 * Build a read-write workspace mount snapshot for the sandbox runtime.
+	 * Paths are projected from /home/workspace/... to /workspace/...
+	 */
+	async getSandboxWorkspaceMountSnapshot(): Promise<SandboxDocumentsMountSnapshot> {
+		await this.initialize();
+		await this.ensureDirectory(WORKSPACE_ROOT);
+
+		const directories = new Set<string>([SANDBOX_WORKSPACE_ROOT]);
+		const files = new Set<string>();
+		const tree = await this.getWorkspaceTree();
+
+		const toSandboxPath = (logicalPath: string): string | null => {
+			if (!logicalPath.startsWith("/")) return null;
+			const segments = logicalPath
+				.replace(/\\/g, "/")
+				.split("/")
+				.filter(Boolean);
+			for (const segment of segments) {
+				if (segment === "." || segment === ".." || segment.includes("\0")) {
+					return null;
+				}
+			}
+			if (segments.length === 0) return SANDBOX_WORKSPACE_ROOT;
+			return `${SANDBOX_WORKSPACE_ROOT}/${segments.join("/")}`;
+		};
+
+		const ensureParentDirectories = (fullPath: string): void => {
+			const segments = fullPath.split("/").filter(Boolean);
+			let current = "";
+			for (let i = 0; i < segments.length - 1; i++) {
+				current += `/${segments[i]}`;
+				directories.add(current);
+			}
+		};
+
+		const walk = (nodes: DocumentTreeNode[]): void => {
+			for (const node of nodes) {
+				const sandboxPath = toSandboxPath(node.path);
+				if (!sandboxPath) continue;
+				if (node.type === "folder") {
+					directories.add(sandboxPath);
+				} else if (node.type === "file") {
+					files.add(sandboxPath);
+					ensureParentDirectories(sandboxPath);
+				}
+				if (node.children?.length) walk(node.children);
+			}
+		};
+
+		walk(tree);
+
+		return {
+			directories: Array.from(directories).sort(),
+			files: Array.from(files).sort(),
+		};
+	}
+
+	/** Convert a sandbox /workspace/... path to the ZenFS absolute path. */
+	private toWorkspaceFsPath(sandboxPath: string): string {
+		// sandboxPath is already normalized (starts with /workspace)
+		const logical =
+			sandboxPath === SANDBOX_WORKSPACE_ROOT
+				? ""
+				: sandboxPath.slice(SANDBOX_WORKSPACE_ROOT.length);
+		return `${WORKSPACE_ROOT}${logical}`;
+	}
+
+	/** Read raw bytes from a workspace file (sandboxPath = /workspace/...). */
+	async getWorkspaceFileContent(sandboxPath: string): Promise<Uint8Array> {
+		const fsPath = this.toWorkspaceFsPath(sandboxPath);
+		try {
+			return await fs.promises.readFile(fsPath);
+		} catch {
+			throw new Error(`Workspace file not found: ${sandboxPath}`);
+		}
+	}
+
+	/** Write UTF-8 content to a workspace file, persisting to IndexedDB. */
+	async writeWorkspaceFile(
+		sandboxPath: string,
+		content: string,
+	): Promise<void> {
+		const fsPath = this.toWorkspaceFsPath(sandboxPath);
+		const dirPath = fsPath.substring(0, fsPath.lastIndexOf("/"));
+		await this.ensureDirectory(dirPath);
+		await fs.promises.writeFile(fsPath, new TextEncoder().encode(content));
+		this.notifyFilesystemChanged();
+	}
+
+	/** Create a workspace directory. */
+	async mkdirWorkspace(sandboxPath: string): Promise<void> {
+		const fsPath = this.toWorkspaceFsPath(sandboxPath);
+		await this.ensureDirectory(fsPath);
+		this.notifyFilesystemChanged();
+	}
+
+	/** Delete a workspace file. */
+	async deleteWorkspaceFile(sandboxPath: string): Promise<void> {
+		const fsPath = this.toWorkspaceFsPath(sandboxPath);
+		await fs.promises.unlink(fsPath);
+		this.notifyFilesystemChanged();
+	}
+
+	/** Recursively delete a workspace folder. */
+	async deleteWorkspaceFolder(sandboxPath: string): Promise<void> {
+		const fsPath = this.toWorkspaceFsPath(sandboxPath);
+		const stats = await fs.promises.stat(fsPath);
+		if (!stats.isDirectory())
+			throw new Error(`Not a directory: ${sandboxPath}`);
+		await this.deleteDirectoryRecursive(fsPath);
+		this.notifyFilesystemChanged();
+	}
+
+	/**
+	 * Rename a workspace file.
+	 * @returns The new sandbox path (/workspace/...).
+	 */
+	async renameWorkspaceFile(
+		sandboxPath: string,
+		newName: string,
+	): Promise<string> {
+		const oldFsPath = this.toWorkspaceFsPath(sandboxPath);
+		const parentFsPath = oldFsPath.substring(0, oldFsPath.lastIndexOf("/"));
+		const newFsPath = `${parentFsPath}/${newName}`;
+		await fs.promises.rename(oldFsPath, newFsPath);
+		this.notifyFilesystemChanged();
+		const parentSandbox = sandboxPath.substring(
+			0,
+			sandboxPath.lastIndexOf("/"),
+		);
+		return `${parentSandbox}/${newName}`;
+	}
+
+	// ── End Workspace ─────────────────────────────────────────────────────────
 
 	/**
 	 * Move a file to a new location

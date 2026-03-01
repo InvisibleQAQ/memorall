@@ -21,7 +21,8 @@
 		"uploadFiles": "Upload Files",
 		"createFolder": "Create Folder",
 		"success": "File uploaded successfully",
-		"error": "Failed to upload file"
+		"error": "Failed to upload file",
+		"createDocument": "New Document"
 	},
 	"list": {
 		"items": "{{count}} item{{count, plural, one {} other {s}}}",
@@ -93,5 +94,20 @@
 		"converting": "Converting...",
 		"convert": "Convert {{count}} {{count, plural, one {Page} other {Pages}}}",
 		"allPages": "All Pages"
+	},
+	"sidebar": {
+		"workspace": "Workspace"
+	},
+	"create": {
+		"title": "Create New Document",
+		"nameLabel": "Name",
+		"namePlaceholder": "my-file",
+		"extensionLabel": "Extension",
+		"filenamePreview": "File name:",
+		"unnamed": "unnamed",
+		"nameRequired": "Name is required",
+		"invalidCharacters": "Name contains invalid characters",
+		"cancel": "Cancel",
+		"create": "Create"
 	}
 }

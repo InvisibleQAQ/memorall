@@ -5,12 +5,7 @@ import type {
 	AllServices,
 } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
-import {
-	normalizeFsPath,
-	flattenTree,
-	globToRegex,
-	isInScope,
-} from "./util";
+import { normalizeFsPath, flattenTree, globToRegex, isInScope } from "./util";
 
 const TOOL_NAME = "fs_grep" as const;
 

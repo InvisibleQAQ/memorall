@@ -24,7 +24,6 @@ import type {
 	DocumentFile,
 } from "@/types/document-library";
 
-import { ScrollArea } from "@/main/components/ui/scroll-area";
 import { Badge } from "@/main/components/ui/badge";
 import { Button } from "@/main/components/ui/button";
 import {
@@ -612,7 +611,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 
 	if (items.length === 0) {
 		return (
-			<div className="flex items-center justify-center h-full text-muted-foreground">
+			<div className="flex items-center justify-center h-full text-muted-foreground flex-1">
 				<div className="text-center">
 					<Folder className="h-12 w-12 mx-auto mb-4 opacity-50" />
 					<p className="text-sm">{t("list.emptyFolder")}</p>
@@ -623,8 +622,8 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 	}
 
 	return (
-		<ScrollArea className="h-full">
+		<div className="h-full overflow-auto">
 			{viewMode === "list" ? renderListView() : renderGridView()}
-		</ScrollArea>
+		</div>
 	);
 };

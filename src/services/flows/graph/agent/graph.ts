@@ -43,7 +43,6 @@ const parseStructuredActionPayload = (
 
 const ACTION_OUTPUT_MAX_LENGTH = 1000;
 
-
 /** Truncate tool output to `ACTION_OUTPUT_MAX_LENGTH` characters. */
 const truncateOutput = (content: string): string => {
 	if (content.length <= ACTION_OUTPUT_MAX_LENGTH) return content;

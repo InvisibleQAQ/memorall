@@ -110,6 +110,23 @@ export interface SandboxFsMaterializeDocumentFileResult {
 	materialized: true;
 }
 
+// Workspace mount shares the same shape as documents mount
+export type SandboxFsMountWorkspaceRequest = SandboxFsMountDocumentsRequest;
+export type SandboxFsMountWorkspaceResult = SandboxFsMountDocumentsResult;
+export type SandboxFsMaterializeWorkspaceFileRequest =
+	SandboxFsMaterializeDocumentFileRequest;
+export type SandboxFsMaterializeWorkspaceFileResult =
+	SandboxFsMaterializeDocumentFileResult;
+
+export type SandboxWorkspaceOp =
+	| { op: "write"; path: string; content: string }
+	| { op: "delete"; path: string }
+	| { op: "rename"; oldPath: string; newPath: string };
+
+export interface SandboxFsFlushWorkspaceWritesResult {
+	ops: SandboxWorkspaceOp[];
+}
+
 export interface SandboxNpmInstallRequest {
 	packageSpec: string;
 	save?: boolean;
@@ -255,6 +272,9 @@ export type SandboxOperation =
 	| "fs.exists"
 	| "fs.mountDocuments"
 	| "fs.materializeDocumentFile"
+	| "fs.mountWorkspace"
+	| "fs.materializeWorkspaceFile"
+	| "fs.flushWorkspaceWrites"
 	| "npm.install"
 	| "npm.installFromPackageJson"
 	| "npm.list"
@@ -285,6 +305,9 @@ export type SandboxOperationPayloadMap = {
 	"fs.exists": SandboxFsExistsRequest;
 	"fs.mountDocuments": SandboxFsMountDocumentsRequest;
 	"fs.materializeDocumentFile": SandboxFsMaterializeDocumentFileRequest;
+	"fs.mountWorkspace": SandboxFsMountWorkspaceRequest;
+	"fs.materializeWorkspaceFile": SandboxFsMaterializeWorkspaceFileRequest;
+	"fs.flushWorkspaceWrites": undefined;
 	"npm.install": SandboxNpmInstallRequest;
 	"npm.installFromPackageJson": SandboxNpmInstallFromPackageJsonRequest;
 	"npm.list": undefined;
@@ -316,6 +339,9 @@ export type SandboxOperationResultMap = {
 	"fs.exists": SandboxFsExistsResult;
 	"fs.mountDocuments": SandboxFsMountDocumentsResult;
 	"fs.materializeDocumentFile": SandboxFsMaterializeDocumentFileResult;
+	"fs.mountWorkspace": SandboxFsMountWorkspaceResult;
+	"fs.materializeWorkspaceFile": SandboxFsMaterializeWorkspaceFileResult;
+	"fs.flushWorkspaceWrites": SandboxFsFlushWorkspaceWritesResult;
 	"npm.install": SandboxNpmInstallResult;
 	"npm.installFromPackageJson": SandboxNpmInstallResult;
 	"npm.list": SandboxNpmListResult;

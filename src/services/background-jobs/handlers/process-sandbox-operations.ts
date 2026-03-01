@@ -118,6 +118,18 @@ export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
 					"fs.materializeDocumentFile",
 					payload.payload,
 				);
+			case "fs.mountWorkspace":
+				return this.executeOperation("fs.mountWorkspace", payload.payload);
+			case "fs.materializeWorkspaceFile":
+				return this.executeOperation(
+					"fs.materializeWorkspaceFile",
+					payload.payload,
+				);
+			case "fs.flushWorkspaceWrites":
+				return this.executeOperation(
+					"fs.flushWorkspaceWrites",
+					payload.payload,
+				);
 			case "npm.install":
 				return this.executeOperation("npm.install", payload.payload);
 			case "npm.installFromPackageJson":

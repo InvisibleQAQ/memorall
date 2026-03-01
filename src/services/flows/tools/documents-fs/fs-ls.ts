@@ -5,15 +5,17 @@ import type {
 	AllServices,
 } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
-import { normalizeFsPath, flattenTree, isInScope, formatFileSize } from "./util";
+import {
+	normalizeFsPath,
+	flattenTree,
+	isInScope,
+	formatFileSize,
+} from "./util";
 
 const TOOL_NAME = "fs_ls" as const;
 
 const schema = z.object({
-	path: z
-		.string()
-		.optional()
-		.describe('Directory path to list (default: "/")'),
+	path: z.string().optional().describe('Directory path to list (default: "/")'),
 	recursive: z
 		.boolean()
 		.optional()
@@ -72,9 +74,7 @@ export const createFsLsTool: ToolFactory<Input, Services> = (
 				return `${n.path}/`;
 			}
 			const sizeStr =
-				n.file?.size !== undefined
-					? `  (${formatFileSize(n.file.size)})`
-					: "";
+				n.file?.size !== undefined ? `  (${formatFileSize(n.file.size)})` : "";
 			return `${n.path}${sizeStr}`;
 		});
 

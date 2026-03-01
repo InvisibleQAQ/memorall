@@ -37,9 +37,7 @@ export const createFsReadTool: ToolFactory<Input, Services> = (
 		const filePath = normalizeFsPath(file_path);
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);
-		const node = allNodes.find(
-			(n) => n.path === filePath && n.type === "file",
-		);
+		const node = allNodes.find((n) => n.path === filePath && n.type === "file");
 
 		if (!node || !node.file) {
 			return `Error: File not found: ${file_path}`;
@@ -51,9 +49,7 @@ export const createFsReadTool: ToolFactory<Input, Services> = (
 		const totalLines = allLines.length;
 
 		const startIdx = Math.max(0, offset - 1);
-		const endIdx = limit
-			? Math.min(startIdx + limit, totalLines)
-			: totalLines;
+		const endIdx = limit ? Math.min(startIdx + limit, totalLines) : totalLines;
 		const selectedLines = allLines.slice(startIdx, endIdx);
 
 		const padWidth = String(endIdx).length;

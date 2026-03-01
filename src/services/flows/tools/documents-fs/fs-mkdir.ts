@@ -81,9 +81,7 @@ export const createFsMkdirTool: ToolFactory<Input, Services> = (
 		} else {
 			// Non-recursive: parent must already exist
 			const parentPath =
-				segments.length > 1
-					? `/${segments.slice(0, -1).join("/")}`
-					: "/";
+				segments.length > 1 ? `/${segments.slice(0, -1).join("/")}` : "/";
 			const parentExists =
 				parentPath === "/" ||
 				allNodes.some((n) => n.path === parentPath && n.type === "folder");

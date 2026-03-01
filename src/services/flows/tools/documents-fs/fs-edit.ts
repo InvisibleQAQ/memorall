@@ -13,9 +13,7 @@ const schema = z.object({
 	file_path: z.string().describe("Path to the file to edit"),
 	old_string: z
 		.string()
-		.describe(
-			"Exact text to find and replace. Must be present in the file.",
-		),
+		.describe("Exact text to find and replace. Must be present in the file."),
 	new_string: z.string().describe("Replacement text"),
 	replace_all: z
 		.boolean()
@@ -44,9 +42,7 @@ export const createFsEditTool: ToolFactory<Input, Services> = (
 		const filePath = normalizeFsPath(file_path);
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);
-		const node = allNodes.find(
-			(n) => n.path === filePath && n.type === "file",
-		);
+		const node = allNodes.find((n) => n.path === filePath && n.type === "file");
 
 		if (!node || !node.file) {
 			return `Error: File not found: ${file_path}`;

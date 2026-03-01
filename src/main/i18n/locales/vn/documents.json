@@ -21,7 +21,8 @@
 		"uploadFiles": "Tải lên tệp",
 		"createFolder": "Tạo thư mục",
 		"success": "Tải tệp thành công",
-		"error": "Không thể tải tệp"
+		"error": "Không thể tải tệp",
+		"createDocument": "Tài liệu mới"
 	},
 	"list": {
 		"items": "{{count}} mục",
@@ -93,5 +94,20 @@
 		"converting": "Đang chuyển đổi...",
 		"convert": "Chuyển đổi {{count}} trang",
 		"allPages": "Tất cả trang"
+	},
+	"sidebar": {
+		"workspace": "Không gian làm việc"
+	},
+	"create": {
+		"title": "Tạo tài liệu mới",
+		"nameLabel": "Tên",
+		"namePlaceholder": "tên-tệp",
+		"extensionLabel": "Phần mở rộng",
+		"filenamePreview": "Tên tệp:",
+		"unnamed": "chưa đặt tên",
+		"nameRequired": "Tên là bắt buộc",
+		"invalidCharacters": "Tên chứa ký tự không hợp lệ",
+		"cancel": "Hủy",
+		"create": "Tạo"
 	}
 }

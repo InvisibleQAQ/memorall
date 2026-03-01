@@ -161,10 +161,8 @@ type DocumentsFsFeatureSpec = StepSpecFromDefinition<typeof definition>;
 
 export const createDocumentsFsFeatureStep: StepFactoryFromSpec<
 	DocumentsFsFeatureSpec
-> = (
-	services: DocumentsFsFeatureServices,
-	config?: DocumentsFsFeatureConfig,
-) => bindStep(definition, services, config);
+> = (services: DocumentsFsFeatureServices, config?: DocumentsFsFeatureConfig) =>
+	bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createDocumentsFsFeatureStep);
 

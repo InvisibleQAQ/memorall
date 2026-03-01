@@ -1,8 +1,3 @@
-/**
- * Create Document Dialog
- * Modal for creating new documents with type selection
- */
-
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
@@ -25,60 +20,49 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/main/components/ui/select";
-import type { DocumentType } from "@/types/document-library";
-import { editorRegistry } from "../editors";
 
 export interface CreateDocumentDialogResult {
 	name: string;
-	type: DocumentType;
 	extension: string;
 }
+
+const EXTENSIONS: { ext: string; label: string }[] = [
+	{ ext: ".md", label: "Markdown (.md)" },
+	{ ext: ".txt", label: "Plain Text (.txt)" },
+	{ ext: ".json", label: "JSON (.json)" },
+	{ ext: ".yaml", label: "YAML (.yaml)" },
+	{ ext: ".sh", label: "Shell (.sh)" },
+	{ ext: ".py", label: "Python (.py)" },
+	{ ext: ".js", label: "JavaScript (.js)" },
+	{ ext: ".ts", label: "TypeScript (.ts)" },
+	{ ext: ".html", label: "HTML (.html)" },
+	{ ext: ".css", label: "CSS (.css)" },
+	{ ext: ".sql", label: "SQL (.sql)" },
+];
 
 export const CreateDocumentDialog = NiceModal.create<object>(() => {
 	const modal = useModal();
 	const { t } = useTranslation("documents");
 
-	const creatableEditors = editorRegistry.getCreatableEditors();
-	const defaultEditor = creatableEditors[0];
-
 	const [documentName, setDocumentName] = useState("");
-	const [selectedType, setSelectedType] = useState<DocumentType>(
-		defaultEditor?.type ?? "markdown",
-	);
-	const [error, setError] = useState<string>("");
+	const [extension, setExtension] = useState(".md");
+	const [error, setError] = useState("");
 
 	const handleCreate = () => {
-		// Validate document name
 		if (!documentName.trim()) {
-			setError(
-				t("create.nameRequired", { defaultValue: "Document name is required" }),
-			);
+			setError(t("create.nameRequired"));
 			return;
 		}
 
-		// Check for invalid characters
 		const invalidChars = /[<>:"/\\|?*]/;
 		if (invalidChars.test(documentName)) {
-			setError(
-				t("create.invalidCharacters", {
-					defaultValue: "Document name contains invalid characters",
-				}),
-			);
-			return;
-		}
-
-		const selectedEditor = editorRegistry.getEditor(selectedType);
-		if (!selectedEditor) {
-			setError(
-				t("create.invalidType", { defaultValue: "Invalid document type" }),
-			);
+			setError(t("create.invalidCharacters"));
 			return;
 		}
 
 		const result: CreateDocumentDialogResult = {
 			name: documentName.trim(),
-			type: selectedType,
-			extension: selectedEditor.defaultExtension,
+			extension,
 		};
 
 		modal.resolve(result);
@@ -99,76 +83,60 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<FileText className="h-5 w-5" />
-						{t("create.title", { defaultValue: "Create New Document" })}
+						{t("create.title")}
 					</DialogTitle>
 				</DialogHeader>
 
 				<div className="space-y-4 py-4">
-					{/* Document Name */}
+					{/* Name */}
 					<div className="space-y-2">
-						<Label htmlFor="document-name">
-							{t("create.nameLabel", { defaultValue: "Document Name" })}
-						</Label>
+						<Label htmlFor="document-name">{t("create.nameLabel")}</Label>
 						<Input
 							id="document-name"
-							placeholder={t("create.namePlaceholder", {
-								defaultValue: "My Document",
-							})}
+							placeholder={t("create.namePlaceholder")}
 							value={documentName}
 							onChange={(e) => {
 								setDocumentName(e.target.value);
 								setError("");
 							}}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									handleCreate();
-								}
-							}}
+							onKeyDown={(e) => e.key === "Enter" && handleCreate()}
 							autoFocus
 						/>
 						{error && <p className="text-sm text-destructive">{error}</p>}
 					</div>
 
-					{/* Document Type */}
+					{/* Extension */}
 					<div className="space-y-2">
-						<Label htmlFor="document-type">
-							{t("create.typeLabel", { defaultValue: "Document Type" })}
-						</Label>
-						<Select
-							value={selectedType}
-							onValueChange={(value) => setSelectedType(value as DocumentType)}
-						>
-							<SelectTrigger id="document-type">
+						<Label htmlFor="document-ext">{t("create.extensionLabel")}</Label>
+						<Select value={extension} onValueChange={setExtension}>
+							<SelectTrigger id="document-ext">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								{creatableEditors.map((editor) => (
-									<SelectItem key={editor.type} value={editor.type}>
-										{editor.name}
+								{EXTENSIONS.map(({ ext, label }) => (
+									<SelectItem key={ext} value={ext}>
+										{label}
 									</SelectItem>
 								))}
 							</SelectContent>
 						</Select>
 					</div>
 
-					{/* Preview of full name */}
+					{/* Preview */}
 					<div className="text-sm text-muted-foreground">
-						{t("create.filenamePreview", { defaultValue: "File name:" })}{" "}
+						{t("create.filenamePreview")}{" "}
 						<span className="font-medium">
-							{documentName.trim() ||
-								t("create.unnamed", { defaultValue: "Unnamed" })}
-							{editorRegistry.getEditor(selectedType)?.defaultExtension}
+							{documentName.trim() || t("create.unnamed")}
+							{extension}
 						</span>
 					</div>
 				</div>
 
 				<DialogFooter>
 					<Button variant="outline" onClick={handleCancel}>
-						{t("create.cancel", { defaultValue: "Cancel" })}
+						{t("create.cancel")}
 					</Button>
-					<Button onClick={handleCreate}>
-						{t("create.create", { defaultValue: "Create" })}
-					</Button>
+					<Button onClick={handleCreate}>{t("create.create")}</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

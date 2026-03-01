@@ -29,7 +29,7 @@ export const createFsGlobTool: ToolFactory<Input, Services> = (
 ): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		'Find files whose paths match a glob pattern. Supports ** (recursive), * (single-level wildcard), ? (single character). Returns matching paths sorted by modification time (newest first).',
+		"Find files whose paths match a glob pattern. Supports ** (recursive), * (single-level wildcard), ? (single character). Returns matching paths sorted by modification time (newest first).",
 	schema,
 	execute: async (input) => {
 		const { pattern, path = "/" } = input;
