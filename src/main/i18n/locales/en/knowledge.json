@@ -50,5 +50,10 @@
 	"error": "Error loading graph: {{error}}",
 	"actions": {
 		"close": "Close"
+	},
+	"topics": {
+		"title": "Topics",
+		"noTopics": "No topics yet",
+		"deleteConfirm": "Delete \"{{name}}\"? This will remove it from all associated files and cannot be undone."
 	}
 }

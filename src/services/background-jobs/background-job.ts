@@ -1,7 +1,8 @@
-import { defaultJobNotificationBridge } from "./bridges/factory";
+import { ChromeRuntimeBridge } from "./bridges/chrome-runtime";
 import type {
 	IJobNotificationBridge,
 	JobNotificationMessage,
+	OffscreenProgress,
 } from "./bridges/types";
 import { IdbJobStore } from "./idb-job-store";
 import { logInfo, logError } from "@/utils/logger";
@@ -16,6 +17,22 @@ import type {
 } from "./handlers/types";
 import { sharedStorageService } from "@/services/shared-storage";
 export type { BaseJob };
+
+// ─── Type guard for INITIAL_PROGRESS messages sent by offscreen ───────────────
+interface InitialProgressMessage {
+	type: "INITIAL_PROGRESS";
+	currentProgress: OffscreenProgress;
+}
+
+function isInitialProgressMessage(msg: unknown): msg is InitialProgressMessage {
+	if (typeof msg !== "object" || msg === null) return false;
+	const m = msg as Record<string, unknown>;
+	return (
+		m["type"] === "INITIAL_PROGRESS" &&
+		typeof m["currentProgress"] === "object" &&
+		m["currentProgress"] !== null
+	);
+}
 
 export interface JobQueueState {
 	jobs: Record<string, BaseJob>;
@@ -60,11 +77,8 @@ export class BackgroundJob {
 	private notificationBridge: IJobNotificationBridge;
 
 	private constructor() {
-		// Use the shared singleton bridge instance across all BackgroundJob instances
-		this.notificationBridge = defaultJobNotificationBridge;
-		logInfo(
-			"🚀 Initializing streaming job notification system with shared bridge",
-		);
+		this.notificationBridge = new ChromeRuntimeBridge();
+		logInfo("🚀 Initializing streaming job notification system");
 	}
 
 	static getInstance(): BackgroundJob {
@@ -347,23 +361,15 @@ export class BackgroundJob {
 		};
 
 		// Set up message listener for initialization progress updates
-		const messageListener = (message: {
-			type: string;
-			currentProgress: any;
-		}) => {
-			if (message.type === "INITIAL_PROGRESS") {
-				// Forward currentProgress from offscreen
-				controller.enqueue({
-					stage: message.currentProgress?.status || "Initializing...",
-					progress: message.currentProgress?.progress || 0,
-					status: message.currentProgress?.done ? "completed" : "initializing",
-				});
-
-				// Complete when done
-				if (message.currentProgress?.done) {
-					completeStream();
-				}
-			}
+		const messageListener = (rawMessage: unknown): void => {
+			if (!isInitialProgressMessage(rawMessage)) return;
+			const p = rawMessage.currentProgress;
+			controller.enqueue({
+				stage: p.status ?? "Initializing...",
+				progress: p.progress ?? 0,
+				status: p.done ? "completed" : "initializing",
+			});
+			if (p.done) completeStream();
 		};
 
 		try {
@@ -650,7 +656,7 @@ export class BackgroundJob {
 
 		// Immediate notification for progress updates
 		this.notificationBridge.notifyJobUpdated(jobId, job);
-		if (this.notificationBridge.getContextType() !== "ui") {
+		if (this.notificationBridge.getContextType() !== "popup") {
 			this.notificationBridge.notifyJobProgress(jobId, event, "all");
 		}
 	}

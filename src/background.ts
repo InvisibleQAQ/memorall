@@ -3,7 +3,8 @@
 
 import { logInfo, logError } from "./utils/logger";
 import { backgroundJob } from "./services/background-jobs/background-job";
-import { backgroundJobMessageForwarder } from "./background/message-forwarder";
+import { isJobNotificationMessage } from "./services/background-jobs/bridges/types";
+import type { JobNotificationMessage } from "./services/background-jobs/bridges/types";
 import { portBridge } from "./background/port-bridge";
 import { sharedStorageService } from "./services/shared-storage";
 import { BACKGROUND_EVENTS } from "./constants/events";
@@ -319,9 +320,7 @@ const init = async () => {
 		await backgroundJob.initialize();
 		logInfo("✅ Background job queue initialized");
 
-		// Initialize message relay for job notifications
-		backgroundJobMessageForwarder.initialize();
-		logInfo("✅[BACKGROUND] Background job message relay initialized");
+		logInfo("✅[BACKGROUND] Job notification relay ready (inline)");
 
 		// NOW initialize Port bridge (after offscreen services are fully ready)
 		// portBridge.initialize({
@@ -772,8 +771,53 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 	}
 });
 
+// ─── Job notification relay ───────────────────────────────────────────────────
+// The ONLY relay needed in the architecture: forward job notifications that target
+// content scripts, since chrome.runtime.sendMessage() cannot reach them directly.
+async function relayJobNotificationToContent(
+	message: JobNotificationMessage,
+	senderTabId: number | undefined,
+): Promise<void> {
+	// target="content" with a tabId → specific tab only
+	if (message.target === "content" && (message.tabId ?? senderTabId)) {
+		const tabId = (message.tabId ?? senderTabId)!;
+		await chrome.tabs.sendMessage(tabId, message).catch(() => {
+			// Tab may not have content script — silently ignore
+		});
+		return;
+	}
+
+	// target="content" (broadcast) or target="all" → all eligible tabs
+	const tabs = await chrome.tabs.query({});
+	await Promise.allSettled(
+		tabs
+			.filter(
+				(tab) =>
+					tab.id !== undefined &&
+					tab.url !== undefined &&
+					!tab.url.startsWith("chrome://") &&
+					!tab.url.startsWith("chrome-extension://"),
+			)
+			.map((tab) =>
+				chrome.tabs.sendMessage(tab.id!, message).catch(() => {
+					// Tab may not have content script — silently ignore
+				}),
+			),
+	);
+}
+
 // Handle messages from content scripts and UI
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	// ── Job notification relay (must come first, before BACKGROUND_EVENTS checks) ──
+	if (isJobNotificationMessage(message)) {
+		if (message.target === "content" || message.target === "all") {
+			void relayJobNotificationToContent(message, sender.tab?.id);
+		}
+		// Other targets (popup, offscreen, background) are already received directly
+		// by those contexts via chrome.runtime.sendMessage — nothing more to do here.
+		return false;
+	}
+
 	if (message.type === BACKGROUND_EVENTS.POPUP_OPENED) {
 		logInfo("🪟 Popup opened");
 

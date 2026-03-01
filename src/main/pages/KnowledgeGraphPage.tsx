@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { Search, Network } from "lucide-react";
+import {
+	Search,
+	Network,
+	Plus,
+	MoreHorizontal,
+	Pencil,
+	Trash2,
+	Tags,
+	Loader2,
+} from "lucide-react";
 import { eq, sql, or } from "drizzle-orm";
 import { useTranslation } from "react-i18next";
+import NiceModal from "@ebay/nice-modal-react";
 
 import { ScrollArea } from "@/main/components/ui/scroll-area";
 import { Input } from "@/main/components/ui/input";
 import { Badge } from "@/main/components/ui/badge";
+import { Button } from "@/main/components/ui/button";
 import {
 	Select,
 	SelectContent,
@@ -13,28 +24,146 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/main/components/ui/select";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/main/components/ui/dropdown-menu";
 
 import { D3KnowledgeGraph } from "@/main/modules/knowledge/components/D3KnowledgeGraph";
+import { CreateTopicDialog, EditTopicDialog } from "@/main/modules/topics/modals";
+import { topicService } from "@/main/modules/topics/services/topic-service";
+import type { Topic } from "@/services/database/entities/topics";
 import type { Node, Edge } from "@/services/database/types";
 import { serviceManager } from "@/services";
 import { logError, logInfo } from "@/utils/logger";
 
-interface Topic {
-	id: string; // UI dropdown ID (prefixed with "topic_" or "default")
-	label: string; // display name
+type TopicWithCount = Topic & { fileCount: number };
+
+const DEFAULT_TOPIC_ID = "default" as const;
+
+// ---------------------------------------------------------------------------
+// TopicRow – clickable sidebar row for selecting / managing a topic
+// ---------------------------------------------------------------------------
+
+interface TopicRowProps {
+	name: string;
+	fileCount?: number;
+	isSelected: boolean;
+	isDefault?: boolean;
+	isDeleting?: boolean;
+	onSelect: () => void;
+	onEdit?: () => void;
+	onDelete?: () => void;
 }
+
+const TopicRow: React.FC<TopicRowProps> = ({
+	name,
+	fileCount,
+	isSelected,
+	isDefault = false,
+	isDeleting = false,
+	onSelect,
+	onEdit,
+	onDelete,
+}) => {
+	const { t } = useTranslation("topics");
+
+	return (
+		<div
+			className={`group flex items-center gap-1 px-3 py-1.5 cursor-pointer transition-colors hover:bg-muted/50 ${
+				isSelected ? "bg-accent border-r-2 border-primary" : ""
+			}`}
+			onClick={onSelect}
+		>
+			<div className="flex-1 min-w-0 flex items-center gap-2">
+				<span
+					className={`text-sm truncate ${
+						isSelected
+							? "font-medium text-foreground"
+							: "text-muted-foreground"
+					}`}
+				>
+					{name}
+				</span>
+				{typeof fileCount === "number" && !isDefault && (
+					<Badge
+						variant="secondary"
+						className="text-xs shrink-0 h-4 px-1.5 py-0 leading-none"
+					>
+						{fileCount}
+					</Badge>
+				)}
+			</div>
+
+			{!isDefault && (onEdit || onDelete) && (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+							disabled={isDeleting}
+						>
+							{isDeleting ? (
+								<Loader2 className="h-3 w-3 animate-spin" />
+							) : (
+								<MoreHorizontal className="h-3 w-3" />
+							)}
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="w-32">
+						{onEdit && (
+							<DropdownMenuItem
+								onClick={(e) => {
+									e.stopPropagation();
+									onEdit();
+								}}
+							>
+								<Pencil className="h-3.5 w-3.5 mr-2" />
+								{t("manage.edit")}
+							</DropdownMenuItem>
+						)}
+						{onDelete && (
+							<DropdownMenuItem
+								onClick={(e) => {
+									e.stopPropagation();
+									onDelete();
+								}}
+								className="text-destructive focus:text-destructive"
+							>
+								<Trash2 className="h-3.5 w-3.5 mr-2" />
+								{t("manage.delete")}
+							</DropdownMenuItem>
+						)}
+					</DropdownMenuContent>
+				</DropdownMenu>
+			)}
+		</div>
+	);
+};
+
+// ---------------------------------------------------------------------------
+// KnowledgeGraphPage
+// ---------------------------------------------------------------------------
 
 interface KnowledgeGraphPageProps {}
 
 export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 	const { t } = useTranslation("knowledge");
+	const { t: tTopics } = useTranslation("topics");
+
 	const [nodes, setNodes] = useState<Node[]>([]);
 	const [edges, setEdges] = useState<Edge[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-	const [topics, setTopics] = useState<Topic[]>([]);
-	const [selectedTopicId, setSelectedTopicId] = useState<string>("default");
+
+	// Topics state
+	const [topics, setTopics] = useState<TopicWithCount[]>([]);
+	const [selectedTopicId, setSelectedTopicId] = useState<string>(DEFAULT_TOPIC_ID);
+	const [deletingTopicId, setDeletingTopicId] = useState<string | null>(null);
 
 	useEffect(() => {
 		loadTopics();
@@ -46,24 +175,8 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 
 	const loadTopics = async () => {
 		try {
-			await serviceManager.databaseService.use(async ({ db, schema }) => {
-				// Query topics table directly
-				const allTopics = await db.select().from(schema.topics);
-
-				const topicList: Topic[] = [
-					{ id: "default", label: t("topic.defaultNoTopic") },
-				];
-
-				// Add each topic with its name
-				allTopics.forEach((topic) => {
-					topicList.push({
-						id: `topic_${topic.id}`, // UI dropdown ID (prefixed)
-						label: topic.name,
-					});
-				});
-
-				setTopics(topicList);
-			});
+			const data = await topicService.getTopicsWithContentCount();
+			setTopics(data);
 		} catch (error) {
 			logError("Failed to load topics:", error);
 		}
@@ -73,28 +186,25 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 		try {
 			setLoading(true);
 			await serviceManager.databaseService.use(async ({ db, schema }) => {
-				// Determine graph filter value
-				// Strip "topic_" prefix to get actual UUID
 				const graphFilter =
-					selectedTopicId === "default"
-						? "default"
-						: selectedTopicId.replace(/^topic_/, "");
+					selectedTopicId === DEFAULT_TOPIC_ID
+						? DEFAULT_TOPIC_ID
+						: selectedTopicId;
 
 				logInfo("[KNOWLEDGE_GRAPH] Loading graph data:", {
 					selectedTopicId,
 					graphFilter,
-					isDefault: selectedTopicId === "default",
+					isDefault: selectedTopicId === DEFAULT_TOPIC_ID,
 				});
 
-				// Filter nodes by graph
 				const filteredNodes =
-					selectedTopicId === "default"
+					selectedTopicId === DEFAULT_TOPIC_ID
 						? await db
 								.select()
 								.from(schema.nodes)
 								.where(
 									or(
-										eq(schema.nodes.graph, "default"),
+										eq(schema.nodes.graph, DEFAULT_TOPIC_ID),
 										sql`${schema.nodes.graph} IS NULL`,
 									),
 								)
@@ -103,15 +213,14 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 								.from(schema.nodes)
 								.where(eq(schema.nodes.graph, graphFilter));
 
-				// Filter edges by graph
 				const filteredEdges =
-					selectedTopicId === "default"
+					selectedTopicId === DEFAULT_TOPIC_ID
 						? await db
 								.select()
 								.from(schema.edges)
 								.where(
 									or(
-										eq(schema.edges.graph, "default"),
+										eq(schema.edges.graph, DEFAULT_TOPIC_ID),
 										sql`${schema.edges.graph} IS NULL`,
 									),
 								)
@@ -136,9 +245,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 	};
 
 	const handleNodeDeleted = () => {
-		// Reload graph data immediately after deletion
 		loadGraphData();
-		// Clear selection
 		setSelectedNodeId(null);
 	};
 
@@ -153,38 +260,112 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 		}
 	};
 
+	const handleCreateTopic = async () => {
+		const newTopic = await NiceModal.show(CreateTopicDialog);
+		if (newTopic) {
+			await loadTopics();
+			logInfo("[KNOWLEDGE_GRAPH] Topic created:", newTopic);
+		}
+	};
+
+	const handleEditTopic = async (topic: TopicWithCount) => {
+		const result = await NiceModal.show(EditTopicDialog, { topic });
+		if (result) {
+			await loadTopics();
+			logInfo("[KNOWLEDGE_GRAPH] Topic updated:", result);
+		}
+	};
+
+	const handleDeleteTopic = async (topic: TopicWithCount) => {
+		if (!confirm(t("topics.deleteConfirm", { name: topic.name }))) return;
+
+		try {
+			setDeletingTopicId(topic.id);
+			await topicService.deleteTopic(topic.id);
+
+			// Reset graph to default when the selected topic is deleted
+			if (selectedTopicId === topic.id) {
+				setSelectedTopicId(DEFAULT_TOPIC_ID);
+			}
+
+			await loadTopics();
+			logInfo("[KNOWLEDGE_GRAPH] Topic deleted:", topic.id);
+		} catch (error) {
+			logError("[KNOWLEDGE_GRAPH] Failed to delete topic:", error);
+		} finally {
+			setDeletingTopicId(null);
+		}
+	};
+
+	const handleTopicSelect = (topicId: string) => {
+		setSelectedTopicId(topicId);
+		setSelectedNodeId(null);
+	};
+
 	const filteredNodes = nodes.filter((node) =>
 		node.name.toLowerCase().includes(searchQuery.toLowerCase()),
 	);
 
 	return (
 		<div className="flex flex-col sm:flex-row h-full overflow-hidden bg-background">
-			{/* Sidebar with node list - hidden on small screens */}
-			<div className="hidden sm:block sm:w-72 border-r border-border bg-card">
-				<div className="p-3 space-y-3 border-b border-border">
-					{/* Topic Selector */}
-					<div>
-						<label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-							{t("topic.label")}
-						</label>
-						<Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
-							<SelectTrigger className="w-full">
-								<SelectValue placeholder={t("topic.selectPlaceholder")} />
-							</SelectTrigger>
-							<SelectContent>
-								{topics.map((topic) => (
-									<SelectItem key={topic.id} value={topic.id}>
-										{topic.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+			{/* ----------------------------------------------------------------
+			    Sidebar – visible on sm+ screens
+			    ---------------------------------------------------------------- */}
+			<div className="hidden sm:flex sm:flex-col sm:w-72 border-r border-border bg-card overflow-hidden">
+				{/* Topics Panel */}
+				<div className="flex-shrink-0 border-b border-border">
+					{/* Header */}
+					<div className="flex items-center justify-between px-3 py-2">
+						<div className="flex items-center gap-1.5">
+							<Tags className="h-3.5 w-3.5 text-muted-foreground" />
+							<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+								{t("topics.title")}
+							</span>
+						</div>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleCreateTopic}
+							className="h-6 w-6 p-0"
+							title={tTopics("manage.newTopic")}
+						>
+							<Plus className="h-3.5 w-3.5" />
+						</Button>
 					</div>
 
-					{/* Search */}
-					<div>
+					{/* Topic list – scrollable up to ~6 rows */}
+					<div className="overflow-y-auto max-h-48 py-1">
+						<TopicRow
+							name={t("topic.defaultNoTopic")}
+							isSelected={selectedTopicId === DEFAULT_TOPIC_ID}
+							isDefault
+							onSelect={() => handleTopicSelect(DEFAULT_TOPIC_ID)}
+						/>
+						{topics.map((topic) => (
+							<TopicRow
+								key={topic.id}
+								name={topic.name}
+								fileCount={topic.fileCount}
+								isSelected={selectedTopicId === topic.id}
+								isDeleting={deletingTopicId === topic.id}
+								onSelect={() => handleTopicSelect(topic.id)}
+								onEdit={() => handleEditTopic(topic)}
+								onDelete={() => handleDeleteTopic(topic)}
+							/>
+						))}
+						{topics.length === 0 && (
+							<p className="px-3 py-2 text-xs text-muted-foreground">
+								{t("topics.noTopics")}
+							</p>
+						)}
+					</div>
+				</div>
+
+				{/* Knowledge Nodes Panel */}
+				<div className="flex-1 flex flex-col min-h-0">
+					<div className="p-3 border-b border-border flex-shrink-0">
 						<div className="relative">
-							<Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 							<Input
 								placeholder={t("search.placeholder")}
 								value={searchQuery}
@@ -199,67 +380,79 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 							})}
 						</div>
 					</div>
-				</div>
 
-				<ScrollArea className="h-full">
-					{loading ? (
-						<div className="p-3 text-center text-muted-foreground text-sm">
-							{t("status.loading")}
-						</div>
-					) : filteredNodes.length === 0 ? (
-						<div className="p-3 text-center text-muted-foreground text-sm">
-							{searchQuery ? t("search.noMatches") : t("search.noNodes")}
-						</div>
-					) : (
-						<div className="divide-y divide-border">
-							{filteredNodes.map((node) => (
-								<div
-									key={node.id}
-									className={`p-2 cursor-pointer hover:bg-muted/50 ${
-										selectedNodeId === node.id
-											? "bg-accent border-r-2 border-primary"
-											: ""
-									}`}
-									onClick={() => setSelectedNodeId(node.id)}
-								>
-									<div className="flex items-center justify-between gap-2">
-										<span className="font-medium text-sm line-clamp-1 text-foreground flex-1">
-											{node.name}
-										</span>
-										<Badge variant="secondary" className="text-xs shrink-0">
-											{node.nodeType}
-										</Badge>
+					<ScrollArea className="flex-1">
+						{loading ? (
+							<div className="p-3 text-center text-muted-foreground text-sm">
+								{t("status.loading")}
+							</div>
+						) : filteredNodes.length === 0 ? (
+							<div className="p-3 text-center text-muted-foreground text-sm">
+								{searchQuery ? t("search.noMatches") : t("search.noNodes")}
+							</div>
+						) : (
+							<div className="divide-y divide-border">
+								{filteredNodes.map((node) => (
+									<div
+										key={node.id}
+										className={`p-2 cursor-pointer hover:bg-muted/50 ${
+											selectedNodeId === node.id
+												? "bg-accent border-r-2 border-primary"
+												: ""
+										}`}
+										onClick={() => setSelectedNodeId(node.id)}
+									>
+										<div className="flex items-center justify-between gap-2">
+											<span className="font-medium text-sm line-clamp-1 text-foreground flex-1">
+												{node.name}
+											</span>
+											<Badge variant="secondary" className="text-xs shrink-0">
+												{node.nodeType}
+											</Badge>
+										</div>
 									</div>
-								</div>
-							))}
-						</div>
-					)}
-				</ScrollArea>
+								))}
+							</div>
+						)}
+					</ScrollArea>
+				</div>
 			</div>
 
-			{/* Main graph area */}
-			<div className="flex-1 flex flex-col">
-				{/* Topic selector for small screens (popup mode) */}
-				<div className="sm:hidden p-3 border-b border-border bg-card">
-					<label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-						{t("topic.label")}
-					</label>
-					<Select value={selectedTopicId} onValueChange={setSelectedTopicId}>
-						<SelectTrigger className="w-full">
+			{/* ----------------------------------------------------------------
+			    Main graph area
+			    ---------------------------------------------------------------- */}
+			<div className="flex-1 flex flex-col overflow-hidden">
+				{/* Mobile bar – topic selector + new-topic button (<sm) */}
+				<div className="sm:hidden flex items-center gap-2 p-3 border-b border-border bg-card">
+					<Select value={selectedTopicId} onValueChange={handleTopicSelect}>
+						<SelectTrigger className="flex-1">
 							<SelectValue placeholder={t("topic.selectPlaceholder")} />
 						</SelectTrigger>
 						<SelectContent>
+							<SelectItem value={DEFAULT_TOPIC_ID}>
+								{t("topic.defaultNoTopic")}
+							</SelectItem>
 							{topics.map((topic) => (
 								<SelectItem key={topic.id} value={topic.id}>
-									{topic.label}
+									{topic.name}
 								</SelectItem>
 							))}
 						</SelectContent>
 					</Select>
+
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleCreateTopic}
+						className="flex-shrink-0 h-10 w-10 p-0"
+						title={tTopics("manage.newTopic")}
+					>
+						<Plus className="h-4 w-4" />
+					</Button>
 				</div>
 
-				{/* Graph content */}
-				<div className="flex-1 overflow-hidden h-full">
+				{/* Graph canvas */}
+				<div className="flex-1 overflow-hidden">
 					{loading ? (
 						<div className="h-full flex items-center justify-center text-muted-foreground">
 							<div className="text-center">

@@ -3,245 +3,138 @@ import type {
 	IJobNotificationBridge,
 	JobNotificationMessage,
 	ContextType,
-	DestinationType,
+	MessageTarget,
 	BridgeStatus,
 } from "./types";
+import { isJobNotificationMessage } from "./types";
 import type { BaseJob, JobProgressEvent, JobResult } from "../handlers/types";
 
 /**
- * Chrome Runtime-based job notification bridge
- * Cross-context job notification bridge using chrome.runtime.sendMessage
- * Works across all extension contexts (embedded → background → offscreen)
+ * Chrome Runtime job notification bridge.
+ *
+ * Transport rule (MV3):
+ *   chrome.runtime.sendMessage() reaches every extension page (background,
+ *   popup, standalone, offscreen) but NOT content scripts.
+ *   Background relays target="content"|"all" to content scripts via
+ *   chrome.tabs.sendMessage() — see the relay section in background.ts.
  */
 export class ChromeRuntimeBridge implements IJobNotificationBridge {
-	private listeners = new Map<
+	private readonly listeners = new Map<
 		string,
 		Set<(message: JobNotificationMessage) => void>
 	>();
-	private isInitialized = false;
-	private contextType: ContextType;
+	private readonly contextType: ContextType;
+	private isReady = false;
 
 	constructor() {
-		this.contextType = this.detectContextType();
-		logInfo(`[ChromeRuntimeBridge] initialized for ${this.contextType}`);
-		this.setupEventListeners();
+		this.contextType = ChromeRuntimeBridge.detectContext();
+		this.setupListener();
+		logInfo(`[ChromeRuntimeBridge] ready for "${this.contextType}"`);
 	}
 
-	private detectContextType(): ContextType {
-		if (typeof chrome !== "undefined" && chrome.runtime) {
-			if (typeof document !== "undefined") {
-				try {
-					if (document.URL.endsWith("offscreen.html")) {
-						return "offscreen";
-					}
-				} catch {
-					// fall through to ui when document access fails
-				}
-				try {
-					if (document.URL.startsWith("https://")) {
-						return "embedded";
-					}
-				} catch {
-					// fall through to ui when document access fails
-				}
-				return "ui";
-			}
+	// ─── Context detection ────────────────────────────────────────────────────
 
-			if (typeof window === "undefined") {
-				return "background";
-			}
+	private static detectContext(): ContextType {
+		if (typeof chrome === "undefined" || !chrome.runtime) return "background";
+		if (typeof document !== "undefined") {
+			// Offscreen document URL always ends with offscreen.html
+			if (document.URL.endsWith("offscreen.html")) return "offscreen";
+			// Content scripts are injected into web pages
+			if (
+				document.URL.startsWith("https://") ||
+				document.URL.startsWith("http://")
+			)
+				return "content";
+			// Remaining chrome-extension:// pages: popup.html, standalone.html, etc.
+			return "popup";
 		}
-		if (
-			typeof document !== "undefined" &&
-			document.URL.startsWith("https://")
-		) {
-			return "embedded";
-		}
+		// No document = service worker (background)
 		return "background";
 	}
 
-	private setupEventListeners(): void {
-		// Listen for chrome.runtime messages for cross-context communication
-		if (typeof chrome !== "undefined" && chrome.runtime) {
-			chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-				if (message.type === "JOB_NOTIFICATION_BRIDGE") {
-					const jobMessage = message.jobMessage as JobNotificationMessage;
+	// ─── Incoming message listener ────────────────────────────────────────────
 
-					// Filter messages by destination - ignore messages not intended for this context
-					if (
-						jobMessage.destination &&
-						jobMessage.destination !== "all" &&
-						jobMessage.destination !== this.contextType
-					) {
-						return;
-					}
+	private setupListener(): void {
+		if (typeof chrome === "undefined" || !chrome.runtime) return;
 
-					// Ignore messages from self unless specifically targeted
-					if (
-						jobMessage.sender === this.contextType &&
-						!jobMessage.destination
-					) {
-						return;
-					}
+		chrome.runtime.onMessage.addListener((rawMessage: unknown) => {
+			if (!isJobNotificationMessage(rawMessage)) return;
+			if (!this.isForMe(rawMessage.target)) return;
+			this.dispatch(rawMessage);
+		});
 
-					// Notify all subscribers for this message type
-					this.notifyLocalListeners(jobMessage);
-
-					sendResponse({ success: true });
-					return true;
-				}
-			});
-		}
-
-		this.isInitialized = true;
-		logInfo(
-			`🚀 ChromeRuntime bridge initialized for ${this.contextType} context`,
-		);
+		this.isReady = true;
 	}
 
-	private notifyLocalListeners(message: JobNotificationMessage): void {
-		// Notify all subscribers for this message type
-		const typeListeners = this.listeners.get(message.type);
-		if (typeListeners) {
-			typeListeners.forEach((listener) => {
-				try {
-					listener(message);
-				} catch (error) {
-					logError(
-						`Error in job notification listener for ${message.type}:`,
-						error,
-					);
-				}
-			});
-		}
-
-		// Notify wildcard listeners
-		const wildcardListeners = this.listeners.get("*");
-		if (wildcardListeners) {
-			wildcardListeners.forEach((listener) => {
-				try {
-					listener(message);
-				} catch (error) {
-					logError("Error in wildcard job notification listener:", error);
-				}
-			});
-		}
+	private isForMe(target: MessageTarget): boolean {
+		return target === "all" || target === this.contextType;
 	}
+
+	private dispatch(message: JobNotificationMessage): void {
+		this.listeners.get(message.type)?.forEach((fn) => {
+			try {
+				fn(message);
+			} catch (err) {
+				logError(`[Bridge] listener error (${message.type}):`, err);
+			}
+		});
+		this.listeners.get("*")?.forEach((fn) => {
+			try {
+				fn(message);
+			} catch (err) {
+				logError("[Bridge] wildcard listener error:", err);
+			}
+		});
+	}
+
+	// ─── IJobNotificationBridge ───────────────────────────────────────────────
 
 	subscribe(
 		messageType: JobNotificationMessage["type"] | "*",
 		listener: (message: JobNotificationMessage) => void,
 	): () => void {
-		if (!this.listeners.has(messageType)) {
-			this.listeners.set(messageType, new Set());
+		let bucket = this.listeners.get(messageType);
+		if (!bucket) {
+			bucket = new Set();
+			this.listeners.set(messageType, bucket);
 		}
-
-		const typeListeners = this.listeners.get(messageType)!;
-		typeListeners.add(listener);
-
-		// Return unsubscribe function
+		bucket.add(listener);
 		return () => {
-			typeListeners.delete(listener);
-			if (typeListeners.size === 0) {
-				this.listeners.delete(messageType);
-			}
+			bucket!.delete(listener);
+			if (bucket!.size === 0) this.listeners.delete(messageType);
 		};
 	}
 
-	notifyJobEnqueued(job: BaseJob, destination?: DestinationType): void {
-		this.postMessage({
-			type: "JOB_ENQUEUED",
-			jobId: job.id,
-			job,
-			timestamp: Date.now(),
-			sender: this.contextType,
-			destination: destination || "offscreen", // Default to offscreen for processing
-		});
+	notifyJobEnqueued(job: BaseJob, target: MessageTarget = "offscreen"): void {
+		this.send({ type: "JOB_ENQUEUED", target, jobId: job.id, job });
 	}
 
 	notifyJobUpdated(
 		jobId: string,
 		job: BaseJob,
-		destination?: DestinationType,
+		target: MessageTarget = "all",
 	): void {
-		this.postMessage({
-			type: "JOB_UPDATED",
-			jobId,
-			job,
-			timestamp: Date.now(),
-			sender: this.contextType,
-			destination: destination || "all", // Updates go to all contexts
-		});
+		this.send({ type: "JOB_UPDATED", target, jobId, job });
 	}
 
 	notifyJobProgress(
 		jobId: string,
 		progress: JobProgressEvent,
-		destination?: DestinationType,
+		target: MessageTarget = "all",
 	): void {
-		this.postMessage({
-			type: "JOB_PROGRESS",
-			jobId,
-			progress,
-			timestamp: Date.now(),
-			sender: this.contextType,
-			destination: destination || "all", // Progress updates consumed across contexts
-		});
+		this.send({ type: "JOB_PROGRESS", target, jobId, progress });
 	}
 
 	notifyJobCompleted(
 		jobId: string,
 		result?: JobResult,
-		destination?: DestinationType,
+		target: MessageTarget = "all",
 	): void {
-		this.postMessage({
-			type: "JOB_COMPLETED",
-			jobId,
-			result,
-			timestamp: Date.now(),
-			sender: this.contextType,
-			destination: destination || "background", // Completions go to background by default
-		});
+		this.send({ type: "JOB_COMPLETED", target, jobId, result });
 	}
 
-	notifyQueueUpdated(destination?: DestinationType): void {
-		this.postMessage({
-			type: "QUEUE_UPDATED",
-			timestamp: Date.now(),
-			sender: this.contextType,
-			destination: destination || "all", // Queue updates go to all contexts
-		});
-	}
-
-	private postMessage(message: JobNotificationMessage): void {
-		if (!this.isInitialized) {
-			logError("ChromeRuntime bridge not initialized");
-			return;
-		}
-
-		// Use chrome.runtime.sendMessage for cross-context communication
-		if (typeof chrome !== "undefined" && chrome.runtime) {
-			try {
-				chrome.runtime
-					.sendMessage({
-						type: "JOB_NOTIFICATION_BRIDGE",
-						jobMessage: message,
-					})
-					.catch((error) => {
-						logError(
-							`Failed to send job notification ${message.type} via chrome.runtime:`,
-							error,
-						);
-					});
-			} catch (error) {
-				logError(
-					`Failed to send job notification ${message.type} via chrome.runtime:`,
-					error,
-				);
-			}
-		} else {
-			logError("Chrome runtime not available for job notification bridge");
-		}
+	notifyQueueUpdated(target: MessageTarget = "all"): void {
+		this.send({ type: "QUEUE_UPDATED", target });
 	}
 
 	getContextType(): ContextType {
@@ -250,23 +143,42 @@ export class ChromeRuntimeBridge implements IJobNotificationBridge {
 
 	getStatus(): BridgeStatus {
 		return {
-			isInitialized: this.isInitialized,
+			isInitialized: this.isReady,
 			listenerCount: Array.from(this.listeners.values()).reduce(
-				(sum, set) => sum + set.size,
+				(n, s) => n + s.size,
 				0,
 			),
 			subscribedTypes: Array.from(this.listeners.keys()),
-			connectionType: "ChromeRuntime",
 		};
 	}
 
 	close(): void {
-		try {
-			this.listeners.clear();
-			this.isInitialized = false;
-			logInfo("📡 ChromeRuntime bridge closed");
-		} catch (error) {
-			logError("Error closing ChromeRuntime bridge:", error);
-		}
+		this.listeners.clear();
+		this.isReady = false;
+		logInfo("[Bridge] ChromeRuntimeBridge closed");
+	}
+
+	// ─── Send ─────────────────────────────────────────────────────────────────
+
+	private send(
+		partial: Omit<JobNotificationMessage, "sender" | "timestamp">,
+	): void {
+		if (!this.isReady) return;
+
+		const message: JobNotificationMessage = {
+			...partial,
+			sender: this.contextType,
+			timestamp: Date.now(),
+		};
+
+		chrome.runtime.sendMessage(message).catch((err: Error) => {
+			// "Receiving end does not exist" is normal when no other context is open
+			if (
+				!err.message?.includes("Receiving end does not exist") &&
+				!err.message?.includes("Could not establish connection")
+			) {
+				logError(`[Bridge] failed to send ${message.type}:`, err);
+			}
+		});
 	}
 }

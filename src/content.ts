@@ -2,6 +2,7 @@
 // Uses modular embedded components structure
 
 import { BACKGROUND_EVENTS } from "./constants/events";
+import { isJobNotificationMessage } from "./services/background-jobs/bridges/types";
 import "./embedded/activity-tracker"; // Initialize activity tracker
 import {
 	extractSelection,
@@ -34,47 +35,49 @@ document.addEventListener("contextmenu", (e) => {
 });
 
 // Message listener handler
-const messageListener = async (
-	message: BackgroundMessage,
+const messageListener = (
+	rawMessage: unknown,
 	_sender: chrome.runtime.MessageSender,
 	sendResponse: (response: MessageResponse) => void,
-): Promise<boolean> => {
-	try {
-		switch (message.type) {
-			case BACKGROUND_EVENTS.REMEMBER_THIS:
-				await handleRememberThis(message, sendResponse);
-				return true;
+): boolean => {
+	// Job notifications (relayed by background via chrome.tabs.sendMessage) are
+	// handled by ChromeRuntimeBridge's own onMessage listener. Return false so
+	// Chrome closes the channel immediately — no "Unknown message type" noise.
+	if (isJobNotificationMessage(rawMessage)) return false;
 
-			case BACKGROUND_EVENTS.REMEMBER_CONTENT:
-				await handleRememberContent(message, sendResponse);
-				return true;
+	const message = rawMessage as BackgroundMessage;
 
-			case BACKGROUND_EVENTS.LET_REMEMBER:
-				handleLetRemember(message, sendResponse);
-				return true;
+	// All handlers call sendResponse internally (sync or async).
+	// Returning true synchronously is the correct way to keep the Chrome
+	// message channel open for an async response.
+	switch (message.type) {
+		case BACKGROUND_EVENTS.REMEMBER_THIS:
+			void handleRememberThis(message, sendResponse);
+			return true;
 
-			case BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR:
-				handleShowTopicSelector(message, sendResponse);
-				return true;
+		case BACKGROUND_EVENTS.REMEMBER_CONTENT:
+			void handleRememberContent(message, sendResponse);
+			return true;
 
-			case BACKGROUND_EVENTS.SHOW_CHAT_MODAL:
-				handleShowChatModal(message, sendResponse);
-				return true;
+		case BACKGROUND_EVENTS.LET_REMEMBER:
+			handleLetRemember(message, sendResponse);
+			return true;
 
-			case BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR:
-				handleShowImageSelector(message, sendResponse);
-				return true;
+		case BACKGROUND_EVENTS.SHOW_TOPIC_SELECTOR:
+			handleShowTopicSelector(message, sendResponse);
+			return true;
 
-			default:
-				sendResponse({ success: false, error: "Unknown message type" });
-				return true;
-		}
-	} catch (error) {
-		sendResponse({
-			success: false,
-			error: error instanceof Error ? error.message : "Unknown error",
-		});
-		return true;
+		case BACKGROUND_EVENTS.SHOW_CHAT_MODAL:
+			void handleShowChatModal(message, sendResponse);
+			return true;
+
+		case BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR:
+			handleShowImageSelector(message, sendResponse);
+			return true;
+
+		default:
+			sendResponse({ success: false, error: "Unknown message type" });
+			return true;
 	}
 };
 

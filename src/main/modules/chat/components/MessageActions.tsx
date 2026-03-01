@@ -203,18 +203,35 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null;
 
-const isHttpUrl = (value: string): boolean => {
+const isFrameableUrl = (value: string): boolean => {
+	if (value.startsWith("/__virtual__/")) return true;
 	try {
-		const parsed = new URL(value);
-		return parsed.protocol === "http:" || parsed.protocol === "https:";
+		const parsed = new URL(
+			value,
+			typeof window !== "undefined" ? window.location.origin : "http://localhost",
+		);
+		return (
+			parsed.protocol === "http:" ||
+			parsed.protocol === "https:" ||
+			parsed.protocol === "chrome-extension:"
+		);
 	} catch {
 		return false;
 	}
 };
 
 const normalizePreviewUrl = (rawUrl: string): string => {
+	if (rawUrl.startsWith("/__virtual__/")) {
+		return /\/$/.test(rawUrl) ? rawUrl : `${rawUrl}/`;
+	}
 	try {
 		const parsed = new URL(rawUrl);
+		if (parsed.pathname.startsWith("/__virtual__/")) {
+			const normalizedPath = /\/$/.test(parsed.pathname)
+				? parsed.pathname
+				: `${parsed.pathname}/`;
+			return `${normalizedPath}${parsed.search}${parsed.hash}`;
+		}
 		if (parsed.hostname === "0.0.0.0" || parsed.hostname === "::") {
 			parsed.hostname = "127.0.0.1";
 		}
@@ -331,7 +348,7 @@ const WebAccessPreview: React.FC<{ payload: WebAccessPayload }> = ({
 }) => {
 	const { t } = useTranslation("chat");
 	const previewUrl = normalizePreviewUrl(payload.url);
-	const canFrameUrl = isHttpUrl(previewUrl);
+	const canFrameUrl = isFrameableUrl(previewUrl);
 	const htmlPreview = payload.html?.trim() || "";
 
 	return (

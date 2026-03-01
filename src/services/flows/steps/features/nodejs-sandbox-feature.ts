@@ -67,24 +67,6 @@ You have access to an isolated browser-based sandbox container with virtual file
 - "container_web_access" to access a URL (especially started Next/Vite servers) and return URL + HTML for preview/simulation.
 7) Diagnostics:
 - "container_get_logs", then optionally "container_clear_logs"
-
-## AVAILABLE CONTAINER TOOLS
-- "container_run_code"
-- "container_install_package"
-- "container_start_server"
-- "container_stop_server"
-- "container_list_servers"
-- "container_get_logs"
-- "container_clear_logs"
-- "container_write_file"
-- "container_read_file"
-- "container_mkdir"
-- "container_readdir"
-- "container_exists"
-- "container_rename"
-- "container_unlink"
-- "container_fetch_resource"
-- "container_web_access"
 `;
 export const NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT =
 	SYSTEM_PROMPT_INSTRUCTION.trim();

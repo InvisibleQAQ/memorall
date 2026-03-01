@@ -15,7 +15,6 @@ import {
 	Loader2,
 	AlertCircle,
 	Folder,
-	Tags,
 	Plus,
 	FileText,
 } from "lucide-react";
@@ -47,11 +46,7 @@ import {
 	CreateFolderDialog,
 	CreateDocumentDialog,
 } from "@/main/modules/documents/modals";
-import {
-	TopicSelectorDialog,
-	CreateTopicDialog,
-	ManageTopicsDialog,
-} from "@/main/modules/topics/modals";
+import { TopicSelectorDialog } from "@/main/modules/topics/modals";
 import {
 	TopicFilterDropdown,
 	ActiveTopicChips,
@@ -697,25 +692,6 @@ export const DocumentLibraryPage: React.FC = () => {
 		}
 	};
 
-	const handleCreateTopicFromFilter = async () => {
-		logInfo("[DOCUMENT_LIBRARY] Create topic requested");
-		const newTopic = await NiceModal.show(CreateTopicDialog);
-		if (newTopic) {
-			// Reload topics to include the new one
-			await loadTopics();
-			logInfo("[DOCUMENT_LIBRARY] Topic created and list refreshed:", newTopic);
-		}
-	};
-
-	const handleManageTopics = async () => {
-		const result = await NiceModal.show(ManageTopicsDialog);
-		if (result) {
-			// Reload topics when they are changed
-			await loadTopics();
-			logInfo("[DOCUMENT_LIBRARY] Topics changed, list refreshed");
-		}
-	};
-
 	const handleConvertToKnowledge = async (file: DocumentFile) => {
 		try {
 			const currentFileTopics = fileTopicMap.get(file.path) || [];
@@ -821,17 +797,6 @@ export const DocumentLibraryPage: React.FC = () => {
 							</DropdownMenuContent>
 						</DropdownMenu>
 
-						{/* Manage Topics Button */}
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleManageTopics}
-							className="h-8 gap-1.5"
-							title="Manage Topics"
-						>
-							<Tags className="h-4 w-4" />
-							<span className="hidden md:inline">{t("library.topics")}</span>
-						</Button>
 					</div>
 				</div>
 
@@ -855,7 +820,6 @@ export const DocumentLibraryPage: React.FC = () => {
 							topics={topics}
 							selectedTopicIds={selectedTopicIds}
 							onSelectionChange={handleTopicFilterChange}
-							onCreateTopic={handleCreateTopicFromFilter}
 							className="flex-shrink-0"
 						/>
 					</div>

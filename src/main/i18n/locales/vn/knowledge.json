@@ -50,5 +50,10 @@
 	"error": "Lỗi khi tải đồ thị: {{error}}",
 	"actions": {
 		"close": "Đóng"
+	},
+	"topics": {
+		"title": "Chủ đề",
+		"noTopics": "Chưa có chủ đề",
+		"deleteConfirm": "Xóa \"{{name}}\"? Thao tác này sẽ xóa chủ đề khỏi tất cả tài liệu liên quan và không thể hoàn tác."
 	}
 }

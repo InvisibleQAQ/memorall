@@ -27,14 +27,38 @@ export const createContainerStartServerTool: ToolFactory<
 		"Start a sandbox server (Express, Vite, or Next) and return its mapped URL.",
 	schema,
 	execute: async (input) => {
-		const result = await sandboxContainerService.startServer({
-			kind: input.kind,
-			port: input.port,
-			hostname: input.hostname,
-			rootDir: input.rootDir,
-			entryPath: input.entryPath,
-		});
-		return JSON.stringify(result, null, 2);
+		try {
+			const result = await sandboxContainerService.startServer({
+				kind: input.kind,
+				port: input.port,
+				hostname: input.hostname,
+				rootDir: input.rootDir,
+				entryPath: input.entryPath,
+			});
+			return JSON.stringify(
+				{
+					success: true,
+					...result,
+				},
+				null,
+				2,
+			);
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : String(error);
+
+			return JSON.stringify(
+				{
+					success: false,
+					kind: input.kind,
+					port: input.port,
+					entryPath: input.entryPath,
+					error: message,
+				},
+				null,
+				2,
+			);
+		}
 	},
 });
 
