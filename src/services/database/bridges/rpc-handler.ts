@@ -16,6 +16,7 @@ interface QueuedResponse {
 	response: RpcResponse;
 	timestamp: number;
 	retryCount: number;
+	port: chrome.runtime.Port;
 }
 
 interface ProcessedRequest {
@@ -25,7 +26,7 @@ interface ProcessedRequest {
 
 export class DatabaseRpcHandler {
 	private static instance: DatabaseRpcHandler;
-	private port: chrome.runtime.Port | null = null;
+	private ports = new Map<string, chrome.runtime.Port>();
 	private responseQueue: QueuedResponse[] = [];
 	private readonly maxRetries = 5;
 	private readonly maxQueueSize = 100;
@@ -44,9 +45,6 @@ export class DatabaseRpcHandler {
 	private currentChannelName: string | null = null;
 	private connectionListener: ((port: chrome.runtime.Port) => void) | null =
 		null;
-
-	// Track reconnection state to prevent log spam
-	private isWaitingForReconnection: boolean = false;
 
 	static getInstance(): DatabaseRpcHandler {
 		if (!DatabaseRpcHandler.instance) {
@@ -82,45 +80,27 @@ export class DatabaseRpcHandler {
 		this.connectionListener = (port: chrome.runtime.Port) => {
 			if (port.name !== channelName) return;
 
-			const wasReconnecting = this.isWaitingForReconnection;
-			const queuedCount = this.responseQueue.length;
+			const portId = `${channelName}-${Date.now()}-${Math.random()}`;
+			this.ports.set(portId, port);
 
-			logInfo(`[DB] 📡 RPC connection established: ${channelName}`, {
-				hasExistingPort: !!this.port,
-				queuedResponses: queuedCount,
-				portName: port.name,
-				channelName: channelName,
-				wasReconnecting,
+			logInfo(`[DB] 📡 RPC connection established: ${portId}`, {
+				total: this.ports.size,
 				timestamp: new Date().toISOString(),
 			});
 
-			this.port = port;
-			this.isWaitingForReconnection = false;
+			// Capture port in closure so each message is routed back to its sender
+			port.onMessage.addListener((request: RpcRequest) =>
+				this.handleMessage(request, port),
+			);
 
-			port.onMessage.addListener(this.handleMessage.bind(this));
 			port.onDisconnect.addListener(() => {
-				logInfo(`[DB] 📡 RPC connection disconnected: ${channelName}`, {
-					queuedResponses: this.responseQueue.length,
+				this.ports.delete(portId);
+				this.cleanupQueueForPort(port);
+				logInfo(`[DB] 📡 RPC disconnected: ${portId}`, {
+					remaining: this.ports.size,
 					timestamp: new Date().toISOString(),
 				});
-				this.port = null;
-				this.isWaitingForReconnection = true;
-
-				// Log warning once when port disconnects with queued responses
-				if (this.responseQueue.length > 0) {
-					logError(
-						`[DB] ⚠️ Port disconnected with ${this.responseQueue.length} responses still queued. Waiting for client reconnection...`,
-					);
-				}
 			});
-
-			// Flush any queued responses when port reconnects
-			if (queuedCount > 0) {
-				logInfo(
-					`[DB] 🔄 Port reconnected successfully, flushing ${queuedCount} queued responses`,
-				);
-				this.flushResponseQueue();
-			}
 		};
 
 		try {
@@ -136,7 +116,10 @@ export class DatabaseRpcHandler {
 	}
 
 	// Handle incoming RPC messages
-	private async handleMessage(request: RpcRequest): Promise<void> {
+	private async handleMessage(
+		request: RpcRequest,
+		senderPort: chrome.runtime.Port,
+	): Promise<void> {
 		const { id, op, payload } = request;
 
 		// SYNCHRONOUS check - prevents race condition when duplicate messages arrive rapidly
@@ -152,7 +135,7 @@ export class DatabaseRpcHandler {
 			logInfo(
 				`[DB] Returning cached response for duplicate request ${id} (age: ${age}ms)`,
 			);
-			this.sendResponse(cached.response);
+			this.sendResponse(cached.response, senderPort);
 			return;
 		}
 
@@ -207,7 +190,7 @@ export class DatabaseRpcHandler {
 			// Cache the response for deduplication
 			this.cacheRequest(id, response);
 
-			this.sendResponse(response);
+			this.sendResponse(response, senderPort);
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
@@ -217,7 +200,7 @@ export class DatabaseRpcHandler {
 			// Cache error responses too to prevent retrying failed operations
 			this.cacheRequest(id, response);
 
-			this.sendResponse(response);
+			this.sendResponse(response, senderPort);
 		} finally {
 			// Remove from in-flight set after processing completes
 			this.inFlightRequests.delete(id);
@@ -279,33 +262,27 @@ export class DatabaseRpcHandler {
 		}
 	}
 
-	// Send response back to proxy with retry logic
-	private sendResponse(response: RpcResponse): void {
-		if (this.port) {
-			try {
-				this.port.postMessage(response);
-			} catch (error) {
-				logError(
-					`[DB] ❌ Failed to send response for request ${response.id}:`,
-					error,
-				);
-				this.queueResponse(response);
-			}
-		} else {
-			// Only log the first queued response when port is unavailable
-			// to avoid spamming logs with the same message
-			if (!this.isWaitingForReconnection) {
-				this.isWaitingForReconnection = true;
-				logError(
-					`⚠️ No RPC port available, queueing response for request ${response.id}. Client should reconnect automatically.`,
-				);
-			}
-			this.queueResponse(response);
+	// Send response back to the specific proxy port that made the request
+	private sendResponse(
+		response: RpcResponse,
+		senderPort: chrome.runtime.Port,
+	): void {
+		try {
+			senderPort.postMessage(response);
+		} catch (error) {
+			logError(
+				`[DB] ❌ Failed to send response for request ${response.id}:`,
+				error,
+			);
+			this.queueResponse(response, senderPort);
 		}
 	}
 
-	// Queue a response for retry
-	private queueResponse(response: RpcResponse): void {
+	// Queue a response for retry, associated with the port that should receive it
+	private queueResponse(
+		response: RpcResponse,
+		senderPort: chrome.runtime.Port,
+	): void {
 		// Clean old responses from queue first
 		this.cleanupQueue();
 
@@ -321,6 +298,7 @@ export class DatabaseRpcHandler {
 			response,
 			timestamp: Date.now(),
 			retryCount: 0,
+			port: senderPort,
 		});
 
 		// Schedule retry if not already scheduled
@@ -368,37 +346,23 @@ export class DatabaseRpcHandler {
 		}, delay);
 	}
 
-	// Attempt to flush queued responses
+	// Drop all queued responses for a disconnected port (proxy will re-request via its own retry)
+	private cleanupQueueForPort(port: chrome.runtime.Port): void {
+		const before = this.responseQueue.length;
+		this.responseQueue = this.responseQueue.filter(
+			(item) => item.port !== port,
+		);
+		const dropped = before - this.responseQueue.length;
+		if (dropped > 0) {
+			logInfo(
+				`[DB] 🧹 Dropped ${dropped} queued responses for disconnected port`,
+			);
+		}
+	}
+
+	// Attempt to flush queued responses, each to its own port
 	private flushResponseQueue(): void {
 		if (this.responseQueue.length === 0) {
-			return;
-		}
-
-		if (!this.port) {
-			// Only log the first time we detect port unavailability
-			// Subsequent retries will be silent to avoid log spam
-			if (!this.isWaitingForReconnection) {
-				this.isWaitingForReconnection = true;
-				logError(
-					`⚠️ Cannot flush queue: no RPC port available (${this.responseQueue.length} responses queued). Waiting for client reconnection...`,
-				);
-			}
-
-			// Check if any responses have exceeded max retries while waiting
-			const now = Date.now();
-			this.responseQueue = this.responseQueue.filter((item) => {
-				if (item.retryCount >= this.maxRetries) {
-					logError(
-						`❌ Response ${item.response.id} exceeded max retries while waiting for port, dropping`,
-					);
-					return false;
-				}
-				return true;
-			});
-
-			if (this.responseQueue.length > 0) {
-				this.scheduleRetry();
-			}
 			return;
 		}
 
@@ -409,7 +373,7 @@ export class DatabaseRpcHandler {
 
 		for (const queuedItem of this.responseQueue) {
 			try {
-				this.port.postMessage(queuedItem.response);
+				queuedItem.port.postMessage(queuedItem.response);
 				logInfo(
 					`[DB] ✅ Queued response ${queuedItem.response.id} sent successfully (retry ${queuedItem.retryCount})`,
 				);
@@ -465,13 +429,12 @@ export class DatabaseRpcHandler {
 		// Clear in-flight requests
 		this.inFlightRequests.clear();
 
-		// Reset reconnection flag
-		this.isWaitingForReconnection = false;
-
-		// Disconnect port
-		if (this.port) {
-			this.port.disconnect();
-			this.port = null;
+		// Disconnect all active ports
+		for (const port of this.ports.values()) {
+			try {
+				port.disconnect();
+			} catch {}
 		}
+		this.ports.clear();
 	}
 }
