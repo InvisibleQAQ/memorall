@@ -54,6 +54,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	const [selectedProvider, setSelectedProvider] = useState<string>("");
 	const [modelAvailable, setModelAvailable] = useState(false);
 	const [needsPasskey, setNeedsPasskey] = useState(false);
+	const [noModelConfig, setNoModelConfig] = useState(false);
 	const [encryptedProviders, setEncryptedProviders] = useState<string[]>([]);
 	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
 	const [agentFlows, setAgentFlows] = useState<
@@ -212,6 +213,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 							}
 						}
 
+						setNoModelConfig(false);
 						setModelAvailable(true);
 					} else {
 						const restoreState = await checkProvidersNeedRestore();
@@ -227,6 +229,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 
 						setNeedsPasskey(false);
 						setEncryptedProviders([]);
+						setNoModelConfig(true);
 						setModelAvailable(false);
 					}
 				}
@@ -630,6 +633,41 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 									className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
 								>
 									{texts.chat.openMainApp || "Open Main App"}
+								</button>
+							</div>
+						) : noModelConfig ? (
+							<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+								<div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+									<svg
+										className="w-6 h-6 text-muted-foreground"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+										/>
+									</svg>
+								</div>
+								<h3 className="font-medium mb-2 text-foreground">
+									{texts.chat.noModelConfig}
+								</h3>
+								<p className="text-muted-foreground text-xs leading-relaxed mb-4">
+									{texts.chat.noModelConfigDescription}
+								</p>
+								<button
+									onClick={() => {
+										chrome.runtime.sendMessage({
+											type: "OPEN_FULL_PAGE",
+										});
+										onClose();
+									}}
+									className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+								>
+									{texts.chat.configureModel}
 								</button>
 							</div>
 						) : messages.length === 0 ? (

@@ -29,6 +29,10 @@ export const EMBEDDED_TRANSLATIONS = {
 			authRequiredDescription:
 				"Your model requires authentication. Please open the main app to enter your passkey.",
 			openMainApp: "Open Main App",
+			noModelConfig: "No Model Configured",
+			noModelConfigDescription:
+				"No AI model is configured. Please open the main app to set up a model.",
+			configureModel: "Configure Model",
 		},
 		// Topic selector translations
 		topicSelector: {
@@ -46,7 +50,7 @@ export const EMBEDDED_TRANSLATIONS = {
 			loadingTopics: "Loading topics...",
 			allTopics: "All Topics",
 			selectTopic: "Select Topic",
-			modeGeneral: "General",
+			modeGeneral: "Chat",
 			modeKnowledge: "Knowledge",
 			selectMode: "Select chat mode",
 		},
@@ -92,6 +96,10 @@ export const EMBEDDED_TRANSLATIONS = {
 			authRequiredDescription:
 				"Mô hình của bạn yêu cầu xác thực. Vui lòng mở ứng dụng chính để nhập mật khẩu.",
 			openMainApp: "Mở ứng dụng chính",
+			noModelConfig: "Chưa cấu hình mô hình",
+			noModelConfigDescription:
+				"Chưa có mô hình AI nào được cấu hình. Vui lòng mở ứng dụng chính để thiết lập mô hình.",
+			configureModel: "Cấu hình mô hình",
 		},
 		// Topic selector translations
 		topicSelector: {
@@ -109,7 +117,7 @@ export const EMBEDDED_TRANSLATIONS = {
 			loadingTopics: "Đang tải chủ đề...",
 			allTopics: "Tất cả chủ đề",
 			selectTopic: "Chọn chủ đề",
-			modeGeneral: "Tổng quát",
+			modeGeneral: "Trò chuyện",
 			modeKnowledge: "Kiến thức",
 			selectMode: "Chọn chế độ trò chuyện",
 		},

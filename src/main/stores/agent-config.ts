@@ -14,41 +14,36 @@ import type { FeatureCatalogMetadata } from "@/services/flows/flow-builder-catal
 // ---------------------------------------------------------------------------
 
 /**
- * A 'config' feature maps to a boolean field in KnowledgeRAGPredefinedConfig.
- * Its enabled state lives in draftConfig, NOT in draftFeatures.
- * nameKey / descKey are i18n keys resolved by the UI layer.
+ * A built-in config feature maps to a field in KnowledgeRAGPredefinedConfig.
+ *
+ * configKey "enableContextRetrieval" | "enableCitations" → boolean toggle.
+ *   May expose a secondary promptField config.
+ *
+ * configKey "tools" → the agent-node feature.
+ *   No boolean toggle; renders the tool list.
+ *   toolScope "unclaimed" = tools not owned by any catalog feature step.
+ *   toolScope "all"       = all registered tools.
  */
 export interface ConfigFeatureDefinition {
 	type: "config";
-	/** Stable unique id. */
 	name: string;
-	/** i18n key for the display name. */
 	nameKey: string;
-	/** i18n key for the description. */
 	descKey: string;
-	/** The KnowledgeRAGPredefinedConfig boolean field this feature maps to. */
-	configKey: "enableContextRetrieval" | "enableCitations";
-	/**
-	 * If present, this feature exposes an additional configurable prompt field
-	 * whose value also lives in draftConfig.
-	 */
+	configKey: "enableContextRetrieval" | "enableCitations" | "tools";
 	promptField?: {
 		field: "contextPrompt";
 		labelKey: string;
 		hintKey: string;
 		defaultValue: string;
 	};
+	toolScope?: "all" | "unclaimed";
 	tools: string[];
 	systemPrompt: string;
 }
 
-/**
- * A 'catalog' feature is a registered flow step.
- * Its enabled state lives in draftFeatures keyed by `name`.
- */
+/** A catalog feature step. Toggle state lives in draftFeatures[name]. */
 export interface CatalogFeatureDefinition {
 	type: "catalog";
-	/** Step name — also used as the draftFeatures key. */
 	name: string;
 	description: string;
 	tools: string[];
@@ -61,47 +56,107 @@ export type AgentFeatureDefinition =
 	| CatalogFeatureDefinition;
 
 // ---------------------------------------------------------------------------
-// Per-graph built-in feature registry
-// Each graph type declares its built-in config features in order.
-// "agent" has no built-in config features — just a customisable tools list.
+// Graph registry — exported so the component can render the selector without
+// hardcoding graph ids.  Add entries here when new graph types arrive.
 // ---------------------------------------------------------------------------
-const GRAPH_BUILTIN_FEATURES: Record<string, ConfigFeatureDefinition[]> = {
-	"knowledge-rag": [
-		{
-			type: "config",
-			name: "rag-knowledge",
-			nameKey: "agentSettings.contextRetrieval",
-			descKey: "agentSettings.contextRetrievalDesc",
-			configKey: "enableContextRetrieval",
-			promptField: {
-				field: "contextPrompt",
-				labelKey: "agentSettings.contextPrompt",
-				hintKey: "agentSettings.contextPromptHint",
-				defaultValue: DEFAULT_CONTEXT_SYSTEM_PROMPT,
+export const GRAPH_REGISTRY = [
+	{
+		id: "knowledge-rag" as const,
+		nameKey: "agentSettings.graphKnowledgeRAG",
+		descKey: "agentSettings.graphKnowledgeRAGDesc",
+	},
+	{
+		id: "agent" as const,
+		nameKey: "agentSettings.graphAgent",
+		descKey: "agentSettings.graphAgentDesc",
+	},
+] as const;
+
+export type GraphType = (typeof GRAPH_REGISTRY)[number]["id"];
+
+// ---------------------------------------------------------------------------
+// Per-graph built-in feature definitions.
+// The last entry with configKey "tools" is the agent-node feature and will
+// be placed after catalog features in buildFeatureDefinitions.
+// ---------------------------------------------------------------------------
+type GraphBuiltinConfig = {
+	configFeatures: ConfigFeatureDefinition[];
+};
+
+const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
+	"knowledge-rag": {
+		configFeatures: [
+			{
+				type: "config",
+				name: "rag-knowledge",
+				nameKey: "agentSettings.contextRetrieval",
+				descKey: "agentSettings.contextRetrievalDesc",
+				configKey: "enableContextRetrieval",
+				promptField: {
+					field: "contextPrompt",
+					labelKey: "agentSettings.contextPrompt",
+					hintKey: "agentSettings.contextPromptHint",
+					defaultValue: DEFAULT_CONTEXT_SYSTEM_PROMPT,
+				},
+				tools: [],
+				systemPrompt: "",
 			},
-			tools: [],
-			systemPrompt: "",
-		},
-		{
-			type: "config",
-			name: "citations",
-			nameKey: "agentSettings.citations",
-			descKey: "agentSettings.citationsDesc",
-			configKey: "enableCitations",
-			tools: [],
-			systemPrompt: "",
-		},
-	],
-	// Pure agent: no RAG / citation config features — tools are configured directly.
-	agent: [],
+			{
+				type: "config",
+				name: "citations",
+				nameKey: "agentSettings.citations",
+				descKey: "agentSettings.citationsDesc",
+				configKey: "enableCitations",
+				tools: [],
+				systemPrompt: "",
+			},
+			{
+				type: "config",
+				name: "agent-node",
+				nameKey: "agentSettings.agentNode",
+				descKey: "agentSettings.agentNodeDesc",
+				configKey: "tools",
+				toolScope: "unclaimed",
+				tools: [],
+				systemPrompt: "",
+			},
+		],
+	},
+	agent: {
+		configFeatures: [
+			{
+				type: "config",
+				name: "agent-node",
+				nameKey: "agentSettings.agentNode",
+				descKey: "agentSettings.agentNodeDesc",
+				configKey: "tools",
+				toolScope: "all",
+				tools: [],
+				systemPrompt: "",
+			},
+		],
+	},
 };
 
 // ---------------------------------------------------------------------------
-// Helper: build featureDefinitions for a given graphType
+// Build the full ordered featureDefinitions for a graph type:
+//   non-tools configFeatures → catalog steps → tools configFeature (agent-node)
 // ---------------------------------------------------------------------------
 function buildFeatureDefinitions(graphType: string): AgentFeatureDefinition[] {
-	const builtinFeatures: ConfigFeatureDefinition[] =
-		GRAPH_BUILTIN_FEATURES[graphType] ?? [];
+	const { configFeatures } = GRAPH_BUILTIN_CONFIGS[graphType] ?? {
+		configFeatures: [
+			{
+				type: "config" as const,
+				name: "agent-node",
+				nameKey: "agentSettings.agentNode",
+				descKey: "agentSettings.agentNodeDesc",
+				configKey: "tools" as const,
+				toolScope: "all" as const,
+				tools: [],
+				systemPrompt: "",
+			},
+		],
+	};
 
 	const catalog = serviceManager.flowBuilderService.getCatalog();
 	const catalogFeatures: CatalogFeatureDefinition[] = catalog.steps
@@ -123,7 +178,17 @@ function buildFeatureDefinitions(graphType: string): AgentFeatureDefinition[] {
 			};
 		});
 
-	return [...builtinFeatures, ...catalogFeatures];
+	// agent-node (configKey "tools") always renders last, after catalog features
+	const toolsFeature = configFeatures.find((f) => f.configKey === "tools");
+	const otherConfigFeatures = configFeatures.filter(
+		(f) => f.configKey !== "tools",
+	);
+
+	return [
+		...otherConfigFeatures,
+		...catalogFeatures,
+		...(toolsFeature ? [toolsFeature] : []),
+	];
 }
 
 // ---------------------------------------------------------------------------
@@ -140,15 +205,11 @@ interface AgentConfigState {
 	draftConfig: KnowledgeRAGPredefinedConfig;
 	savedFeatures: FeatureFlags;
 	draftFeatures: FeatureFlags;
-	/**
-	 * Ordered list of ALL features for the current graph type.
-	 * Config features come first (built-in), then catalog features.
-	 * This is the single source of truth for the features UI.
-	 */
+	/** All features for the current graph. Single source of truth for the UI. */
 	featureDefinitions: AgentFeatureDefinition[];
 	availableTools: string[];
 	currentFlowId: string | null;
-	currentGraphType: "knowledge-rag" | "agent";
+	currentGraphType: GraphType;
 
 	isOpen: boolean;
 	isLoading: boolean;
@@ -163,8 +224,7 @@ interface AgentConfigState {
 		field: K,
 		value: KnowledgeRAGPredefinedConfig[K],
 	) => void;
-	/** Switch base graph type and rebuild feature definitions accordingly. */
-	setGraphType: (graphType: "knowledge-rag" | "agent") => void;
+	setGraphType: (graphType: GraphType) => void;
 	toggleFeature: (featureName: string) => void;
 	toggleTool: (toolName: string) => void;
 	save: () => Promise<void>;
@@ -215,8 +275,6 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 		set({ isLoading: true, error: null });
 		try {
 			const targetFlowId = flowId ?? get().currentFlowId;
-
-			// Load saved config for this flow
 			const config = (
 				targetFlowId
 					? await serviceManager.flowBuilderService.getFlowConfig({
@@ -227,19 +285,14 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 						})
 			) as KnowledgeRAGPredefinedConfig;
 
-			// Derive graph type from stored config (falls back to "knowledge-rag")
-			const graphType: "knowledge-rag" | "agent" =
+			const graphType: GraphType =
 				config.graphType === "agent" ? "agent" : "knowledge-rag";
-
 			const featureDefinitions = buildFeatureDefinitions(graphType);
 
-			// Feature flags only track catalog features (config features use draftConfig)
-			const catalogFeatures = featureDefinitions.filter(
-				(f) => f.type === "catalog",
-			);
-			const defaultFeatures = createDefaultFeatureFlags(
-				catalogFeatures.map((f) => f.name),
-			);
+			const catalogNames = featureDefinitions
+				.filter((f) => f.type === "catalog")
+				.map((f) => f.name);
+			const defaultFeatures = createDefaultFeatureFlags(catalogNames);
 			const featureFlags = targetFlowId
 				? await serviceManager.flowBuilderService.getFlowFeatureFlags({
 						flowId: targetFlowId,
@@ -248,15 +301,13 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 						predefinedFlow: "knowledge-rag",
 					});
 
-			const available = toolRegistry.getRegisteredToolNames();
-
 			set({
 				savedConfig: config,
 				draftConfig: { ...config },
 				savedFeatures: { ...defaultFeatures, ...featureFlags },
 				draftFeatures: { ...defaultFeatures, ...featureFlags },
 				featureDefinitions,
-				availableTools: available,
+				availableTools: toolRegistry.getRegisteredToolNames(),
 				currentFlowId: targetFlowId ?? null,
 				currentGraphType: graphType,
 				isDirty: false,
@@ -286,15 +337,10 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 
 	setGraphType: (graphType) => {
 		const featureDefinitions = buildFeatureDefinitions(graphType);
-
-		// Rebuild feature flags for catalog features of the new graph type
-		const catalogFeatures = featureDefinitions.filter(
-			(f) => f.type === "catalog",
-		);
-		const defaultFeatures = createDefaultFeatureFlags(
-			catalogFeatures.map((f) => f.name),
-		);
-
+		const catalogNames = featureDefinitions
+			.filter((f) => f.type === "catalog")
+			.map((f) => f.name);
+		const defaultFeatures = createDefaultFeatureFlags(catalogNames);
 		const draft = { ...get().draftConfig, graphType };
 		set({
 			draftConfig: draft,
@@ -384,13 +430,12 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 
 	revert: () => {
 		const savedConfig = get().savedConfig;
-		const graphType: "knowledge-rag" | "agent" =
+		const graphType: GraphType =
 			savedConfig.graphType === "agent" ? "agent" : "knowledge-rag";
-		const featureDefinitions = buildFeatureDefinitions(graphType);
 		set({
 			draftConfig: { ...savedConfig },
 			draftFeatures: { ...get().savedFeatures },
-			featureDefinitions,
+			featureDefinitions: buildFeatureDefinitions(graphType),
 			currentGraphType: graphType,
 			isDirty: false,
 		});
@@ -402,17 +447,16 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => ({
 		const catalogNames = featureDefinitions
 			.filter((f) => f.type === "catalog")
 			.map((f) => f.name);
-		const featureFlags = createDefaultFeatureFlags(catalogNames);
 		set({
 			draftConfig: draft,
-			draftFeatures: featureFlags,
+			draftFeatures: createDefaultFeatureFlags(catalogNames),
 			featureDefinitions,
 			currentGraphType: "knowledge-rag",
 			isDirty: computeDirty(
 				get().savedConfig,
 				draft,
 				get().savedFeatures,
-				featureFlags,
+				createDefaultFeatureFlags(catalogNames),
 			),
 		});
 	},
