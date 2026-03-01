@@ -9,6 +9,7 @@ import {
 import type { CombinedServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
+import { formatYAML } from "@/utils/yaml";
 import { flowRegistry } from "@/services/flows/flow-registry";
 import type { BaseFlow } from "@/services/flows/flow-registry";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
@@ -38,6 +39,18 @@ const parseStructuredActionPayload = (
 	} catch {
 		return null;
 	}
+};
+
+const ACTION_OUTPUT_MAX_LENGTH = 1000;
+
+
+/** Truncate tool output to `ACTION_OUTPUT_MAX_LENGTH` characters. */
+const truncateOutput = (content: string): string => {
+	if (content.length <= ACTION_OUTPUT_MAX_LENGTH) return content;
+	return (
+		content.slice(0, ACTION_OUTPUT_MAX_LENGTH) +
+		`\n… (truncated, ${content.length - ACTION_OUTPUT_MAX_LENGTH} more characters)`
+	);
 };
 
 /**
@@ -336,10 +349,20 @@ export class AgentGraph extends GraphBase<
 				typeof structured?.description === "string"
 					? structured.description
 					: result.content;
+
+			let rawArgs: Record<string, unknown> = {};
+			try {
+				const parsed = JSON.parse(result.toolCall.function.arguments);
+				if (isObject(parsed)) rawArgs = parsed;
+			} catch (error) {
+				// leave rawArgs empty
+			}
+			const input = formatYAML(rawArgs);
+
 			return {
 				id: crypto.randomUUID(),
 				name: actionName,
-				description: actionDescription,
+				description: `${input}\noutput:\n${truncateOutput(actionDescription)}`,
 				metadata: {
 					tool: result.toolName,
 					tool_call: result.toolCall,

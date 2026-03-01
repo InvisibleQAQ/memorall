@@ -5,6 +5,12 @@ import {
 	DOCUMENTS_FEATURE_TOOLS,
 } from "./steps/features/documents-feature";
 import {
+	DOCUMENTS_FS_FEATURE_DESCRIPTION,
+	DOCUMENTS_FS_FEATURE_NAME,
+	DOCUMENTS_FS_FEATURE_SYSTEM_PROMPT,
+	DOCUMENTS_FS_FEATURE_TOOLS,
+} from "./steps/features/documents-fs-feature";
+import {
 	NODEJS_SANDBOX_FEATURE_DESCRIPTION,
 	NODEJS_SANDBOX_FEATURE_NAME,
 	NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
@@ -56,6 +62,10 @@ export interface FeatureCatalogMetadata extends Record<string, unknown> {
 	tools: string[];
 	systemPrompt: string;
 	customizable: boolean;
+	/** Mark this feature as the recommended choice. */
+	recommended?: boolean;
+	/** Mark this feature as legacy — prefer a newer alternative. */
+	legacy?: boolean;
 }
 
 /** In-memory catalog of available services */
@@ -226,6 +236,45 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		},
 	},
 	{
+		id: "step-documents-fs-feature",
+		name: DOCUMENTS_FS_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with document filesystem instructions",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description: "Tools extended with fs toolset (v2)",
+			},
+		],
+		metadata: {
+			description: DOCUMENTS_FS_FEATURE_DESCRIPTION,
+			tools: [...DOCUMENTS_FS_FEATURE_TOOLS],
+			systemPrompt: DOCUMENTS_FS_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+			recommended: true,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
 		id: "step-documents-feature",
 		name: DOCUMENTS_FEATURE_NAME,
 		type: "feature",
@@ -257,10 +306,12 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			},
 		],
 		metadata: {
-			description: DOCUMENTS_FEATURE_DESCRIPTION,
+			description: `[LEGACY] ${DOCUMENTS_FEATURE_DESCRIPTION} Use "documents-fs-feature" instead.`,
 			tools: [...DOCUMENTS_FEATURE_TOOLS],
 			systemPrompt: DOCUMENTS_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			legacy: true,
+			recommended: false,
 		} satisfies FeatureCatalogMetadata,
 	},
 	{

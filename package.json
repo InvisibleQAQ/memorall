@@ -127,6 +127,7 @@
     "turndown": "^7.2.2",
     "use-stick-to-bottom": "^1.1.1",
     "xlsx": "^0.18.5",
+    "yaml": "^2.8.2",
     "zod": "^4.1.5",
     "zod-to-json-schema": "^3.24.6",
     "zustand": "^5.0.8"

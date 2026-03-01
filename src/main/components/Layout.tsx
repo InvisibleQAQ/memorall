@@ -72,7 +72,7 @@ const navigation = [
 		icon: Network,
 	},
 	// { nameKey: "navigation.flowBuilder", path: "/flow-builder", icon: GitBranch },
-	{ nameKey: "navigation.activities", path: "/activities", icon: BrainCircuit },
+	// { nameKey: "navigation.activities", path: "/activities", icon: BrainCircuit },
 	{ nameKey: "navigation.models", path: "/llm", icon: Bot },
 ];
 
