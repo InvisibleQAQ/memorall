@@ -94,7 +94,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 		const loadPreview = async () => {
 			const loadContent = async (): Promise<Uint8Array> => {
 				if (isWorkspaceFile) {
-					return documentFileSystemService.getWorkspaceFileContent(workspacePath);
+					return documentFileSystemService.getWorkspaceFileContent(
+						workspacePath,
+					);
 				}
 				return documentFileSystemService.getFileContent(file.id);
 			};
@@ -219,7 +221,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 			} else {
 				const encoder = new TextEncoder();
 				const contentArray = encoder.encode(content);
-				await documentFileSystemService.updateFileContent(file.id, contentArray);
+				await documentFileSystemService.updateFileContent(
+					file.id,
+					contentArray,
+				);
 			}
 
 			// Update local state after successful save
@@ -311,8 +316,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							</span>
 						</Button>
 					)}
-					{(file.type === "text" || file.type === "markdown" || file.type === "other") &&
-					onConvertToKnowledge && (
+					{(file.type === "text" ||
+						file.type === "markdown" ||
+						file.type === "other") &&
+						onConvertToKnowledge && (
 							<Button
 								variant="default"
 								size="sm"
@@ -397,15 +404,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				)}
 
 				{(file.type === "text" || file.type === "other") &&
-				textContent !== null && (
-					<div className="flex-1 overflow-hidden">
-						<CodeEditor
-							file={file}
-							initialContent={textContent}
-							onSave={handleSaveContent}
-						/>
-					</div>
-				)}
+					textContent !== null && (
+						<div className="flex-1 overflow-hidden">
+							<CodeEditor
+								file={file}
+								initialContent={textContent}
+								onSave={handleSaveContent}
+							/>
+						</div>
+					)}
 
 				{file.type === "markdown" &&
 					textContent !== null &&

@@ -33,6 +33,7 @@ export type {
 	SandboxNpmInstallResult,
 	SandboxNpmListResult,
 	SandboxServerKind,
+	SandboxServerTemplate,
 	SandboxStartServerRequest,
 	SandboxStartServerResult,
 	SandboxStopServerRequest,

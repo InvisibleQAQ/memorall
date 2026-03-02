@@ -27,6 +27,7 @@ import "./sandbox-container/container-fetch-resource";
 import "./sandbox-container/container-web-access";
 import "./sandbox-container/container-request-server";
 import "./sandbox-container/container-render-server";
+import "./sandbox-container/container-setup-server";
 import "./documents-fs/fs-glob";
 import "./documents-fs/fs-grep";
 import "./documents-fs/fs-read";

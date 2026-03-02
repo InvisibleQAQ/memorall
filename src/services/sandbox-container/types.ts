@@ -149,12 +149,32 @@ export interface SandboxNpmListResult {
 
 export type SandboxServerKind = "express" | "vite" | "next";
 
+/**
+ * Template name to scaffold before starting a server.
+ * - "express"     → minimal Express app with JSON API routes
+ * - "vite-react"  → Vite + React starter (package.json, App.jsx, etc.)
+ * - "next-pages"  → Next.js Pages Router starter
+ * - "next-app"    → Next.js App Router starter
+ */
+export type SandboxServerTemplate =
+	| "express"
+	| "vite-react"
+	| "next-pages"
+	| "next-app";
+
 export interface SandboxStartServerRequest {
 	kind: SandboxServerKind;
 	port: number;
 	hostname?: string;
 	entryPath?: string;
 	rootDir?: string;
+	/** When provided, scaffold template files into rootDir before starting. */
+	template?: SandboxServerTemplate;
+	/**
+	 * After scaffolding, run npm install from package.json.
+	 * Defaults to true when template is set.
+	 */
+	autoInstall?: boolean;
 }
 
 export interface SandboxStartServerResult {

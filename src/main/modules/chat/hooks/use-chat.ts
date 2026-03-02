@@ -7,6 +7,7 @@ import { logError, logInfo } from "@/utils/logger";
 import { serviceManager } from "@/services";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type { Message } from "@/services/database";
+import { buildSendMessages } from "@/main/modules/chat/utils/build-send-messages";
 
 export interface InProgressMessage {
 	id: string;
@@ -179,19 +180,8 @@ export const useChat = (model: string) => {
 					? allMessages.slice(latestSeparatorIndex + 1)
 					: allMessages;
 
-			// Filter out separator messages and map to the required format
-			// Note: Store messages are only user/assistant/system, not tool messages
-			const sendMessages: ChatMessage[] = relevantMessages
-				.filter((msg) => msg.type !== "separator")
-				.map((msg) => {
-					const role = msg.role as "system" | "user" | "assistant";
-					if (role === "system") {
-						return { role, content: msg.content };
-					} else if (role === "user") {
-						return { role, content: msg.content };
-					}
-					return { role: "assistant" as const, content: msg.content };
-				});
+			// Build messages for the API, prefixing assistant messages with their stored actions
+			const sendMessages: ChatMessage[] = buildSendMessages(relevantMessages);
 
 			// Create assistant message placeholder
 			assistantMessage = await addMessage({

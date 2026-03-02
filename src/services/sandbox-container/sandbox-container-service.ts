@@ -727,10 +727,30 @@ export class SandboxContainerService {
 		return this.request("npm.list", undefined);
 	}
 
+	/**
+	 * Resolve a relative renderUrl (e.g. "/sandbox/__virtual__/3000/") to a
+	 * fully-qualified chrome-extension URL so popup iframes can navigate to it
+	 * via the almostnode service worker.
+	 */
+	private resolveRenderUrl(rawUrl: string): string {
+		if (
+			rawUrl.startsWith("/") &&
+			typeof chrome !== "undefined" &&
+			typeof chrome.runtime?.getURL === "function"
+		) {
+			const base = chrome.runtime.getURL("").replace(/\/$/, "");
+			return base + rawUrl;
+		}
+		return rawUrl;
+	}
+
 	async startServer(
 		request: SandboxStartServerRequest,
 	): Promise<SandboxStartServerResult> {
-		return this.request("server.start", request, 60_000);
+		// Allow extra time when a template will be scaffolded + npm-installed.
+		const timeoutMs = request.template ? 300_000 : 60_000;
+		const result = await this.request("server.start", request, timeoutMs);
+		return { ...result, renderUrl: this.resolveRenderUrl(result.renderUrl) };
 	}
 
 	async stopServer(
@@ -752,7 +772,8 @@ export class SandboxContainerService {
 	async getServerRenderUrl(
 		request: SandboxServerRenderUrlRequest,
 	): Promise<SandboxServerRenderUrlResult> {
-		return this.request("server.renderUrl", request);
+		const result = await this.request("server.renderUrl", request);
+		return { ...result, url: this.resolveRenderUrl(result.url) };
 	}
 
 	async getSnapshot(): Promise<{ snapshot: unknown }> {

@@ -57,23 +57,71 @@ If user require to write code, execute code please use this actively to write an
 - Do not start servers unless the user asks for running/preview/testing behavior.
 - Do not install packages unless required by the task.
 
+## WORKSPACE INSPECTION RULE — MANDATORY BEFORE WRITING ANY CODE
+**Always check \`/workspaces\` FIRST before writing files or scaffolding a new project.**
+
+Steps:
+1. \`container_readdir({ path: "/workspaces" })\` — list top-level workspace dirs.
+2. If a relevant directory exists (e.g. \`/workspaces/todo-app\`), inspect it:
+   \`container_readdir({ path: "/workspaces/<dir>" })\` and read key files
+   (\`package.json\`, main entry, etc.) with \`container_read_file\`.
+3. Only then decide what to create or modify:
+   - **Files already exist** → read them, build on top, do NOT overwrite without reason.
+   - **Partial project** → add only the missing files/code.
+   - **Truly empty** → scaffold from scratch.
+
+This prevents duplicate files, accidental overwrites, and redundant npm installs.
+
 ## RECOMMENDED TOOL WORKFLOW
-1) Inspect workspace state:
-- "container_exists", "container_readdir", "container_read_file"
-2) Prepare project structure:
+1) **Inspect workspace state FIRST** (mandatory — see rule above):
+- \`container_readdir({ path: "/workspaces" })\` then drill into any existing project dir
+2) Prepare project structure (only what is missing):
 - "container_mkdir", "container_write_file", "container_rename", "container_unlink"
 3) Install dependencies only when needed:
 - "container_install_package"
 4) Execute and verify:
 - "container_run_code"
-5) Server lifecycle (if requested):
+5) Quick server setup — scaffold + install + start + preview in ONE call:
+- "container_setup_server" with template="vite-react"|"next-pages"|"next-app"|"express"
+  Use this whenever the user asks to create/run a new app from scratch.
+  It automatically scaffolds files, installs packages, starts the server, and returns an iframe preview.
+6) Manual server lifecycle (when files already exist or custom setup needed):
 - "container_start_server" -> "container_list_servers" -> "container_stop_server"
-6) Network checks:
-- "container_fetch_resource" for API (JSON) or UI server (HTML/text)
-7) Browser-like web access:
-- "container_web_access" to access a URL (especially started Next/Vite servers) and return URL + HTML for preview/simulation.
-7) Diagnostics:
+7) Show a running server's UI in chat (Vite, Next.js, HTML pages):
+- "container_render_server" -> returns a render URL that appears as an iframe preview in the chat
+8) Call a server API endpoint and show the response:
+- "container_request_server" -> returns structured HTTP response shown in chat
+9) Network checks:
+- "container_fetch_resource" for external API (JSON) or web URLs
+10) Browser-like web access:
+- "container_web_access" to access a URL and return URL + HTML for preview/simulation.
+11) Diagnostics:
 - "container_get_logs", then optionally "container_clear_logs"
+
+## SERVER SETUP GUIDE
+
+### When to use container_setup_server (preferred for new projects)
+- User says: "create a React app", "make a Next.js app", "build an Express API", "start a Vite project"
+- User says: "show me a running [framework] example"
+- Starting fresh with no existing project files
+- Single tool call → files scaffolded + packages installed + server running + iframe preview shown
+
+### When to use container_start_server instead
+- Project files already exist in the VFS (custom code already written)
+- User asks to restart a stopped server
+- Need fine-grained control over entryPath or hostname
+
+### After the server is running
+- UI app (Vite, Next.js): always call container_render_server to show the iframe preview
+- API server (Express JSON routes): call container_request_server to fetch and display a response
+
+### Template → framework mapping
+| template      | kind    | default port | use case                    |
+|---------------|---------|-------------|------------------------------|
+| express       | express | 3000        | REST API, HTML pages         |
+| vite-react    | vite    | 5173        | React SPA with HMR           |
+| next-pages    | next    | 3000        | Next.js Pages Router         |
+| next-app      | next    | 3000        | Next.js App Router           |
 `;
 export const NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT =
 	SYSTEM_PROMPT_INSTRUCTION.trim();
@@ -94,6 +142,9 @@ export const NODEJS_SANDBOX_FEATURE_TOOLS = [
 	"container_unlink",
 	"container_fetch_resource",
 	"container_web_access",
+	"container_render_server",
+	"container_request_server",
+	"container_setup_server",
 ] as const;
 export const NODEJS_SANDBOX_FEATURE_DESCRIPTION =
 	"Enable isolated Node.js container tools for runtime execution, npm, filesystem, server lifecycle, logs, and resource fetch.";

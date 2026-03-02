@@ -49,7 +49,10 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 			? trimmedExt
 			: `.${trimmedExt}`;
 
-		modal.resolve({ name: documentName.trim(), extension } satisfies CreateDocumentDialogResult);
+		modal.resolve({
+			name: documentName.trim(),
+			extension,
+		} satisfies CreateDocumentDialogResult);
 		modal.hide();
 	};
 

@@ -14,6 +14,22 @@ const schema = z.object({
 		.describe("Optional hostname (default runtime value)."),
 	rootDir: z.string().optional().describe("Optional project root path."),
 	entryPath: z.string().optional().describe("Entry path for express mode."),
+	template: z
+		.enum(["express", "vite-react", "next-pages", "next-app"])
+		.optional()
+		.describe(
+			"Scaffold a starter template into rootDir before starting the server. " +
+				'"express" – Express app with API routes; ' +
+				'"vite-react" – Vite + React; ' +
+				'"next-pages" – Next.js Pages Router; ' +
+				'"next-app" – Next.js App Router.',
+		),
+	autoInstall: z
+		.boolean()
+		.optional()
+		.describe(
+			"Run npm install from package.json after scaffolding (default true when template is set).",
+		),
 });
 
 type Input = z.infer<typeof schema>;
@@ -34,6 +50,8 @@ export const createContainerStartServerTool: ToolFactory<
 				hostname: input.hostname,
 				rootDir: input.rootDir,
 				entryPath: input.entryPath,
+				template: input.template,
+				autoInstall: input.autoInstall,
 			});
 			return JSON.stringify(
 				{

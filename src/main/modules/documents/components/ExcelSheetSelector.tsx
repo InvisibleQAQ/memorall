@@ -116,7 +116,9 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 					? t("excelSelector.allSheets")
 					: selectedSheetNames.length === 1
 						? selectedSheetNames[0]
-						: t("excelSelector.sheetCount", { count: selectedSheetNames.length });
+						: t("excelSelector.sheetCount", {
+								count: selectedSheetNames.length,
+							});
 
 			const title = `${file.name.replace(/\.(xls|xlsx|xlsm)$/i, "")} - ${sheetText}`;
 
