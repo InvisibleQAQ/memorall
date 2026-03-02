@@ -72,7 +72,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 	useEffect(() => {
 		if (!fileData) {
 			logError("File data is missing");
-			setError("No file data provided");
+			setError(t("excelViewer.noData"));
 			setLoading(false);
 			return;
 		}
@@ -80,7 +80,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 		const initializeUniver = async () => {
 			if (!containerRef.current) {
 				logError("Container ref not available");
-				setError("Container not ready");
+				setError(t("excelViewer.containerNotReady"));
 				setLoading(false);
 				return;
 			}
@@ -189,7 +189,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 				logInfo(`Excel file loaded successfully: ${fileName}`);
 			} catch (err) {
 				logError("Failed to initialize Excel viewer:", err);
-				setError("Failed to load Excel file");
+				setError(t("excelViewer.loadError"));
 			} finally {
 				setLoading(false);
 			}
@@ -205,7 +205,7 @@ export const ExcelViewer: React.FC<ExcelViewerProps> = ({
 				univerRef.current = null;
 			}
 		};
-	}, [fileData, fileName]);
+	}, [fileData, fileName, t]);
 
 	const convertXLSXToUniver = (workbook: XLSX.WorkBook, fileName: string) => {
 		const sheets: any = {};

@@ -141,7 +141,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 			);
 
 			if (selectedPageData.length === 0) {
-				throw new Error("No pages selected for conversion");
+				throw new Error(t("pdfSelector.noPagesSelected"));
 			}
 
 			// Combine all selected pages into one content block
@@ -154,10 +154,13 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 			// Create title from file name and page range
 			const pageRangeText =
 				pageNumbers.length === pdfContent.pages.length
-					? "All Pages"
+					? t("pdfSelector.allPages")
 					: pageNumbers.length === 1
-						? `Page ${pageNumbers[0]}`
-						: `Pages ${Math.min(...pageNumbers)}-${Math.max(...pageNumbers)}`;
+						? t("pdfSelector.page", { number: pageNumbers[0] })
+						: t("pdfSelector.pagesRange", {
+								start: Math.min(...pageNumbers),
+								end: Math.max(...pageNumbers),
+							});
 
 			const title = `${file.name.replace(".pdf", "")} - ${pageRangeText}`;
 
@@ -191,7 +194,7 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 			setSelectedPages(new Set());
 		} catch (error) {
 			logError("Failed to convert pages:", error);
-			alert("Failed to convert PDF pages. Please try again.");
+			alert(t("pdfSelector.convertError"));
 		} finally {
 			setConverting(false);
 		}

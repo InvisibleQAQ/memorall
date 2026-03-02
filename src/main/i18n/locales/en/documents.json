@@ -2,6 +2,7 @@
 	"title": "Documents",
 	"library": {
 		"title": "Document Library",
+		"home": "Home",
 		"searchPlaceholder": "Search files...",
 		"add": "Add",
 		"topics": "Topics",
@@ -25,7 +26,7 @@
 		"createDocument": "New Document"
 	},
 	"list": {
-		"items": "{{count}} item{{count, plural, one {} other {s}}}",
+		"items": "{{count}} items",
 		"rename": "Rename",
 		"deleteFolder": "Delete Folder",
 		"manageTopics": "Manage Topics",
@@ -37,8 +38,8 @@
 		"emptyFolderDescription": "Upload files to get started"
 	},
 	"viewer": {
-		"pages": "{{count}} page{{count, plural, one {} other {s}}}",
-		"sheets": "{{count}} sheet{{count, plural, one {} other {s}}}",
+		"pages": "{{count}} page",
+		"sheets": "{{count}} sheet",
 		"manage": "Manage",
 		"addTopics": "Add Topics",
 		"convertToKnowledge": "Convert to Knowledge",
@@ -55,7 +56,8 @@
 		"modified": "Modified",
 		"tags": "Tags",
 		"topics": "Topics",
-		"description": "Description"
+		"description": "Description",
+		"convertSuccess": "Successfully converted content."
 	},
 	"tree": {
 		"dropToRoot": "Drop to move to root folder",
@@ -71,13 +73,18 @@
 		"previewUnavailable": "Preview unavailable",
 		"cancel": "Cancel",
 		"converting": "Converting...",
-		"convert": "Convert {{count}} {{count, plural, one {Sheet} other {Sheets}}}",
-		"allSheets": "All Sheets"
+		"convert": "Convert {{count}} Sheets",
+		"allSheets": "All Sheets",
+		"sheetCount": "{{count}} Sheets",
+		"convertError": "Failed to convert Excel sheets. Please try again."
 	},
 	"excelViewer": {
 		"loading": "Loading Excel file...",
 		"error": "Excel file could not be rendered with Univer.",
-		"errorDescription": "Try downloading the file to view it in Excel."
+		"errorDescription": "Try downloading the file to view it in Excel.",
+		"noData": "No file data provided",
+		"containerNotReady": "Container not ready",
+		"loadError": "Failed to load Excel file"
 	},
 	"pdfSelector": {
 		"title": "Convert PDF Pages to Remembered Content",
@@ -92,8 +99,11 @@
 		"page": "Page {{number}}",
 		"cancel": "Cancel",
 		"converting": "Converting...",
-		"convert": "Convert {{count}} {{count, plural, one {Page} other {Pages}}}",
-		"allPages": "All Pages"
+		"convert": "Convert {{count}} Pages",
+		"allPages": "All Pages",
+		"pagesRange": "Pages {{start}}-{{end}}",
+		"noPagesSelected": "No pages selected for conversion",
+		"convertError": "Failed to convert PDF pages. Please try again."
 	},
 	"sidebar": {
 		"workspace": "Workspace"
@@ -110,5 +120,10 @@
 		"invalidCharacters": "Name contains invalid characters",
 		"cancel": "Cancel",
 		"create": "Create"
+	},
+	"editor": {
+		"unsaved": "Unsaved",
+		"saving": "Saving…",
+		"save": "Save"
 	}
 }

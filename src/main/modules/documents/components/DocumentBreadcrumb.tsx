@@ -71,7 +71,7 @@ export const DocumentBreadcrumb: React.FC<DocumentBreadcrumbProps> = ({
 			<button
 				onClick={handleHomeClick}
 				className="flex items-center gap-1 hover:text-foreground transition-colors flex-shrink-0"
-				title={homeTitle || t("library.home", { defaultValue: "Home" })}
+				title={homeTitle || t("library.home")}
 			>
 				<Home className="h-3.5 w-3.5 md:h-4 md:w-4" />
 			</button>

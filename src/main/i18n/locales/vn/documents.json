@@ -2,6 +2,7 @@
 	"title": "Tài liệu",
 	"library": {
 		"title": "Thư viện tài liệu",
+		"home": "Trang chủ",
 		"searchPlaceholder": "Tìm kiếm tệp...",
 		"add": "Thêm",
 		"topics": "Chủ đề",
@@ -55,7 +56,8 @@
 		"modified": "Đã sửa đổi",
 		"tags": "Thẻ",
 		"topics": "Chủ đề",
-		"description": "Mô tả"
+		"description": "Mô tả",
+		"convertSuccess": "Chuyển đổi nội dung thành công."
 	},
 	"tree": {
 		"dropToRoot": "Thả để di chuyển đến thư mục gốc",
@@ -72,12 +74,17 @@
 		"cancel": "Hủy",
 		"converting": "Đang chuyển đổi...",
 		"convert": "Chuyển đổi {{count}} bảng tính",
-		"allSheets": "Tất cả bảng tính"
+		"allSheets": "Tất cả bảng tính",
+		"sheetCount": "{{count}} bảng tính",
+		"convertError": "Không thể chuyển đổi bảng tính Excel. Vui lòng thử lại."
 	},
 	"excelViewer": {
 		"loading": "Đang tải tệp Excel...",
 		"error": "Không thể hiển thị tệp Excel với Univer.",
-		"errorDescription": "Hãy thử tải xuống tệp để xem trong Excel."
+		"errorDescription": "Hãy thử tải xuống tệp để xem trong Excel.",
+		"noData": "Không có dữ liệu tệp",
+		"containerNotReady": "Vùng hiển thị chưa sẵn sàng",
+		"loadError": "Không thể tải tệp Excel"
 	},
 	"pdfSelector": {
 		"title": "Chuyển đổi trang PDF thành nội dung đã nhớ",
@@ -93,7 +100,10 @@
 		"cancel": "Hủy",
 		"converting": "Đang chuyển đổi...",
 		"convert": "Chuyển đổi {{count}} trang",
-		"allPages": "Tất cả trang"
+		"allPages": "Tất cả trang",
+		"pagesRange": "Trang {{start}}-{{end}}",
+		"noPagesSelected": "Không có trang nào được chọn để chuyển đổi",
+		"convertError": "Không thể chuyển đổi các trang PDF. Vui lòng thử lại."
 	},
 	"sidebar": {
 		"workspace": "Không gian làm việc"
@@ -110,5 +120,10 @@
 		"invalidCharacters": "Tên chứa ký tự không hợp lệ",
 		"cancel": "Hủy",
 		"create": "Tạo"
+	},
+	"editor": {
+		"unsaved": "Chưa lưu",
+		"saving": "Đang lưu…",
+		"save": "Lưu"
 	}
 }

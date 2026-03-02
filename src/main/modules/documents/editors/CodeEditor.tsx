@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
 	oneDark,
@@ -77,6 +78,7 @@ const FONT_FAMILY =
 const FONT_SIZE = "0.875rem"; // 14 px
 const LINE_HEIGHT = "1.5";
 const PADDING = "1rem"; // 16 px
+const GUTTER_WIDTH = "3.5rem";
 
 export const CodeEditor: React.FC<DocumentEditorProps> = ({
 	file,
@@ -85,19 +87,25 @@ export const CodeEditor: React.FC<DocumentEditorProps> = ({
 	readOnly = false,
 	className,
 }) => {
+	const { t } = useTranslation("documents");
 	const [content, setContent] = useState(initialContent);
 	const [isDirty, setIsDirty] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const highlightRef = useRef<HTMLDivElement>(null);
+	const gutterRef = useRef<HTMLDivElement>(null);
 	const language = getLanguage(file.name);
+	const lineCount = content.split("\n").length;
 
 	// Sync highlighted layer position to textarea scroll
 	const syncHighlight = useCallback(() => {
 		if (!highlightRef.current || !textareaRef.current) return;
 		const { scrollTop, scrollLeft } = textareaRef.current;
 		highlightRef.current.style.transform = `translate(${-scrollLeft}px, ${-scrollTop}px)`;
+		if (gutterRef.current) {
+			gutterRef.current.style.transform = `translateY(${-scrollTop}px)`;
+		}
 	}, []);
 
 	useEffect(() => {
@@ -147,7 +155,10 @@ export const CodeEditor: React.FC<DocumentEditorProps> = ({
 
 	const highlighterCustomStyle: React.CSSProperties = {
 		margin: 0,
-		padding: PADDING,
+		paddingTop: PADDING,
+		paddingRight: PADDING,
+		paddingBottom: PADDING,
+		paddingLeft: `calc(${PADDING} + ${GUTTER_WIDTH})`,
 		fontSize: FONT_SIZE,
 		lineHeight: LINE_HEIGHT,
 		fontFamily: FONT_FAMILY,
@@ -181,7 +192,7 @@ export const CodeEditor: React.FC<DocumentEditorProps> = ({
 					{isDirty && (
 						<span className="flex items-center gap-1 text-xs text-amber-500">
 							<span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
-							Unsaved
+							{t("editor.unsaved")}
 						</span>
 					)}
 
@@ -193,13 +204,33 @@ export const CodeEditor: React.FC<DocumentEditorProps> = ({
 						className="h-7 px-2 text-xs gap-1"
 					>
 						<Save className="h-3 w-3" />
-						{isSaving ? "Saving…" : "Save"}
+						{isSaving ? t("editor.saving") : t("editor.save")}
 					</Button>
 				</div>
 			)}
 
 			{/* Editor: highlighted layer behind transparent textarea */}
 			<div className="relative flex-1 overflow-hidden bg-background">
+				<div
+					ref={gutterRef}
+					className="absolute top-0 left-0 pointer-events-none select-none border-r text-right text-muted-foreground/70"
+					style={{
+						width: `calc(${GUTTER_WIDTH} + ${PADDING})`,
+						paddingTop: PADDING,
+						paddingRight: "0.75rem",
+						paddingBottom: PADDING,
+						fontFamily: FONT_FAMILY,
+						fontSize: FONT_SIZE,
+						lineHeight: LINE_HEIGHT,
+						background: "hsl(var(--muted) / 0.25)",
+					}}
+					aria-hidden
+				>
+					{Array.from({ length: lineCount }, (_, i) => (
+						<div key={i + 1}>{i + 1}</div>
+					))}
+				</div>
+
 				{/* Syntax-highlighted layer (absolutely positioned, pointer-events: none) */}
 				<div
 					ref={highlightRef}
@@ -244,7 +275,10 @@ export const CodeEditor: React.FC<DocumentEditorProps> = ({
 						fontFamily: FONT_FAMILY,
 						fontSize: FONT_SIZE,
 						lineHeight: LINE_HEIGHT,
-						padding: PADDING,
+						paddingTop: PADDING,
+						paddingRight: PADDING,
+						paddingBottom: PADDING,
+						paddingLeft: `calc(${PADDING} + ${GUTTER_WIDTH})`,
 						tabSize: 2,
 						color: "transparent",
 						caretColor: "hsl(var(--foreground))",

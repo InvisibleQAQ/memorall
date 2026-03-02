@@ -65,7 +65,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	selectedTopicIds = [],
 	onTopicClick,
 }) => {
-	const { t } = useTranslation("documents");
+	const { t, i18n } = useTranslation("documents");
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [textContent, setTextContent] = useState<string | null>(null);
 	const [excelData, setExcelData] = useState<Uint8Array | null>(null);
@@ -119,7 +119,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				file.type === "markdown" ||
 				file.type === "other"
 			) {
-				setLoading(true);
 				try {
 					const content = await loadContent();
 					const textDecoder = new TextDecoder("utf-8");
@@ -127,8 +126,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					setTextContent(text);
 				} catch (error) {
 					logError("Failed to load text content:", error);
-				} finally {
-					setLoading(false);
 				}
 			} else if (file.type === "excel") {
 				setLoading(true);
@@ -203,7 +200,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	};
 
 	const formatDate = (date: Date): string => {
-		return new Intl.DateTimeFormat("en-US", {
+		return new Intl.DateTimeFormat(i18n.language, {
 			month: "long",
 			day: "numeric",
 			year: "numeric",
@@ -238,7 +235,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	const handleConvertPages = () => {
 		// Simplified callback - conversion happens in background job now
 		logInfo("PDF pages converted successfully");
-		alert("Successfully converted PDF pages to remembered content!");
+		alert(t("viewer.convertSuccess"));
 	};
 
 	return (

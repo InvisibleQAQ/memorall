@@ -113,10 +113,10 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 			// Create title from file name and sheet info
 			const sheetText =
 				selectedSheetNames.length === sheetNames.length
-					? "All Sheets"
+					? t("excelSelector.allSheets")
 					: selectedSheetNames.length === 1
 						? selectedSheetNames[0]
-						: `${selectedSheetNames.length} Sheets`;
+						: t("excelSelector.sheetCount", { count: selectedSheetNames.length });
 
 			const title = `${file.name.replace(/\.(xls|xlsx|xlsm)$/i, "")} - ${sheetText}`;
 
@@ -150,7 +150,7 @@ export const ExcelSheetSelector: React.FC<ExcelSheetSelectorProps> = ({
 			setSelectedSheets(new Set());
 		} catch (error) {
 			logError("Failed to convert sheets:", error);
-			alert("Failed to convert Excel sheets. Please try again.");
+			alert(t("excelSelector.convertError"));
 		} finally {
 			setConverting(false);
 		}
