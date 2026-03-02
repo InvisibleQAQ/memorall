@@ -129,6 +129,7 @@ export const DocumentLibraryContent = memo(function DocumentLibraryContent({
 		return (
 			<DocumentViewer
 				file={selectedNode.file}
+				isWorkspaceFile={isWorkspaceSection}
 				onClose={onCloseViewer}
 				onDelete={onDeleteSelectedFile}
 				onDownload={onDownloadSelectedFile}

@@ -106,6 +106,7 @@
 		"filenamePreview": "Tên tệp:",
 		"unnamed": "chưa đặt tên",
 		"nameRequired": "Tên là bắt buộc",
+		"extensionRequired": "Phần mở rộng là bắt buộc",
 		"invalidCharacters": "Tên chứa ký tự không hợp lệ",
 		"cancel": "Hủy",
 		"create": "Tạo"

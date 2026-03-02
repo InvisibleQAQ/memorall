@@ -622,7 +622,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 	}
 
 	return (
-		<div className="h-full overflow-auto">
+		<div className="h-full overflow-auto flex-1">
 			{viewMode === "list" ? renderListView() : renderGridView()}
 		</div>
 	);

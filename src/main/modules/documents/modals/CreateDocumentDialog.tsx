@@ -13,39 +13,18 @@ import {
 import { Button } from "@/main/components/ui/button";
 import { Input } from "@/main/components/ui/input";
 import { Label } from "@/main/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/main/components/ui/select";
 
 export interface CreateDocumentDialogResult {
 	name: string;
 	extension: string;
 }
 
-const EXTENSIONS: { ext: string; label: string }[] = [
-	{ ext: ".md", label: "Markdown (.md)" },
-	{ ext: ".txt", label: "Plain Text (.txt)" },
-	{ ext: ".json", label: "JSON (.json)" },
-	{ ext: ".yaml", label: "YAML (.yaml)" },
-	{ ext: ".sh", label: "Shell (.sh)" },
-	{ ext: ".py", label: "Python (.py)" },
-	{ ext: ".js", label: "JavaScript (.js)" },
-	{ ext: ".ts", label: "TypeScript (.ts)" },
-	{ ext: ".html", label: "HTML (.html)" },
-	{ ext: ".css", label: "CSS (.css)" },
-	{ ext: ".sql", label: "SQL (.sql)" },
-];
-
 export const CreateDocumentDialog = NiceModal.create<object>(() => {
 	const modal = useModal();
 	const { t } = useTranslation("documents");
 
 	const [documentName, setDocumentName] = useState("");
-	const [extension, setExtension] = useState(".md");
+	const [rawExt, setRawExt] = useState("md");
 	const [error, setError] = useState("");
 
 	const handleCreate = () => {
@@ -60,12 +39,17 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 			return;
 		}
 
-		const result: CreateDocumentDialogResult = {
-			name: documentName.trim(),
-			extension,
-		};
+		const trimmedExt = rawExt.trim();
+		if (!trimmedExt) {
+			setError(t("create.extensionRequired"));
+			return;
+		}
 
-		modal.resolve(result);
+		const extension = trimmedExt.startsWith(".")
+			? trimmedExt
+			: `.${trimmedExt}`;
+
+		modal.resolve({ name: documentName.trim(), extension } satisfies CreateDocumentDialogResult);
 		modal.hide();
 	};
 
@@ -73,6 +57,12 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 		modal.resolve(null);
 		modal.hide();
 	};
+
+	const previewExt = rawExt.trim()
+		? rawExt.trim().startsWith(".")
+			? rawExt.trim()
+			: `.${rawExt.trim()}`
+		: "";
 
 	return (
 		<Dialog
@@ -108,26 +98,31 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 					{/* Extension */}
 					<div className="space-y-2">
 						<Label htmlFor="document-ext">{t("create.extensionLabel")}</Label>
-						<Select value={extension} onValueChange={setExtension}>
-							<SelectTrigger id="document-ext">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{EXTENSIONS.map(({ ext, label }) => (
-									<SelectItem key={ext} value={ext}>
-										{label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						<div className="flex items-center">
+							<span className="inline-flex items-center px-3 h-9 rounded-l-md border border-r-0 bg-muted text-sm text-muted-foreground select-none">
+								.
+							</span>
+							<Input
+								id="document-ext"
+								className="rounded-l-none"
+								placeholder="md"
+								value={rawExt}
+								onChange={(e) => {
+									// Strip any leading dots the user might type
+									setRawExt(e.target.value.replace(/^\.+/, ""));
+									setError("");
+								}}
+								onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+							/>
+						</div>
 					</div>
 
 					{/* Preview */}
 					<div className="text-sm text-muted-foreground">
 						{t("create.filenamePreview")}{" "}
-						<span className="font-medium">
+						<span className="font-medium font-mono">
 							{documentName.trim() || t("create.unnamed")}
-							{extension}
+							{previewExt}
 						</span>
 					</div>
 				</div>

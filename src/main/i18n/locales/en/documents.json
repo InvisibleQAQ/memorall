@@ -106,6 +106,7 @@
 		"filenamePreview": "File name:",
 		"unnamed": "unnamed",
 		"nameRequired": "Name is required",
+		"extensionRequired": "Extension is required",
 		"invalidCharacters": "Name contains invalid characters",
 		"cancel": "Cancel",
 		"create": "Create"

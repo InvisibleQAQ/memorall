@@ -16,7 +16,8 @@ import { BACKGROUND_EVENTS } from "@/constants/events";
 const DOCUMENTS_ROOT = "/home/documents";
 const SANDBOX_DOCUMENTS_ROOT = "/documents";
 const WORKSPACE_ROOT = "/home/workspace";
-const SANDBOX_WORKSPACE_ROOT = "/workspace";
+const SANDBOX_WORKSPACE_ROOT = "/workspaces";
+const SANDBOX_WORKSPACE_LEGACY_ROOT = "/workspace";
 
 export interface SandboxDocumentsMountSnapshot {
 	directories: string[];
@@ -1082,7 +1083,7 @@ export class DocumentFileSystem {
 
 	/**
 	 * Build a read-write workspace mount snapshot for the sandbox runtime.
-	 * Paths are projected from /home/workspace/... to /workspace/...
+	 * Paths are projected from /home/workspace/... to /workspaces/...
 	 */
 	async getSandboxWorkspaceMountSnapshot(): Promise<SandboxDocumentsMountSnapshot> {
 		await this.initialize();
@@ -1138,17 +1139,19 @@ export class DocumentFileSystem {
 		};
 	}
 
-	/** Convert a sandbox /workspace/... path to the ZenFS absolute path. */
+	/** Convert a sandbox /workspaces/... path to the ZenFS absolute path. */
 	private toWorkspaceFsPath(sandboxPath: string): string {
-		// sandboxPath is already normalized (starts with /workspace)
-		const logical =
-			sandboxPath === SANDBOX_WORKSPACE_ROOT
-				? ""
-				: sandboxPath.slice(SANDBOX_WORKSPACE_ROOT.length);
+		const normalized = sandboxPath.replace(/\\/g, "/");
+		const base =
+			normalized === SANDBOX_WORKSPACE_LEGACY_ROOT ||
+			normalized.startsWith(`${SANDBOX_WORKSPACE_LEGACY_ROOT}/`)
+				? SANDBOX_WORKSPACE_LEGACY_ROOT
+				: SANDBOX_WORKSPACE_ROOT;
+		const logical = normalized === base ? "" : normalized.slice(base.length);
 		return `${WORKSPACE_ROOT}${logical}`;
 	}
 
-	/** Read raw bytes from a workspace file (sandboxPath = /workspace/...). */
+	/** Read raw bytes from a workspace file (sandboxPath = /workspaces/...). */
 	async getWorkspaceFileContent(sandboxPath: string): Promise<Uint8Array> {
 		const fsPath = this.toWorkspaceFsPath(sandboxPath);
 		try {
@@ -1196,7 +1199,7 @@ export class DocumentFileSystem {
 
 	/**
 	 * Rename a workspace file.
-	 * @returns The new sandbox path (/workspace/...).
+	 * @returns The new sandbox path (/workspaces/...).
 	 */
 	async renameWorkspaceFile(
 		sandboxPath: string,

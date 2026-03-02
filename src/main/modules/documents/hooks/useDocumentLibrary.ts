@@ -25,9 +25,18 @@ import {
 
 // ── Module-level helpers ──────────────────────────────────────────────────────
 
-/** Convert logical workspace path → sandbox path (/workspace/...). */
+/** Convert logical workspace path → sandbox path (/workspaces/...). */
 function toWsPath(logicalPath: string): string {
-	return logicalPath === "/" ? "/workspace" : `/workspace${logicalPath}`;
+	const normalized = logicalPath.replace(/\\/g, "/");
+	if (normalized === "/workspace" || normalized.startsWith("/workspace/")) {
+		return normalized === "/workspace"
+			? "/workspaces"
+			: `/workspaces${normalized.slice("/workspace".length)}`;
+	}
+	if (normalized === "/workspaces" || normalized.startsWith("/workspaces/")) {
+		return normalized;
+	}
+	return normalized === "/" ? "/workspaces" : `/workspaces${normalized}`;
 }
 
 /** Build the virtual workspace-root DocumentTreeNode that wraps workspace items. */

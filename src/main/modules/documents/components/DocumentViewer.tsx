@@ -38,9 +38,11 @@ import { ExcelSheetSelector } from "./ExcelSheetSelector";
 import { useModalSelector } from "../hooks/useModalSelector";
 import { useSourceStatus } from "../hooks/useSourceStatus";
 import { editorRegistry } from "../editors";
+import { CodeEditor } from "../editors/CodeEditor";
 
 interface DocumentViewerProps {
 	file: DocumentFile;
+	isWorkspaceFile?: boolean;
 	onClose?: () => void;
 	onDelete?: () => void;
 	onDownload?: () => void;
@@ -53,6 +55,7 @@ interface DocumentViewerProps {
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	file,
+	isWorkspaceFile = false,
 	onClose,
 	onDelete,
 	onDownload,
@@ -78,16 +81,28 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
 	// Use prop topics if provided, otherwise use loaded topics
 	const fileTopics = propFileTopics || loadedFileTopics;
+	const workspacePath =
+		file.path === "/" ? "/workspaces" : `/workspaces${file.path}`;
 
 	useEffect(() => {
+		// Reset content state when file changes
+		setTextContent(null);
+		setPreviewUrl(null);
+		setExcelData(null);
+
 		// Load preview for supported file types
 		const loadPreview = async () => {
+			const loadContent = async (): Promise<Uint8Array> => {
+				if (isWorkspaceFile) {
+					return documentFileSystemService.getWorkspaceFileContent(workspacePath);
+				}
+				return documentFileSystemService.getFileContent(file.id);
+			};
+
 			if (file.type === "pdf" || file.type === "image") {
 				setLoading(true);
 				try {
-					const content = await documentFileSystemService.getFileContent(
-						file.id,
-					);
+					const content = await loadContent();
 					// Create blob directly from Uint8Array
 					const blob = new Blob([content] as unknown as BlobPart[], {
 						type: file.mimeType,
@@ -99,12 +114,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				} finally {
 					setLoading(false);
 				}
-			} else if (file.type === "text" || file.type === "markdown") {
+			} else if (
+				file.type === "text" ||
+				file.type === "markdown" ||
+				file.type === "other"
+			) {
 				setLoading(true);
 				try {
-					const content = await documentFileSystemService.getFileContent(
-						file.id,
-					);
+					const content = await loadContent();
 					const textDecoder = new TextDecoder("utf-8");
 					const text = textDecoder.decode(content);
 					setTextContent(text);
@@ -117,9 +134,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				setLoading(true);
 				try {
 					logInfo("Loading Excel file content for:", file.name);
-					const content = await documentFileSystemService.getFileContent(
-						file.id,
-					);
+					const content = await loadContent();
 					logInfo("Excel content loaded, size:", content.length, "bytes");
 					setExcelData(content);
 					logInfo("Excel data set in state");
@@ -199,13 +214,16 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
 	const handleSaveContent = async (content: string): Promise<void> => {
 		try {
-			// Convert content to Uint8Array
-			const encoder = new TextEncoder();
-			const contentArray = encoder.encode(content);
-
-			// Update the file content
-			// This will NOT trigger tree reload (content-only changes)
-			await documentFileSystemService.updateFileContent(file.id, contentArray);
+			if (isWorkspaceFile) {
+				await documentFileSystemService.writeWorkspaceFile(
+					workspacePath,
+					content,
+				);
+			} else {
+				const encoder = new TextEncoder();
+				const contentArray = encoder.encode(content);
+				await documentFileSystemService.updateFileContent(file.id, contentArray);
+			}
 
 			// Update local state after successful save
 			setTextContent(content);
@@ -296,8 +314,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 							</span>
 						</Button>
 					)}
-					{(file.type === "text" || file.type === "markdown") &&
-						onConvertToKnowledge && (
+					{(file.type === "text" || file.type === "markdown" || file.type === "other") &&
+					onConvertToKnowledge && (
 							<Button
 								variant="default"
 								size="sm"
@@ -381,14 +399,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					</div>
 				)}
 
-				{file.type === "text" && textContent && (
-					<ScrollArea className="flex-1 p-4">
-						<div className="border rounded-lg p-4 bg-muted/20">
-							<pre className="text-sm whitespace-pre-wrap font-mono">
-								{textContent}
-							</pre>
-						</div>
-					</ScrollArea>
+				{(file.type === "text" || file.type === "other") &&
+				textContent !== null && (
+					<div className="flex-1 overflow-hidden">
+						<CodeEditor
+							file={file}
+							initialContent={textContent}
+							onSave={handleSaveContent}
+						/>
+					</div>
 				)}
 
 				{file.type === "markdown" &&

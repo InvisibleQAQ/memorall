@@ -6,6 +6,8 @@ const DEFAULT_MAX_LOG_ENTRIES = 20;
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
 const MAX_RUNTIME_LOG_ENTRIES = 500;
 const DOCUMENTS_MOUNT_ROOT = "/documents";
+const WORKSPACES_MOUNT_ROOT = "/workspaces";
+const WORKSPACE_LEGACY_MOUNT_ROOT = "/workspace";
 
 const initializedAt = Date.now();
 const runtimeLogs = [];
@@ -14,6 +16,11 @@ const mountedDocumentFiles = new Set();
 const mountedDocumentDirectories = new Set();
 const materializedMountedFiles = new Map();
 let documentsMountLoaded = false;
+const mountedWorkspaceFiles = new Set();
+const mountedWorkspaceDirectories = new Set();
+const materializedWorkspaceFiles = new Map();
+const pendingWorkspaceOps = [];
+let workspaceMountLoaded = false;
 const installedPackages = new Map();
 const servers = new Map();
 let serverBridgeReady = false;
@@ -86,10 +93,30 @@ const dirname = (inputPath) => {
 	return normalized.slice(0, idx);
 };
 
+const toCanonicalWorkspacePath = (inputPath) => {
+	const path = normalizePath(inputPath);
+	if (path === WORKSPACE_LEGACY_MOUNT_ROOT) return WORKSPACES_MOUNT_ROOT;
+	if (path.startsWith(`${WORKSPACE_LEGACY_MOUNT_ROOT}/`)) {
+		return `${WORKSPACES_MOUNT_ROOT}${path.slice(WORKSPACE_LEGACY_MOUNT_ROOT.length)}`;
+	}
+	return path;
+};
+
+const toCanonicalMountedPath = (inputPath) => toCanonicalWorkspacePath(normalizePath(inputPath));
 const isDocumentsPath = (path) => path === DOCUMENTS_MOUNT_ROOT || path.startsWith(`${DOCUMENTS_MOUNT_ROOT}/`);
+const isWorkspacePath = (path) =>
+	path === WORKSPACES_MOUNT_ROOT ||
+	path.startsWith(`${WORKSPACES_MOUNT_ROOT}/`) ||
+	path === WORKSPACE_LEGACY_MOUNT_ROOT ||
+	path.startsWith(`${WORKSPACE_LEGACY_MOUNT_ROOT}/`);
 const assertDocumentsMountLoaded = () => {
 	if (!documentsMountLoaded) {
 		throw new Error("Documents mount is not loaded in sandbox runtime");
+	}
+};
+const assertWorkspaceMountLoaded = () => {
+	if (!workspaceMountLoaded) {
+		throw new Error("Workspace mount is not loaded in sandbox runtime");
 	}
 };
 
@@ -107,19 +134,19 @@ const createFsError = (code, syscall, path) => {
 	return err;
 };
 
-const listMountedDir = (path) => {
+const listMountedDir = (path, directories, files) => {
 	const normalized = normalizePath(path);
 	const prefix = normalized === "/" ? "/" : `${normalized}/`;
 	const entries = new Set();
 
-	for (const dir of mountedDocumentDirectories) {
+	for (const dir of directories) {
 		if (!dir.startsWith(prefix) || dir === normalized) continue;
 		const rest = dir.slice(prefix.length);
 		if (!rest || rest.includes("/")) continue;
 		entries.add(rest);
 	}
 
-	for (const filePath of mountedDocumentFiles) {
+	for (const filePath of files) {
 		if (!filePath.startsWith(prefix)) continue;
 		const rest = filePath.slice(prefix.length);
 		if (!rest || rest.includes("/")) continue;
@@ -151,35 +178,94 @@ const installDocumentsVfsOverlay = (vfs) => {
 		statSync: typeof vfs.statSync === "function" ? vfs.statSync.bind(vfs) : null,
 		lstatSync: typeof vfs.lstatSync === "function" ? vfs.lstatSync.bind(vfs) : null,
 		accessSync: typeof vfs.accessSync === "function" ? vfs.accessSync.bind(vfs) : null,
+		writeFileSync: typeof vfs.writeFileSync === "function" ? vfs.writeFileSync.bind(vfs) : null,
+		mkdirSync: typeof vfs.mkdirSync === "function" ? vfs.mkdirSync.bind(vfs) : null,
+		unlinkSync: typeof vfs.unlinkSync === "function" ? vfs.unlinkSync.bind(vfs) : null,
+		renameSync: typeof vfs.renameSync === "function" ? vfs.renameSync.bind(vfs) : null,
+	};
+
+	const ensureParentDirectories = (path, directories) => {
+		const segments = path.split("/").filter(Boolean);
+		let current = "";
+		for (let i = 0; i < segments.length - 1; i++) {
+			current += `/${segments[i]}`;
+			directories.add(current);
+		}
+	};
+
+	const removeWorkspacePath = (path) => {
+		if (mountedWorkspaceFiles.has(path)) {
+			mountedWorkspaceFiles.delete(path);
+			materializedWorkspaceFiles.delete(path);
+			return;
+		}
+		if (mountedWorkspaceDirectories.has(path)) {
+			const prefix = `${path}/`;
+			for (const file of Array.from(mountedWorkspaceFiles)) {
+				if (file.startsWith(prefix)) {
+					mountedWorkspaceFiles.delete(file);
+					materializedWorkspaceFiles.delete(file);
+				}
+			}
+			for (const dir of Array.from(mountedWorkspaceDirectories)) {
+				if (dir !== WORKSPACES_MOUNT_ROOT && dir.startsWith(prefix)) {
+					mountedWorkspaceDirectories.delete(dir);
+				}
+			}
+			if (path !== WORKSPACES_MOUNT_ROOT) {
+				mountedWorkspaceDirectories.delete(path);
+			}
+		}
+	};
+
+	const readTextContent = (content) => {
+		if (typeof content === "string") return content;
+		if (content instanceof Uint8Array) return new TextDecoder().decode(content);
+		if (ArrayBuffer.isView(content)) {
+			return new TextDecoder().decode(new Uint8Array(content.buffer, content.byteOffset, content.byteLength));
+		}
+		if (content instanceof ArrayBuffer) return new TextDecoder().decode(new Uint8Array(content));
+		return safeSerialize(content);
 	};
 
 	vfs.readdirSync = (inputPath, ...rest) => {
-		const path = normalizePath(String(inputPath));
+		const path = toCanonicalMountedPath(String(inputPath));
 		if (isDocumentsPath(path)) {
 			assertDocumentsMountLoaded();
 			if (!mountedDocumentDirectories.has(path)) {
 				throw createFsError("ENOENT", "scandir", path);
 			}
-			return listMountedDir(path);
+			return listMountedDir(path, mountedDocumentDirectories, mountedDocumentFiles);
+		}
+		if (isWorkspacePath(path)) {
+			assertWorkspaceMountLoaded();
+			if (!mountedWorkspaceDirectories.has(path)) {
+				throw createFsError("ENOENT", "scandir", path);
+			}
+			return listMountedDir(path, mountedWorkspaceDirectories, mountedWorkspaceFiles);
 		}
 		if (!original.readdirSync) {
 			throw new Error("vfs.readdirSync is not available");
 		}
-		return original.readdirSync(inputPath, ...rest);
+		return original.readdirSync(path, ...rest);
 	};
 
 	vfs.existsSync = (inputPath, ...rest) => {
-		const path = normalizePath(String(inputPath));
+		const path = toCanonicalMountedPath(String(inputPath));
 		if (isDocumentsPath(path)) {
 			if (!documentsMountLoaded) return false;
 			return mountedDocumentFiles.has(path) || mountedDocumentDirectories.has(path);
 		}
+		if (isWorkspacePath(path)) {
+			if (!workspaceMountLoaded) return false;
+			return mountedWorkspaceFiles.has(path) || mountedWorkspaceDirectories.has(path);
+		}
 		if (!original.existsSync) return false;
-		return original.existsSync(inputPath, ...rest);
+		return original.existsSync(path, ...rest);
 	};
 
 	vfs.readFileSync = (inputPath, encoding, ...rest) => {
-		const path = normalizePath(String(inputPath));
+		const path = toCanonicalMountedPath(String(inputPath));
 		if (isDocumentsPath(path)) {
 			assertDocumentsMountLoaded();
 			if (!mountedDocumentFiles.has(path)) {
@@ -194,14 +280,28 @@ const installDocumentsVfsOverlay = (vfs) => {
 			}
 			return new TextEncoder().encode(content);
 		}
+		if (isWorkspacePath(path)) {
+			assertWorkspaceMountLoaded();
+			if (!mountedWorkspaceFiles.has(path)) {
+				throw createFsError("ENOENT", "open", path);
+			}
+			if (!materializedWorkspaceFiles.has(path)) {
+				throw new Error(`Workspace file not materialized: ${path}`);
+			}
+			const content = materializedWorkspaceFiles.get(path) || "";
+			if (!encoding || encoding === "utf8" || encoding === "utf-8") {
+				return content;
+			}
+			return new TextEncoder().encode(content);
+		}
 		if (!original.readFileSync) {
 			throw new Error("vfs.readFileSync is not available");
 		}
-		return original.readFileSync(inputPath, encoding, ...rest);
+		return original.readFileSync(path, encoding, ...rest);
 	};
 
 	const statLike = (inputPath, ...rest) => {
-		const path = normalizePath(String(inputPath));
+		const path = toCanonicalMountedPath(String(inputPath));
 		if (isDocumentsPath(path)) {
 			assertDocumentsMountLoaded();
 			if (mountedDocumentDirectories.has(path)) {
@@ -213,16 +313,27 @@ const installDocumentsVfsOverlay = (vfs) => {
 			}
 			throw createFsError("ENOENT", "stat", path);
 		}
+		if (isWorkspacePath(path)) {
+			assertWorkspaceMountLoaded();
+			if (mountedWorkspaceDirectories.has(path)) {
+				return createMountedStat(path, true, 0);
+			}
+			if (mountedWorkspaceFiles.has(path)) {
+				const content = materializedWorkspaceFiles.get(path) || "";
+				return createMountedStat(path, false, content.length);
+			}
+			throw createFsError("ENOENT", "stat", path);
+		}
 		if (!original.statSync) {
 			throw new Error("vfs.statSync is not available");
 		}
-		return original.statSync(inputPath, ...rest);
+		return original.statSync(path, ...rest);
 	};
 	vfs.statSync = statLike;
 	vfs.lstatSync = (...args) => statLike(...args);
 
 	vfs.accessSync = (inputPath, ...rest) => {
-		const path = normalizePath(String(inputPath));
+		const path = toCanonicalMountedPath(String(inputPath));
 		if (isDocumentsPath(path)) {
 			assertDocumentsMountLoaded();
 			if (!mountedDocumentFiles.has(path) && !mountedDocumentDirectories.has(path)) {
@@ -230,8 +341,126 @@ const installDocumentsVfsOverlay = (vfs) => {
 			}
 			return;
 		}
+		if (isWorkspacePath(path)) {
+			assertWorkspaceMountLoaded();
+			if (!mountedWorkspaceFiles.has(path) && !mountedWorkspaceDirectories.has(path)) {
+				throw createFsError("ENOENT", "access", path);
+			}
+			return;
+		}
 		if (original.accessSync) {
-			return original.accessSync(inputPath, ...rest);
+			return original.accessSync(path, ...rest);
+		}
+	};
+
+	vfs.writeFileSync = (inputPath, content, ...rest) => {
+		const path = toCanonicalMountedPath(String(inputPath));
+		if (isDocumentsPath(path)) {
+			throw new Error(`Path is read-only: ${path}`);
+		}
+		if (isWorkspacePath(path)) {
+			assertWorkspaceMountLoaded();
+		}
+		if (!original.writeFileSync) {
+			throw new Error("vfs.writeFileSync is not available");
+		}
+		original.writeFileSync(path, content, ...rest);
+		if (isWorkspacePath(path)) {
+			mountedWorkspaceFiles.add(path);
+			ensureParentDirectories(path, mountedWorkspaceDirectories);
+			materializedWorkspaceFiles.set(path, readTextContent(content));
+			pendingWorkspaceOps.push({ op: "write", path, content: materializedWorkspaceFiles.get(path) || "" });
+		}
+	};
+
+	vfs.mkdirSync = (inputPath, options, ...rest) => {
+		const path = toCanonicalMountedPath(String(inputPath));
+		if (isDocumentsPath(path)) {
+			throw new Error(`Path is read-only: ${path}`);
+		}
+		if (isWorkspacePath(path)) {
+			assertWorkspaceMountLoaded();
+		}
+		if (!original.mkdirSync) {
+			throw new Error("vfs.mkdirSync is not available");
+		}
+		original.mkdirSync(path, options, ...rest);
+		if (isWorkspacePath(path)) {
+			ensureParentDirectories(path, mountedWorkspaceDirectories);
+			mountedWorkspaceDirectories.add(path);
+		}
+	};
+
+	vfs.unlinkSync = (inputPath, ...rest) => {
+		const path = toCanonicalMountedPath(String(inputPath));
+		if (isDocumentsPath(path)) {
+			throw new Error(`Path is read-only: ${path}`);
+		}
+		if (isWorkspacePath(path)) {
+			assertWorkspaceMountLoaded();
+		}
+		if (!original.unlinkSync) {
+			throw new Error("vfs.unlinkSync is not available");
+		}
+		original.unlinkSync(path, ...rest);
+		if (isWorkspacePath(path)) {
+			removeWorkspacePath(path);
+			pendingWorkspaceOps.push({ op: "delete", path });
+		}
+	};
+
+	vfs.renameSync = (oldInputPath, newInputPath, ...rest) => {
+		const oldPath = toCanonicalMountedPath(String(oldInputPath));
+		const newPath = toCanonicalMountedPath(String(newInputPath));
+		if (isDocumentsPath(oldPath) || isDocumentsPath(newPath)) {
+			throw new Error(`Mounted documents path is read-only: ${oldPath} -> ${newPath}`);
+		}
+		if (isWorkspacePath(oldPath) || isWorkspacePath(newPath)) {
+			assertWorkspaceMountLoaded();
+			if (!isWorkspacePath(oldPath) || !isWorkspacePath(newPath)) {
+				throw new Error(`Workspace rename must stay within workspace mount: ${oldPath} -> ${newPath}`);
+			}
+		}
+		if (!original.renameSync) {
+			throw new Error("vfs.renameSync is not available");
+		}
+		original.renameSync(oldPath, newPath, ...rest);
+		if (isWorkspacePath(oldPath) || isWorkspacePath(newPath)) {
+			if (mountedWorkspaceFiles.has(oldPath)) {
+				mountedWorkspaceFiles.delete(oldPath);
+				mountedWorkspaceFiles.add(newPath);
+				const content = materializedWorkspaceFiles.get(oldPath);
+				materializedWorkspaceFiles.delete(oldPath);
+				if (typeof content === "string") {
+					materializedWorkspaceFiles.set(newPath, content);
+				}
+			} else if (mountedWorkspaceDirectories.has(oldPath)) {
+				const oldPrefix = `${oldPath}/`;
+				const newPrefix = `${newPath}/`;
+				const dirsToMove = Array.from(mountedWorkspaceDirectories).filter((dir) => dir === oldPath || dir.startsWith(oldPrefix));
+				const filesToMove = Array.from(mountedWorkspaceFiles).filter((file) => file.startsWith(oldPrefix));
+				const fileContents = new Map();
+				for (const file of filesToMove) {
+					if (materializedWorkspaceFiles.has(file)) {
+						fileContents.set(file, materializedWorkspaceFiles.get(file));
+					}
+				}
+				for (const dir of dirsToMove) mountedWorkspaceDirectories.delete(dir);
+				for (const file of filesToMove) mountedWorkspaceFiles.delete(file);
+				for (const file of filesToMove) materializedWorkspaceFiles.delete(file);
+				for (const dir of dirsToMove) {
+					const moved = dir === oldPath ? newPath : `${newPrefix}${dir.slice(oldPrefix.length)}`;
+					mountedWorkspaceDirectories.add(moved);
+				}
+				for (const file of filesToMove) {
+					const moved = `${newPrefix}${file.slice(oldPrefix.length)}`;
+					mountedWorkspaceFiles.add(moved);
+					if (fileContents.has(file)) {
+						materializedWorkspaceFiles.set(moved, fileContents.get(file) || "");
+					}
+				}
+			}
+			pendingWorkspaceOps.push({ op: "rename", oldPath, newPath });
 		}
 	};
 
@@ -606,7 +835,7 @@ const executeCode = async (code, timeoutMs, maxLogEntries, filename) => {
 
 const runFile = async (path, timeoutMs, maxLogEntries) => {
 	const c = await ensureContainer();
-	const normalized = normalizePath(path);
+	const normalized = toCanonicalMountedPath(path);
 	if (isDocumentsPath(normalized)) {
 		throw new Error(`Cannot execute mounted documents path: ${normalized}`);
 	}
@@ -689,6 +918,11 @@ const resetRuntime = async () => {
 	mountedDocumentDirectories.clear();
 	materializedMountedFiles.clear();
 	documentsMountLoaded = false;
+	mountedWorkspaceFiles.clear();
+	mountedWorkspaceDirectories.clear();
+	materializedWorkspaceFiles.clear();
+	pendingWorkspaceOps.length = 0;
+	workspaceMountLoaded = false;
 	installedPackages.clear();
 	servers.clear();
 	serverBridgeReady = false;
@@ -756,49 +990,69 @@ const handleOperation = async (request) => {
 			return { url, status: response.status, ok: response.ok, contentType, responseType, body };
 		}
 		case "fs.writeFile": {
-			const p = normalizePath(payload.path);
+			const p = toCanonicalMountedPath(payload.path);
 			if (isDocumentsPath(p)) throw new Error(`Path is read-only: ${p}`);
 			c.vfs.writeFileSync(p, payload.content);
 			return { path: p };
 		}
 		case "fs.readFile": {
-			const p = normalizePath(payload.path);
+			const p = toCanonicalMountedPath(payload.path);
 			if (mountedDocumentFiles.has(p)) {
 				if (!materializedMountedFiles.has(p)) {
 					throw new Error(`Mounted file is not materialized in sandbox runtime: ${p}`);
 				}
 				return { path: p, content: materializedMountedFiles.get(p) || "" };
 			}
+			if (mountedWorkspaceFiles.has(p)) {
+				if (!materializedWorkspaceFiles.has(p)) {
+					throw new Error(`Workspace file not materialized: ${p}`);
+				}
+				return { path: p, content: materializedWorkspaceFiles.get(p) || "" };
+			}
 			if (isDocumentsPath(p)) {
 				assertDocumentsMountLoaded();
+			}
+			if (isWorkspacePath(p)) {
+				assertWorkspaceMountLoaded();
 			}
 			if (!c.vfs.existsSync(p)) throw new Error(`File not found: ${p}`);
 			return { path: p, content: c.vfs.readFileSync(p, "utf8") };
 		}
 		case "fs.mkdir": {
-			const p = normalizePath(payload.path);
+			const p = toCanonicalMountedPath(payload.path);
 			if (isDocumentsPath(p)) throw new Error(`Path is read-only: ${p}`);
 			c.vfs.mkdirSync(p, { recursive: payload.recursive !== false });
 			return { path: p };
 		}
 		case "fs.readdir": {
-			const p = normalizePath(payload.path);
+			const p = toCanonicalMountedPath(payload.path);
 			if (isDocumentsPath(p)) {
 				assertDocumentsMountLoaded();
 				if (!mountedDocumentDirectories.has(p)) throw new Error(`Directory not found: ${p}`);
-				return { path: p, entries: listMountedDir(p) };
+				return {
+					path: p,
+					entries: listMountedDir(p, mountedDocumentDirectories, mountedDocumentFiles),
+				};
+			}
+			if (isWorkspacePath(p)) {
+				assertWorkspaceMountLoaded();
+				if (!mountedWorkspaceDirectories.has(p)) throw new Error(`Directory not found: ${p}`);
+				return {
+					path: p,
+					entries: listMountedDir(p, mountedWorkspaceDirectories, mountedWorkspaceFiles),
+				};
 			}
 			return { path: p, entries: c.vfs.readdirSync(p) };
 		}
 		case "fs.unlink": {
-			const p = normalizePath(payload.path);
+			const p = toCanonicalMountedPath(payload.path);
 			if (isDocumentsPath(p)) throw new Error(`Path is read-only: ${p}`);
 			c.vfs.unlinkSync(p);
 			return { path: p };
 		}
 		case "fs.rename": {
-			const oldPath = normalizePath(payload.oldPath);
-			const newPath = normalizePath(payload.newPath);
+			const oldPath = toCanonicalMountedPath(payload.oldPath);
+			const newPath = toCanonicalMountedPath(payload.newPath);
 			if (isDocumentsPath(oldPath) || isDocumentsPath(newPath)) {
 				throw new Error(`Mounted documents path is read-only: ${oldPath} -> ${newPath}`);
 			}
@@ -806,13 +1060,21 @@ const handleOperation = async (request) => {
 			return { oldPath, newPath };
 		}
 		case "fs.exists": {
-			const p = normalizePath(payload.path);
+			const p = toCanonicalMountedPath(payload.path);
 			if (isDocumentsPath(p) && !documentsMountLoaded) {
+				return { path: p, exists: false };
+			}
+			if (isWorkspacePath(p) && !workspaceMountLoaded) {
 				return { path: p, exists: false };
 			}
 			return {
 				path: p,
-				exists: c.vfs.existsSync(p) || mountedDocumentFiles.has(p) || mountedDocumentDirectories.has(p),
+				exists:
+					c.vfs.existsSync(p) ||
+					mountedDocumentFiles.has(p) ||
+					mountedDocumentDirectories.has(p) ||
+					mountedWorkspaceFiles.has(p) ||
+					mountedWorkspaceDirectories.has(p),
 			};
 		}
 		case "fs.mountDocuments": {
@@ -838,11 +1100,45 @@ const handleOperation = async (request) => {
 				fileCount: mountedDocumentFiles.size,
 			};
 		}
+		case "fs.mountWorkspace": {
+			mountedWorkspaceFiles.clear();
+			mountedWorkspaceDirectories.clear();
+			mountedWorkspaceDirectories.add(WORKSPACES_MOUNT_ROOT);
+			materializedWorkspaceFiles.clear();
+			pendingWorkspaceOps.length = 0;
+			workspaceMountLoaded = true;
+
+			for (const dirPath of payload.directories ?? []) {
+				const p = toCanonicalMountedPath(dirPath);
+				if (isWorkspacePath(p)) mountedWorkspaceDirectories.add(p);
+			}
+			for (const filePath of payload.files ?? []) {
+				const p = toCanonicalMountedPath(filePath);
+				if (!isWorkspacePath(p)) continue;
+				mountedWorkspaceFiles.add(p);
+				mountedWorkspaceDirectories.add(dirname(p));
+			}
+			return {
+				mounted: true,
+				directoryCount: mountedWorkspaceDirectories.size,
+				fileCount: mountedWorkspaceFiles.size,
+			};
+		}
 		case "fs.materializeDocumentFile": {
 			const p = normalizePath(payload.path);
 			if (!mountedDocumentFiles.has(p)) throw new Error(`Mounted file not found: ${p}`);
 			materializedMountedFiles.set(p, payload.content);
 			return { path: p, materialized: true };
+		}
+		case "fs.materializeWorkspaceFile": {
+			const p = toCanonicalMountedPath(payload.path);
+			if (!mountedWorkspaceFiles.has(p)) throw new Error(`Mounted file not found: ${p}`);
+			materializedWorkspaceFiles.set(p, payload.content);
+			return { path: p, materialized: true };
+		}
+		case "fs.flushWorkspaceWrites": {
+			const ops = pendingWorkspaceOps.splice(0, pendingWorkspaceOps.length);
+			return { ops };
 		}
 		case "npm.install": {
 			const installed = await c.npm.install(payload.packageSpec, { save: payload.save, saveDev: payload.saveDev });
