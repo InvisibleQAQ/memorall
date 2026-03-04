@@ -1,6 +1,7 @@
 import type { ChatMessage } from "@/types/openai";
 import type { Message } from "@/services/database";
 
+const DESCRIPTION_SMALL_LIMIT = 500;
 const DESCRIPTION_LIMIT = 1000;
 
 type StoredAction = {
@@ -11,14 +12,14 @@ type StoredAction = {
 };
 
 function renderAction(a: StoredAction): string {
-	const description = (a.description ?? "").slice(0, DESCRIPTION_LIMIT);
+	const description = (a.description ?? "");
 	const toolCall = a.metadata?.tool;
 
 	if (toolCall) {
-		return `<tool_call><name>${toolCall}</name>\n<content>${description}</content></tool_call>`;
+		return `<tool_call><name>${toolCall}</name>\n<content>${description.slice(0, DESCRIPTION_SMALL_LIMIT)}</content></tool_call>`;
 	}
 
-	return `<action><name>${a.name}</name>\n<content>${description}<content></action>`;
+	return `<action><name>${a.name}</name>\n<content>${description.slice(0, DESCRIPTION_LIMIT)}<content></action>`;
 }
 
 function buildAssistantContent(msg: Message): string {

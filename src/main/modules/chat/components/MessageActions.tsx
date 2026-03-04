@@ -11,6 +11,7 @@ import {
 	Brain,
 	Zap,
 	Globe,
+	ExternalLink,
 	type LucideIcon,
 } from "lucide-react";
 
@@ -369,6 +370,19 @@ const WebAccessPreview: React.FC<{ payload: WebAccessPayload }> = ({
 						{payload.status}
 					</span>
 				) : null}
+				<button
+					type="button"
+					title="Open in new tab"
+					className="text-muted-foreground hover:text-foreground shrink-0"
+					onClick={() => {
+						const url = previewUrl.startsWith("/")
+							? chrome.runtime.getURL(previewUrl.replace(/^\//, ""))
+							: previewUrl;
+						chrome.tabs.create({ url });
+					}}
+				>
+					<ExternalLink className="w-3.5 h-3.5" />
+				</button>
 			</div>
 			{canFrameUrl ? (
 				<iframe

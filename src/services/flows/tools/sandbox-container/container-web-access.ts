@@ -28,45 +28,57 @@ const schema = z.object({
 
 type Input = z.infer<typeof schema>;
 
-const normalizeClientUrl = async (rawUrl: string): Promise<string> => {
-	const parsed = new URL(rawUrl);
+type NormalizedTarget =
+	| { kind: "server"; port: number; path: string }
+	| { kind: "fetch"; url: string };
 
-	// Virtual server routes are safest as same-origin relative paths.
-	// Using chrome-extension://<id>/__virtual__/... can fail depending on context.
-	if (parsed.pathname.startsWith("/__virtual__/")) {
-		const normalizedPath = /\/$/.test(parsed.pathname)
-			? parsed.pathname
-			: `${parsed.pathname}/`;
-		return `${normalizedPath}${parsed.search}${parsed.hash}`;
+const localhostHosts = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::"]);
+
+/**
+ * Resolve the URL to either a direct server.request (by port+path, routed
+ * internally by AlmostNode) or a plain network.fetch.
+ *
+ * Virtual URLs (/__virtual__/<port>/...) and localhost:<port> URLs that match
+ * a running sandbox server are routed via server.request so that AlmostNode
+ * can handle the request in-memory — bypassing the browser fetch + service
+ * worker path entirely.
+ */
+const resolveTarget = async (rawUrl: string): Promise<NormalizedTarget> => {
+	let parsed: URL;
+	try {
+		parsed = new URL(rawUrl);
+	} catch {
+		return { kind: "fetch", url: rawUrl };
 	}
 
-	const localhostLikeHosts = new Set([
-		"localhost",
-		"127.0.0.1",
-		"0.0.0.0",
-		"::",
-	]);
-	if (localhostLikeHosts.has(parsed.hostname) && parsed.port) {
+	// chrome-extension://id/__virtual__/<port>/path  or  /__virtual__/<port>/path
+	const virtualMatch = parsed.pathname.match(/^\/__virtual__\/(\d+)(\/.*)?$/);
+	if (virtualMatch) {
+		const port = Number(virtualMatch[1]);
+		const path = virtualMatch[2] || "/";
+		if (!Number.isNaN(port)) {
+			return { kind: "server", port, path: `${path}${parsed.search}${parsed.hash}` };
+		}
+	}
+
+	// localhost / 127.0.0.1 — match against a running sandbox server
+	if (localhostHosts.has(parsed.hostname) && parsed.port) {
 		const port = Number(parsed.port);
 		if (!Number.isNaN(port)) {
 			const servers = await sandboxContainerService.listServers();
-			const matched = servers.servers.find((server) => server.port === port);
+			const matched = servers.servers.find((s) => s.port === port);
 			if (matched) {
-				const requestedPath = `${parsed.pathname || "/"}${parsed.search || ""}${parsed.hash || ""}`;
-				const render = await sandboxContainerService.getServerRenderUrl({
-					port,
-					path: requestedPath || "/",
-				});
-				return render.url;
+				const path = `${parsed.pathname || "/"}${parsed.search}${parsed.hash}`;
+				return { kind: "server", port, path };
 			}
 		}
 	}
 
-	// 0.0.0.0 / :: are bind addresses, not client-routable for fetch/iframe.
+	// Normalise bind addresses for external fetch
 	if (parsed.hostname === "0.0.0.0" || parsed.hostname === "::") {
 		parsed.hostname = "127.0.0.1";
 	}
-	return parsed.toString();
+	return { kind: "fetch", url: parsed.toString() };
 };
 
 export const createContainerWebAccessTool: ToolFactory<
@@ -78,30 +90,53 @@ export const createContainerWebAccessTool: ToolFactory<
 		"Access a web URL (including started Next/Vite sandbox servers) and return HTML content for browser-like preview.",
 	schema,
 	execute: async (input) => {
-		const resolvedUrl = await normalizeClientUrl(input.url);
+		const target = await resolveTarget(input.url);
 		try {
-			const result = await sandboxContainerService.fetchResource({
-				url: resolvedUrl,
-				method: "GET",
-				timeoutMs: input.timeoutMs ?? 15_000,
-				responseType: "html",
-			});
+			let status: number;
+			let ok: boolean;
+			let contentType: string;
+			let body: string;
+
+			if (target.kind === "server") {
+				const result = await sandboxContainerService.requestServer({
+					port: target.port,
+					path: target.path,
+					method: "GET",
+					timeoutMs: input.timeoutMs ?? 15_000,
+					responseType: "html",
+				});
+				status = result.status;
+				ok = result.ok;
+				contentType = result.contentType;
+				body = result.body;
+			} else {
+				const result = await sandboxContainerService.fetchResource({
+					url: target.url,
+					method: "GET",
+					timeoutMs: input.timeoutMs ?? 15_000,
+					responseType: "html",
+				});
+				status = result.status;
+				ok = result.ok;
+				contentType = result.contentType;
+				body = result.body;
+			}
 
 			const maxChars = input.maxHtmlChars ?? 100_000;
-			const html = result.body.slice(0, maxChars);
+			const html = body.slice(0, maxChars);
 
 			return JSON.stringify(
 				{
 					actionType: "web_access",
 					success: true,
 					requestedUrl: input.url,
-					url: resolvedUrl,
-					status: result.status,
-					ok: result.ok,
-					contentType: result.contentType,
+					url: input.url,
+					status,
+					ok,
+					contentType,
 					html,
-					truncated: result.body.length > html.length,
-					originalLength: result.body.length,
+					truncated: body.length > html.length,
+					originalLength: body.length,
 				},
 				null,
 				2,
@@ -113,7 +148,7 @@ export const createContainerWebAccessTool: ToolFactory<
 					actionType: "web_access",
 					success: false,
 					requestedUrl: input.url,
-					url: resolvedUrl,
+					url: input.url,
 					error: message,
 				},
 				null,
