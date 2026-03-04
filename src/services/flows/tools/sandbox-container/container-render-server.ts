@@ -11,6 +11,20 @@ const schema = z.object({
 		.string()
 		.optional()
 		.describe("Optional render path inside server (default '/')."),
+	timeoutMs: z
+		.number()
+		.int()
+		.min(1)
+		.max(120_000)
+		.optional()
+		.describe("Request timeout in milliseconds (default 15000)."),
+	maxHtmlChars: z
+		.number()
+		.int()
+		.min(256)
+		.max(500_000)
+		.optional()
+		.describe("Maximum HTML characters returned (default 100000)."),
 });
 
 type Input = z.infer<typeof schema>;
@@ -21,24 +35,53 @@ export const createContainerRenderServerTool: ToolFactory<
 > = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Get a virtual render URL for a started sandbox server. Returned URL can be opened in iframe.",
+		"Render a started sandbox server page and return the HTML content for browser-like preview.",
 	schema,
 	execute: async (input) => {
-		const result = await sandboxContainerService.getServerRenderUrl({
-			port: input.port,
-			path: input.path ?? "/",
-		});
+		const path = input.path ?? "/";
+		try {
+			const result = await sandboxContainerService.requestServer({
+				port: input.port,
+				path,
+				method: "GET",
+				timeoutMs: input.timeoutMs ?? 15_000,
+				responseType: "html",
+			});
 
-		return JSON.stringify(
-			{
-				actionType: "web_access",
-				port: result.port,
-				requestedPath: input.path ?? "/",
-				url: result.url,
-			},
-			null,
-			2,
-		);
+			const maxChars = input.maxHtmlChars ?? 100_000;
+			const html = result.body.slice(0, maxChars);
+
+			return JSON.stringify(
+				{
+					actionType: "web_access",
+					port: result.port,
+					requestedPath: path,
+					url: result.url,
+					status: result.status,
+					ok: result.ok,
+					contentType: result.contentType,
+					html,
+					truncated: result.body.length > html.length,
+					originalLength: result.body.length,
+				},
+				null,
+				2,
+			);
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : String(error);
+			return JSON.stringify(
+				{
+					actionType: "web_access",
+					port: input.port,
+					requestedPath: path,
+					url: `http://127.0.0.1:${input.port}${path}`,
+					error: message,
+				},
+				null,
+				2,
+			);
+		}
 	},
 });
 

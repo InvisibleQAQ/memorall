@@ -1,33 +1,42 @@
 import * as AlmostNodeLib from "./vendors/almostnode.bundle.js";
+import {
+	DOCUMENTS_MOUNT_ROOT,
+	WORKSPACES_MOUNT_ROOT,
+	vfsBoolState,
+	mountedDocumentFiles,
+	mountedDocumentDirectories,
+	materializedMountedFiles,
+	mountedWorkspaceFiles,
+	mountedWorkspaceDirectories,
+	materializedWorkspaceFiles,
+	pendingWorkspaceOps,
+	normalizePath,
+	dirname,
+	toCanonicalMountedPath,
+	isDocumentsPath,
+	isWorkspacePath,
+	assertDocumentsMountLoaded,
+	assertWorkspaceMountLoaded,
+	listMountedDir,
+	installDocumentsVfsOverlay,
+} from "./sandbox-vfs.js";
+import { FRAMEWORK_TEMPLATES, TEMPLATE_INSTALL_SPECS } from "./sandbox-templates.js";
 
 const SANDBOX_CHANNEL = "memorall-sandbox-container";
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_LOG_ENTRIES = 20;
 const DEFAULT_FETCH_TIMEOUT_MS = 15000;
 const MAX_RUNTIME_LOG_ENTRIES = 500;
-const DOCUMENTS_MOUNT_ROOT = "/documents";
-const WORKSPACES_MOUNT_ROOT = "/workspaces";
-const WORKSPACE_LEGACY_MOUNT_ROOT = "/workspace";
 
 const initializedAt = Date.now();
 const runtimeLogs = [];
 const repls = new Map();
-const mountedDocumentFiles = new Set();
-const mountedDocumentDirectories = new Set();
-const materializedMountedFiles = new Map();
-let documentsMountLoaded = false;
-const mountedWorkspaceFiles = new Set();
-const mountedWorkspaceDirectories = new Set();
-const materializedWorkspaceFiles = new Map();
-const pendingWorkspaceOps = [];
-let workspaceMountLoaded = false;
 const installedPackages = new Map();
 const servers = new Map();
 let serverBridgeReady = false;
 
 let container = null;
 let currentExecutionContext = null;
-const VFS_DOCUMENTS_OVERLAY_FLAG = "__documentsOverlayInstalled";
 
 const safeSerialize = (value) => {
 	if (typeof value === "string") return value;
@@ -64,407 +73,6 @@ const appendBounded = (list, value, limit) => {
 
 const pushRuntimeLog = (level, message) => {
 	appendBounded(runtimeLogs, { level, message, timestamp: Date.now() }, MAX_RUNTIME_LOG_ENTRIES);
-};
-
-const normalizePath = (inputPath) => {
-	if (typeof inputPath !== "string" || inputPath.length === 0) {
-		throw new Error("Path must be a non-empty string");
-	}
-	const raw = inputPath.trim().replace(/\\/g, "/");
-	if (!raw) throw new Error("Path must be a non-empty string");
-	const candidate = (raw.startsWith("/") ? raw : `/${raw}`).replace(/\/+/g, "/");
-	const parts = candidate.split("/").filter(Boolean);
-	const resolved = [];
-	for (const part of parts) {
-		if (part === ".") continue;
-		if (part === "..") {
-			resolved.pop();
-			continue;
-		}
-		resolved.push(part);
-	}
-	return resolved.length ? `/${resolved.join("/")}` : "/";
-};
-
-const dirname = (inputPath) => {
-	const normalized = normalizePath(inputPath);
-	const idx = normalized.lastIndexOf("/");
-	if (idx <= 0) return "/";
-	return normalized.slice(0, idx);
-};
-
-const toCanonicalWorkspacePath = (inputPath) => {
-	const path = normalizePath(inputPath);
-	if (path === WORKSPACE_LEGACY_MOUNT_ROOT) return WORKSPACES_MOUNT_ROOT;
-	if (path.startsWith(`${WORKSPACE_LEGACY_MOUNT_ROOT}/`)) {
-		return `${WORKSPACES_MOUNT_ROOT}${path.slice(WORKSPACE_LEGACY_MOUNT_ROOT.length)}`;
-	}
-	return path;
-};
-
-const toCanonicalMountedPath = (inputPath) => toCanonicalWorkspacePath(normalizePath(inputPath));
-const isDocumentsPath = (path) => path === DOCUMENTS_MOUNT_ROOT || path.startsWith(`${DOCUMENTS_MOUNT_ROOT}/`);
-const isWorkspacePath = (path) =>
-	path === WORKSPACES_MOUNT_ROOT ||
-	path.startsWith(`${WORKSPACES_MOUNT_ROOT}/`) ||
-	path === WORKSPACE_LEGACY_MOUNT_ROOT ||
-	path.startsWith(`${WORKSPACE_LEGACY_MOUNT_ROOT}/`);
-const assertDocumentsMountLoaded = () => {
-	if (!documentsMountLoaded) {
-		throw new Error("Documents mount is not loaded in sandbox runtime");
-	}
-};
-const assertWorkspaceMountLoaded = () => {
-	if (!workspaceMountLoaded) {
-		throw new Error("Workspace mount is not loaded in sandbox runtime");
-	}
-};
-
-const createFsError = (code, syscall, path) => {
-	const messageByCode = {
-		ENOENT: "no such file or directory",
-		ENOTDIR: "not a directory",
-		EISDIR: "illegal operation on a directory",
-	};
-	const message = messageByCode[code] || "filesystem error";
-	const err = new Error(`${code}: ${message}, ${syscall} '${path}'`);
-	err.code = code;
-	err.syscall = syscall;
-	err.path = path;
-	return err;
-};
-
-const listMountedDir = (path, directories, files) => {
-	const normalized = normalizePath(path);
-	const prefix = normalized === "/" ? "/" : `${normalized}/`;
-	const entries = new Set();
-
-	for (const dir of directories) {
-		if (!dir.startsWith(prefix) || dir === normalized) continue;
-		const rest = dir.slice(prefix.length);
-		if (!rest || rest.includes("/")) continue;
-		entries.add(rest);
-	}
-
-	for (const filePath of files) {
-		if (!filePath.startsWith(prefix)) continue;
-		const rest = filePath.slice(prefix.length);
-		if (!rest || rest.includes("/")) continue;
-		entries.add(rest);
-	}
-
-	return Array.from(entries).sort();
-};
-
-const createMountedStat = (path, isDirectory, size = 0) => {
-	const mtime = new Date();
-	return {
-		size,
-		mtime,
-		isFile: () => !isDirectory,
-		isDirectory: () => isDirectory,
-		isSymbolicLink: () => false,
-		path,
-	};
-};
-
-const installDocumentsVfsOverlay = (vfs) => {
-	if (!vfs || vfs[VFS_DOCUMENTS_OVERLAY_FLAG]) return;
-
-	const original = {
-		readdirSync: typeof vfs.readdirSync === "function" ? vfs.readdirSync.bind(vfs) : null,
-		readFileSync: typeof vfs.readFileSync === "function" ? vfs.readFileSync.bind(vfs) : null,
-		existsSync: typeof vfs.existsSync === "function" ? vfs.existsSync.bind(vfs) : null,
-		statSync: typeof vfs.statSync === "function" ? vfs.statSync.bind(vfs) : null,
-		lstatSync: typeof vfs.lstatSync === "function" ? vfs.lstatSync.bind(vfs) : null,
-		accessSync: typeof vfs.accessSync === "function" ? vfs.accessSync.bind(vfs) : null,
-		writeFileSync: typeof vfs.writeFileSync === "function" ? vfs.writeFileSync.bind(vfs) : null,
-		mkdirSync: typeof vfs.mkdirSync === "function" ? vfs.mkdirSync.bind(vfs) : null,
-		unlinkSync: typeof vfs.unlinkSync === "function" ? vfs.unlinkSync.bind(vfs) : null,
-		renameSync: typeof vfs.renameSync === "function" ? vfs.renameSync.bind(vfs) : null,
-	};
-
-	const ensureParentDirectories = (path, directories) => {
-		const segments = path.split("/").filter(Boolean);
-		let current = "";
-		for (let i = 0; i < segments.length - 1; i++) {
-			current += `/${segments[i]}`;
-			directories.add(current);
-		}
-	};
-
-	const removeWorkspacePath = (path) => {
-		if (mountedWorkspaceFiles.has(path)) {
-			mountedWorkspaceFiles.delete(path);
-			materializedWorkspaceFiles.delete(path);
-			return;
-		}
-		if (mountedWorkspaceDirectories.has(path)) {
-			const prefix = `${path}/`;
-			for (const file of Array.from(mountedWorkspaceFiles)) {
-				if (file.startsWith(prefix)) {
-					mountedWorkspaceFiles.delete(file);
-					materializedWorkspaceFiles.delete(file);
-				}
-			}
-			for (const dir of Array.from(mountedWorkspaceDirectories)) {
-				if (dir !== WORKSPACES_MOUNT_ROOT && dir.startsWith(prefix)) {
-					mountedWorkspaceDirectories.delete(dir);
-				}
-			}
-			if (path !== WORKSPACES_MOUNT_ROOT) {
-				mountedWorkspaceDirectories.delete(path);
-			}
-		}
-	};
-
-	const readTextContent = (content) => {
-		if (typeof content === "string") return content;
-		if (content instanceof Uint8Array) return new TextDecoder().decode(content);
-		if (ArrayBuffer.isView(content)) {
-			return new TextDecoder().decode(new Uint8Array(content.buffer, content.byteOffset, content.byteLength));
-		}
-		if (content instanceof ArrayBuffer) return new TextDecoder().decode(new Uint8Array(content));
-		return safeSerialize(content);
-	};
-
-	vfs.readdirSync = (inputPath, ...rest) => {
-		const path = toCanonicalMountedPath(String(inputPath));
-		if (isDocumentsPath(path)) {
-			assertDocumentsMountLoaded();
-			if (!mountedDocumentDirectories.has(path)) {
-				throw createFsError("ENOENT", "scandir", path);
-			}
-			return listMountedDir(path, mountedDocumentDirectories, mountedDocumentFiles);
-		}
-		if (isWorkspacePath(path)) {
-			assertWorkspaceMountLoaded();
-			if (!mountedWorkspaceDirectories.has(path)) {
-				throw createFsError("ENOENT", "scandir", path);
-			}
-			return listMountedDir(path, mountedWorkspaceDirectories, mountedWorkspaceFiles);
-		}
-		if (!original.readdirSync) {
-			throw new Error("vfs.readdirSync is not available");
-		}
-		return original.readdirSync(path, ...rest);
-	};
-
-	vfs.existsSync = (inputPath, ...rest) => {
-		const path = toCanonicalMountedPath(String(inputPath));
-		if (isDocumentsPath(path)) {
-			if (!documentsMountLoaded) return false;
-			return mountedDocumentFiles.has(path) || mountedDocumentDirectories.has(path);
-		}
-		if (isWorkspacePath(path)) {
-			if (!workspaceMountLoaded) return false;
-			return mountedWorkspaceFiles.has(path) || mountedWorkspaceDirectories.has(path);
-		}
-		if (!original.existsSync) return false;
-		return original.existsSync(path, ...rest);
-	};
-
-	vfs.readFileSync = (inputPath, encoding, ...rest) => {
-		const path = toCanonicalMountedPath(String(inputPath));
-		if (isDocumentsPath(path)) {
-			assertDocumentsMountLoaded();
-			if (!mountedDocumentFiles.has(path)) {
-				throw createFsError("ENOENT", "open", path);
-			}
-			if (!materializedMountedFiles.has(path)) {
-				throw new Error(`Mounted file is not materialized in sandbox runtime: ${path}`);
-			}
-			const content = materializedMountedFiles.get(path) || "";
-			if (!encoding || encoding === "utf8" || encoding === "utf-8") {
-				return content;
-			}
-			return new TextEncoder().encode(content);
-		}
-		if (isWorkspacePath(path)) {
-			assertWorkspaceMountLoaded();
-			if (!mountedWorkspaceFiles.has(path)) {
-				throw createFsError("ENOENT", "open", path);
-			}
-			if (!materializedWorkspaceFiles.has(path)) {
-				throw new Error(`Workspace file not materialized: ${path}`);
-			}
-			const content = materializedWorkspaceFiles.get(path) || "";
-			if (!encoding || encoding === "utf8" || encoding === "utf-8") {
-				return content;
-			}
-			return new TextEncoder().encode(content);
-		}
-		if (!original.readFileSync) {
-			throw new Error("vfs.readFileSync is not available");
-		}
-		return original.readFileSync(path, encoding, ...rest);
-	};
-
-	const statLike = (inputPath, ...rest) => {
-		const path = toCanonicalMountedPath(String(inputPath));
-		if (isDocumentsPath(path)) {
-			assertDocumentsMountLoaded();
-			if (mountedDocumentDirectories.has(path)) {
-				return createMountedStat(path, true, 0);
-			}
-			if (mountedDocumentFiles.has(path)) {
-				const content = materializedMountedFiles.get(path) || "";
-				return createMountedStat(path, false, content.length);
-			}
-			throw createFsError("ENOENT", "stat", path);
-		}
-		if (isWorkspacePath(path)) {
-			assertWorkspaceMountLoaded();
-			if (mountedWorkspaceDirectories.has(path)) {
-				return createMountedStat(path, true, 0);
-			}
-			if (mountedWorkspaceFiles.has(path)) {
-				const content = materializedWorkspaceFiles.get(path) || "";
-				return createMountedStat(path, false, content.length);
-			}
-			throw createFsError("ENOENT", "stat", path);
-		}
-		if (!original.statSync) {
-			throw new Error("vfs.statSync is not available");
-		}
-		return original.statSync(path, ...rest);
-	};
-	vfs.statSync = statLike;
-	vfs.lstatSync = (...args) => statLike(...args);
-
-	vfs.accessSync = (inputPath, ...rest) => {
-		const path = toCanonicalMountedPath(String(inputPath));
-		if (isDocumentsPath(path)) {
-			assertDocumentsMountLoaded();
-			if (!mountedDocumentFiles.has(path) && !mountedDocumentDirectories.has(path)) {
-				throw createFsError("ENOENT", "access", path);
-			}
-			return;
-		}
-		if (isWorkspacePath(path)) {
-			assertWorkspaceMountLoaded();
-			if (!mountedWorkspaceFiles.has(path) && !mountedWorkspaceDirectories.has(path)) {
-				throw createFsError("ENOENT", "access", path);
-			}
-			return;
-		}
-		if (original.accessSync) {
-			return original.accessSync(path, ...rest);
-		}
-	};
-
-	vfs.writeFileSync = (inputPath, content, ...rest) => {
-		const path = toCanonicalMountedPath(String(inputPath));
-		if (isDocumentsPath(path)) {
-			throw new Error(`Path is read-only: ${path}`);
-		}
-		if (isWorkspacePath(path)) {
-			assertWorkspaceMountLoaded();
-		}
-		if (!original.writeFileSync) {
-			throw new Error("vfs.writeFileSync is not available");
-		}
-		original.writeFileSync(path, content, ...rest);
-		if (isWorkspacePath(path)) {
-			mountedWorkspaceFiles.add(path);
-			ensureParentDirectories(path, mountedWorkspaceDirectories);
-			materializedWorkspaceFiles.set(path, readTextContent(content));
-			pendingWorkspaceOps.push({ op: "write", path, content: materializedWorkspaceFiles.get(path) || "" });
-		}
-	};
-
-	vfs.mkdirSync = (inputPath, options, ...rest) => {
-		const path = toCanonicalMountedPath(String(inputPath));
-		if (isDocumentsPath(path)) {
-			throw new Error(`Path is read-only: ${path}`);
-		}
-		if (isWorkspacePath(path)) {
-			assertWorkspaceMountLoaded();
-		}
-		if (!original.mkdirSync) {
-			throw new Error("vfs.mkdirSync is not available");
-		}
-		original.mkdirSync(path, options, ...rest);
-		if (isWorkspacePath(path)) {
-			ensureParentDirectories(path, mountedWorkspaceDirectories);
-			mountedWorkspaceDirectories.add(path);
-		}
-	};
-
-	vfs.unlinkSync = (inputPath, ...rest) => {
-		const path = toCanonicalMountedPath(String(inputPath));
-		if (isDocumentsPath(path)) {
-			throw new Error(`Path is read-only: ${path}`);
-		}
-		if (isWorkspacePath(path)) {
-			assertWorkspaceMountLoaded();
-		}
-		if (!original.unlinkSync) {
-			throw new Error("vfs.unlinkSync is not available");
-		}
-		original.unlinkSync(path, ...rest);
-		if (isWorkspacePath(path)) {
-			removeWorkspacePath(path);
-			pendingWorkspaceOps.push({ op: "delete", path });
-		}
-	};
-
-	vfs.renameSync = (oldInputPath, newInputPath, ...rest) => {
-		const oldPath = toCanonicalMountedPath(String(oldInputPath));
-		const newPath = toCanonicalMountedPath(String(newInputPath));
-		if (isDocumentsPath(oldPath) || isDocumentsPath(newPath)) {
-			throw new Error(`Mounted documents path is read-only: ${oldPath} -> ${newPath}`);
-		}
-		if (isWorkspacePath(oldPath) || isWorkspacePath(newPath)) {
-			assertWorkspaceMountLoaded();
-			if (!isWorkspacePath(oldPath) || !isWorkspacePath(newPath)) {
-				throw new Error(`Workspace rename must stay within workspace mount: ${oldPath} -> ${newPath}`);
-			}
-		}
-		if (!original.renameSync) {
-			throw new Error("vfs.renameSync is not available");
-		}
-		original.renameSync(oldPath, newPath, ...rest);
-		if (isWorkspacePath(oldPath) || isWorkspacePath(newPath)) {
-			if (mountedWorkspaceFiles.has(oldPath)) {
-				mountedWorkspaceFiles.delete(oldPath);
-				mountedWorkspaceFiles.add(newPath);
-				const content = materializedWorkspaceFiles.get(oldPath);
-				materializedWorkspaceFiles.delete(oldPath);
-				if (typeof content === "string") {
-					materializedWorkspaceFiles.set(newPath, content);
-				}
-			} else if (mountedWorkspaceDirectories.has(oldPath)) {
-				const oldPrefix = `${oldPath}/`;
-				const newPrefix = `${newPath}/`;
-				const dirsToMove = Array.from(mountedWorkspaceDirectories).filter((dir) => dir === oldPath || dir.startsWith(oldPrefix));
-				const filesToMove = Array.from(mountedWorkspaceFiles).filter((file) => file.startsWith(oldPrefix));
-				const fileContents = new Map();
-				for (const file of filesToMove) {
-					if (materializedWorkspaceFiles.has(file)) {
-						fileContents.set(file, materializedWorkspaceFiles.get(file));
-					}
-				}
-				for (const dir of dirsToMove) mountedWorkspaceDirectories.delete(dir);
-				for (const file of filesToMove) mountedWorkspaceFiles.delete(file);
-				for (const file of filesToMove) materializedWorkspaceFiles.delete(file);
-				for (const dir of dirsToMove) {
-					const moved = dir === oldPath ? newPath : `${newPrefix}${dir.slice(oldPrefix.length)}`;
-					mountedWorkspaceDirectories.add(moved);
-				}
-				for (const file of filesToMove) {
-					const moved = `${newPrefix}${file.slice(oldPrefix.length)}`;
-					mountedWorkspaceFiles.add(moved);
-					if (fileContents.has(file)) {
-						materializedWorkspaceFiles.set(moved, fileContents.get(file) || "");
-					}
-				}
-			}
-			pendingWorkspaceOps.push({ op: "rename", oldPath, newPath });
-		}
-	};
-
-	vfs[VFS_DOCUMENTS_OVERLAY_FLAG] = true;
 };
 
 const normalizeClientHostname = (hostname) => {
@@ -561,111 +169,6 @@ const ensureServerBridgeReady = async (containerInstance) => {
 	return bridge;
 };
 
-const installExpressLifecycleHooks = async (containerInstance) => {
-	await containerInstance.execute(
-		`
-(() => {
-	if (globalThis.__memorallExpressLifecycleInstalled) return;
-	globalThis.__memorallExpressLifecycleInstalled = true;
-	globalThis.__memorallExpressServers = globalThis.__memorallExpressServers || new Map();
-
-	let express;
-	try {
-		express = require("express");
-	} catch {
-		return;
-	}
-
-	const appProto = express?.application;
-	if (!appProto || appProto.__memorallListenPatched) return;
-
-	const originalListen = appProto.listen;
-	appProto.listen = function memorallPatchedListen(...args) {
-		const server = originalListen.apply(this, args);
-
-		let port = null;
-		if (typeof args[0] === "number") {
-			port = args[0];
-		} else if (args[0] && typeof args[0] === "object" && typeof args[0].port === "number") {
-			port = args[0].port;
-		} else if (typeof args[1] === "number") {
-			port = args[1];
-		}
-
-		if (typeof port === "number" && server) {
-			globalThis.__memorallExpressServers.set(port, server);
-			if (typeof server.on === "function") {
-				server.on("close", () => {
-					try {
-						globalThis.__memorallExpressServers.delete(port);
-					} catch {
-						// ignore
-					}
-				});
-			}
-		}
-
-		return server;
-	};
-
-	appProto.__memorallListenPatched = true;
-})();
-		`,
-		"/__memorall_express_lifecycle_patch.js",
-	);
-};
-
-const closeTrackedExpressServer = async (containerInstance, port) => {
-	const escapedPort = Number(port) || 0;
-	const result = await containerInstance.execute(
-		`
-(async () => {
-	const store = globalThis.__memorallExpressServers;
-	if (!store || typeof store.get !== "function") return false;
-	const server = store.get(${escapedPort});
-	if (!server || typeof server.close !== "function") return false;
-
-	await new Promise((resolve) => {
-		let done = false;
-		const finish = () => {
-			if (done) return;
-			done = true;
-			try {
-				store.delete(${escapedPort});
-			} catch {
-				// ignore
-			}
-			resolve();
-		};
-		try {
-			server.close(() => finish());
-		} catch {
-			finish();
-			return;
-		}
-		setTimeout(() => finish(), 1500);
-	});
-	return true;
-})()
-		`,
-		"/__memorall_express_close.js",
-	);
-	return Boolean(result);
-};
-
-const waitForServerPort = async (bridge, port, timeoutMs = 30_000) => {
-	const start = Date.now();
-	while (Date.now() - start < timeoutMs) {
-		const ports =
-			typeof bridge?.listServerPorts === "function" ? bridge.listServerPorts() : [];
-		if (Array.isArray(ports) && ports.includes(port)) {
-			return;
-		}
-		await new Promise((resolve) => setTimeout(resolve, 50));
-	}
-	throw new Error(`Timed out waiting for server registration on port ${port}`);
-};
-
 const hasListeningLogForPort = (port) => {
 	const token = `:${port}`;
 	for (let i = runtimeLogs.length - 1; i >= 0; i--) {
@@ -740,288 +243,6 @@ const resolveServerBaseUrl = (bridge, port, hostname) => {
 	return `http://${normalizeClientHostname(hostname)}:${port}`;
 };
 
-// ---------------------------------------------------------------------------
-// Framework templates
-// Each key is a SandboxServerTemplate name. Values are maps of
-// vfs-relative-path → file-content strings.
-// ---------------------------------------------------------------------------
-
-// Per-package lists to install for each template (one install call per entry).
-// null means no extra npm install is needed.
-const TEMPLATE_INSTALL_SPECS = {
-	express: null,
-	"vite-react": ["react", "react-dom", "vite", "@vitejs/plugin-react"],
-	"next-pages": ["next", "react", "react-dom"],
-	"next-app": ["next", "react", "react-dom"],
-};
-
-const FRAMEWORK_TEMPLATES = {
-	express: {
-		"/server.js": `const express = require('express');
-const app = express();
-
-app.use(express.json());
-
-app.get('/', (_req, res) => {
-  res.send(\`<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>Express App</title>
-<style>body{font-family:sans-serif;max-width:600px;margin:80px auto;padding:0 20px}h1{color:#333}</style>
-</head>
-<body>
-  <h1>Hello from Express!</h1>
-  <p>Your server is running.</p>
-  <ul>
-    <li><a href="/api/hello">/api/hello</a></li>
-    <li><a href="/api/time">/api/time</a></li>
-    <li><a href="/api/random">/api/random</a></li>
-  </ul>
-</body>
-</html>\`);
-});
-
-app.get('/api/hello', (_req, res) => {
-  res.json({ message: 'Hello World!' });
-});
-
-app.get('/api/time', (_req, res) => {
-  res.json({ time: new Date().toISOString() });
-});
-
-app.get('/api/random', (_req, res) => {
-  res.json({ value: Math.random() });
-});
-
-app.post('/api/echo', (req, res) => {
-  res.json({ echo: req.body });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(\`Server running on port \${PORT}\`));
-`,
-	},
-
-	"vite-react": {
-		"/package.json": JSON.stringify(
-			{
-				name: "vite-react-app",
-				private: true,
-				version: "0.0.0",
-				type: "module",
-				scripts: {
-					dev: "vite",
-					build: "vite build",
-					preview: "vite preview",
-				},
-				dependencies: {
-					react: "^18.2.0",
-					"react-dom": "^18.2.0",
-				},
-				devDependencies: {
-					"@vitejs/plugin-react": "^4.0.0",
-					vite: "^5.0.0",
-				},
-			},
-			null,
-			2,
-		),
-		"/index.html": `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
-`,
-		"/vite.config.js": `import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-
-export default defineConfig({
-  plugins: [react()],
-});
-`,
-		"/src/main.jsx": `import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './App.css';
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-`,
-		"/src/App.jsx": `import { useState } from 'react';
-
-function Counter() {
-  const [count, setCount] = useState(0);
-  return (
-    <div className="counter">
-      <button onClick={() => setCount(c => c - 1)}>-</button>
-      <span>{count}</span>
-      <button onClick={() => setCount(c => c + 1)}>+</button>
-    </div>
-  );
-}
-
-export default function App() {
-  return (
-    <div className="app">
-      <h1>Vite + React</h1>
-      <Counter />
-      <p>Edit <code>src/App.jsx</code> and save to see HMR in action.</p>
-    </div>
-  );
-}
-`,
-		"/src/App.css": `* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: sans-serif; background: #f5f5f5; }
-.app {
-  max-width: 480px;
-  margin: 60px auto;
-  padding: 32px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,.08);
-  text-align: center;
-}
-h1 { margin-bottom: 24px; color: #333; }
-.counter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin: 16px 0 24px;
-}
-.counter button {
-  width: 36px; height: 36px;
-  font-size: 18px; border: none;
-  border-radius: 50%; background: #646cff;
-  color: white; cursor: pointer;
-}
-.counter span { font-size: 24px; font-weight: bold; min-width: 40px; }
-p { color: #666; font-size: 14px; }
-code { background: #eee; padding: 2px 6px; border-radius: 4px; }
-`,
-	},
-
-	"next-pages": {
-		"/package.json": JSON.stringify(
-			{
-				name: "next-pages-app",
-				version: "0.1.0",
-				private: true,
-				scripts: {
-					dev: "next dev",
-					build: "next build",
-					start: "next start",
-				},
-				dependencies: {
-					next: "^14.0.0",
-					react: "^18.2.0",
-					"react-dom": "^18.2.0",
-				},
-			},
-			null,
-			2,
-		),
-		"/next.config.js": `/** @type {import('next').NextConfig} */
-const nextConfig = {};
-module.exports = nextConfig;
-`,
-		"/styles/globals.css": `* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: sans-serif; background: #f5f5f5; color: #333; }
-`,
-		"/pages/_app.jsx": `import '../styles/globals.css';
-
-export default function App({ Component, pageProps }) {
-  return <Component {...pageProps} />;
-}
-`,
-		"/pages/index.jsx": `export default function Home() {
-  return (
-    <main style={{ maxWidth: 600, margin: '80px auto', padding: '0 20px' }}>
-      <h1>Next.js Pages Router</h1>
-      <p style={{ marginTop: 16 }}>
-        Edit <code>pages/index.jsx</code> to get started.
-      </p>
-      <ul style={{ marginTop: 24, paddingLeft: 20 }}>
-        <li><a href="/api/hello">GET /api/hello</a></li>
-      </ul>
-    </main>
-  );
-}
-`,
-		"/pages/api/hello.js": `export default function handler(req, res) {
-  res.status(200).json({ message: 'Hello from Next.js API!', time: new Date().toISOString() });
-}
-`,
-	},
-
-	"next-app": {
-		"/package.json": JSON.stringify(
-			{
-				name: "next-app-router",
-				version: "0.1.0",
-				private: true,
-				scripts: {
-					dev: "next dev",
-					build: "next build",
-					start: "next start",
-				},
-				dependencies: {
-					next: "^14.0.0",
-					react: "^18.2.0",
-					"react-dom": "^18.2.0",
-				},
-			},
-			null,
-			2,
-		),
-		"/next.config.js": `/** @type {import('next').NextConfig} */
-const nextConfig = {};
-module.exports = nextConfig;
-`,
-		"/app/globals.css": `* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: sans-serif; background: #f5f5f5; color: #333; }
-`,
-		"/app/layout.jsx": `import './globals.css';
-
-export const metadata = { title: 'Next.js App Router' };
-
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
-}
-`,
-		"/app/page.jsx": `export default function Page() {
-  return (
-    <main style={{ maxWidth: 600, margin: '80px auto', padding: '0 20px' }}>
-      <h1>Next.js App Router</h1>
-      <p style={{ marginTop: 16 }}>
-        Edit <code>app/page.jsx</code> to get started.
-      </p>
-    </main>
-  );
-}
-`,
-		"/app/api/hello/route.js": `import { NextResponse } from 'next/server';
-
-export function GET() {
-  return NextResponse.json({ message: 'Hello from App Router API!', time: new Date().toISOString() });
-}
-`,
-	},
-};
-
 /**
  * Write template files into the VFS for the given rootDir.
  * Skips files that already exist so re-runs are safe.
@@ -1036,21 +257,17 @@ const scaffoldTemplate = (c, templateName, rootDir) => {
 	// vfs.writeFileSync / mkdirSync on /workspaces/ paths require the workspace
 	// mount to be marked as loaded.  If the caller hasn't synced from the DB
 	// yet we bootstrap an empty mount so template writes are permitted.
-	// The real sync (fs.mountWorkspace) will still work afterwards because
-	// mountedWorkspaceFiles is additive and any pre-loaded files will be merged.
-	if (isWorkspacePath(root) && !workspaceMountLoaded) {
-		workspaceMountLoaded = true;
+	if (isWorkspacePath(root) && !vfsBoolState.workspaceMountLoaded) {
+		vfsBoolState.workspaceMountLoaded = true;
 		mountedWorkspaceDirectories.add(WORKSPACES_MOUNT_ROOT);
 	}
 	for (const [relPath, content] of Object.entries(files)) {
 		const fullPath = normalizePath(`${root}/${relPath}`);
-		// Skip if file already exists
 		try {
 			if (c.vfs.existsSync(fullPath)) continue;
 		} catch {
 			// existsSync not available — proceed with write
 		}
-		// Ensure parent directory exists
 		const parentDir = dirname(fullPath);
 		try {
 			c.vfs.mkdirSync(parentDir, { recursive: true });
@@ -1061,6 +278,10 @@ const scaffoldTemplate = (c, templateName, rootDir) => {
 	}
 	pushRuntimeLog("info", `Scaffolded template "${templateName}" into ${root}`);
 };
+
+// ---------------------------------------------------------------------------
+// Runtime helpers
+// ---------------------------------------------------------------------------
 
 const withTimeout = async (task, timeoutMs) => {
 	const timeoutSymbol = Symbol("timeout");
@@ -1244,18 +465,22 @@ const resetRuntime = async () => {
 	mountedDocumentFiles.clear();
 	mountedDocumentDirectories.clear();
 	materializedMountedFiles.clear();
-	documentsMountLoaded = false;
+	vfsBoolState.documentsMountLoaded = false;
 	mountedWorkspaceFiles.clear();
 	mountedWorkspaceDirectories.clear();
 	materializedWorkspaceFiles.clear();
 	pendingWorkspaceOps.length = 0;
-	workspaceMountLoaded = false;
+	vfsBoolState.workspaceMountLoaded = false;
 	installedPackages.clear();
 	servers.clear();
 	serverBridgeReady = false;
 	runtimeLogs.length = 0;
 	pushRuntimeLog("info", "Sandbox runtime reset");
 };
+
+// ---------------------------------------------------------------------------
+// Operation handler
+// ---------------------------------------------------------------------------
 
 const handleOperation = async (request) => {
 	const payload = request.payload;
@@ -1388,10 +613,10 @@ const handleOperation = async (request) => {
 		}
 		case "fs.exists": {
 			const p = toCanonicalMountedPath(payload.path);
-			if (isDocumentsPath(p) && !documentsMountLoaded) {
+			if (isDocumentsPath(p) && !vfsBoolState.documentsMountLoaded) {
 				return { path: p, exists: false };
 			}
-			if (isWorkspacePath(p) && !workspaceMountLoaded) {
+			if (isWorkspacePath(p) && !vfsBoolState.workspaceMountLoaded) {
 				return { path: p, exists: false };
 			}
 			return {
@@ -1409,7 +634,7 @@ const handleOperation = async (request) => {
 			mountedDocumentDirectories.clear();
 			mountedDocumentDirectories.add(DOCUMENTS_MOUNT_ROOT);
 			materializedMountedFiles.clear();
-			documentsMountLoaded = true;
+			vfsBoolState.documentsMountLoaded = true;
 
 			for (const dirPath of payload.directories ?? []) {
 				const p = normalizePath(dirPath);
@@ -1433,7 +658,7 @@ const handleOperation = async (request) => {
 			mountedWorkspaceDirectories.add(WORKSPACES_MOUNT_ROOT);
 			materializedWorkspaceFiles.clear();
 			pendingWorkspaceOps.length = 0;
-			workspaceMountLoaded = true;
+			vfsBoolState.workspaceMountLoaded = true;
 
 			for (const dirPath of payload.directories ?? []) {
 				const p = toCanonicalMountedPath(dirPath);
@@ -1494,7 +719,6 @@ const handleOperation = async (request) => {
 			const kind = payload.kind;
 			const port = payload.port;
 
-			// Scaffold template files and optionally install packages before starting.
 			if (payload.template) {
 				scaffoldTemplate(c, payload.template, payload.rootDir || "/");
 				if (payload.autoInstall !== false) {
@@ -1522,8 +746,6 @@ const handleOperation = async (request) => {
 			};
 
 			if (kind === "express") {
-				await installExpressLifecycleHooks(c);
-				await closeTrackedExpressServer(c, port);
 				const entryPath = normalizePath(payload.entryPath || "/server.js");
 				await c.runFile(entryPath);
 				const probeUrl = `http://${normalizeClientHostname(bindHostname)}:${port}/`;
@@ -1601,7 +823,8 @@ const handleOperation = async (request) => {
 				throw new Error(`Server not found on port ${payload.port}`);
 			}
 			const timeoutMs = payload.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
-			const url = resolveServerRequestUrl(server.url, payload.path || "/");
+			const localBase = `http://127.0.0.1:${server.port}`;
+			const url = resolveServerRequestUrl(localBase, payload.path || "/");
 			const response = await fetchWithTimeout(
 				url,
 				{
@@ -1647,6 +870,10 @@ const handleOperation = async (request) => {
 			throw new Error(`Unsupported sandbox operation: ${request.operation}`);
 	}
 };
+
+// ---------------------------------------------------------------------------
+// Message bus
+// ---------------------------------------------------------------------------
 
 const isObject = (value) => typeof value === "object" && value !== null;
 

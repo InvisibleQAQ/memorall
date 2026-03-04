@@ -384,7 +384,16 @@ const WebAccessPreview: React.FC<{ payload: WebAccessPayload }> = ({
 					<ExternalLink className="w-3.5 h-3.5" />
 				</button>
 			</div>
-			{canFrameUrl ? (
+			{htmlPreview ? (
+				<iframe
+					title={t("actions.webAccess.htmlIframeTitle", {
+						defaultValue: "Web access HTML preview",
+					})}
+					srcDoc={htmlPreview}
+					className="w-full h-[360px] bg-white"
+					sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts"
+				/>
+			) : canFrameUrl ? (
 				<iframe
 					title={t("actions.webAccess.iframeTitle", {
 						defaultValue: "Web access preview: {{url}}",
@@ -394,15 +403,6 @@ const WebAccessPreview: React.FC<{ payload: WebAccessPayload }> = ({
 					className="w-full h-[360px] bg-white"
 					sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts"
 					referrerPolicy="no-referrer"
-				/>
-			) : htmlPreview ? (
-				<iframe
-					title={t("actions.webAccess.htmlIframeTitle", {
-						defaultValue: "Web access HTML preview",
-					})}
-					srcDoc={htmlPreview}
-					className="w-full h-[360px] bg-white"
-					sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts"
 				/>
 			) : (
 				<div className="px-3 py-4 text-sm text-muted-foreground">

@@ -82,7 +82,7 @@ const isSandboxErrorEnvelope = (
 	value: SandboxResponseMessage<SandboxOperation>,
 ): value is SandboxErrorEnvelope<SandboxOperation> => value.ok === false;
 
-export class SandboxContainerService implements ISandboxContainerService {
+export class SandboxContainerService {
 	private static instance: SandboxContainerService;
 
 	private iframe: HTMLIFrameElement | null = null;

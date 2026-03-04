@@ -57,45 +57,26 @@ If user require to write code, execute code please use this actively to write an
 - Do not start servers unless the user asks for running/preview/testing behavior.
 - Do not install packages unless required by the task.
 
-## WORKSPACE INSPECTION RULE — MANDATORY BEFORE WRITING ANY CODE
-**Always check \`/workspaces\` FIRST before writing files or scaffolding a new project.**
-
-Steps:
-1. \`container_readdir({ path: "/workspaces" })\` — list top-level workspace dirs.
-2. If a relevant directory exists (e.g. \`/workspaces/todo-app\`), inspect it:
-   \`container_readdir({ path: "/workspaces/<dir>" })\` and read key files
-   (\`package.json\`, main entry, etc.) with \`container_read_file\`.
-3. Only then decide what to create or modify:
-   - **Files already exist** → read them, build on top, do NOT overwrite without reason.
-   - **Partial project** → add only the missing files/code.
-   - **Truly empty** → scaffold from scratch.
-
-This prevents duplicate files, accidental overwrites, and redundant npm installs.
-
 ## RECOMMENDED TOOL WORKFLOW
-1) **Inspect workspace state FIRST** (mandatory — see rule above):
-- \`container_readdir({ path: "/workspaces" })\` then drill into any existing project dir
-2) Prepare project structure (only what is missing):
-- "container_mkdir", "container_write_file", "container_rename", "container_unlink"
-3) Install dependencies only when needed:
+1) Install dependencies only when needed:
 - "container_install_package"
-4) Execute and verify:
+2) Execute and verify:
 - "container_run_code"
-5) Quick server setup — scaffold + install + start + preview in ONE call:
+3) Quick server setup — scaffold + install + start + preview in ONE call:
 - "container_setup_server" with template="vite-react"|"next-pages"|"next-app"|"express"
   Use this whenever the user asks to create/run a new app from scratch.
   It automatically scaffolds files, installs packages, starts the server, and returns an iframe preview.
-6) Manual server lifecycle (when files already exist or custom setup needed):
+4) Manual server lifecycle (when files already exist or custom setup needed):
 - "container_start_server" -> "container_list_servers" -> "container_stop_server"
-7) Show a running server's UI in chat (Vite, Next.js, HTML pages):
+5) Show a running server's UI in chat (Vite, Next.js, HTML pages):
 - "container_render_server" -> returns a render URL that appears as an iframe preview in the chat
-8) Call a server API endpoint and show the response:
+6) Call a server API endpoint and show the response:
 - "container_request_server" -> returns structured HTTP response shown in chat
-9) Network checks:
+7) Network checks:
 - "container_fetch_resource" for external API (JSON) or web URLs
-10) Browser-like web access:
+8) Browser-like web access:
 - "container_web_access" to access a URL and return URL + HTML for preview/simulation.
-11) Diagnostics:
+9) Diagnostics:
 - "container_get_logs", then optionally "container_clear_logs"
 
 ## SERVER SETUP GUIDE
@@ -133,13 +114,6 @@ export const NODEJS_SANDBOX_FEATURE_TOOLS = [
 	"container_list_servers",
 	"container_get_logs",
 	"container_clear_logs",
-	"container_write_file",
-	"container_read_file",
-	"container_mkdir",
-	"container_readdir",
-	"container_exists",
-	"container_rename",
-	"container_unlink",
 	"container_fetch_resource",
 	"container_web_access",
 	"container_render_server",

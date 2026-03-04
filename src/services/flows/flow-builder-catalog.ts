@@ -11,6 +11,12 @@ import {
 	DOCUMENTS_FS_FEATURE_TOOLS,
 } from "./steps/features/documents-fs-feature";
 import {
+	FS_FEATURE_DESCRIPTION,
+	FS_FEATURE_NAME,
+	FS_FEATURE_SYSTEM_PROMPT,
+	FS_FEATURE_TOOLS,
+} from "./steps/features/fs-feature";
+import {
 	NODEJS_SANDBOX_FEATURE_DESCRIPTION,
 	NODEJS_SANDBOX_FEATURE_NAME,
 	NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
@@ -234,6 +240,45 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			description: "Quick retrieval with context building",
 			algorithm: "Semantic search + graph growth",
 		},
+	},
+	{
+		id: "step-fs-feature",
+		name: FS_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with filesystem instructions for both namespaces",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description: "Tools extended with fs toolset (/documents + /workspaces)",
+			},
+		],
+		metadata: {
+			description: FS_FEATURE_DESCRIPTION,
+			tools: [...FS_FEATURE_TOOLS],
+			systemPrompt: FS_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+			recommended: true,
+		} satisfies FeatureCatalogMetadata,
 	},
 	{
 		id: "step-documents-fs-feature",

@@ -97,20 +97,6 @@ export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
 				return this.executeOperation("runtime.clearLogs", payload.payload);
 			case "network.fetch":
 				return this.executeOperation("network.fetch", payload.payload);
-			case "fs.writeFile":
-				return this.executeOperation("fs.writeFile", payload.payload);
-			case "fs.readFile":
-				return this.executeOperation("fs.readFile", payload.payload);
-			case "fs.mkdir":
-				return this.executeOperation("fs.mkdir", payload.payload);
-			case "fs.readdir":
-				return this.executeOperation("fs.readdir", payload.payload);
-			case "fs.unlink":
-				return this.executeOperation("fs.unlink", payload.payload);
-			case "fs.rename":
-				return this.executeOperation("fs.rename", payload.payload);
-			case "fs.exists":
-				return this.executeOperation("fs.exists", payload.payload);
 			case "fs.mountDocuments":
 				return this.executeOperation("fs.mountDocuments", payload.payload);
 			case "fs.materializeDocumentFile":
@@ -156,9 +142,8 @@ export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
 			case "runtime.reset":
 				return this.executeOperation("runtime.reset", payload.payload);
 			default: {
-				const unreachable: never = payload;
 				throw new Error(
-					`Unsupported sandbox operation payload: ${JSON.stringify(unreachable)}`,
+					`Unsupported sandbox operation payload`,
 				);
 			}
 		}
