@@ -192,7 +192,8 @@ export const createFsGrepTool: ToolFactory<Input, Services> = (
 							wsLogical === "/"
 								? n.path.slice(1)
 								: n.path.slice(wsLogical.length + 1);
-						if (!fileGlobRegex.test(rel)) return false;
+						const testStr = glob!.includes("/") ? rel : n.name;
+						if (!fileGlobRegex.test(testStr)) return false;
 					}
 					return true;
 				})
@@ -225,14 +226,15 @@ export const createFsGrepTool: ToolFactory<Input, Services> = (
 						docTargetPath === "/"
 							? n.path.slice(1)
 							: n.path.slice(docTargetPath.length + 1);
-					if (!fileGlobRegex.test(rel)) return false;
+					const testStr = glob!.includes("/") ? rel : n.name;
+					if (!fileGlobRegex.test(testStr)) return false;
 				}
 				return true;
 			})
 			.map((n) => ({ path: n.path, displayPath: n.path }));
 
 		if (fileNodes.length === 0) {
-			return `No files found to search under "${docTargetPath}"${glob ? ` matching glob "${glob}"` : ""}`;
+			return `No files found to search under "${targetPath}"${glob ? ` matching glob "${glob}"` : ""}`;
 		}
 
 		return runGrep(fileNodes, (displayPath) => dfs.getFileContent(displayPath));

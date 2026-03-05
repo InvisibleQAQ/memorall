@@ -95,7 +95,7 @@ export const createFsGlobTool: ToolFactory<Input, Services> = (
 		});
 
 		if (matches.length === 0) {
-			return `No files found matching "${pattern}" under "${docBasePath}"`;
+			return `No files found matching "${pattern}" under "${basePath}"`;
 		}
 
 		matches.sort((a, b) => {
