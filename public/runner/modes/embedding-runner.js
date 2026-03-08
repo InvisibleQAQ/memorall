@@ -193,16 +193,6 @@ window.addEventListener("message", async (event) => {
 	const fromParent = src === window.parent;
 	const fromOpener = typeof window.opener !== "undefined" && src === window.opener;
 
-	console.log("[embedding-runner] received message", {
-		messageId,
-		type,
-		origin,
-		hasSource: !!src,
-		fromParent,
-		fromOpener,
-		payloadType: payload ? typeof payload : "undefined",
-	});
-
 	if (type === "init") {
 		console.log("[embedding-runner] received init", {
 			messageId,

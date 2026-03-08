@@ -68,10 +68,10 @@ If user require to write code, execute code please use this actively to write an
   It automatically scaffolds files, installs packages, starts the server, and returns an iframe preview.
 4) Manual server lifecycle (when files already exist or custom setup needed):
 - "container_start_server" -> "container_list_servers" -> "container_stop_server"
-5) Show a running server's UI in chat (Vite, Next.js, HTML pages):
-- "container_render_server" -> returns a render URL that appears as an iframe preview in the chat
-6) Call a server API endpoint and show the response:
-- "container_request_server" -> returns structured HTTP response shown in chat
+5) Show a running web UI in chat (Vite, Next.js, React SPA, Express HTML page):
+- "container_render_server" → renders via iframe (REQUIRED for web UI — direct fetch won't work)
+6) Call an API endpoint and show the response (JSON / plain text only):
+- "container_request_server" → direct HTTP fetch, returns structured response
 7) Network checks:
 - "container_fetch_resource" for external API (JSON) or web URLs
 8) Browser-like web access:
@@ -92,9 +92,13 @@ If user require to write code, execute code please use this actively to write an
 - User asks to restart a stopped server
 - Need fine-grained control over entryPath or hostname
 
-### After the server is running
-- UI app (Vite, Next.js): always call container_render_server to show the iframe preview
-- API server (Express JSON routes): call container_request_server to fetch and display a response
+### After the server is running — CRITICAL: choose the right tool
+| Goal | Tool to call |
+|------|-------------|
+| Show web UI page (Vite, Next.js, Express HTML, React SPA) | **container_render_server** — renders via iframe, captures full DOM |
+| Call an API endpoint (JSON, text response) | **container_request_server** — direct HTTP fetch, returns structured response |
+
+**NEVER** use container_request_server to preview a web UI page — it will fail because AlmostNode servers have no real TCP socket; the iframe path is required to route through the service worker.
 
 ### Template → framework mapping
 | template      | kind    | default port | use case                    |

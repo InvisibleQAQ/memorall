@@ -3,7 +3,7 @@ export {
 	sandboxContainerService,
 	ensureSandboxContainerReady,
 	type SandboxContainerInitOptions,
-} from "./sandbox-container-service";
+} from "./sandbox-container-service.iframe";
 
 export type {
 	SandboxLogLevel,

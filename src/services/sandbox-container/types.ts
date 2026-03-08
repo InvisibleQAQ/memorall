@@ -207,6 +207,8 @@ export interface SandboxServerRequest {
 	body?: string;
 	timeoutMs?: number;
 	responseType?: "auto" | "json" | "text" | "html";
+	/** If true, render the page via an iframe and return the rendered HTML instead of using fetch. */
+	useIframe?: boolean;
 }
 
 export interface SandboxServerRequestResult {
@@ -223,6 +225,26 @@ export interface SandboxServerRequestResult {
 export interface SandboxServerRenderUrlRequest {
 	port: number;
 	path?: string;
+}
+
+/** Payload for relaying an AlmostNode SW request from the outer page to the sandbox runtime. */
+export interface SandboxHandleSwRequestPayload {
+	/** Unique request ID (from SW message). */
+	id: number;
+	port: number;
+	method: string;
+	path: string;
+	headers: Record<string, string>;
+	body: ArrayBuffer | null;
+	streaming?: boolean;
+}
+
+/** Response for a relayed SW request — mirrors the __sw__.js response format. */
+export interface SandboxHandleSwRequestResult {
+	statusCode: number;
+	statusMessage: string;
+	headers: Record<string, string>;
+	bodyBase64: string;
 }
 
 export interface SandboxServerRenderUrlResult {
@@ -303,6 +325,7 @@ export type SandboxOperation =
 	| "server.list"
 	| "server.request"
 	| "server.renderUrl"
+	| "server.handleSwRequest"
 	| "snapshot.get"
 	| "snapshot.restore"
 	| "runtime.reset";
@@ -336,6 +359,7 @@ export type SandboxOperationPayloadMap = {
 	"server.list": undefined;
 	"server.request": SandboxServerRequest;
 	"server.renderUrl": SandboxServerRenderUrlRequest;
+	"server.handleSwRequest": SandboxHandleSwRequestPayload;
 	"snapshot.get": undefined;
 	"snapshot.restore": SandboxRestoreSnapshotRequest;
 	"runtime.reset": undefined;
@@ -370,12 +394,13 @@ export type SandboxOperationResultMap = {
 	"server.list": SandboxListServersResult;
 	"server.request": SandboxServerRequestResult;
 	"server.renderUrl": SandboxServerRenderUrlResult;
+	"server.handleSwRequest": SandboxHandleSwRequestResult;
 	"snapshot.get": SandboxSnapshotResult;
 	"snapshot.restore": { restored: true };
 	"runtime.reset": { reset: true };
 };
 
-export interface SandboxRequestEnvelope<T extends SandboxOperation> {
+export interface SandboxRequestEnvelope<T extends SandboxOperation & keyof SandboxOperationPayloadMap> {
 	channel: "memorall-sandbox-container";
 	direction: "request";
 	requestId: string;
@@ -383,7 +408,7 @@ export interface SandboxRequestEnvelope<T extends SandboxOperation> {
 	payload: SandboxOperationPayloadMap[T];
 }
 
-export interface SandboxResponseEnvelope<T extends SandboxOperation> {
+export interface SandboxResponseEnvelope<T extends SandboxOperation & keyof SandboxOperationResultMap> {
 	channel: "memorall-sandbox-container";
 	direction: "response";
 	requestId: string;

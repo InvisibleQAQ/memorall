@@ -35,7 +35,7 @@ export const createContainerRenderServerTool: ToolFactory<
 > = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Render a started sandbox server page and return the HTML content for browser-like preview.",
+		"Render a running sandbox web server page (Vite, Next.js, Express HTML) via an iframe and return the fully rendered HTML. Use this for ALL web UI page previews — never use container_request_server for this purpose.",
 	schema,
 	execute: async (input) => {
 		const path = input.path ?? "/";
@@ -46,6 +46,7 @@ export const createContainerRenderServerTool: ToolFactory<
 				method: "GET",
 				timeoutMs: input.timeoutMs ?? 15_000,
 				responseType: "html",
+				useIframe: true,
 			});
 
 			const maxChars = input.maxHtmlChars ?? 100_000;

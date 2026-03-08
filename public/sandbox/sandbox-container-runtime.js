@@ -30,7 +30,6 @@ const runtimeLogs = [];
 const repls = new Map();
 const installedPackages = new Map();
 const servers = new Map();
-let serverBridgeReady = false;
 
 let container = null;
 let currentExecutionContext = null;
@@ -72,18 +71,9 @@ const pushRuntimeLog = (level, message) => {
 	appendBounded(runtimeLogs, { level, message, timestamp: Date.now() }, MAX_RUNTIME_LOG_ENTRIES);
 };
 
-const normalizeClientHostname = (hostname) => {
-	if (hostname === "0.0.0.0" || hostname === "::") return "127.0.0.1";
-	return hostname || "127.0.0.1";
-};
-
 const normalizeClientUrl = (rawUrl) => {
 	try {
-		const parsed = new URL(rawUrl);
-		if (parsed.hostname === "0.0.0.0" || parsed.hostname === "::") {
-			parsed.hostname = "127.0.0.1";
-		}
-		return parsed.toString();
+		return new URL(rawUrl).toString();
 	} catch {
 		return rawUrl;
 	}
@@ -101,32 +91,6 @@ const normalizeServerPath = (inputPath) => {
 		return trimmed;
 	}
 	return `/${trimmed}`;
-};
-
-const resolveServerRequestUrl = (baseUrl, path) => {
-	const normalizedPath = normalizeServerPath(path);
-	try {
-		return new URL(normalizedPath, baseUrl).toString();
-	} catch {
-		return `${String(baseUrl || "").replace(/\/+$/, "")}${normalizedPath}`;
-	}
-};
-
-const toRenderUrl = (url, port) => {
-	try {
-		const parsed = new URL(url, self.location?.origin || "http://localhost");
-		if (self.location?.origin && parsed.origin === self.location.origin) {
-			return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-		}
-		return parsed.toString();
-	} catch {
-		// Resolve fallback relative to the sandbox document root so the service
-		// worker scope (chrome-extension://[id]/sandbox/) is always correct.
-		const sandboxBase = self.location
-			? new URL(".", self.location.href).pathname
-			: "/sandbox/";
-		return `${sandboxBase}__virtual__/${port}/`;
-	}
 };
 
 const toServerInfo = (serverState) => ({
@@ -148,21 +112,11 @@ const getServerBridge = (containerInstance) => {
 };
 
 const ensureServerBridgeReady = async (containerInstance) => {
+	// The SW is registered by the outer page (sandbox-container-service.iframe.ts)
+	// because manifest sandbox pages cannot register service workers themselves.
+	// This function just resolves the bridge without touching the SW.
 	const bridge = getServerBridge(containerInstance);
-	if (!bridge) return null;
-	if (!serverBridgeReady && typeof bridge.initServiceWorker === "function") {
-		try {
-			await bridge.initServiceWorker();
-		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : safeSerialize(error);
-			pushRuntimeLog(
-				"warn",
-				`Server bridge service worker init failed; continuing without service worker: ${message}`,
-			);
-		}
-		serverBridgeReady = true;
-	}
+	console.log(`[bridge] getServerBridge result: ${bridge ? "present" : "null"}, keys=${bridge ? Object.keys(bridge).join(",") : "n/a"}`);
 	return bridge;
 };
 
@@ -179,33 +133,18 @@ const hasListeningLogForPort = (port) => {
 	return false;
 };
 
-const waitForExpressStartup = async (bridge, baseUrl, port, timeoutMs = 3_000) => {
+const waitForExpressStartup = async (bridge, port, timeoutMs = 3_000) => {
 	const startedAt = Date.now();
 	while (Date.now() - startedAt < timeoutMs) {
 		if (hasListeningLogForPort(port)) {
 			return true;
 		}
-
 		if (bridge && typeof bridge.listServerPorts === "function") {
 			const ports = bridge.listServerPorts();
 			if (Array.isArray(ports) && ports.includes(port)) {
 				return true;
 			}
 		}
-
-		try {
-			const response = await fetchWithTimeout(
-				baseUrl,
-				{ method: "GET" },
-				750,
-			);
-			if (response) {
-				return true;
-			}
-		} catch {
-			// Keep polling until grace timeout.
-		}
-
 		await new Promise((resolve) => setTimeout(resolve, 100));
 	}
 	return false;
@@ -230,14 +169,16 @@ const stopAllServers = async () => {
 	}
 };
 
-const resolveServerBaseUrl = (bridge, port, hostname) => {
+const resolveServerBaseUrl = (bridge, port) => {
 	if (bridge && typeof bridge.getServerUrl === "function") {
 		const bridged = bridge.getServerUrl(port);
 		if (typeof bridged === "string" && bridged) {
 			return normalizeClientUrl(bridged);
 		}
 	}
-	return `http://${normalizeClientHostname(hostname)}:${port}`;
+	// Fallback: virtual path via AlmostNode service worker. No real TCP socket exists.
+	const sandboxBase = new URL(".", self.location.href).href;
+	return new URL(`__virtual__/${port}/`, sandboxBase).toString();
 };
 
 /**
@@ -470,10 +411,10 @@ const resetRuntime = async () => {
 	vfsBoolState.workspaceMountLoaded = false;
 	installedPackages.clear();
 	servers.clear();
-	serverBridgeReady = false;
 	runtimeLogs.length = 0;
 	pushRuntimeLog("info", "Sandbox runtime reset");
 };
+
 
 // ---------------------------------------------------------------------------
 // Operation handler
@@ -481,11 +422,17 @@ const resetRuntime = async () => {
 
 const handleOperation = async (request) => {
 	const payload = request.payload;
+
+	// Respond to health immediately — before container init — so the
+	// 10 s health-check timeout in the host service does not fire while
+	// AlmostNode is still booting up.
+	if (request.operation === "health") {
+		return { ready: true, initializedAt };
+	}
+
 	const c = await ensureContainer();
 
 	switch (request.operation) {
-		case "health":
-			return { ready: true, initializedAt };
 		case "runtime.executeCode":
 			return executeCode(payload.code, payload.timeoutMs ?? DEFAULT_TIMEOUT_MS, payload.maxLogEntries ?? DEFAULT_MAX_LOG_ENTRIES, payload.filename);
 		case "runtime.runFile":
@@ -561,7 +508,7 @@ const handleOperation = async (request) => {
 			return { packages: list };
 		}
 		case "server.start": {
-			const bindHostname = payload.hostname || "127.0.0.1";
+			const bindHostname = payload.hostname;
 			const kind = payload.kind;
 			const port = payload.port;
 
@@ -591,17 +538,19 @@ const handleOperation = async (request) => {
 				}
 			};
 
+			let handleRequest = null;
+
 			if (kind === "express") {
 				const entryPath = normalizePath(payload.entryPath || "/server.js");
 				await c.runFile(entryPath);
-				const probeUrl = `http://${normalizeClientHostname(bindHostname)}:${port}/`;
-				const started = await waitForExpressStartup(bridge, probeUrl, port, 3_000);
+				const started = await waitForExpressStartup(bridge, port, 3_000);
 				if (!started) {
 					pushRuntimeLog(
 						"warn",
 						`Express startup probe did not confirm readiness for port ${port}; continuing with optimistic server state`,
 					);
 				}
+				handleRequest = (method, path, headers, body) => bridge.handleRequest(port, method, path, headers, body);
 				stop = async () => {
 					await closeTrackedExpressServer(c, port);
 					if (bridge && typeof bridge.unregisterServer === "function") {
@@ -612,12 +561,13 @@ const handleOperation = async (request) => {
 				if (typeof AlmostNodeLib.ViteDevServer !== "function") {
 					throw new Error("ViteDevServer is not available in runtime bundle");
 				}
-				const viteServer = new AlmostNodeLib.ViteDevServer(c.runtime, c.vfs, {
+				const viteServer = new AlmostNodeLib.ViteDevServer(c.vfs, {
 					port,
 					hostname: bindHostname,
-					rootDir: payload.rootDir || "/",
+					root: payload.rootDir || "/",
 				});
 				await viteServer.start();
+				handleRequest = (method, path, headers, body) => viteServer.handleRequest(method, path, headers, body);
 				stop = async () => {
 					await viteServer.stop();
 					if (bridge && typeof bridge.unregisterServer === "function") {
@@ -628,12 +578,13 @@ const handleOperation = async (request) => {
 				if (typeof AlmostNodeLib.NextDevServer !== "function") {
 					throw new Error("NextDevServer is not available in runtime bundle");
 				}
-				const nextServer = new AlmostNodeLib.NextDevServer(c.runtime, c.vfs, {
+				const nextServer = new AlmostNodeLib.NextDevServer(c.vfs, {
 					port,
 					hostname: bindHostname,
-					rootDir: payload.rootDir || "/",
+					root: payload.rootDir || "/",
 				});
 				await nextServer.start();
+				handleRequest = (method, path, headers, body) => nextServer.handleRequest(method, path, headers, body);
 				stop = async () => {
 					await nextServer.stop();
 					if (bridge && typeof bridge.unregisterServer === "function") {
@@ -644,9 +595,8 @@ const handleOperation = async (request) => {
 				throw new Error(`Unsupported server kind: ${kind}`);
 			}
 
-			const url = resolveServerBaseUrl(bridge, port, bindHostname);
-			const renderUrl = toRenderUrl(url, port);
-			const state = { kind, port, url, renderUrl, stop };
+			const url = resolveServerBaseUrl(bridge, port);
+			const state = { kind, port, url, renderUrl: url, stop, handleRequest };
 			servers.set(port, state);
 			return toServerInfo(state);
 		}
@@ -660,7 +610,7 @@ const handleOperation = async (request) => {
 			if (!server) {
 				throw new Error(`Server not found on port ${payload.port}`);
 			}
-			const url = resolveServerRequestUrl(server.renderUrl, payload.path || "/");
+			const url = server.url.replace(/\/?$/, "") + normalizeServerPath(payload.path || "/");
 			return { port: payload.port, url };
 		}
 		case "server.request": {
@@ -668,35 +618,77 @@ const handleOperation = async (request) => {
 			if (!server) {
 				throw new Error(`Server not found on port ${payload.port}`);
 			}
-			const timeoutMs = payload.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
-			const localBase = `http://127.0.0.1:${server.port}`;
-			const url = resolveServerRequestUrl(localBase, payload.path || "/");
-			const response = await fetchWithTimeout(
-				url,
-				{
-					method: payload.method ?? "GET",
-					headers: payload.headers,
-					body: payload.body,
-				},
-				timeoutMs,
+			if (typeof server.handleRequest !== "function") {
+				throw new Error(`No request handler for server on port ${payload.port}`);
+			}
+			const path = normalizeServerPath(payload.path || "/");
+			const url = server.url.replace(/\/?$/, "") + path;
+			const bodyBuf = payload.body ? new TextEncoder().encode(payload.body).buffer : null;
+			const responseData = await server.handleRequest(
+				payload.method ?? "GET",
+				path,
+				payload.headers ?? {},
+				bodyBuf,
 			);
-			const contentType = response.headers.get("content-type") ?? "";
+			const contentType = responseData.headers?.["content-type"] ?? responseData.headers?.["Content-Type"] ?? "";
 			const responseType = resolveResponseType(contentType, payload.responseType ?? "auto");
-			const text = await response.text();
-			const headers = Object.fromEntries(response.headers.entries());
-			const body = responseType === "json" ? JSON.stringify(JSON.parse(text), null, 2) : text;
+			const bodyText = responseData.body ? new TextDecoder().decode(responseData.body) : "";
+			const body = responseType === "json" ? JSON.stringify(JSON.parse(bodyText), null, 2) : bodyText;
 			return {
 				port: payload.port,
 				url,
-				status: response.status,
-				ok: response.ok,
+				status: responseData.statusCode ?? 200,
+				ok: (responseData.statusCode ?? 200) < 400,
 				contentType,
 				responseType,
-				headers,
+				headers: responseData.headers ?? {},
 				body,
 			};
 		}
-		case "snapshot.get": {
+		case "server.handleSwRequest": {
+		// The SW (registered in the outer offscreen page) intercepts /__virtual__/<port>/* fetches
+		// and relays them here. We serve them directly via the server's handleRequest closure,
+		// then base64-encode the body for transport back to the SW.
+		const { id, port: swPort, method, path, headers: reqHeaders, body } = payload;
+		console.log(`[server.handleSwRequest] id=${id} port=${swPort} method=${method} path=${path}`);
+		const server = servers.get(swPort);
+		if (!server) {
+			throw new Error(`Server not found on port ${swPort}`);
+		}
+		if (typeof server.handleRequest !== "function") {
+			throw new Error(`No request handler for server on port ${swPort}`);
+		}
+		const normalizedPath = normalizeServerPath(path || "/");
+		const responseData = await server.handleRequest(method ?? "GET", normalizedPath, reqHeaders ?? {}, body ?? null);
+		// Base64-encode body for SW transport
+		const rawBody = responseData.body;
+		let bodyBytes;
+		if (!rawBody) {
+			bodyBytes = new Uint8Array(0);
+		} else if (rawBody instanceof ArrayBuffer) {
+			bodyBytes = new Uint8Array(rawBody);
+		} else if (ArrayBuffer.isView(rawBody)) {
+			bodyBytes = new Uint8Array(rawBody.buffer, rawBody.byteOffset, rawBody.byteLength);
+		} else {
+			bodyBytes = new Uint8Array(0);
+		}
+		let bodyBase64 = "";
+		if (bodyBytes.length > 0) {
+			const chunkSize = 8192;
+			let binary = "";
+			for (let i = 0; i < bodyBytes.length; i += chunkSize) {
+				binary += String.fromCharCode(...bodyBytes.subarray(i, Math.min(i + chunkSize, bodyBytes.length)));
+			}
+			bodyBase64 = btoa(binary);
+		}
+		return {
+			statusCode: responseData.statusCode ?? 200,
+			statusMessage: responseData.statusMessage ?? "OK",
+			headers: responseData.headers ?? {},
+			bodyBase64,
+		};
+	}
+	case "snapshot.get": {
 			const snapshot = typeof c.vfs.toSnapshot === "function" ? c.vfs.toSnapshot() : { files: [] };
 			return {
 				snapshot: {

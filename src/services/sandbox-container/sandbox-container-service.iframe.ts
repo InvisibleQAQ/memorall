@@ -93,6 +93,12 @@ export class SandboxContainerService {
 	private readonly options: Required<SandboxContainerInitOptions>;
 	private mountDocumentsSyncPromise: Promise<void> | null = null;
 	private mountWorkspaceSyncPromise: Promise<void> | null = null;
+	/** Relay channel: port1 stays here, port2 is transferred to the SW as mainPort. */
+	private swRelayChannel: MessageChannel | null = null;
+	/** Last known active service worker — used to re-init relay if SW restarts. */
+	private swInstance: ServiceWorker | null = null;
+	/** Keepalive timer — sends a periodic ping to prevent Chrome from killing the SW. */
+	private swKeepaliveTimer: ReturnType<typeof setInterval> | null = null;
 
 	private constructor(options: SandboxContainerInitOptions = {}) {
 		this.options = {
@@ -145,12 +151,15 @@ export class SandboxContainerService {
 			);
 		}
 
+		// Register the AlmostNode service worker from this outer (non-sandboxed)
+		// page so it can control the sandbox iframe context. Manifest sandbox pages
+		// have null origin and cannot register service workers themselves.
+		await this.registerSandboxServiceWorker();
+
 		window.addEventListener("message", this.onMessage);
 
 		const iframe = document.createElement("iframe");
 		iframe.style.display = "none";
-		iframe.sandbox.add("allow-scripts");
-		iframe.sandbox.add("allow-same-origin");
 		iframe.src = chrome.runtime.getURL(this.options.frameUrl);
 
 		const loaded = new Promise<void>((resolve, reject) => {
@@ -198,6 +207,125 @@ export class SandboxContainerService {
 			this.initializedAt = null;
 			window.removeEventListener("message", this.onMessage);
 			throw error;
+		}
+	}
+
+	/**
+	 * Register the AlmostNode service worker from this outer (non-sandboxed) page
+	 * and set up a relay channel so the SW can route /__virtual__/<port>/ requests
+	 * through the sandbox iframe's AlmostNode bridge.
+	 *
+	 * Manifest sandbox pages (sandbox-container-runtime.html) have a sandboxed
+	 * browsing context and can never register service workers themselves, so
+	 * registration must happen here in the extension popup context.
+	 */
+	private async registerSandboxServiceWorker(): Promise<void> {
+		if (!("serviceWorker" in navigator)) {
+			logWarn("[SW] navigator.serviceWorker not available");
+			return;
+		}
+		try {
+			const swUrl = chrome.runtime.getURL("sandbox/__sw__.js");
+			const reg = await navigator.serviceWorker.register(swUrl);
+			logInfo("[SW] Registered sandbox service worker, scope:", reg.scope, swUrl);
+
+			// Wait for the SW to become active.
+			await navigator.serviceWorker.ready;
+
+			const sw =
+				navigator.serviceWorker.controller ??
+				reg.active ??
+				reg.installing ??
+				reg.waiting;
+			if (!sw) {
+				logWarn("[SW] No active SW found after ready — page reload may be needed");
+				return;
+			}
+
+			this.initSwRelay(sw);
+
+			// Re-init relay if the SW updates or regains control.
+			navigator.serviceWorker.addEventListener("controllerchange", () => {
+				const newSw = navigator.serviceWorker.controller;
+				if (newSw) {
+					logInfo("[SW] Controller changed — re-initialising relay");
+					this.initSwRelay(newSw);
+				}
+			});
+
+				// SW asks clients to re-send init when it loses its mainPort.
+			// NOTE: offscreen documents are NOT in the SW scope (/sandbox/),
+			// so navigator.serviceWorker.controller is always null here.
+			// We must use this.swInstance (stored during registration).
+			navigator.serviceWorker.addEventListener(
+				"message",
+				(event: MessageEvent) => {
+					if (event.data?.type === "sw-needs-init") {
+						const activeSw =
+							this.swInstance ?? navigator.serviceWorker.controller;
+						if (activeSw) this.initSwRelay(activeSw);
+					}
+				},
+			);
+		} catch (err) {
+			logWarn("[SW] Service worker registration failed:", err);
+		}
+	}
+
+	private initSwRelay(sw: ServiceWorker): void {
+		this.swInstance = sw;
+		// Close any previous relay channel.
+		if (this.swRelayChannel) {
+			this.swRelayChannel.port1.close();
+		}
+		this.swRelayChannel = new MessageChannel();
+
+		// Send port2 to SW — it becomes mainPort inside __sw__.js.
+		sw.postMessage({ type: "init" }, [this.swRelayChannel.port2]);
+
+		// Relay SW request messages to the sandbox iframe.
+		this.swRelayChannel.port1.onmessage = (event: MessageEvent) => {
+			void this.relaySwMessage(event.data);
+		};
+		this.swRelayChannel.port1.start();
+		logInfo("[SW] Relay channel initialised");
+
+		// Keep the SW alive with a periodic ping so Chrome doesn't kill it and
+		// lose mainPort. The SW ignores the message type; receiving any message
+		// resets Chrome's idle-kill timer (~30 s). We ping every 20 s.
+		if (this.swKeepaliveTimer) clearInterval(this.swKeepaliveTimer);
+		this.swKeepaliveTimer = setInterval(() => {
+			sw.postMessage({ type: "keepalive" });
+		}, 20_000);
+	}
+
+	private async relaySwMessage(msg: {
+		type: string;
+		id: number;
+		data: { port: number; method: string; url: string; headers: Record<string, string>; body: ArrayBuffer | null };
+	}): Promise<void> {
+		if (msg.type !== "request" || !this.swRelayChannel) return;
+		const { id, data } = msg;
+		try {
+			const result = await this.request(
+				"server.handleSwRequest",
+				{
+					id,
+					port: data.port,
+					method: data.method,
+					path: data.url,
+					headers: data.headers ?? {},
+					body: data.body ?? null,
+				},
+				30_000,
+			);
+			this.swRelayChannel.port1.postMessage({ type: "response", id, data: result });
+		} catch (err) {
+			this.swRelayChannel.port1.postMessage({
+				type: "response",
+				id,
+				error: err instanceof Error ? err.message : String(err),
+			});
 		}
 	}
 
@@ -767,7 +895,100 @@ export class SandboxContainerService {
 	async requestServer(
 		request: SandboxServerRequest,
 	): Promise<SandboxServerRequestResult> {
+		if (request.useIframe) {
+			return this.renderViaIframe(request);
+		}
 		return this.request("server.request", request, request.timeoutMs ?? 60_000);
+	}
+
+	/**
+	 * Render a virtual server page and return the fully rendered HTML.
+	 *
+	 * We load /sandbox/renderer.html (a normal extension page within the SW's
+	 * /sandbox/ scope). The renderer fetches /__virtual__/<port>/* — the SW
+	 * intercepts those fetches and relays them to the sandbox via
+	 * server.handleSwRequest → handleRequest. Once React mounts, the renderer
+	 * sends a postMessage back with the final outerHTML.
+	 */
+	private async renderViaIframe(
+		request: SandboxServerRequest,
+	): Promise<SandboxServerRequestResult> {
+		// The SW is killed by Chrome when idle and restarts with mainPort=null.
+		// Re-send the relay port before the renderer iframe makes any fetches.
+		const sw =
+			this.swInstance ??
+			navigator.serviceWorker.controller ??
+			(await navigator.serviceWorker.ready).active;
+		if (sw) {
+			this.initSwRelay(sw);
+			// Wait for the SW to wake up, receive the port message, and set
+			// mainPort before the renderer iframe makes its first fetch.
+			await new Promise<void>((r) => setTimeout(r, 200));
+		}
+
+		const path = request.path ?? "/";
+		const timeoutMs = request.timeoutMs ?? 15_000;
+		// Unique ID to match the postMessage from renderer-utils.js.
+		// Passed via iframe.name (survives document.write inside the renderer).
+		const renderId = Math.random().toString(36).slice(2, 10);
+
+		const virtualUrl =
+			chrome.runtime.getURL("") +
+			`__virtual__/${request.port}${path.startsWith("/") ? path : "/" + path}`;
+
+		// renderer.html is a plain extension page (not in manifest sandbox.pages)
+		// at /sandbox/renderer.html — within the SW scope /sandbox/ — so the SW
+		// intercepts all fetches made by it (including /__virtual__/* requests).
+		const rendererUrl =
+			chrome.runtime.getURL("sandbox/renderer.html") +
+			`?port=${request.port}&path=${encodeURIComponent(path)}`;
+
+		return new Promise<SandboxServerRequestResult>((resolve) => {
+			const iframe = document.createElement("iframe");
+			iframe.style.cssText =
+				"position:fixed;top:-9999px;left:-9999px;width:1280px;height:800px;opacity:0;pointer-events:none;";
+			// window.name in the renderer survives document.write; used by
+			// renderer-utils.js to include the renderId in its postMessage.
+			iframe.name = renderId;
+
+			let settled = false;
+			const settle = (html: string) => {
+				if (settled) return;
+				settled = true;
+				clearTimeout(timeoutId);
+				window.removeEventListener("message", messageHandler);
+				iframe.remove();
+				resolve({
+					port: request.port,
+					url: virtualUrl,
+					status: 200,
+					ok: true,
+					contentType: "text/html",
+					responseType: "html",
+					headers: {},
+					body: html,
+				});
+			};
+
+			// renderer-utils.js postMessages once React has mounted.
+			const messageHandler = (event: MessageEvent) => {
+				if (
+					event.data?.type === "virtual-renderer-ready" &&
+					event.data.renderId === renderId
+				) {
+					settle((event.data.html as string) ?? "");
+				}
+			};
+			window.addEventListener("message", messageHandler);
+
+			const timeoutId = window.setTimeout(() => {
+				logWarn("[renderViaIframe] Timeout waiting for renderer signal");
+				settle("");
+			}, timeoutMs);
+
+			document.body.appendChild(iframe);
+			iframe.src = rendererUrl;
+		});
 	}
 
 	async getServerRenderUrl(

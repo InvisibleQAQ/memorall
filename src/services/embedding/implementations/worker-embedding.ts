@@ -231,9 +231,9 @@ export class WorkerEmbedding implements BaseEmbedding {
 			const id = Math.random().toString(36).slice(2);
 			this.pending.set(id, { resolve, reject });
 
-			logInfo(
-				`🔤 WorkerEmbedding -> runner send (type=${type}, messageId=${id}, runnerOrigin=${this.iframe?.src})`,
-			);
+			// logInfo(
+			// 	`🔤 WorkerEmbedding -> runner send (type=${type}, messageId=${id}, runnerOrigin=${this.iframe?.src})`,
+			// );
 			const startedAt = Date.now();
 
 			// Setup timeout based on options (0 = no timeout)
@@ -292,9 +292,9 @@ export class WorkerEmbedding implements BaseEmbedding {
 					if (meta?.idleTimeout) clearTimeout(meta.idleTimeout);
 					if (meta?.maxTimeout) clearTimeout(meta.maxTimeout);
 					this.pendingMeta.delete(id);
-					logInfo(
-						`🔤 WorkerEmbedding request completed (type=${type}, messageId=${id}, elapsedMs=${Date.now() - startedAt})`,
-					);
+					// logInfo(
+					// 	`🔤 WorkerEmbedding request completed (type=${type}, messageId=${id}, elapsedMs=${Date.now() - startedAt})`,
+					// );
 					resolve(value);
 				},
 				reject: (error) => {
