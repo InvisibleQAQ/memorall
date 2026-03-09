@@ -21,7 +21,7 @@ import {
 	NODEJS_SANDBOX_FEATURE_NAME,
 	NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
 	NODEJS_SANDBOX_FEATURE_TOOLS,
-} from "./steps/features/nodejs-sandbox-feature";
+} from "./steps/features/nodejs-sandbox-feature/nodejs-sandbox-feature.v2";
 
 /**
  * Flow Builder Catalog

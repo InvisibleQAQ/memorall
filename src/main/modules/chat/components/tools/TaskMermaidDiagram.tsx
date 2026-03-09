@@ -14,19 +14,19 @@ export const extractMermaidContent = (content: string): string => {
 	return match ? match[1].trim() : "";
 };
 
-export const TaskMermaidDiagram: React.FC<{ chart: string; isOpen: boolean }> = ({
-  chart,
-  isOpen,
-}) => {
-  const hasRendered = useRef(false);
+export const TaskMermaidDiagram: React.FC<{
+	chart: string;
+	isOpen: boolean;
+}> = ({ chart, isOpen }) => {
+	const hasRendered = useRef(false);
 
-  if (!isOpen) {
-    return null;
-  }
+	if (!isOpen) {
+		return null;
+	}
 
-  if (!hasRendered.current) {
-    hasRendered.current = true;
-  }
+	if (!hasRendered.current) {
+		hasRendered.current = true;
+	}
 
-  return <MermaidRenderer chart={chart} />;
+	return <MermaidRenderer chart={chart} />;
 };

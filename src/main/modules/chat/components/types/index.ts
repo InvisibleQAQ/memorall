@@ -5,6 +5,6 @@ export interface MessageActionItem {
 }
 
 export type ActionRenderer = (
-  item: MessageActionItem,
-  isOpen: boolean,
+	item: MessageActionItem,
+	isOpen: boolean,
 ) => React.ReactNode | null;

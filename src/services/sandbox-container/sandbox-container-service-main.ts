@@ -48,6 +48,13 @@ interface PendingRequest {
 	operation: SandboxOperation;
 }
 
+interface RendererPreviewConfig {
+	path: string;
+	virtualUrl: string;
+	rendererUrl: string;
+	importMap: Record<string, string>;
+}
+
 export interface SandboxContainerInitOptions {
 	frameUrl?: string;
 	loadTimeoutMs?: number;
@@ -891,12 +898,155 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		return rawUrl;
 	}
 
+	private buildVirtualServerUrl(port: number, path: string): string {
+		return (
+			chrome.runtime.getURL("") +
+			`__virtual__/${port}${path.startsWith("/") ? path : `/${path}`}`
+		);
+	}
+
+	private async buildRendererImportMap(
+		port: number,
+	): Promise<Record<string, string>> {
+		let rendererImportMap: Record<string, string> = {};
+
+		try {
+			const { servers } = await this.request("server.list", undefined);
+			const serverInfo = servers.find((server) => server.port === port);
+			logInfo(
+				`[renderViaIframe] server rootDir=${serverInfo?.rootDir ?? "unknown"} for port=${port}`,
+			);
+			if (!serverInfo?.rootDir) {
+				return rendererImportMap;
+			}
+
+			const pkgPath = `${serverInfo.rootDir.replace(/\/$/, "")}/package.json`;
+			logInfo(`[renderViaIframe] reading package.json from ${pkgPath}`);
+
+			try {
+				const pkgResult = await this.request("fs.readFile", {
+					path: pkgPath,
+				});
+				const pkg = JSON.parse(pkgResult.content) as {
+					dependencies?: Record<string, string>;
+					devDependencies?: Record<string, string>;
+				};
+				const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+				const imports: Record<string, string> = {};
+				const virtualPrefix = `/__virtual__/${port}`;
+				const toProxyModule = (url: string) =>
+					`${virtualPrefix}/__npm_proxy__/${encodeURIComponent(url)}`;
+
+				for (const [name, rawVer] of Object.entries(allDeps)) {
+					const ver =
+						String(rawVer)
+							.replace(/^[\^~>=<*\s]+/, "")
+							.split(/\s/)[0] || "latest";
+					imports[name] = toProxyModule(`https://esm.sh/${name}@${ver}?bundle`);
+					if (name === "react") {
+						imports["react/jsx-runtime"] = toProxyModule(
+							`https://esm.sh/react@${ver}/jsx-runtime?bundle`,
+						);
+						imports["react/jsx-dev-runtime"] = toProxyModule(
+							`https://esm.sh/react@${ver}/jsx-dev-runtime?bundle`,
+						);
+					}
+					if (name === "react-dom") {
+						imports["react-dom/client"] = toProxyModule(
+							`https://esm.sh/react-dom@${ver}/client?bundle`,
+						);
+						imports["react-dom/server"] = toProxyModule(
+							`https://esm.sh/react-dom@${ver}/server?bundle`,
+						);
+					}
+				}
+
+				rendererImportMap = imports;
+				logInfo(
+					`[renderViaIframe] import map built for: [${Object.keys(imports).join(", ")}]`,
+				);
+			} catch (fsErr) {
+				logWarn(`[renderViaIframe] could not read ${pkgPath}:`, fsErr);
+			}
+		} catch (listErr) {
+			logWarn(
+				"[renderViaIframe] could not fetch server list for import map:",
+				listErr,
+			);
+		}
+
+		return rendererImportMap;
+	}
+
+	private async buildRendererPreviewConfig(
+		port: number,
+		requestPath: string | undefined,
+	): Promise<RendererPreviewConfig> {
+		const path = requestPath ?? "/";
+		const virtualUrl = this.buildVirtualServerUrl(port, path);
+		const importMap = await this.buildRendererImportMap(port);
+		const rendererUrl =
+			chrome.runtime.getURL("sandbox/renderer.html") +
+			`?port=${port}&path=${encodeURIComponent(path)}&importMap=${encodeURIComponent(JSON.stringify(importMap))}`;
+
+		return {
+			path,
+			virtualUrl,
+			rendererUrl,
+			importMap,
+		};
+	}
+
+	private resolveServerEntryPath(
+		rootDir: string | undefined,
+		entryPath: string | undefined,
+	): string | undefined {
+		if (!entryPath) {
+			return undefined;
+		}
+
+		const normalizedEntry = this.normalizeVirtualPath(entryPath);
+		if (entryPath.startsWith("/")) {
+			return normalizedEntry;
+		}
+
+		const normalizedRoot = rootDir
+			? this.normalizeVirtualPath(rootDir)
+			: undefined;
+		if (!normalizedRoot || normalizedRoot === "/") {
+			return normalizedEntry;
+		}
+
+		const relativeEntry = normalizedEntry.replace(/^\/+/, "");
+		return this.normalizeVirtualPath(`${normalizedRoot}/${relativeEntry}`);
+	}
+
 	async startServer(
 		request: SandboxStartServerRequest,
 	): Promise<SandboxStartServerResult> {
+		const resolvedEntryPath = this.resolveServerEntryPath(
+			request.rootDir,
+			request.entryPath,
+		);
+
+		if (request.rootDir && this.isWorkspacePath(request.rootDir)) {
+			await this.syncWorkspaceMount();
+		}
+
+		if (resolvedEntryPath && this.isWorkspacePath(resolvedEntryPath)) {
+			await this.materializeMountedWorkspaceFile(resolvedEntryPath);
+		}
+
 		// Allow extra time when a template will be scaffolded + npm-installed.
 		const timeoutMs = request.template ? 300_000 : 60_000;
-		const result = await this.request("server.start", request, timeoutMs);
+		const result = await this.request(
+			"server.start",
+			{
+				...request,
+				entryPath: resolvedEntryPath,
+			},
+			timeoutMs,
+		);
 		return { ...result, renderUrl: this.resolveRenderUrl(result.renderUrl) };
 	}
 
@@ -916,7 +1066,11 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		if (request.useIframe) {
 			return this.renderViaIframe(request);
 		}
-		return this.request("server.request", request, request.timeoutMs ?? 60_000);
+		return this.request(
+			"server.request",
+			request,
+			request.timeoutMs ?? 120_000,
+		);
 	}
 
 	/**
@@ -944,94 +1098,22 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 			await new Promise<void>((r) => setTimeout(r, 200));
 		}
 
-		const path = request.path ?? "/";
+		const previewConfig = await this.buildRendererPreviewConfig(
+			request.port,
+			request.path,
+		);
+		const { path, virtualUrl, rendererUrl, importMap } = previewConfig;
 		const timeoutMs = request.timeoutMs ?? 120_000;
 		// Unique ID to match the postMessage from renderer-utils.js.
 		// Passed via iframe.name (survives document.write inside the renderer).
 		const renderId = Math.random().toString(36).slice(2, 10);
 
-		const virtualUrl =
-			chrome.runtime.getURL("") +
-			`__virtual__/${request.port}${path.startsWith("/") ? path : "/" + path}`;
-
-		// Build import map from package.json on the sandbox filesystem and send it to
-		// the SW. Vite dev server does not serve package.json via HTTP, so we read it
-		// directly from the sandbox VFS. The SW rewrites bare specifiers (e.g.
-		// "react/jsx-runtime") to full esm.sh URLs directly in JS responses, which
-		// avoids needing a <script type="importmap"> in HTML (blocked by extension CSP).
-		let rendererImportMap: Record<string, string> = {};
-		try {
-			const { servers } = await this.request("server.list", undefined);
-			const serverInfo = servers.find((s) => s.port === request.port);
-			logInfo(
-				`[renderViaIframe] server rootDir=${serverInfo?.rootDir ?? "unknown"} for port=${request.port}`,
-			);
-			if (serverInfo?.rootDir) {
-				const pkgPath = serverInfo.rootDir.replace(/\/$/, "") + "/package.json";
-				logInfo(`[renderViaIframe] reading package.json from ${pkgPath}`);
-				try {
-					const pkgResult = await this.request("fs.readFile", {
-						path: pkgPath,
-					});
-					const pkg = JSON.parse(pkgResult.content) as {
-						dependencies?: Record<string, string>;
-						devDependencies?: Record<string, string>;
-					};
-					const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
-					const imports: Record<string, string> = {};
-					const virtualPrefix = `/__virtual__/${request.port}`;
-					const toProxyModule = (url: string) =>
-						`${virtualPrefix}/__npm_proxy__/${encodeURIComponent(url)}`;
-					for (const [name, rawVer] of Object.entries(allDeps)) {
-						const ver =
-							String(rawVer)
-								.replace(/^[\^~>=<*\s]+/, "")
-								.split(/\s/)[0] || "latest";
-						imports[name] = toProxyModule(
-							`https://esm.sh/${name}@${ver}?bundle`,
-						);
-						if (name === "react") {
-							imports["react/jsx-runtime"] = toProxyModule(
-								`https://esm.sh/react@${ver}/jsx-runtime?bundle`,
-							);
-							imports["react/jsx-dev-runtime"] = toProxyModule(
-								`https://esm.sh/react@${ver}/jsx-dev-runtime?bundle`,
-							);
-						}
-						if (name === "react-dom") {
-							imports["react-dom/client"] = toProxyModule(
-								`https://esm.sh/react-dom@${ver}/client?bundle`,
-							);
-							imports["react-dom/server"] = toProxyModule(
-								`https://esm.sh/react-dom@${ver}/server?bundle`,
-							);
-						}
-					}
-					rendererImportMap = imports;
-					logInfo(
-						`[renderViaIframe] import map built for: [${Object.keys(imports).join(", ")}]`,
-					);
-					sw?.postMessage({
-						type: "set-import-map",
-						data: { port: request.port, importMap: imports },
-					});
-				} catch (fsErr) {
-					logWarn(`[renderViaIframe] could not read ${pkgPath}:`, fsErr);
-				}
-			}
-		} catch (listErr) {
-			logWarn(
-				"[renderViaIframe] could not fetch server list for import map:",
-				listErr,
-			);
+		if (Object.keys(importMap).length > 0) {
+			sw?.postMessage({
+				type: "set-import-map",
+				data: { port: request.port, importMap },
+			});
 		}
-
-		// renderer.html is a plain extension page (not in manifest sandbox.pages)
-		// at /sandbox/renderer.html — within the SW scope /sandbox/ — so the SW
-		// intercepts all fetches made by it (including /__virtual__/* requests).
-		const rendererUrl =
-			chrome.runtime.getURL("sandbox/renderer.html") +
-			`?port=${request.port}&path=${encodeURIComponent(path)}&importMap=${encodeURIComponent(JSON.stringify(rendererImportMap))}`;
 
 		return new Promise<SandboxServerRequestResult>((resolve) => {
 			const iframe = document.createElement("iframe");
@@ -1151,8 +1233,11 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 	async getServerRenderUrl(
 		request: SandboxServerRenderUrlRequest,
 	): Promise<SandboxServerRenderUrlResult> {
-		const result = await this.request("server.renderUrl", request);
-		return { ...result, url: this.resolveRenderUrl(result.url) };
+		const previewConfig = await this.buildRendererPreviewConfig(
+			request.port,
+			request.path,
+		);
+		return { port: request.port, url: previewConfig.rendererUrl };
 	}
 
 	async getSnapshot(): Promise<{ snapshot: unknown }> {

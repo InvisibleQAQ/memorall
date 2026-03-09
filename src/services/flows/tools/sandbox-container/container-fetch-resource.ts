@@ -35,17 +35,16 @@ const schema = z.object({
 type Input = z.infer<typeof schema>;
 type Services = Pick<AllServices, "sandboxContainer">;
 
-export const createContainerFetchResourceTool: ToolFactory<
-	Input,
-	Services
-> = (services): Tool<Input> => ({
+export const createContainerFetchResourceTool: ToolFactory<Input, Services> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Fetch API/UI resources through container runtime. Auto-detects JSON vs HTML/text and returns status + body.",
 	schema,
 	execute: async (input) => {
 		if (!services.sandboxContainer) {
-			return 'Sanbox container is not avaible'
+			return "Sanbox container is not avaible";
 		}
 		const result = await services.sandboxContainer.fetchResource({
 			url: input.url,

@@ -6,6 +6,7 @@ import type {
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import { GraphBase, type ToolName } from "@/services/flows/graph/graph.base";
+import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 
 const STEP_NAME = "nodejs-sandbox-feature" as const;
@@ -23,15 +24,20 @@ export interface NodejsSandboxFeatureOutput {
 
 export interface NodejsSandboxFeatureConfig {}
 
-export type NodejsSandboxFeatureServices = {};
+export type NodejsSandboxFeatureServices =
+	| Pick<AllServices, "sandboxContainer">
+	| undefined;
 
 const SYSTEM_PROMPT_INSTRUCTION = `
 # NODEJS SANDBOX FEATURE
-You have access to an isolated browser-based sandbox container with virtual filesystem, npm package management (loaded from CDN), runtime execution, and HTTP resource access.
+You have access to a lightweight browser-based sandbox container with virtual filesystem, npm package management (loaded from CDN), runtime execution, and HTTP resource access.
 If user require to write code, execute code please use this actively to write and run code.
 
 ## IMPORTANT RUNTIME CONSTRAINTS
 - The sandbox runs on almostnode in the browser (not OS Node.js), but it provides broad built-in API shims including \`fs\`, \`path\`, \`url\`, \`util\`, \`events\`, \`os\`, \`crypto\`, and more.
+- This is a lightweight sandbox intended for simple HTTP/Express/Vite/Next.js demos, small code execution tasks, and basic package usage.
+- It will NOT reliably work with native Node.js addons, packages that require OS/native bindings, or libraries that expect real system processes.
+- It may also fail with very heavy frameworks, complicated Vite customization, advanced plugin chains, or packages that depend on non-browser worker/native behavior.
 - \`require()\` is available for built-in shims, installed npm packages, and files in the virtual filesystem.
 - \`require("fs")\` operates on the virtual filesystem.
 - Filesystem mounts:
@@ -51,6 +57,8 @@ If user require to write code, execute code please use this actively to write an
   - create/update/read project files
   - fetch API/HTML resources from within the container runtime context
 - Prefer container tools for multi-step coding tasks where reproducible runtime state matters.
+- To start any server (HTTP, Express, Vite, Next.js, etc.), always use "container_start_server" or "container_setup_server".
+- Never use "container_run_code" to start or host a long-running server.
 
 ## WHEN NOT TO USE THIS FEATURE
 - Do not use container tools for simple factual Q&A that needs no execution.
@@ -68,15 +76,10 @@ If user require to write code, execute code please use this actively to write an
   It automatically scaffolds files, installs packages, starts the server, and returns an iframe preview.
 4) Manual server lifecycle (when files already exist or custom setup needed):
 - "container_start_server" -> "container_list_servers" -> "container_stop_server"
-5) Show a running web UI in chat (Vite, Next.js, React SPA, Express HTML page):
-- "container_render_server" → renders via iframe (REQUIRED for web UI — direct fetch won't work)
-6) Call an API endpoint and show the response (JSON / plain text only):
-- "container_request_server" → direct HTTP fetch, returns structured response
-7) Network checks:
-- "container_fetch_resource" for external API (JSON) or web URLs
-8) Browser-like web access:
-- "container_web_access" to access a URL and return URL + HTML for preview/simulation.
-9) Diagnostics:
+5) Access a started server by URL:
+- "container_web_access_v2" with useIframe=true for web UI pages (Vite, Next.js, React SPA, Express HTML page)
+- "container_web_access_v2" with useIframe=false for API-style endpoints (JSON / plain text response)
+6) Diagnostics:
 - "container_get_logs", then optionally "container_clear_logs"
 
 ## SERVER SETUP GUIDE
@@ -91,14 +94,15 @@ If user require to write code, execute code please use this actively to write an
 - Project files already exist in the VFS (custom code already written)
 - User asks to restart a stopped server
 - Need fine-grained control over entryPath or hostname
+- Never start a server with "container_run_code". Use "container_start_server".
 
 ### After the server is running — CRITICAL: choose the right tool
 | Goal | Tool to call |
 |------|-------------|
-| Show web UI page (Vite, Next.js, Express HTML, React SPA) | **container_render_server** — renders via iframe, captures full DOM |
-| Call an API endpoint (JSON, text response) | **container_request_server** — direct HTTP fetch, returns structured response |
+| Show web UI page (Vite, Next.js, Express HTML, React SPA) | **container_web_access_v2** with \`useIframe: true\` |
+| Call an API endpoint (JSON, text response) | **container_web_access_v2** with \`useIframe: false\` |
 
-**NEVER** use container_request_server to preview a web UI page — it will fail because AlmostNode servers have no real TCP socket; the iframe path is required to route through the service worker.
+**NEVER** use \`container_web_access_v2\` with \`useIframe: false\` to preview a web UI page. Use \`useIframe: true\` so the browser can execute the app and return rendered HTML.
 
 ### Template → framework mapping
 | template      | kind    | default port | use case                    |
@@ -118,14 +122,36 @@ export const NODEJS_SANDBOX_FEATURE_TOOLS = [
 	"container_list_servers",
 	"container_get_logs",
 	"container_clear_logs",
-	"container_fetch_resource",
-	"container_web_access",
-	"container_render_server",
-	"container_request_server",
+	"container_web_access_v2",
 	"container_setup_server",
 ] as const;
 export const NODEJS_SANDBOX_FEATURE_DESCRIPTION =
 	"Enable isolated Node.js container tools for runtime execution, npm, filesystem, server lifecycle, logs, and resource fetch.";
+
+const buildRunningServersPrompt = async (
+	services: NodejsSandboxFeatureServices,
+): Promise<string> => {
+	const sandboxContainer = services?.sandboxContainer;
+	if (!sandboxContainer) {
+		return "";
+	}
+
+	try {
+		const result = await sandboxContainer.listServers();
+		if (result.servers.length === 0) {
+			return "";
+		}
+
+		const lines = result.servers.map(
+			(server) =>
+				`- kind=${server.kind}, port=${server.port}, url=${server.url}, rootDir=${server.rootDir ?? "unknown"}`,
+		);
+
+		return `## CURRENT RUNNING SANDBOX SERVERS\n${lines.join("\n")}\n`;
+	} catch {
+		return "";
+	}
+};
 
 const definition = defineStep<
 	NodejsSandboxFeatureInput,
@@ -134,15 +160,16 @@ const definition = defineStep<
 	NodejsSandboxFeatureConfig
 >({
 	name: STEP_NAME,
-	execute: async ({ input }) => {
+	execute: async ({ input, services }) => {
 		try {
 			const tools = GraphBase.chat.addTool(
 				input.tools,
 				...NODEJS_SANDBOX_FEATURE_TOOLS,
 			);
+			const runningServersPrompt = await buildRunningServersPrompt(services);
 			const messages = GraphBase.chat.systemMessage(
 				input.messages,
-				NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
+				`${NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT}\n\n${runningServersPrompt}`,
 			);
 
 			return {

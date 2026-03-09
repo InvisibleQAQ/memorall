@@ -48,7 +48,7 @@ export const createContainerStartServerTool: ToolFactory<Input, Services> = (
 	execute: async (input) => {
 		try {
 			if (!services.sandboxContainer) {
-				return 'Sanbox container is not avaible'
+				return "Sanbox container is not avaible";
 			}
 			const result = await services.sandboxContainer.startServer({
 				kind: input.kind,

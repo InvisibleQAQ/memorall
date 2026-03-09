@@ -42,7 +42,7 @@ export const createContainerRenderServerTool: ToolFactory<Input, Services> = (
 	schema,
 	execute: async (input) => {
 		if (!services.sandboxContainer) {
-			return 'Sanbox container is not avaible'
+			return "Sanbox container is not avaible";
 		}
 		const path = input.path ?? "/";
 		try {

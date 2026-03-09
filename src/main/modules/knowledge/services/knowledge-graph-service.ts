@@ -209,6 +209,7 @@ export class KnowledgeGraphService {
 					llm: serviceManager.getLLMService(),
 					embedding: serviceManager.getEmbeddingService(),
 					database: serviceManager.getDatabaseService(),
+					sandboxContainer: serviceManager.getSandboxContainerService(),
 				},
 			);
 

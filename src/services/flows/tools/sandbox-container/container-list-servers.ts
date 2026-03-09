@@ -21,7 +21,7 @@ export const createContainerListServersTool: ToolFactory<Input, Services> = (
 	schema,
 	execute: async () => {
 		if (!services.sandboxContainer) {
-			return 'Sanbox container is not avaible'
+			return "Sanbox container is not avaible";
 		}
 		const result = await services.sandboxContainer.listServers();
 		return JSON.stringify(result, null, 2);

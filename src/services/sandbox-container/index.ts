@@ -48,6 +48,7 @@ export type {
 	SandboxServerRequestResult,
 	SandboxServerRenderUrlRequest,
 	SandboxServerRenderUrlResult,
+	SandboxHandleSwRequestResult,
 	SandboxSnapshotResult,
 	SandboxRestoreSnapshotRequest,
 	SandboxHealthResult,

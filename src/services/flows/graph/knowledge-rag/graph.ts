@@ -60,7 +60,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 					messages?: KnowledgeRAGState["messages"];
 					tools?: KnowledgeRAGState["tools"];
 				}
-			>(catalogStep.name);
+			>(catalogStep.name, services);
 			const nodeName = `feature_${catalogStep.name}`;
 			this.workflow.addNode(
 				nodeName,

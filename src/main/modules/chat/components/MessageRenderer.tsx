@@ -8,8 +8,9 @@ import {
 	MessageContent,
 } from "@/main/components/ui/shadcn-io/ai/message";
 import type { Message as DBMessage } from "@/services/database/types";
+import type { MessageActionItem } from "@/main/modules/chat/components/types";
 
-import { MessageActions, type MessageActionItem } from "./MessageActions";
+import { MessageActions } from "./MessageActions";
 import { MessageFooter, type MessageFooterMetadata } from "./MessageFooter";
 
 const USE_STREAMDOWN = false;

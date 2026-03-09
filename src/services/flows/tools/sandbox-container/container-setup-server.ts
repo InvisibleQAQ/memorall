@@ -77,7 +77,7 @@ export const createContainerSetupServerTool: ToolFactory<Input, Services> = (
 	schema,
 	execute: async (input) => {
 		if (!services.sandboxContainer) {
-			return 'Sanbox container is not avaible'
+			return "Sanbox container is not avaible";
 		}
 		const kind = TEMPLATE_KIND[input.template];
 		const port = input.port ?? TEMPLATE_DEFAULT_PORT[input.template] ?? 3000;

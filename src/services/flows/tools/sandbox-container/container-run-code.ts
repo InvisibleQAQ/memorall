@@ -40,7 +40,7 @@ export const createContainerRunCodeTool: ToolFactory<Input, Services> = (
 	schema,
 	execute: async (input) => {
 		if (!services.sandboxContainer) {
-			return 'Sanbox container is not avaible'
+			return "Sanbox container is not avaible";
 		}
 		const result = await services.sandboxContainer.executeCode({
 			code: input.code,

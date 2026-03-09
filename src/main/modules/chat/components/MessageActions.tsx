@@ -67,10 +67,10 @@ type ActionRenderer = (
 const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	container_web_access: webAccessRenderer,
 	web_access: webAccessRenderer,
-	'web access': webAccessRenderer,
+	"web access": webAccessRenderer,
 	container_render_server: webAccessRenderer,
 	sandbox_api_result: apiResultRenderer,
-	container_request_server: apiResultRenderer
+	container_request_server: apiResultRenderer,
 };
 
 interface ActionContentProps {

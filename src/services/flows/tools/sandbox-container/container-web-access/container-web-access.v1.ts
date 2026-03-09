@@ -64,10 +64,9 @@ const parseServerUrl = (
 	return null;
 };
 
-export const createContainerWebAccessTool: ToolFactory<
-	Input,
-	Services
-> = (services): Tool<Input> => ({
+export const createContainerWebAccessTool: ToolFactory<Input, Services> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Access a running sandbox container server. " +
@@ -76,7 +75,7 @@ export const createContainerWebAccessTool: ToolFactory<
 	schema,
 	execute: async (input) => {
 		if (!services.sandboxContainer) {
-			return 'Sanbox container is not avaible'
+			return "Sanbox container is not avaible";
 		}
 		const target = parseServerUrl(input.url);
 		if (!target) {
