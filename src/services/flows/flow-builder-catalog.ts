@@ -264,12 +264,14 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			{
 				name: "messages",
 				type: "Message[]",
-				description: "Messages with filesystem instructions for both namespaces",
+				description:
+					"Messages with filesystem instructions for both namespaces",
 			},
 			{
 				name: "tools",
 				type: "Tool[]",
-				description: "Tools extended with fs toolset (/documents + /workspaces)",
+				description:
+					"Tools extended with fs toolset (/documents + /workspaces)",
 			},
 		],
 		metadata: {

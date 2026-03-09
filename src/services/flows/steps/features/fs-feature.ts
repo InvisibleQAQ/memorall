@@ -133,10 +133,7 @@ const definition = defineStep<
 	name: STEP_NAME,
 	execute: async ({ input }) => {
 		try {
-			const tools = GraphBase.chat.addTool(
-				input.tools,
-				...FS_FEATURE_TOOLS,
-			);
+			const tools = GraphBase.chat.addTool(input.tools, ...FS_FEATURE_TOOLS);
 			const messages = GraphBase.chat.systemMessage(
 				input.messages,
 				FS_FEATURE_SYSTEM_PROMPT,

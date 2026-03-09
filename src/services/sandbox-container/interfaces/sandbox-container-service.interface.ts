@@ -32,45 +32,51 @@ import type {
 	SandboxStartServerRequest,
 	SandboxStartServerResult,
 	SandboxStopServerRequest,
-} from "./types";
+	SandboxOperation,
+	SandboxOperationPayloadMap,
+	SandboxOperationResultMap,
+} from "../types";
 
 export interface ISandboxContainerService {
 	isReady(): boolean;
 	getInitializedAt(): number | null;
 	initialize(): Promise<void>;
 	dispose(): Promise<void>;
+	request<T extends SandboxOperation>(
+		operation: T,
+		payload: SandboxOperationPayloadMap[T],
+		timeoutMs?: number,
+	): Promise<SandboxOperationResultMap[T]>;
 
-	// Runtime
 	health(): Promise<SandboxHealthResult>;
 	resetRuntime(): Promise<void>;
-	executeCode(request: SandboxExecutionRequest): Promise<SandboxExecutionResult>;
+	executeCode(
+		request: SandboxExecutionRequest,
+	): Promise<SandboxExecutionResult>;
 	runFile(request: SandboxRunFileRequest): Promise<SandboxRunFileResult>;
 	createRepl(): Promise<{ replId: string }>;
-	replEval(
-		request: { replId: string; code: string; timeoutMs?: number },
-	): Promise<SandboxExecutionResult>;
+	replEval(request: {
+		replId: string;
+		code: string;
+		timeoutMs?: number;
+	}): Promise<SandboxExecutionResult>;
 	getLogs(request?: SandboxGetLogsRequest): Promise<SandboxGetLogsResult>;
 	clearLogs(): Promise<{ cleared: true }>;
 
-	// Network
 	fetchResource(
 		request: SandboxNetworkFetchRequest,
 	): Promise<SandboxNetworkFetchResult>;
 
-	// File system
 	writeFile(request: SandboxFsWriteFileRequest): Promise<{ path: string }>;
 	readFile(request: SandboxFsReadFileRequest): Promise<SandboxFsReadFileResult>;
 	mkdir(request: SandboxFsMkdirRequest): Promise<{ path: string }>;
-	readdir(
-		request: SandboxFsReaddirRequest,
-	): Promise<SandboxFsReaddirResult>;
+	readdir(request: SandboxFsReaddirRequest): Promise<SandboxFsReaddirResult>;
 	unlink(request: SandboxFsUnlinkRequest): Promise<{ path: string }>;
 	rename(
 		request: SandboxFsRenameRequest,
 	): Promise<{ oldPath: string; newPath: string }>;
 	exists(request: SandboxFsExistsRequest): Promise<SandboxFsExistsResult>;
 
-	// NPM
 	installPackage(
 		request: SandboxNpmInstallRequest,
 	): Promise<SandboxNpmInstallResult>;
@@ -79,7 +85,6 @@ export interface ISandboxContainerService {
 	): Promise<SandboxNpmInstallResult>;
 	listInstalledPackages(): Promise<SandboxNpmListResult>;
 
-	// Servers
 	startServer(
 		request: SandboxStartServerRequest,
 	): Promise<SandboxStartServerResult>;
@@ -92,7 +97,6 @@ export interface ISandboxContainerService {
 		request: SandboxServerRenderUrlRequest,
 	): Promise<SandboxServerRenderUrlResult>;
 
-	// Snapshot
 	getSnapshot(): Promise<SandboxSnapshotResult>;
 	restoreSnapshot(
 		request: SandboxRestoreSnapshotRequest,

@@ -401,7 +401,9 @@ export type SandboxOperationResultMap = {
 	"runtime.reset": { reset: true };
 };
 
-export interface SandboxRequestEnvelope<T extends SandboxOperation & keyof SandboxOperationPayloadMap> {
+export interface SandboxRequestEnvelope<
+	T extends SandboxOperation & keyof SandboxOperationPayloadMap,
+> {
 	channel: "memorall-sandbox-container";
 	direction: "request";
 	requestId: string;
@@ -409,7 +411,9 @@ export interface SandboxRequestEnvelope<T extends SandboxOperation & keyof Sandb
 	payload: SandboxOperationPayloadMap[T];
 }
 
-export interface SandboxResponseEnvelope<T extends SandboxOperation & keyof SandboxOperationResultMap> {
+export interface SandboxResponseEnvelope<
+	T extends SandboxOperation & keyof SandboxOperationResultMap,
+> {
 	channel: "memorall-sandbox-container";
 	direction: "response";
 	requestId: string;

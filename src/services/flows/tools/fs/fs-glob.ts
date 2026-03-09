@@ -54,13 +54,13 @@ export const createFsGlobTool: ToolFactory<Input, Services> = (
 			const tree = await dfs.getWorkspaceTree();
 			const allNodes = flattenTree(tree);
 
-			const candidates = allNodes.filter(
-				(n) => isInScope(n.path, wsLogical),
-			);
+			const candidates = allNodes.filter((n) => isInScope(n.path, wsLogical));
 
 			const matches = candidates.filter((n) => {
 				const rel =
-					wsLogical === "/" ? n.path.slice(1) : n.path.slice(wsLogical.length + 1);
+					wsLogical === "/"
+						? n.path.slice(1)
+						: n.path.slice(wsLogical.length + 1);
 				return rel.length > 0 && regex.test(rel);
 			});
 
@@ -82,9 +82,7 @@ export const createFsGlobTool: ToolFactory<Input, Services> = (
 		const tree = await dfs.getTree();
 		const allNodes = flattenTree(tree);
 
-		const candidates = allNodes.filter(
-			(n) => isInScope(n.path, docBasePath),
-		);
+		const candidates = allNodes.filter((n) => isInScope(n.path, docBasePath));
 
 		const matches = candidates.filter((n) => {
 			const rel =

@@ -12,7 +12,7 @@ type StoredAction = {
 };
 
 function renderAction(a: StoredAction): string {
-	const description = (a.description ?? "");
+	const description = a.description ?? "";
 	const toolCall = a.metadata?.tool;
 
 	if (toolCall) {

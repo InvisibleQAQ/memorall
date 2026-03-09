@@ -1,7 +1,7 @@
 import z from "zod";
+import { serviceManager } from "@/services";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
-import { sandboxContainerService } from "@/services/sandbox-container";
 
 const TOOL_NAME = "container_fetch_resource" as const;
 
@@ -40,6 +40,7 @@ export const createContainerFetchResourceTool: ToolFactory<
 		"Fetch API/UI resources through container runtime. Auto-detects JSON vs HTML/text and returns status + body.",
 	schema,
 	execute: async (input) => {
+		const sandboxContainerService = serviceManager.getSandboxContainerService();
 		const result = await sandboxContainerService.fetchResource({
 			url: input.url,
 			method: input.method ?? "GET",

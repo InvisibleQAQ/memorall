@@ -1,7 +1,7 @@
 import z from "zod";
+import { serviceManager } from "@/services";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
-import { sandboxContainerService } from "@/services/sandbox-container";
 
 const TOOL_NAME = "container_web_access" as const;
 
@@ -16,7 +16,10 @@ const schema = z.object({
 		.default("GET")
 		.describe("HTTP method (default: GET)."),
 	body: z.string().optional().describe("Request body (for POST/PUT/PATCH)."),
-	headers: z.record(z.string(), z.string()).optional().describe("Additional request headers."),
+	headers: z
+		.record(z.string(), z.string())
+		.optional()
+		.describe("Additional request headers."),
 	useIframe: z
 		.boolean()
 		.optional()
@@ -29,8 +32,12 @@ const schema = z.object({
 
 type Input = z.infer<typeof schema>;
 
-const parseServerUrl = (rawUrl: string): { port: number; path: string } | null => {
-	const virtualMatch = rawUrl.match(/\/__virtual__\/(\d+)(\/[^?#]*)?([?#].*)?$/);
+const parseServerUrl = (
+	rawUrl: string,
+): { port: number; path: string } | null => {
+	const virtualMatch = rawUrl.match(
+		/\/__virtual__\/(\d+)(\/[^?#]*)?([?#].*)?$/,
+	);
 	if (virtualMatch) {
 		const port = Number(virtualMatch[1]);
 		const path = `${virtualMatch[2] || "/"}${virtualMatch[3] || ""}`;
@@ -41,7 +48,10 @@ const parseServerUrl = (rawUrl: string): { port: number; path: string } | null =
 		const parsed = new URL(rawUrl);
 		const port = Number(parsed.port);
 		if (!Number.isNaN(port) && port > 0) {
-			return { port, path: `${parsed.pathname || "/"}${parsed.search}${parsed.hash}` };
+			return {
+				port,
+				path: `${parsed.pathname || "/"}${parsed.search}${parsed.hash}`,
+			};
 		}
 	} catch {
 		// not a valid absolute URL
@@ -50,7 +60,10 @@ const parseServerUrl = (rawUrl: string): { port: number; path: string } | null =
 	return null;
 };
 
-export const createContainerWebAccessTool: ToolFactory<Input, undefined> = (): Tool<Input> => ({
+export const createContainerWebAccessTool: ToolFactory<
+	Input,
+	undefined
+> = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Access a running sandbox container server. " +
@@ -58,6 +71,7 @@ export const createContainerWebAccessTool: ToolFactory<Input, undefined> = (): T
 		"Omit useIframe (or set false) to call API endpoints and return their response body.",
 	schema,
 	execute: async (input) => {
+		const sandboxContainerService = serviceManager.getSandboxContainerService();
 		const target = parseServerUrl(input.url);
 		if (!target) {
 			return JSON.stringify(

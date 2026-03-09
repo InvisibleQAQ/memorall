@@ -1,5 +1,6 @@
-import { sandboxContainerService } from "@/services/sandbox-container";
+import { serviceManager } from "@/services";
 import type {
+	ISandboxContainerService,
 	SandboxOperation,
 	SandboxOperationPayloadMap,
 	SandboxOperationResultMap,
@@ -12,9 +13,9 @@ import type {
 	ProcessHandler,
 } from "./types";
 
-const JOB_NAME = "sandbox-operation" as const;
+export const SANDBOX_OPERATION_JOB_NAME = "sandbox-operation" as const;
 
-type SandboxOperationJobPayload = {
+export type SandboxOperationJobPayload = {
 	[K in SandboxOperation]: {
 		operation: K;
 		payload: SandboxOperationPayloadMap[K];
@@ -39,11 +40,8 @@ const isSandboxOperationPayload = (
 };
 
 export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
-	private async executeOperation<T extends SandboxOperation>(
-		operation: T,
-		payload: SandboxOperationPayloadMap[T],
-	): Promise<SandboxOperationResultMap[T]> {
-		return sandboxContainerService.request(operation, payload);
+	private getSandboxContainerService(): ISandboxContainerService {
+		return serviceManager.getSandboxContainerService();
 	}
 
 	async process(
@@ -80,71 +78,96 @@ export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
 	private async runWithStrongTypes(
 		payload: SandboxOperationJobPayload,
 	): Promise<unknown> {
+		const sandboxContainerService = this.getSandboxContainerService();
+
 		switch (payload.operation) {
 			case "health":
-				return this.executeOperation("health", payload.payload);
+				return sandboxContainerService.health();
 			case "runtime.executeCode":
-				return this.executeOperation("runtime.executeCode", payload.payload);
+				return sandboxContainerService.executeCode(payload.payload);
 			case "runtime.runFile":
-				return this.executeOperation("runtime.runFile", payload.payload);
+				return sandboxContainerService.runFile(payload.payload);
 			case "runtime.createRepl":
-				return this.executeOperation("runtime.createRepl", payload.payload);
+				return sandboxContainerService.createRepl();
 			case "runtime.replEval":
-				return this.executeOperation("runtime.replEval", payload.payload);
+				return sandboxContainerService.replEval(payload.payload);
 			case "runtime.getLogs":
-				return this.executeOperation("runtime.getLogs", payload.payload);
+				return sandboxContainerService.getLogs(payload.payload);
 			case "runtime.clearLogs":
-				return this.executeOperation("runtime.clearLogs", payload.payload);
+				return sandboxContainerService.clearLogs();
 			case "network.fetch":
-				return this.executeOperation("network.fetch", payload.payload);
+				return sandboxContainerService.fetchResource(payload.payload);
+			case "fs.writeFile":
+				return sandboxContainerService.writeFile(payload.payload);
+			case "fs.readFile":
+				return sandboxContainerService.readFile(payload.payload);
+			case "fs.mkdir":
+				return sandboxContainerService.mkdir(payload.payload);
+			case "fs.readdir":
+				return sandboxContainerService.readdir(payload.payload);
+			case "fs.unlink":
+				return sandboxContainerService.unlink(payload.payload);
+			case "fs.rename":
+				return sandboxContainerService.rename(payload.payload);
+			case "fs.exists":
+				return sandboxContainerService.exists(payload.payload);
 			case "fs.mountDocuments":
-				return this.executeOperation("fs.mountDocuments", payload.payload);
+				return sandboxContainerService.request(
+					"fs.mountDocuments",
+					payload.payload,
+				);
 			case "fs.materializeDocumentFile":
-				return this.executeOperation(
+				return sandboxContainerService.request(
 					"fs.materializeDocumentFile",
 					payload.payload,
 				);
 			case "fs.mountWorkspace":
-				return this.executeOperation("fs.mountWorkspace", payload.payload);
+				return sandboxContainerService.request(
+					"fs.mountWorkspace",
+					payload.payload,
+				);
 			case "fs.materializeWorkspaceFile":
-				return this.executeOperation(
+				return sandboxContainerService.request(
 					"fs.materializeWorkspaceFile",
 					payload.payload,
 				);
 			case "fs.flushWorkspaceWrites":
-				return this.executeOperation(
+				return sandboxContainerService.request(
 					"fs.flushWorkspaceWrites",
 					payload.payload,
 				);
 			case "npm.install":
-				return this.executeOperation("npm.install", payload.payload);
+				return sandboxContainerService.installPackage(payload.payload);
 			case "npm.installFromPackageJson":
-				return this.executeOperation(
-					"npm.installFromPackageJson",
+				return sandboxContainerService.installFromPackageJson(payload.payload);
+			case "npm.list":
+				return sandboxContainerService.listInstalledPackages();
+			case "server.start":
+				return sandboxContainerService.startServer(payload.payload);
+			case "server.stop":
+				return sandboxContainerService.stopServer(payload.payload);
+			case "server.list":
+				return sandboxContainerService.listServers();
+			case "server.request":
+				return sandboxContainerService.requestServer(payload.payload);
+			case "server.renderUrl":
+				return sandboxContainerService.getServerRenderUrl(payload.payload);
+			case "server.handleSwRequest":
+				return sandboxContainerService.request(
+					"server.handleSwRequest",
 					payload.payload,
 				);
-			case "npm.list":
-				return this.executeOperation("npm.list", payload.payload);
-			case "server.start":
-				return this.executeOperation("server.start", payload.payload);
-			case "server.stop":
-				return this.executeOperation("server.stop", payload.payload);
-			case "server.list":
-				return this.executeOperation("server.list", payload.payload);
-			case "server.request":
-				return this.executeOperation("server.request", payload.payload);
-			case "server.renderUrl":
-				return this.executeOperation("server.renderUrl", payload.payload);
 			case "snapshot.get":
-				return this.executeOperation("snapshot.get", payload.payload);
+				return sandboxContainerService.getSnapshot();
 			case "snapshot.restore":
-				return this.executeOperation("snapshot.restore", payload.payload);
+				return sandboxContainerService.restoreSnapshot(payload.payload);
 			case "runtime.reset":
-				return this.executeOperation("runtime.reset", payload.payload);
-			default: {
-				throw new Error(
-					`Unsupported sandbox operation payload`,
+				return sandboxContainerService.request(
+					"runtime.reset",
+					payload.payload,
 				);
+			default: {
+				throw new Error(`Unsupported sandbox operation payload`);
 			}
 		}
 	}
@@ -152,15 +175,15 @@ export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
 
 backgroundProcessFactory.register({
 	instance: new SandboxOperationsHandler(),
-	jobs: [JOB_NAME],
+	jobs: [SANDBOX_OPERATION_JOB_NAME],
 });
 
 declare global {
 	interface JobTypeRegistry {
-		[JOB_NAME]: SandboxOperationJobPayload;
+		[SANDBOX_OPERATION_JOB_NAME]: SandboxOperationJobPayload;
 	}
 
 	interface JobResultRegistry {
-		[JOB_NAME]: SandboxOperationJobResult;
+		[SANDBOX_OPERATION_JOB_NAME]: SandboxOperationJobResult;
 	}
 }

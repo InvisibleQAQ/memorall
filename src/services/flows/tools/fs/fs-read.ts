@@ -43,10 +43,7 @@ export const createFsReadTool: ToolFactory<Input, Services> = (
 
 		const filePath = normalizeFsPath(file_path);
 
-		const readAndFormat = (
-			raw: Uint8Array,
-			displayPath: string,
-		): string => {
+		const readAndFormat = (raw: Uint8Array, displayPath: string): string => {
 			const text = new TextDecoder().decode(raw);
 			const allLines = text.split("\n");
 			const totalLines = allLines.length;

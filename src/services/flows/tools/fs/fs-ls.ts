@@ -78,7 +78,9 @@ export const createFsLsTool: ToolFactory<Input, Services> = (
 				const displayPath = wsNodeToDisplayPath(n.path);
 				if (n.type === "folder") return `${displayPath}/`;
 				const sizeStr =
-					n.file?.size !== undefined ? `  (${formatFileSize(n.file.size)})` : "";
+					n.file?.size !== undefined
+						? `  (${formatFileSize(n.file.size)})`
+						: "";
 				return `${displayPath}${sizeStr}`;
 			});
 

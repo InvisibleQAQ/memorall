@@ -197,7 +197,10 @@ export const createFsGrepTool: ToolFactory<Input, Services> = (
 					}
 					return true;
 				})
-				.map((n) => ({ path: n.path, displayPath: wsNodeToDisplayPath(n.path) }));
+				.map((n) => ({
+					path: n.path,
+					displayPath: wsNodeToDisplayPath(n.path),
+				}));
 
 			if (fileNodes.length === 0) {
 				return `No files found to search under "${targetPath}"${glob ? ` matching glob "${glob}"` : ""}`;

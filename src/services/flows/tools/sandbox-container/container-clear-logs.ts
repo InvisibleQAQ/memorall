@@ -1,7 +1,7 @@
 import z from "zod";
+import { serviceManager } from "@/services";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
-import { sandboxContainerService } from "@/services/sandbox-container";
 
 const TOOL_NAME = "container_clear_logs" as const;
 
@@ -17,6 +17,7 @@ export const createContainerClearLogsTool: ToolFactory<
 	description: "Clear sandbox container logs.",
 	schema,
 	execute: async () => {
+		const sandboxContainerService = serviceManager.getSandboxContainerService();
 		const result = await sandboxContainerService.clearLogs();
 		return JSON.stringify(result, null, 2);
 	},

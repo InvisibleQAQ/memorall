@@ -1,7 +1,7 @@
 import z from "zod";
+import { serviceManager } from "@/services";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
-import { sandboxContainerService } from "@/services/sandbox-container";
 
 const TOOL_NAME = "container_start_server" as const;
 
@@ -44,6 +44,8 @@ export const createContainerStartServerTool: ToolFactory<
 	schema,
 	execute: async (input) => {
 		try {
+			const sandboxContainerService =
+				serviceManager.getSandboxContainerService();
 			const result = await sandboxContainerService.startServer({
 				kind: input.kind,
 				port: input.port,

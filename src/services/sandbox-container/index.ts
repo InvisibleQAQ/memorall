@@ -1,9 +1,14 @@
 export {
 	SandboxContainerService,
-	sandboxContainerService,
-	ensureSandboxContainerReady,
-	type SandboxContainerInitOptions,
-} from "./sandbox-container-service.iframe";
+	SandboxContainerServiceMain,
+	sandboxContainerMainService,
+	ensureSandboxContainerMainReady,
+} from "./sandbox-container-service-main";
+
+export { SandboxContainerServiceProxy } from "./sandbox-container-service-proxy";
+
+export type { ISandboxContainerService } from "./interfaces/sandbox-container-service.interface";
+export type { SandboxContainerInitOptions } from "./sandbox-container-service-main";
 
 export type {
 	SandboxLogLevel,

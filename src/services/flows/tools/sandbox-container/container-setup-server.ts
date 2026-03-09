@@ -1,7 +1,7 @@
 import z from "zod";
+import { serviceManager } from "@/services";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
-import { sandboxContainerService } from "@/services/sandbox-container";
 import type { SandboxServerKind } from "@/services/sandbox-container";
 
 const TOOL_NAME = "container_setup_server" as const;
@@ -73,6 +73,7 @@ export const createContainerSetupServerTool: ToolFactory<
 		"Ideal for Vite+React, Next.js Pages Router, Next.js App Router, and Express.",
 	schema,
 	execute: async (input) => {
+		const sandboxContainerService = serviceManager.getSandboxContainerService();
 		const kind = TEMPLATE_KIND[input.template];
 		const port = input.port ?? TEMPLATE_DEFAULT_PORT[input.template] ?? 3000;
 		const rootDir = input.rootDir ?? "/app";

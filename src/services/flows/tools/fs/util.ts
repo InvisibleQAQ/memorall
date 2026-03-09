@@ -115,6 +115,7 @@ export function wsDisplayToLogicalPath(displayPath: string): string {
  */
 export function stripDocumentsPrefix(path: string): string {
 	if (path === DOCUMENTS_PREFIX) return "/";
-	if (path.startsWith(DOCUMENTS_PREFIX + "/")) return path.slice(DOCUMENTS_PREFIX.length);
+	if (path.startsWith(DOCUMENTS_PREFIX + "/"))
+		return path.slice(DOCUMENTS_PREFIX.length);
 	return path;
 }

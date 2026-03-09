@@ -55,7 +55,8 @@ export const createFsMkdirTool: ToolFactory<Input, Services> = (
 
 			const existing = allNodes.find((n) => n.path === wsLogical);
 			if (existing) {
-				if (existing.type === "folder") return `Directory already exists: ${dirPath}`;
+				if (existing.type === "folder")
+					return `Directory already exists: ${dirPath}`;
 				return `Error: Path exists but is not a directory: ${dirPath}`;
 			}
 

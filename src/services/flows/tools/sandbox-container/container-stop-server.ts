@@ -1,7 +1,7 @@
 import z from "zod";
+import { serviceManager } from "@/services";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
-import { sandboxContainerService } from "@/services/sandbox-container";
 
 const TOOL_NAME = "container_stop_server" as const;
 
@@ -24,6 +24,7 @@ export const createContainerStopServerTool: ToolFactory<
 	description: "Stop a running sandbox server by port.",
 	schema,
 	execute: async (input) => {
+		const sandboxContainerService = serviceManager.getSandboxContainerService();
 		const result = await sandboxContainerService.stopServer({
 			port: input.port,
 		});

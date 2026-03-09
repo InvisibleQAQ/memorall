@@ -1,5 +1,6 @@
 import { logError, logInfo, logWarn } from "@/utils/logger";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
+import type { ISandboxContainerService } from "./interfaces/sandbox-container-service.interface";
 import type {
 	SandboxErrorEnvelope,
 	SandboxExecutionRequest,
@@ -81,8 +82,8 @@ const isSandboxErrorEnvelope = (
 	value: SandboxResponseMessage<SandboxOperation>,
 ): value is SandboxErrorEnvelope<SandboxOperation> => value.ok === false;
 
-export class SandboxContainerService {
-	private static instance: SandboxContainerService;
+export class SandboxContainerServiceMain implements ISandboxContainerService {
+	private static instance: SandboxContainerServiceMain;
 
 	private iframe: HTMLIFrameElement | null = null;
 	private initialized = false;
@@ -92,6 +93,12 @@ export class SandboxContainerService {
 	private readonly options: Required<SandboxContainerInitOptions>;
 	private mountDocumentsSyncPromise: Promise<void> | null = null;
 	private mountWorkspaceSyncPromise: Promise<void> | null = null;
+	/** Relay channel: port1 stays here, port2 is transferred to the SW as mainPort. */
+	private swRelayChannel: MessageChannel | null = null;
+	/** Last known active service worker — used to re-init relay if SW restarts. */
+	private swInstance: ServiceWorker | null = null;
+	/** Keepalive timer — sends a periodic ping to prevent Chrome from killing the SW. */
+	private swKeepaliveTimer: ReturnType<typeof setInterval> | null = null;
 
 	private constructor(options: SandboxContainerInitOptions = {}) {
 		this.options = {
@@ -103,11 +110,13 @@ export class SandboxContainerService {
 
 	static getInstance(
 		options?: SandboxContainerInitOptions,
-	): SandboxContainerService {
-		if (!SandboxContainerService.instance) {
-			SandboxContainerService.instance = new SandboxContainerService(options);
+	): SandboxContainerServiceMain {
+		if (!SandboxContainerServiceMain.instance) {
+			SandboxContainerServiceMain.instance = new SandboxContainerServiceMain(
+				options,
+			);
 		}
-		return SandboxContainerService.instance;
+		return SandboxContainerServiceMain.instance;
 	}
 
 	isReady(): boolean {
@@ -144,12 +153,15 @@ export class SandboxContainerService {
 			);
 		}
 
+		// Register the AlmostNode service worker from this outer (non-sandboxed)
+		// page so it can control the sandbox iframe context. Manifest sandbox pages
+		// have null origin and cannot register service workers themselves.
+		await this.registerSandboxServiceWorker();
+
 		window.addEventListener("message", this.onMessage);
 
 		const iframe = document.createElement("iframe");
 		iframe.style.display = "none";
-		iframe.sandbox.add("allow-scripts");
-		iframe.sandbox.add("allow-same-origin");
 		iframe.src = chrome.runtime.getURL(this.options.frameUrl);
 
 		const loaded = new Promise<void>((resolve, reject) => {
@@ -197,6 +209,141 @@ export class SandboxContainerService {
 			this.initializedAt = null;
 			window.removeEventListener("message", this.onMessage);
 			throw error;
+		}
+	}
+
+	/**
+	 * Register the AlmostNode service worker from this outer (non-sandboxed) page
+	 * and set up a relay channel so the SW can route /__virtual__/<port>/ requests
+	 * through the sandbox iframe's AlmostNode bridge.
+	 *
+	 * Manifest sandbox pages (sandbox-container-runtime.html) have a sandboxed
+	 * browsing context and can never register service workers themselves, so
+	 * registration must happen here in the extension popup context.
+	 */
+	private async registerSandboxServiceWorker(): Promise<void> {
+		if (!("serviceWorker" in navigator)) {
+			logWarn("[SW] navigator.serviceWorker not available");
+			return;
+		}
+		try {
+			const swUrl = chrome.runtime.getURL("sandbox/__sw__.js");
+			const reg = await navigator.serviceWorker.register(swUrl);
+			logInfo(
+				"[SW] Registered sandbox service worker, scope:",
+				reg.scope,
+				swUrl,
+			);
+
+			// Wait for the SW to become active.
+			await navigator.serviceWorker.ready;
+
+			const sw =
+				navigator.serviceWorker.controller ??
+				reg.active ??
+				reg.installing ??
+				reg.waiting;
+			if (!sw) {
+				logWarn(
+					"[SW] No active SW found after ready — page reload may be needed",
+				);
+				return;
+			}
+
+			this.initSwRelay(sw);
+
+			// Re-init relay if the SW updates or regains control.
+			navigator.serviceWorker.addEventListener("controllerchange", () => {
+				const newSw = navigator.serviceWorker.controller;
+				if (newSw) {
+					logInfo("[SW] Controller changed — re-initialising relay");
+					this.initSwRelay(newSw);
+				}
+			});
+
+			// SW asks clients to re-send init when it loses its mainPort.
+			// NOTE: offscreen documents are NOT in the SW scope (/sandbox/),
+			// so navigator.serviceWorker.controller is always null here.
+			// We must use this.swInstance (stored during registration).
+			navigator.serviceWorker.addEventListener(
+				"message",
+				(event: MessageEvent) => {
+					if (event.data?.type === "sw-needs-init") {
+						const activeSw =
+							this.swInstance ?? navigator.serviceWorker.controller;
+						if (activeSw) this.initSwRelay(activeSw);
+					}
+				},
+			);
+		} catch (err) {
+			logWarn("[SW] Service worker registration failed:", err);
+		}
+	}
+
+	private initSwRelay(sw: ServiceWorker): void {
+		this.swInstance = sw;
+		// Close any previous relay channel.
+		if (this.swRelayChannel) {
+			this.swRelayChannel.port1.close();
+		}
+		this.swRelayChannel = new MessageChannel();
+
+		// Send port2 to SW — it becomes mainPort inside __sw__.js.
+		sw.postMessage({ type: "init" }, [this.swRelayChannel.port2]);
+
+		// Relay SW request messages to the sandbox iframe.
+		this.swRelayChannel.port1.onmessage = (event: MessageEvent) => {
+			void this.relaySwMessage(event.data);
+		};
+		this.swRelayChannel.port1.start();
+		logInfo("[SW] Relay channel initialised");
+
+		// Keep the SW alive with a periodic ping so Chrome doesn't kill it and
+		// lose mainPort. The SW ignores the message type; receiving any message
+		// resets Chrome's idle-kill timer (~30 s). We ping every 20 s.
+		if (this.swKeepaliveTimer) clearInterval(this.swKeepaliveTimer);
+		this.swKeepaliveTimer = setInterval(() => {
+			sw.postMessage({ type: "keepalive" });
+		}, 20_000);
+	}
+
+	private async relaySwMessage(msg: {
+		type: string;
+		id: number;
+		data: {
+			port: number;
+			method: string;
+			url: string;
+			headers: Record<string, string>;
+			body: ArrayBuffer | null;
+		};
+	}): Promise<void> {
+		if (msg.type !== "request" || !this.swRelayChannel) return;
+		const { id, data } = msg;
+		try {
+			const result = await this.request(
+				"server.handleSwRequest",
+				{
+					id,
+					port: data.port,
+					method: data.method,
+					path: data.url,
+					headers: data.headers ?? {},
+					body: data.body ?? null,
+				},
+				120_000,
+			);
+			this.swRelayChannel.port1.postMessage({
+				type: "response",
+				id,
+				data: result,
+			});
+		} catch (err) {
+			this.swRelayChannel.port1.postMessage({
+				type: "response",
+				id,
+				error: err instanceof Error ? err.message : String(err),
+			});
 		}
 	}
 
@@ -766,7 +913,239 @@ export class SandboxContainerService {
 	async requestServer(
 		request: SandboxServerRequest,
 	): Promise<SandboxServerRequestResult> {
+		if (request.useIframe) {
+			return this.renderViaIframe(request);
+		}
 		return this.request("server.request", request, request.timeoutMs ?? 60_000);
+	}
+
+	/**
+	 * Render a virtual server page and return the fully rendered HTML.
+	 *
+	 * We load /sandbox/renderer.html (a normal extension page within the SW's
+	 * /sandbox/ scope). The renderer fetches /__virtual__/<port>/* — the SW
+	 * intercepts those fetches and relays them to the sandbox via
+	 * server.handleSwRequest → handleRequest. Once React mounts, the renderer
+	 * sends a postMessage back with the final outerHTML.
+	 */
+	private async renderViaIframe(
+		request: SandboxServerRequest,
+	): Promise<SandboxServerRequestResult> {
+		// The SW is killed by Chrome when idle and restarts with mainPort=null.
+		// Re-send the relay port before the renderer iframe makes any fetches.
+		const sw =
+			this.swInstance ??
+			navigator.serviceWorker.controller ??
+			(await navigator.serviceWorker.ready).active;
+		if (sw) {
+			this.initSwRelay(sw);
+			// Wait for the SW to wake up, receive the port message, and set
+			// mainPort before the renderer iframe makes its first fetch.
+			await new Promise<void>((r) => setTimeout(r, 200));
+		}
+
+		const path = request.path ?? "/";
+		const timeoutMs = request.timeoutMs ?? 120_000;
+		// Unique ID to match the postMessage from renderer-utils.js.
+		// Passed via iframe.name (survives document.write inside the renderer).
+		const renderId = Math.random().toString(36).slice(2, 10);
+
+		const virtualUrl =
+			chrome.runtime.getURL("") +
+			`__virtual__/${request.port}${path.startsWith("/") ? path : "/" + path}`;
+
+		// Build import map from package.json on the sandbox filesystem and send it to
+		// the SW. Vite dev server does not serve package.json via HTTP, so we read it
+		// directly from the sandbox VFS. The SW rewrites bare specifiers (e.g.
+		// "react/jsx-runtime") to full esm.sh URLs directly in JS responses, which
+		// avoids needing a <script type="importmap"> in HTML (blocked by extension CSP).
+		let rendererImportMap: Record<string, string> = {};
+		try {
+			const { servers } = await this.request("server.list", undefined);
+			const serverInfo = servers.find((s) => s.port === request.port);
+			logInfo(
+				`[renderViaIframe] server rootDir=${serverInfo?.rootDir ?? "unknown"} for port=${request.port}`,
+			);
+			if (serverInfo?.rootDir) {
+				const pkgPath = serverInfo.rootDir.replace(/\/$/, "") + "/package.json";
+				logInfo(`[renderViaIframe] reading package.json from ${pkgPath}`);
+				try {
+					const pkgResult = await this.request("fs.readFile", {
+						path: pkgPath,
+					});
+					const pkg = JSON.parse(pkgResult.content) as {
+						dependencies?: Record<string, string>;
+						devDependencies?: Record<string, string>;
+					};
+					const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+					const imports: Record<string, string> = {};
+					const virtualPrefix = `/__virtual__/${request.port}`;
+					const toProxyModule = (url: string) =>
+						`${virtualPrefix}/__npm_proxy__/${encodeURIComponent(url)}`;
+					for (const [name, rawVer] of Object.entries(allDeps)) {
+						const ver =
+							String(rawVer)
+								.replace(/^[\^~>=<*\s]+/, "")
+								.split(/\s/)[0] || "latest";
+						imports[name] = toProxyModule(
+							`https://esm.sh/${name}@${ver}?bundle`,
+						);
+						if (name === "react") {
+							imports["react/jsx-runtime"] = toProxyModule(
+								`https://esm.sh/react@${ver}/jsx-runtime?bundle`,
+							);
+							imports["react/jsx-dev-runtime"] = toProxyModule(
+								`https://esm.sh/react@${ver}/jsx-dev-runtime?bundle`,
+							);
+						}
+						if (name === "react-dom") {
+							imports["react-dom/client"] = toProxyModule(
+								`https://esm.sh/react-dom@${ver}/client?bundle`,
+							);
+							imports["react-dom/server"] = toProxyModule(
+								`https://esm.sh/react-dom@${ver}/server?bundle`,
+							);
+						}
+					}
+					rendererImportMap = imports;
+					logInfo(
+						`[renderViaIframe] import map built for: [${Object.keys(imports).join(", ")}]`,
+					);
+					sw?.postMessage({
+						type: "set-import-map",
+						data: { port: request.port, importMap: imports },
+					});
+				} catch (fsErr) {
+					logWarn(`[renderViaIframe] could not read ${pkgPath}:`, fsErr);
+				}
+			}
+		} catch (listErr) {
+			logWarn(
+				"[renderViaIframe] could not fetch server list for import map:",
+				listErr,
+			);
+		}
+
+		// renderer.html is a plain extension page (not in manifest sandbox.pages)
+		// at /sandbox/renderer.html — within the SW scope /sandbox/ — so the SW
+		// intercepts all fetches made by it (including /__virtual__/* requests).
+		const rendererUrl =
+			chrome.runtime.getURL("sandbox/renderer.html") +
+			`?port=${request.port}&path=${encodeURIComponent(path)}&importMap=${encodeURIComponent(JSON.stringify(rendererImportMap))}`;
+
+		return new Promise<SandboxServerRequestResult>((resolve) => {
+			const iframe = document.createElement("iframe");
+			iframe.style.cssText =
+				"position:fixed;top:-9999px;left:-9999px;width:1280px;height:800px;opacity:0;pointer-events:none;";
+			// window.name in the renderer survives document.write; used by
+			// renderer-utils.js to include the renderId in its postMessage.
+			iframe.name = renderId;
+
+			let settled = false;
+			const settle = (html: string, keepIframe = false) => {
+				if (settled) return;
+				settled = true;
+				clearTimeout(timeoutId);
+				window.removeEventListener("message", messageHandler);
+				if (!keepIframe) iframe.remove();
+				resolve({
+					port: request.port,
+					url: virtualUrl,
+					status: 200,
+					ok: true,
+					contentType: "text/html",
+					responseType: "html",
+					headers: {},
+					body: html,
+				});
+			};
+
+			// renderer-utils.js postMessages once React has mounted.
+			// renderer.js also relays SW fetch requests through this handler.
+			const messageHandler = (event: MessageEvent) => {
+				if (
+					event.data?.type === "virtual-renderer-ready" &&
+					event.data.renderId === renderId
+				) {
+					settle((event.data.html as string) ?? "");
+					return;
+				}
+
+				if (
+					event.data?.type === "sw-relay-request" &&
+					event.source === iframe.contentWindow
+				) {
+					const {
+						id,
+						portNum,
+						method,
+						url: swUrl,
+						headers,
+						body,
+					} = event.data as {
+						id: number;
+						portNum: number;
+						method: string;
+						url: string;
+						headers: Record<string, string>;
+						body: ArrayBuffer | null;
+					};
+					void this.request(
+						"server.handleSwRequest",
+						{
+							id,
+							port: portNum,
+							method,
+							path: swUrl,
+							headers: headers ?? {},
+							body: body ?? null,
+						},
+						120_000,
+					)
+						.then((result) => {
+							const _r = result as {
+								statusCode?: number;
+								headers?: Record<string, string>;
+								bodyBase64?: string;
+							};
+							let _preview = "";
+							try {
+								_preview = atob(_r.bodyBase64 ?? "").slice(0, 400);
+							} catch (_) {}
+							logInfo(
+								`[renderViaIframe] sw-relay done id=${id} status=${_r.statusCode} ct=${_r.headers?.["content-type"]} body=${_preview}`,
+							);
+							iframe.contentWindow?.postMessage(
+								{ type: "sw-relay-response", id, data: result },
+								"*",
+							);
+						})
+						.catch((err: unknown) => {
+							iframe.contentWindow?.postMessage(
+								{
+									type: "sw-relay-response",
+									id,
+									error: err instanceof Error ? err.message : String(err),
+								},
+								"*",
+							);
+						});
+				}
+			};
+			window.addEventListener("message", messageHandler);
+
+			const timeoutId = window.setTimeout(() => {
+				logWarn(
+					"[renderViaIframe] Timeout — keeping iframe alive for inspection. Check devtools for the hidden iframe.",
+				);
+				// DEBUG: pass true so settle() does NOT remove the iframe.
+				// Revert: change settle("", true) back to settle("") when done debugging.
+				settle("", true);
+			}, timeoutMs);
+
+			document.body.appendChild(iframe);
+			iframe.src = rendererUrl;
+		});
 	}
 
 	async getServerRenderUrl(
@@ -787,13 +1166,16 @@ export class SandboxContainerService {
 	}
 }
 
-export const sandboxContainerService = SandboxContainerService.getInstance();
+export { SandboxContainerServiceMain as SandboxContainerService };
 
-export const ensureSandboxContainerReady = async (): Promise<void> => {
+export const sandboxContainerMainService =
+	SandboxContainerServiceMain.getInstance();
+
+export const ensureSandboxContainerMainReady = async (): Promise<void> => {
 	try {
-		await sandboxContainerService.initialize();
+		await sandboxContainerMainService.initialize();
 	} catch (error) {
-		logError("Failed to initialize SandboxContainerService", error);
+		logError("Failed to initialize SandboxContainerServiceMain", error);
 		throw error;
 	}
 };

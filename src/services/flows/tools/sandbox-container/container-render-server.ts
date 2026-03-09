@@ -1,7 +1,7 @@
 import z from "zod";
+import { serviceManager } from "@/services";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
-import { sandboxContainerService } from "@/services/sandbox-container";
 
 const TOOL_NAME = "container_render_server" as const;
 
@@ -40,6 +40,8 @@ export const createContainerRenderServerTool: ToolFactory<
 	execute: async (input) => {
 		const path = input.path ?? "/";
 		try {
+			const sandboxContainerService =
+				serviceManager.getSandboxContainerService();
 			const result = await sandboxContainerService.requestServer({
 				port: input.port,
 				path,
@@ -69,8 +71,7 @@ export const createContainerRenderServerTool: ToolFactory<
 				2,
 			);
 		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : String(error);
+			const message = error instanceof Error ? error.message : String(error);
 			return JSON.stringify(
 				{
 					actionType: "web_access",

@@ -1,5 +1,6 @@
 import { logError, logInfo, logWarn } from "@/utils/logger";
 import type { IEmbeddingService } from "@/services/embedding";
+import type { ISandboxContainerService } from "@/services/sandbox-container";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
 import { FlowsService } from "./flows";
 import { FlowBuilderService } from "./flows/flow-builder-service";
@@ -26,6 +27,7 @@ export class ServiceManager {
 		database: false,
 		embedding: false,
 		llm: false,
+		sandbox: false,
 		flows: false,
 		flowBuilder: false,
 		topic: false,
@@ -34,6 +36,7 @@ export class ServiceManager {
 	// Child services - initialized based on mode
 	public embeddingService!: IEmbeddingService;
 	public llmService!: ILLMService;
+	public sandboxContainerService!: ISandboxContainerService;
 	public databaseService!: IDatabaseService;
 	public flowsService!: FlowsService;
 	public flowBuilderService!: FlowBuilderService;
@@ -132,6 +135,9 @@ export class ServiceManager {
 				const { EmbeddingServiceProxy } = await import(
 					"@/services/embedding/embedding-service-proxy"
 				);
+				const { sandboxContainerServiceProxy } = await import(
+					"@/services/sandbox-container/sandbox-container-service-proxy"
+				);
 				const { LLMServiceProxy } = await import(
 					"@/services/llm/llm-service-proxy"
 				);
@@ -141,6 +147,7 @@ export class ServiceManager {
 				this.flowBuilderService = new FlowBuilderService(this.databaseService);
 
 				this.embeddingService = new EmbeddingServiceProxy();
+				this.sandboxContainerService = sandboxContainerServiceProxy;
 				this.llmService = new LLMServiceProxy();
 				this.flowsService = new FlowsService();
 			} else {
@@ -156,6 +163,9 @@ export class ServiceManager {
 				const { EmbeddingServiceMain } = await import(
 					"@/services/embedding/embedding-service-main"
 				);
+				const { sandboxContainerMainService } = await import(
+					"@/services/sandbox-container/sandbox-container-service-main"
+				);
 				const { LLMServiceMain } = await import(
 					"@/services/llm/llm-service-main"
 				);
@@ -165,9 +175,12 @@ export class ServiceManager {
 				this.flowBuilderService = new FlowBuilderService(this.databaseService);
 
 				this.embeddingService = new EmbeddingServiceMain();
+				this.sandboxContainerService = sandboxContainerMainService;
 				this.llmService = new LLMServiceMain();
 				this.flowsService = new FlowsService();
 			}
+
+			this.serviceStatus.sandbox = true;
 
 			options.callback?.("database", 0);
 			// Initialize services sequentially for better progress tracking
@@ -395,6 +408,10 @@ export class ServiceManager {
 		return this.databaseService;
 	}
 
+	getSandboxContainerService() {
+		return this.sandboxContainerService;
+	}
+
 	getFlowsService() {
 		return this.flowsService;
 	}
@@ -414,6 +431,8 @@ export class ServiceManager {
 				return this.embeddingService as ServiceRegistry[K];
 			case "llm":
 				return this.llmService as ServiceRegistry[K];
+			case "sandbox":
+				return this.sandboxContainerService as ServiceRegistry[K];
 			case "flows":
 				return this.flowsService as ServiceRegistry[K];
 			case "flowBuilder":
@@ -429,6 +448,7 @@ interface ServiceRegistry {
 	database: IDatabaseService;
 	embedding: IEmbeddingService;
 	llm: ILLMService;
+	sandbox: ISandboxContainerService;
 	flows: FlowsService;
 	flowBuilder: FlowBuilderService;
 }
