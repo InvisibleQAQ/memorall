@@ -1,6 +1,9 @@
 import z from "zod";
-import { serviceManager } from "@/services";
-import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
+import type {
+	AllServices,
+	Tool,
+	ToolFactory,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 
 const TOOL_NAME = "container_install_package" as const;
@@ -21,17 +24,19 @@ const schema = z.object({
 });
 
 type Input = z.infer<typeof schema>;
+type Services = Pick<AllServices, "sandboxContainer">;
 
-export const createContainerInstallPackageTool: ToolFactory<
-	Input,
-	undefined
-> = (): Tool<Input> => ({
+export const createContainerInstallPackageTool: ToolFactory<Input, Services> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description: "Install an npm package in the sandbox container.",
 	schema,
 	execute: async (input) => {
-		const sandboxContainerService = serviceManager.getSandboxContainerService();
-		const result = await sandboxContainerService.installPackage({
+		if (!services.sandboxContainer) {
+			return 'Sanbox container is not avaible'
+		}
+		const result = await services.sandboxContainer.installPackage({
 			packageSpec: input.packageSpec,
 			save: input.save ?? true,
 			saveDev: input.saveDev ?? false,
@@ -46,7 +51,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: Services;
 		};
 	}
 }

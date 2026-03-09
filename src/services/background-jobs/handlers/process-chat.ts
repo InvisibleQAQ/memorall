@@ -368,6 +368,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					llm: serviceManager.llmService,
 					embedding: serviceManager.embeddingService,
 					database: serviceManager.databaseService,
+					sandboxContainer: serviceManager.getSandboxContainerService(),
 					documentFileSystem: documentFileSystemService,
 				};
 				const { graph, getInitialState } = chatFlowRegistry.create(

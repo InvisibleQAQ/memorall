@@ -1,6 +1,9 @@
 import z from "zod";
-import { serviceManager } from "@/services";
-import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
+import type {
+	AllServices,
+	Tool,
+	ToolFactory,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 
 const TOOL_NAME = "container_render_server" as const;
@@ -28,21 +31,22 @@ const schema = z.object({
 });
 
 type Input = z.infer<typeof schema>;
+type Services = Pick<AllServices, "sandboxContainer">;
 
-export const createContainerRenderServerTool: ToolFactory<
-	Input,
-	undefined
-> = (): Tool<Input> => ({
+export const createContainerRenderServerTool: ToolFactory<Input, Services> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Render a running sandbox web server page (Vite, Next.js, Express HTML) via an iframe and return the fully rendered HTML. Use this for ALL web UI page previews — never use container_request_server for this purpose.",
 	schema,
 	execute: async (input) => {
+		if (!services.sandboxContainer) {
+			return 'Sanbox container is not avaible'
+		}
 		const path = input.path ?? "/";
 		try {
-			const sandboxContainerService =
-				serviceManager.getSandboxContainerService();
-			const result = await sandboxContainerService.requestServer({
+			const result = await services.sandboxContainer.requestServer({
 				port: input.port,
 				path,
 				method: "GET",
@@ -93,7 +97,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: Services;
 		};
 	}
 }

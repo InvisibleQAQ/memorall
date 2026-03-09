@@ -1,6 +1,9 @@
 import z from "zod";
-import { serviceManager } from "@/services";
-import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
+import type {
+	AllServices,
+	Tool,
+	ToolFactory,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 
 const TOOL_NAME = "container_web_access" as const;
@@ -31,6 +34,7 @@ const schema = z.object({
 });
 
 type Input = z.infer<typeof schema>;
+type Services = Pick<AllServices, "sandboxContainer">;
 
 const parseServerUrl = (
 	rawUrl: string,
@@ -62,8 +66,8 @@ const parseServerUrl = (
 
 export const createContainerWebAccessTool: ToolFactory<
 	Input,
-	undefined
-> = (): Tool<Input> => ({
+	Services
+> = (services): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Access a running sandbox container server. " +
@@ -71,7 +75,9 @@ export const createContainerWebAccessTool: ToolFactory<
 		"Omit useIframe (or set false) to call API endpoints and return their response body.",
 	schema,
 	execute: async (input) => {
-		const sandboxContainerService = serviceManager.getSandboxContainerService();
+		if (!services.sandboxContainer) {
+			return 'Sanbox container is not avaible'
+		}
 		const target = parseServerUrl(input.url);
 		if (!target) {
 			return JSON.stringify(
@@ -87,7 +93,7 @@ export const createContainerWebAccessTool: ToolFactory<
 		}
 
 		try {
-			const result = await sandboxContainerService.requestServer({
+			const result = await services.sandboxContainer.requestServer({
 				port: target.port,
 				path: target.path,
 				method: input.method,
@@ -133,7 +139,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: Services;
 		};
 	}
 }

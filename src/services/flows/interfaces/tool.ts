@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
 import type { IEmbeddingService } from "@/services/embedding/interfaces/embedding-service.interface";
 import type { IDatabaseService } from "@/services/database";
+import type { ISandboxContainerService } from "@/services/sandbox-container";
 import type { DocumentFileSystem } from "@/services/filesystem/document-filesystem";
 
 // All available services
@@ -9,6 +10,7 @@ export interface AllServices {
 	llm: ILLMService;
 	embedding: IEmbeddingService;
 	database: IDatabaseService;
+	sandboxContainer?: ISandboxContainerService;
 	documentFileSystem?: DocumentFileSystem;
 }
 

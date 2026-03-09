@@ -1,6 +1,9 @@
 import z from "zod";
-import { serviceManager } from "@/services";
-import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
+import type {
+	AllServices,
+	Tool,
+	ToolFactory,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import type { SandboxServerKind } from "@/services/sandbox-container";
 
@@ -61,11 +64,11 @@ const schema = z.object({
 });
 
 type Input = z.infer<typeof schema>;
+type Services = Pick<AllServices, "sandboxContainer">;
 
-export const createContainerSetupServerTool: ToolFactory<
-	Input,
-	undefined
-> = (): Tool<Input> => ({
+export const createContainerSetupServerTool: ToolFactory<Input, Services> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"One-shot setup: scaffold a starter project, npm-install, start the server, " +
@@ -73,7 +76,9 @@ export const createContainerSetupServerTool: ToolFactory<
 		"Ideal for Vite+React, Next.js Pages Router, Next.js App Router, and Express.",
 	schema,
 	execute: async (input) => {
-		const sandboxContainerService = serviceManager.getSandboxContainerService();
+		if (!services.sandboxContainer) {
+			return 'Sanbox container is not avaible'
+		}
 		const kind = TEMPLATE_KIND[input.template];
 		const port = input.port ?? TEMPLATE_DEFAULT_PORT[input.template] ?? 3000;
 		const rootDir = input.rootDir ?? "/app";
@@ -81,7 +86,7 @@ export const createContainerSetupServerTool: ToolFactory<
 
 		try {
 			// Scaffold + install + start (template flag enables autoInstall by default).
-			const serverResult = await sandboxContainerService.startServer({
+			const serverResult = await services.sandboxContainer.startServer({
 				kind,
 				port,
 				rootDir,
@@ -90,7 +95,7 @@ export const createContainerSetupServerTool: ToolFactory<
 			});
 
 			// Fetch the render URL so the iframe preview appears immediately in chat.
-			const renderResult = await sandboxContainerService.getServerRenderUrl({
+			const renderResult = await services.sandboxContainer.getServerRenderUrl({
 				port,
 				path: previewPath,
 			});
@@ -133,7 +138,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: Services;
 		};
 	}
 }

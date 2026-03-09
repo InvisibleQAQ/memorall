@@ -1,6 +1,9 @@
 import z from "zod";
-import { serviceManager } from "@/services";
-import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
+import type {
+	AllServices,
+	Tool,
+	ToolFactory,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 
 const TOOL_NAME = "container_stop_server" as const;
@@ -15,17 +18,19 @@ const schema = z.object({
 });
 
 type Input = z.infer<typeof schema>;
+type Services = Pick<AllServices, "sandboxContainer">;
 
-export const createContainerStopServerTool: ToolFactory<
-	Input,
-	undefined
-> = (): Tool<Input> => ({
+export const createContainerStopServerTool: ToolFactory<Input, Services> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description: "Stop a running sandbox server by port.",
 	schema,
 	execute: async (input) => {
-		const sandboxContainerService = serviceManager.getSandboxContainerService();
-		const result = await sandboxContainerService.stopServer({
+		if (!services.sandboxContainer) {
+			return 'Sanbox container is not avaible'
+		}
+		const result = await services.sandboxContainer.stopServer({
 			port: input.port,
 		});
 		return JSON.stringify(result, null, 2);
@@ -38,7 +43,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: Services;
 		};
 	}
 }
