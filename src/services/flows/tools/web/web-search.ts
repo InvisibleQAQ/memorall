@@ -14,7 +14,15 @@ const TOOL_NAME = "web_search" as const;
 
 const schema = z.object({
 	sessionId: z.string().optional().describe("Active web session to search."),
-	url: z.string().url().optional().describe("Open first, then search. Use with no sessionId."),
+	url: z
+		.string()
+		.url()
+		.optional()
+		.describe("Open first, then search. Use with no sessionId."),
+	browserMode: z
+		.enum(["iframe", "tab", "window"])
+		.optional()
+		.describe("Open mode when no sessionId is provided."),
 	query: z.string().min(1).describe("Text to search in page text content."),
 	selector: z
 		.string()
@@ -54,9 +62,10 @@ const schema = z.object({
 type Input = z.infer<typeof schema>;
 type SearchResult = Awaited<ReturnType<typeof searchInSessionHtml>>;
 
-export const createWebSearchTool: ToolFactory<Input, undefined> = (): Tool<
-	Input
-> => ({
+export const createWebSearchTool: ToolFactory<
+	Input,
+	undefined
+> = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Search rendered page HTML by text/regex inside active session or URL-based temporary session.",
@@ -69,6 +78,7 @@ export const createWebSearchTool: ToolFactory<Input, undefined> = (): Tool<
 				sessionId: input.sessionId,
 				url: input.url,
 				timeoutMs: input.timeoutMs ?? 15_000,
+				browserMode: input.browserMode,
 			});
 			sessionId = session.id;
 			shouldCloseSession = disposable;

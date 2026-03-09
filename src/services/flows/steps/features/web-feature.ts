@@ -31,7 +31,13 @@ const SYSTEM_PROMPT_INSTRUCTION = `
 You have access to a browser.
 
 Use this feature when the agent needs to work with web pages, including:
-- Open a URL in an iframe and keep an interaction session.
+- Open a URL in iframe (DOM mode) or tab/window mode (wide-access mode), then keep session.
+
+## MODE GUIDELINES
+- Use "iframe" when you need direct DOM actions: "query", "click", "input", "focus", and "scroll".
+- Use "tab" or "window" when you only need wide web access (open/read/search/fallback) and can tolerate no DOM actions.
+- If broad accessibility is required first, prefer "window" (fallback to "tab" when "window" is unavailable).
+- In this environment, "tab" and "window" are equivalent for content access behavior; choose "window" for clarity when you want browser-window style execution.
 - Read rendered HTML or read selected DOM elements.
 - Search in rendered HTML/DOM content.
 - Perform DOM operations (query/read/click/input/focus/scroll).
@@ -66,10 +72,11 @@ const formatActiveWebSession = (
 		? `- createdAt: ${new Date(session.createdAt).toISOString()}`
 		: "";
 
-	return `## CURRENT WEB IFRAME SESSION
+	return `## CURRENT WEB SESSION
 - requestedUrl: ${session.requestedUrl}
 - currentUrl: ${session.currentUrl}
 - title: ${session.title || "(no title)"}
+ - mode: ${session.mode || "iframe"}
 ${lastAccessedAt}
 ${createdAt}`.trim();
 };
@@ -82,7 +89,8 @@ export const WEB_FEATURE_TOOLS = [
 	"web_wait",
 ] as const;
 
-export const WEB_FEATURE_DESCRIPTION = "Enable offscreen web tooling: open, read, search, DOM access, and wait.";
+export const WEB_FEATURE_DESCRIPTION =
+	"Enable offscreen web tooling: open, read, search, DOM access, and wait.";
 
 const definition = defineStep<
 	WebFeatureInput,
@@ -112,9 +120,7 @@ const definition = defineStep<
 					tools: input.tools,
 					messages: input.messages,
 					errors: [
-						error instanceof Error
-							? error.message
-							: "Web feature step failed",
+						error instanceof Error ? error.message : "Web feature step failed",
 					],
 				},
 			};

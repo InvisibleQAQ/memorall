@@ -51,6 +51,20 @@ const messageListener = (
 	// Returning true synchronously is the correct way to keep the Chrome
 	// message channel open for an async response.
 	switch (message.type) {
+		case "web-tool:tab-capture":
+			sendResponse({
+				success: true,
+				url: window.location.href,
+				title: document.title || "",
+				html:
+					document.documentElement?.outerHTML || document.body?.innerHTML || "",
+				text:
+					document.body?.innerText ||
+					document.documentElement?.textContent ||
+					"",
+			} as MessageResponse);
+			return true;
+
 		case BACKGROUND_EVENTS.REMEMBER_THIS:
 			void handleRememberThis(message, sendResponse);
 			return true;

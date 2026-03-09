@@ -15,7 +15,15 @@ const schema = z.object({
 	sessionId: z.string().describe("Active web session ID."),
 	selector: z.string().min(1).describe("CSS selector for DOM target."),
 	action: z
-		.enum(["query", "read", "click", "input", "focus", "scrollTop", "scrollBottom"])
+		.enum([
+			"query",
+			"read",
+			"click",
+			"input",
+			"focus",
+			"scrollTop",
+			"scrollBottom",
+		])
 		.describe(
 			"DOM action. `query` supports index-less selection list, others operate by selector+index.",
 		),
@@ -37,9 +45,10 @@ const schema = z.object({
 
 type Input = z.infer<typeof schema>;
 
-export const createWebDomActionTool: ToolFactory<Input, undefined> = (): Tool<
-	Input
-> => ({
+export const createWebDomActionTool: ToolFactory<
+	Input,
+	undefined
+> = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Interact with or inspect DOM of an active web session via selectors (`click`, `input`, `read`, `query`, `focus`, `scroll*`).",
@@ -48,6 +57,11 @@ export const createWebDomActionTool: ToolFactory<Input, undefined> = (): Tool<
 		try {
 			const session = getWebSession(input.sessionId);
 			refreshWebSession(input.sessionId);
+			if (!session.domAccessible) {
+				throw new Error(
+					"web_dom_action requires iframe mode session (tab/window modes are not DOM-accessible).",
+				);
+			}
 
 			const actionResult = await performDomAction(session, input.action, {
 				selector: input.selector,

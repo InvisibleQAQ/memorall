@@ -15,7 +15,9 @@ interface WebReadPayload {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null;
 
-const extractWebReadPayload = (item: MessageActionItem): WebReadPayload | null => {
+const extractWebReadPayload = (
+	item: MessageActionItem,
+): WebReadPayload | null => {
 	const fromMetadata = item.metadata;
 	if (fromMetadata && typeof fromMetadata.url === "string") {
 		return {
@@ -24,9 +26,12 @@ const extractWebReadPayload = (item: MessageActionItem): WebReadPayload | null =
 					? fromMetadata.requestedUrl
 					: undefined,
 			url: fromMetadata.url,
-			html: typeof fromMetadata.html === "string" ? fromMetadata.html : undefined,
-			text: typeof fromMetadata.text === "string" ? fromMetadata.text : undefined,
-			title: typeof fromMetadata.title === "string" ? fromMetadata.title : undefined,
+			html:
+				typeof fromMetadata.html === "string" ? fromMetadata.html : undefined,
+			text:
+				typeof fromMetadata.text === "string" ? fromMetadata.text : undefined,
+			title:
+				typeof fromMetadata.title === "string" ? fromMetadata.title : undefined,
 		};
 	}
 
@@ -37,7 +42,9 @@ const extractWebReadPayload = (item: MessageActionItem): WebReadPayload | null =
 		}
 		return {
 			requestedUrl:
-				typeof parsed.requestedUrl === "string" ? parsed.requestedUrl : undefined,
+				typeof parsed.requestedUrl === "string"
+					? parsed.requestedUrl
+					: undefined,
 			url: parsed.url,
 			html: typeof parsed.html === "string" ? parsed.html : undefined,
 			text: typeof parsed.text === "string" ? parsed.text : undefined,
@@ -97,9 +104,10 @@ export const webReadRenderer: ActionRenderer = (item, isOpen) => {
 				/>
 			) : (
 				<pre className="max-h-[360px] overflow-auto p-3 text-xs whitespace-pre-wrap break-words bg-muted/20">
-					{payload.text || t("actions.webRead.emptyText", {
-						defaultValue: "No readable HTML/text found.",
-					})}
+					{payload.text ||
+						t("actions.webRead.emptyText", {
+							defaultValue: "No readable HTML/text found.",
+						})}
 				</pre>
 			)}
 			{isTextPayload(payload) ? null : (
@@ -108,7 +116,9 @@ export const webReadRenderer: ActionRenderer = (item, isOpen) => {
 						defaultValue: "Text preview",
 					})}
 					:{" "}
-					<span className="font-mono">{payload.text?.slice(0, 200) ?? "—"}</span>
+					<span className="font-mono">
+						{payload.text?.slice(0, 200) ?? "—"}
+					</span>
 				</div>
 			)}
 		</div>

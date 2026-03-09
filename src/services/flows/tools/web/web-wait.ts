@@ -15,10 +15,11 @@ const TOOL_NAME = "web_wait" as const;
 const schema = z.object({
 	sessionId: z.string().optional().describe("Active web session ID."),
 	url: z.string().url().optional().describe("Open first, then wait."),
-	selector: z
-		.string()
+	browserMode: z
+		.enum(["iframe", "tab", "window"])
 		.optional()
-		.describe("DOM selector to wait for."),
+		.describe("Open mode when no sessionId is provided."),
+	selector: z.string().optional().describe("DOM selector to wait for."),
 	state: z
 		.enum(["present", "absent"])
 		.optional()
@@ -51,7 +52,10 @@ type Input = z.infer<typeof schema>;
 const waitFixedDelay = async (delayMs: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, delayMs));
 
-export const createWebWaitTool: ToolFactory<Input, undefined> = (): Tool<Input> => ({
+export const createWebWaitTool: ToolFactory<
+	Input,
+	undefined
+> = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Wait for fixed delay or wait for selector state (present/absent) in a web session.",
@@ -63,17 +67,20 @@ export const createWebWaitTool: ToolFactory<Input, undefined> = (): Tool<Input> 
 				sessionId: input.sessionId,
 				url: input.url,
 				timeoutMs: input.timeoutMs ?? 15_000,
+				browserMode: input.browserMode,
 			});
 			if (disposable) {
 				disposableSessionId = session.id;
 			}
-			if (!session.domAccessible) {
-				throw new Error("Current session cannot expose DOM for selector waits.");
+			if (!session.domAccessible && input.selector) {
+				throw new Error(
+					"Current session cannot expose DOM for selector waits.",
+				);
 			}
 
 			refreshWebSession(session.id);
 
-			let result;
+			let result: { matched: boolean; html: string; lastText: string };
 			if (input.selector) {
 				result = await waitForDomSelector({
 					session,

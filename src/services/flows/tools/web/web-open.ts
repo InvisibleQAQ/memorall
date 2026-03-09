@@ -1,12 +1,22 @@
 import z from "zod";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
-import { createDefaultWebErrorResult, createWebResult, openWebSession } from "./web-tool-registry";
+import {
+	createDefaultWebErrorResult,
+	createWebResult,
+	openWebSession,
+} from "./web-tool-registry";
 import { toolRegistry } from "@/services/flows/tool-registry";
 
 const TOOL_NAME = "web_open" as const;
 
 const schema = z.object({
 	url: z.string().url().describe("Target web URL to open."),
+	browserMode: z
+		.enum(["iframe", "tab", "window"])
+		.optional()
+		.describe(
+			"Open mode. `iframe` keeps interactive DOM actions; `tab`/`window` use wide-access browser container.",
+		),
 	timeoutMs: z
 		.number()
 		.int()
@@ -29,10 +39,13 @@ const schema = z.object({
 
 type Input = z.infer<typeof schema>;
 
-export const createWebOpenTool: ToolFactory<Input, undefined> = (): Tool<Input> => ({
+export const createWebOpenTool: ToolFactory<
+	Input,
+	undefined
+> = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Open a web URL inside a hidden offscreen iframe, render DOM, and expose a session handle (`sessionId`) for follow-up DOM actions.",
+		"Open a web URL in `iframe` (interactive DOM) or `tab`/`window` (wide-access) mode, and expose `sessionId` for follow-up actions.",
 	schema,
 	execute: async (input) => {
 		try {
@@ -41,6 +54,7 @@ export const createWebOpenTool: ToolFactory<Input, undefined> = (): Tool<Input> 
 				timeoutMs: input.timeoutMs ?? 15_000,
 				maxHtmlChars: input.maxHtmlChars ?? 160_000,
 				persist: input.keepSession ?? true,
+				mode: input.browserMode,
 			});
 
 			return createWebResult({
@@ -51,6 +65,7 @@ export const createWebOpenTool: ToolFactory<Input, undefined> = (): Tool<Input> 
 				url: session.currentUrl,
 				title: session.title,
 				domAccessible: session.domAccessible,
+				browserMode: session.mode,
 				html: session.html,
 			});
 		} catch (error) {

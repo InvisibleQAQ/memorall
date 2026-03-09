@@ -15,7 +15,15 @@ const TOOL_NAME = "web_read" as const;
 
 const schema = z.object({
 	sessionId: z.string().optional().describe("Active web session to read."),
-	url: z.string().url().optional().describe("Open first, then read. Use with no sessionId."),
+	url: z
+		.string()
+		.url()
+		.optional()
+		.describe("Open first, then read. Use with no sessionId."),
+	browserMode: z
+		.enum(["iframe", "tab", "window"])
+		.optional()
+		.describe("Open mode when no sessionId is provided."),
 	maxHtmlChars: z
 		.number()
 		.int()
@@ -43,10 +51,12 @@ const readBySelector = (
 	selector: string,
 ): ReturnType<typeof createWebResult> => {
 	const session = refreshWebSession(sessionId);
-	const elements = queryDomElements(session, selector, 10).map((entry, index) => ({
-		index,
-		...entry,
-	}));
+	const elements = queryDomElements(session, selector, 10).map(
+		(entry, index) => ({
+			index,
+			...entry,
+		}),
+	);
 	return createWebResult({
 		actionType: "web_read",
 		success: true,
@@ -59,7 +69,10 @@ const readBySelector = (
 	});
 };
 
-export const createWebReadTool: ToolFactory<Input, undefined> = (): Tool<Input> => ({
+export const createWebReadTool: ToolFactory<
+	Input,
+	undefined
+> = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Read rendered HTML/text from an active web session or directly from a URL.",
@@ -73,6 +86,7 @@ export const createWebReadTool: ToolFactory<Input, undefined> = (): Tool<Input> 
 				url: input.url,
 				timeoutMs: input.timeoutMs ?? 15_000,
 				maxHtmlChars: input.maxHtmlChars ?? 160_000,
+				browserMode: input.browserMode,
 			});
 			disposableSession = sessionResult.disposable;
 			sessionId = sessionResult.session.id;

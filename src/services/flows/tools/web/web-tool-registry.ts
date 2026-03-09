@@ -5,6 +5,8 @@ interface WebElementRecord {
 	value: string | null;
 }
 
+type WebBrowserMode = "iframe" | "tab" | "window";
+
 interface WebSessionState {
 	id: string;
 	requestedUrl: string;
@@ -15,7 +17,10 @@ interface WebSessionState {
 	domAccessible: boolean;
 	lastAccessedAt: number;
 	createdAt: number;
-	iframe: HTMLIFrameElement;
+	mode: WebBrowserMode;
+	iframe?: HTMLIFrameElement;
+	tabId?: number;
+	windowId?: number;
 }
 
 interface OpenSessionArgs {
@@ -23,6 +28,7 @@ interface OpenSessionArgs {
 	timeoutMs: number;
 	maxHtmlChars: number;
 	persist: boolean;
+	mode?: WebBrowserMode;
 }
 
 interface OpenSessionResult {
@@ -50,6 +56,7 @@ interface ActiveWebSessionInfo {
 	title?: string;
 	lastAccessedAt?: number;
 	createdAt?: number;
+	mode?: WebBrowserMode;
 }
 
 interface DomElementInfo {
@@ -71,7 +78,7 @@ const MAX_SNAP_SHOT_HTML_CHARS = 500_000;
 const DEFAULT_POLL_INTERVAL_MS = 250;
 type InactivityTimer = ReturnType<typeof window.setTimeout>;
 let activeSessionId: string | undefined;
-let activeSessionTimeout: InactivityTimer | null = null;
+let activeSessionTimeout: InactivityTimer | null | number = null;
 
 const buildIframe = (url: string): HTMLIFrameElement => {
 	const iframe = document.createElement("iframe");
@@ -96,67 +103,8 @@ const truncate = (value: string, max: number): string => {
 	return `${value.slice(0, max)}\n...truncated`;
 };
 
-const safeDocument = (iframe: HTMLIFrameElement): Document | null => {
-	try {
-		return iframe.contentWindow?.document ?? null;
-	} catch {
-		return null;
-	}
-};
-
-const safeCurrentUrl = (
-	iframe: HTMLIFrameElement,
-	requestedUrl: string,
-): string => {
-	try {
-		return iframe.contentWindow?.location?.href ?? requestedUrl;
-	} catch {
-		return requestedUrl;
-	}
-};
-
-const safeTitle = (doc: Document | null): string => {
-	if (!doc) {
-		return "";
-	}
-	return doc.title || "";
-};
-
-const safeText = (doc: Document | null): string => {
-	if (!doc) {
-		return "";
-	}
-	return doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
-};
-
-const safeHtml = (doc: Document | null): string => {
-	if (!doc) {
-		return "";
-	}
-	return doc.documentElement?.outerHTML ?? "";
-};
-
-const extractTextFromDocument = (doc: Document): string => {
-	return doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
-};
-
-const captureSnapshot = (
-	session: WebSessionState,
-	maxHtmlChars: number,
-): WebSessionState => {
-	const document = safeDocument(session.iframe);
-	const html = safeHtml(document);
-	const state = {
-		...session,
-		currentUrl: safeCurrentUrl(session.iframe, session.requestedUrl),
-		title: safeTitle(document),
-		html: truncate(html, Math.min(maxHtmlChars, MAX_SNAP_SHOT_HTML_CHARS)),
-		text: safeText(document),
-		domAccessible: Boolean(document),
-		lastAccessedAt: Date.now(),
-	};
-	return state;
-};
+const isWideWebMode = (mode?: WebBrowserMode): mode is "tab" | "window" =>
+	mode === "tab" || mode === "window";
 
 const ensureBrowserEnvironment = (): void => {
 	if (typeof window === "undefined" || typeof document === "undefined") {
@@ -189,20 +137,246 @@ const waitForFrameLoad = async (
 	});
 };
 
+const safeDocument = (session: WebSessionState): Document | null => {
+	if (session.mode !== "iframe" || !session.iframe) {
+		return null;
+	}
+	try {
+		return session.iframe.contentWindow?.document ?? null;
+	} catch {
+		return null;
+	}
+};
+
+const safeCurrentUrl = (
+	session: WebSessionState,
+	requestedUrl: string,
+): string => {
+	if (session.mode !== "iframe" || !session.iframe) {
+		return requestedUrl;
+	}
+	try {
+		return session.iframe.contentWindow?.location?.href ?? requestedUrl;
+	} catch {
+		return requestedUrl;
+	}
+};
+
+const safeTitle = (doc: Document | null): string => {
+	if (!doc) {
+		return "";
+	}
+	return doc.title || "";
+};
+
+const safeText = (doc: Document | null): string => {
+	if (!doc) {
+		return "";
+	}
+	return doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
+};
+
+const safeHtml = (doc: Document | null): string => {
+	if (!doc) {
+		return "";
+	}
+	return doc.documentElement?.outerHTML ?? "";
+};
+
+const extractTextFromDocument = (doc: Document): string => {
+	return doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
+};
+
+const openBrowserTab = async (url: string): Promise<number> => {
+	if (
+		typeof chrome === "undefined" ||
+		typeof chrome.tabs === "undefined" ||
+		typeof chrome.tabs.create !== "function"
+	) {
+		throw new Error("chrome.tabs.create is unavailable in this environment.");
+	}
+
+	const tab = await chrome.tabs.create({
+		url,
+		active: false,
+	});
+	if (!tab?.id) {
+		throw new Error("Failed to open background tab for web session.");
+	}
+	return tab.id;
+};
+
+const openBrowserWindow = async (
+	url: string,
+): Promise<{ tabId: number; windowId: number }> => {
+	if (
+		typeof chrome === "undefined" ||
+		typeof chrome.windows === "undefined" ||
+		typeof chrome.windows.create !== "function"
+	) {
+		throw new Error(
+			"chrome.windows.create is unavailable in this environment.",
+		);
+	}
+
+	const browserWindow = await chrome.windows.create({
+		url,
+		focused: false,
+		state: "minimized",
+		type: "normal",
+	});
+
+	if (!browserWindow) {
+		throw new Error("Create window error");
+	}
+
+	let tabId = browserWindow.tabs?.[0]?.id;
+	if (typeof tabId !== "number" && typeof browserWindow.id === "number") {
+		const tabs = await chrome.tabs.query({ windowId: browserWindow.id });
+		tabId = tabs.find((tab) => typeof tab.id === "number")?.id;
+	}
+
+	if (!browserWindow.id || typeof tabId !== "number") {
+		throw new Error("Failed to open background window for web session.");
+	}
+	return { tabId, windowId: browserWindow.id };
+};
+
+const closeBrowserTab = (tabId: number): void => {
+	if (
+		typeof chrome === "undefined" ||
+		typeof chrome.tabs === "undefined" ||
+		typeof chrome.tabs.remove !== "function"
+	) {
+		return;
+	}
+	void Promise.resolve(chrome.tabs.remove(tabId)).catch(() => {});
+};
+
+const closeBrowserWindow = (windowId: number): void => {
+	if (
+		typeof chrome === "undefined" ||
+		typeof chrome.windows === "undefined" ||
+		typeof chrome.windows.remove !== "function"
+	) {
+		return;
+	}
+	void Promise.resolve(chrome.windows.remove(windowId)).catch(() => {});
+};
+
+const waitForTabReady = async (
+	tabId: number,
+	timeoutMs: number,
+): Promise<void> => {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		const tab = await chrome.tabs.get(tabId);
+		if (
+			tab.status === "complete" &&
+			tab.url &&
+			!tab.url.startsWith("chrome://")
+		) {
+			return;
+		}
+		await new Promise((resolve) => window.setTimeout(resolve, 250));
+	}
+	throw new Error(`Timed out waiting for tab ${tabId} to become ready.`);
+};
+
+type TabContentPayload = {
+	url: string;
+	title: string;
+	html: string;
+	text: string;
+};
+
+const captureTabContent = async (tabId: number): Promise<TabContentPayload> => {
+	const response = await chrome.tabs.sendMessage(tabId, {
+		type: "web-tool:tab-capture",
+	});
+	if (!response || typeof response !== "object") {
+		throw new Error("Failed to read tab content.");
+	}
+
+	const safeResponse = response as Record<string, unknown>;
+	if (safeResponse.success === false) {
+		throw new Error(
+			typeof safeResponse.error === "string"
+				? safeResponse.error
+				: "Tab capture failed.",
+		);
+	}
+
+	if (
+		typeof safeResponse.url !== "string" ||
+		typeof safeResponse.title !== "string" ||
+		typeof safeResponse.html !== "string" ||
+		typeof safeResponse.text !== "string"
+	) {
+		throw new Error("Invalid tab capture response.");
+	}
+
+	return {
+		url: safeResponse.url,
+		title: safeResponse.title,
+		html: safeResponse.html,
+		text: safeResponse.text,
+	};
+};
+
+const captureSnapshot = (
+	session: WebSessionState,
+	maxHtmlChars: number,
+): WebSessionState => {
+	if (session.mode === "tab") {
+		return {
+			...session,
+			lastAccessedAt: Date.now(),
+		};
+	}
+
+	const document = safeDocument(session);
+	const html = safeHtml(document);
+	return {
+		...session,
+		currentUrl: safeCurrentUrl(session, session.requestedUrl),
+		title: safeTitle(document),
+		html: truncate(html, Math.min(maxHtmlChars, MAX_SNAP_SHOT_HTML_CHARS)),
+		text: safeText(document),
+		domAccessible: Boolean(document),
+		lastAccessedAt: Date.now(),
+	};
+};
+
 const scheduleInactivityClose = (sessionId: string): void => {
 	if (activeSessionTimeout) {
 		window.clearTimeout(activeSessionTimeout);
 	}
 	activeSessionTimeout = window.setTimeout(() => {
 		closeWebSession(sessionId);
-	}, SESSION_TTL_MS) as unknown as NodeJS.Timeout;
+	}, SESSION_TTL_MS);
+};
+
+const disposeSessionArtifacts = (session: WebSessionState): void => {
+	if (session.mode === "iframe") {
+		session.iframe?.remove();
+		return;
+	}
+
+	if (typeof session.tabId === "number") {
+		closeBrowserTab(session.tabId);
+	}
+
+	if (typeof session.windowId === "number") {
+		closeBrowserWindow(session.windowId);
+	}
 };
 
 const closeAllWebSessions = (): void => {
-	for (const [id, session] of WEB_SESSIONS) {
-		session.iframe.remove();
-		WEB_SESSIONS.delete(id);
+	for (const session of WEB_SESSIONS.values()) {
+		disposeSessionArtifacts(session);
 	}
+	WEB_SESSIONS.clear();
 	activeSessionId = undefined;
 	if (activeSessionTimeout) {
 		window.clearTimeout(activeSessionTimeout);
@@ -229,6 +403,7 @@ export const openWebSession = async ({
 	timeoutMs = DEFAULT_TIMEOUT_MS,
 	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
 	persist = true,
+	mode = "iframe",
 }: OpenSessionArgs): Promise<OpenSessionResult> => {
 	ensureBrowserEnvironment();
 	if (!document.body) {
@@ -238,9 +413,77 @@ export const openWebSession = async ({
 
 	const safeUrl = normalizeInputUrl(url);
 	const id = crypto.randomUUID();
-	const iframe = buildIframe(safeUrl);
 	const now = Date.now();
 
+	if (isWideWebMode(mode)) {
+		let effectiveMode = mode;
+		let tabId: number | undefined;
+		let windowId: number | undefined;
+		if (mode === "window") {
+			try {
+				const opened = await openBrowserWindow(safeUrl);
+				tabId = opened.tabId;
+				windowId = opened.windowId;
+			} catch {
+				effectiveMode = "tab";
+			}
+		}
+
+		if (typeof tabId !== "number") {
+			tabId = await openBrowserTab(safeUrl);
+		}
+
+		let fallback: Pick<
+			WebSessionState,
+			"title" | "html" | "text" | "currentUrl"
+		> | null = null;
+		try {
+			await waitForTabReady(tabId, timeoutMs);
+			try {
+				const tabSnapshot = await captureTabContent(tabId);
+				fallback = {
+					currentUrl: tabSnapshot.url,
+					title: tabSnapshot.title,
+					html: tabSnapshot.html,
+					text: tabSnapshot.text,
+				};
+			} catch {
+				const networkFallback = await fetchRenderedFallback({
+					url: safeUrl,
+					timeoutMs,
+					maxHtmlChars,
+				});
+				fallback = networkFallback;
+			}
+		} catch {
+			fallback = null;
+		}
+
+		const session: WebSessionState = {
+			id,
+			requestedUrl: safeUrl,
+			currentUrl: fallback?.currentUrl ?? safeUrl,
+			title: fallback?.title ?? "",
+			html: fallback?.html ?? "",
+			text: fallback?.text ?? "",
+			domAccessible: false,
+			lastAccessedAt: now,
+			createdAt: now,
+			mode: effectiveMode,
+			tabId,
+			windowId,
+		};
+		const snapshot = captureSnapshot(
+			session,
+			Math.min(maxHtmlChars, MAX_SNAP_SHOT_HTML_CHARS),
+		);
+		WEB_SESSIONS.set(id, snapshot);
+		activeSessionId = id;
+		scheduleInactivityClose(id);
+		return { session: snapshot, disposable: !persist };
+	}
+
+	const iframe = buildIframe(safeUrl);
 	try {
 		document.body.appendChild(iframe);
 		const loadPromise = waitForFrameLoad(iframe, timeoutMs);
@@ -257,6 +500,7 @@ export const openWebSession = async ({
 			domAccessible: false,
 			lastAccessedAt: now,
 			createdAt: now,
+			mode: "iframe",
 			iframe,
 		};
 		const session = captureSnapshot(baseState, maxHtmlChars);
@@ -266,9 +510,7 @@ export const openWebSession = async ({
 		return { session, disposable: !persist };
 	} catch (error) {
 		iframe.remove();
-		throw error instanceof Error
-			? error
-			: new Error(String(error));
+		throw error instanceof Error ? error : new Error(String(error));
 	}
 };
 
@@ -304,7 +546,9 @@ export const fetchRenderedFallback = async ({
 	url: string;
 	timeoutMs?: number;
 	maxHtmlChars?: number;
-}): Promise<Pick<WebSessionState, "title" | "html" | "text" | "currentUrl">> => {
+}): Promise<
+	Pick<WebSessionState, "title" | "html" | "text" | "currentUrl">
+> => {
 	const controller = new AbortController();
 	const timeout = window.setTimeout(() => {
 		controller.abort();
@@ -333,11 +577,13 @@ export const getOrOpenWebSession = async ({
 	url,
 	timeoutMs = DEFAULT_TIMEOUT_MS,
 	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
+	browserMode = "iframe",
 }: {
 	sessionId?: string;
 	url?: string;
 	timeoutMs?: number;
 	maxHtmlChars?: number;
+	browserMode?: WebBrowserMode;
 }): Promise<{ session: WebSessionState; disposable: boolean }> => {
 	if (!sessionId && !url) {
 		throw new Error("Either sessionId or url must be provided.");
@@ -360,6 +606,7 @@ export const getOrOpenWebSession = async ({
 		timeoutMs,
 		maxHtmlChars,
 		persist: false,
+		mode: browserMode,
 	});
 	return { session, disposable };
 };
@@ -380,7 +627,7 @@ export const closeWebSession = (sessionId: string): void => {
 		}
 		return;
 	}
-	session.iframe.remove();
+	disposeSessionArtifacts(session);
 	WEB_SESSIONS.delete(sessionId);
 	if (activeSessionId === sessionId) {
 		activeSessionId = undefined;
@@ -410,9 +657,9 @@ export const getActiveWebSessionInfo = (): ActiveWebSessionInfo => {
 		title: activeSession.title,
 		lastAccessedAt: activeSession.lastAccessedAt,
 		createdAt: activeSession.createdAt,
+		mode: activeSession.mode,
 	};
 };
-
 
 const elementInfo = (element: Element): DomElementInfo => ({
 	index: 0,
@@ -435,7 +682,7 @@ export const queryDomElements = (
 	selector: string,
 	maxResults: number,
 ): DomElementInfo[] => {
-	const document = safeDocument(session.iframe);
+	const document = safeDocument(session);
 	if (!document) {
 		throw new Error("DOM is not accessible for this session.");
 	}
@@ -461,7 +708,7 @@ const getIndexedElement = (
 	selector: string,
 	index: number,
 ): Element => {
-	const document = safeDocument(session.iframe);
+	const document = safeDocument(session);
 	if (!document) {
 		throw new Error("DOM is not accessible for this session.");
 	}
@@ -490,7 +737,9 @@ const buildSearchMatcher = (
 			matcher = new RegExp(pattern, caseSensitive ? "" : "i");
 		} catch (error) {
 			throw new Error(
-				error instanceof Error ? error.message : "Invalid regular expression pattern",
+				error instanceof Error
+					? error.message
+					: "Invalid regular expression pattern",
 			);
 		}
 		return {
@@ -539,7 +788,7 @@ export const searchInSessionHtml = async ({
 	maxSnippetChars?: number;
 }): Promise<SearchMatch[]> => {
 	const doc =
-		safeDocument(session.iframe) ??
+		safeDocument(session) ??
 		new DOMParser().parseFromString(session.html, "text/html");
 	const matcher = buildSearchMatcher(pattern, isRegex, caseSensitive);
 	const nodes: SearchMatch[] = [];
@@ -610,7 +859,7 @@ export const waitForDomSelector = async ({
 	timeoutMs?: number;
 	intervalMs?: number;
 }): Promise<{ matched: boolean; html: string; lastText: string }> => {
-	if (!safeDocument(session.iframe)) {
+	if (!safeDocument(session)) {
 		throw new Error("DOM is not accessible for this session.");
 	}
 
@@ -618,25 +867,19 @@ export const waitForDomSelector = async ({
 	const expectPresent = state === "present";
 	while (true) {
 		refreshWebSession(session.id);
-		const document = safeDocument(session.iframe);
+		const document = safeDocument(session);
 		const matched = Boolean(document?.querySelector(selector));
 		if ((expectPresent && matched) || (!expectPresent && !matched)) {
 			return {
 				matched: true,
-				html: truncate(
-					safeHtml(document) ,
-					DEFAULT_MAX_HTML_CHARS,
-				),
+				html: truncate(safeHtml(document), DEFAULT_MAX_HTML_CHARS),
 				lastText: safeText(document),
 			};
 		}
 		if (Date.now() - start >= timeoutMs) {
 			return {
 				matched: false,
-				html: truncate(
-					safeHtml(document),
-					DEFAULT_MAX_HTML_CHARS,
-				),
+				html: truncate(safeHtml(document), DEFAULT_MAX_HTML_CHARS),
 				lastText: safeText(document),
 			};
 		}
@@ -646,7 +889,14 @@ export const waitForDomSelector = async ({
 
 export const performDomAction = async (
 	session: WebSessionState,
-	action: "query" | "read" | "click" | "input" | "focus" | "scrollBottom" | "scrollTop",
+	action:
+		| "query"
+		| "read"
+		| "click"
+		| "input"
+		| "focus"
+		| "scrollBottom"
+		| "scrollTop",
 	options: {
 		selector: string;
 		index?: number;
@@ -656,7 +906,7 @@ export const performDomAction = async (
 ): Promise<WebElementRecord | WebElementRecord[]> => {
 	const index = options.index ?? 0;
 	const maxResults = options.maxResults ?? 20;
-	const document = safeDocument(session.iframe);
+	const document = safeDocument(session);
 	if (!document) {
 		throw new Error("DOM is not accessible for this session.");
 	}
@@ -665,9 +915,7 @@ export const performDomAction = async (
 		const records = queryDomElements(session, options.selector, maxResults).map(
 			(record) => ({
 				index: record.index,
-				label: `${record.tagName}#${record.id || "no-id"}[${
-					record.name || "no-name"
-				}]`,
+				label: `${record.tagName}#${record.id || "no-id"}[${record.name || "no-name"}]`,
 				text: record.text,
 				value: record.value,
 			}),
@@ -685,7 +933,7 @@ export const performDomAction = async (
 		};
 	}
 	if (action === "scrollBottom") {
-		session.iframe.contentWindow?.scrollTo({
+		session.iframe?.contentWindow?.scrollTo({
 			top: document.body?.scrollHeight ?? 0,
 			left: 0,
 			behavior: "smooth",
@@ -697,7 +945,11 @@ export const performDomAction = async (
 		};
 	}
 	if (action === "scrollTop") {
-		session.iframe.contentWindow?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+		session.iframe?.contentWindow?.scrollTo({
+			top: 0,
+			left: 0,
+			behavior: "smooth",
+		});
 		return {
 			label: element.tagName.toLowerCase(),
 			text: element.textContent ?? "",
@@ -714,8 +966,12 @@ export const performDomAction = async (
 					: null,
 		};
 	}
-	if (action === "click" && 'click' in element && typeof element.click === 'function') {
-		element?.click();
+	if (
+		action === "click" &&
+		"click" in element &&
+		typeof element.click === "function"
+	) {
+		element.click();
 		return {
 			label: element.tagName.toLowerCase(),
 			text: element.textContent ?? "",
@@ -723,7 +979,10 @@ export const performDomAction = async (
 		};
 	}
 	if (action === "input") {
-		if (!(element instanceof HTMLInputElement) && !(element instanceof HTMLTextAreaElement)) {
+		if (
+			!(element instanceof HTMLInputElement) &&
+			!(element instanceof HTMLTextAreaElement)
+		) {
 			throw new Error("Target element does not support value input.");
 		}
 		const inputValue = options.value ?? "";
