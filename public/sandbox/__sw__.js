@@ -49,6 +49,35 @@ function rewriteSpecifier(specifier, importMap) {
   return importMap[specifier] || specifier;
 }
 
+function getHeaderCaseInsensitive(headers, name) {
+  if (!headers || typeof headers !== 'object') {
+    return undefined;
+  }
+  const target = String(name).toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (String(key).toLowerCase() === target) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function sanitizeSynthesizedResponseHeaders(headers) {
+  const responseHeaders = new Headers(headers || {});
+  // We rebuild the body in the SW, so upstream transport/size headers are stale.
+  responseHeaders.delete('content-length');
+  responseHeaders.delete('Content-Length');
+  responseHeaders.delete('content-encoding');
+  responseHeaders.delete('Content-Encoding');
+  responseHeaders.delete('transfer-encoding');
+  responseHeaders.delete('Transfer-Encoding');
+  responseHeaders.delete('X-Frame-Options');
+  responseHeaders.set('Cross-Origin-Embedder-Policy', 'credentialless');
+  responseHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
+  responseHeaders.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  return responseHeaders;
+}
+
 /**
  * Rewrite bare module specifiers (e.g. "react/jsx-runtime") in JS source.
  * Handles:
@@ -469,18 +498,15 @@ async function handleVirtualRequest(request, port, path) {
           }
         }
 
-        // Use Blob to ensure proper body handling
-        const blob = new Blob([bytes], { type: response.headers['Content-Type'] || 'application/octet-stream' });
+        const contentType =
+          getHeaderCaseInsensitive(response.headers, 'content-type') ||
+          'application/octet-stream';
+        const blob = new Blob([bytes], { type: contentType });
         DEBUG && console.log('[SW] Created blob size:', blob.size);
 
-        // Merge response headers with CORP/COEP headers to allow iframe embedding
-        // The parent page has COEP: credentialless, so we need matching headers
-        const respHeaders = new Headers(response.headers);
-        respHeaders.set('Cross-Origin-Embedder-Policy', 'credentialless');
-        respHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-        respHeaders.set('Cross-Origin-Resource-Policy', 'cross-origin');
-        // Remove any headers that might block iframe loading
-        respHeaders.delete('X-Frame-Options');
+        // Merge response headers with CORP/COEP headers to allow iframe embedding.
+        const respHeaders = sanitizeSynthesizedResponseHeaders(response.headers);
+        respHeaders.set('Content-Type', contentType);
 
         finalResponse = new Response(blob, {
           status: response.statusCode,
@@ -495,10 +521,11 @@ async function handleVirtualRequest(request, port, path) {
         });
       }
     } else {
+      const respHeaders = sanitizeSynthesizedResponseHeaders(response.headers);
       finalResponse = new Response(null, {
         status: response.statusCode,
         statusText: response.statusMessage,
-        headers: response.headers,
+        headers: respHeaders,
       });
     }
 
