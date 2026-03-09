@@ -22,6 +22,12 @@ import {
 	NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
 	NODEJS_SANDBOX_FEATURE_TOOLS,
 } from "./steps/features/nodejs-sandbox-feature/nodejs-sandbox-feature.v2";
+import {
+	WEB_FEATURE_DESCRIPTION,
+	WEB_FEATURE_NAME,
+	WEB_FEATURE_SYSTEM_PROMPT,
+	WEB_FEATURE_TOOLS,
+} from "./steps/features/web-feature";
 
 /**
  * Flow Builder Catalog
@@ -396,6 +402,44 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			description: NODEJS_SANDBOX_FEATURE_DESCRIPTION,
 			tools: [...NODEJS_SANDBOX_FEATURE_TOOLS],
 			systemPrompt: NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-web-feature",
+		name: WEB_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with web feature instructions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description: "Tools extended with web toolset.",
+			},
+		],
+		metadata: {
+			description: WEB_FEATURE_DESCRIPTION,
+			tools: [...WEB_FEATURE_TOOLS],
+			systemPrompt: WEB_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
 		} satisfies FeatureCatalogMetadata,
 	},

@@ -31,3 +31,4 @@ import "./features/context-quick-retrieve";
 import "./features/context-llm-retrieve";
 import "./features/documents-feature";
 import "./features/nodejs-sandbox-feature";
+import "./features/web-feature";

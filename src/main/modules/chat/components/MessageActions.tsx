@@ -24,6 +24,7 @@ import type { MessageActionItem } from "./types";
 import { webAccessRenderer } from "./tools/WebAccess";
 import { apiResultRenderer } from "./tools/APIResult";
 import { defaultActionRenderer } from "./tools/DefaultActionRenderer";
+import { webReadRenderer } from "./tools/WebRead";
 
 const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["search", "query", "retrieval", "retrieve"], icon: Search },
@@ -67,8 +68,12 @@ type ActionRenderer = (
 const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	container_web_access: webAccessRenderer,
 	web_access: webAccessRenderer,
+	web_read: webReadRenderer,
+	container_web_read: webReadRenderer,
 	"web access": webAccessRenderer,
 	container_render_server: webAccessRenderer,
+	web_search: defaultActionRenderer,
+	"web search": defaultActionRenderer,
 	sandbox_api_result: apiResultRenderer,
 	container_request_server: apiResultRenderer,
 };

@@ -24,6 +24,12 @@ import "./sandbox-container/container-request-server";
 import "./sandbox-container/container-render-server";
 import "./sandbox-container/container-setup-server";
 
+import "./web/web-open";
+import "./web/web-read";
+import "./web/web-search";
+import "./web/web-dom";
+import "./web/web-wait";
+
 import "./documents-fs/fs-glob";
 import "./documents-fs/fs-grep";
 import "./documents-fs/fs-read";
