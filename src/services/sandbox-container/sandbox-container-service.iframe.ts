@@ -1,6 +1,5 @@
 import { logError, logInfo, logWarn } from "@/utils/logger";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
-import type { ISandboxContainerService } from "./sandbox-container-service.interface";
 import type {
 	SandboxErrorEnvelope,
 	SandboxExecutionRequest,
@@ -317,7 +316,7 @@ export class SandboxContainerService {
 					headers: data.headers ?? {},
 					body: data.body ?? null,
 				},
-				30_000,
+				120_000,
 			);
 			this.swRelayChannel.port1.postMessage({ type: "response", id, data: result });
 		} catch (err) {
@@ -927,7 +926,7 @@ export class SandboxContainerService {
 		}
 
 		const path = request.path ?? "/";
-		const timeoutMs = request.timeoutMs ?? 15_000;
+		const timeoutMs = request.timeoutMs ?? 120_000;
 		// Unique ID to match the postMessage from renderer-utils.js.
 		// Passed via iframe.name (survives document.write inside the renderer).
 		const renderId = Math.random().toString(36).slice(2, 10);
@@ -936,12 +935,59 @@ export class SandboxContainerService {
 			chrome.runtime.getURL("") +
 			`__virtual__/${request.port}${path.startsWith("/") ? path : "/" + path}`;
 
+		// Build import map from package.json on the sandbox filesystem and send it to
+		// the SW. Vite dev server does not serve package.json via HTTP, so we read it
+		// directly from the sandbox VFS. The SW rewrites bare specifiers (e.g.
+		// "react/jsx-runtime") to full esm.sh URLs directly in JS responses, which
+		// avoids needing a <script type="importmap"> in HTML (blocked by extension CSP).
+		let rendererImportMap: Record<string, string> = {};
+		try {
+			const { servers } = await this.request("server.list", undefined);
+			const serverInfo = servers.find((s) => s.port === request.port);
+			logInfo(`[renderViaIframe] server rootDir=${serverInfo?.rootDir ?? "unknown"} for port=${request.port}`);
+			if (serverInfo?.rootDir) {
+				const pkgPath = serverInfo.rootDir.replace(/\/$/, "") + "/package.json";
+				logInfo(`[renderViaIframe] reading package.json from ${pkgPath}`);
+				try {
+					const pkgResult = await this.request("fs.readFile", { path: pkgPath });
+					const pkg = JSON.parse(pkgResult.content) as {
+						dependencies?: Record<string, string>;
+						devDependencies?: Record<string, string>;
+					};
+					const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+					const imports: Record<string, string> = {};
+					const virtualPrefix = `/__virtual__/${request.port}`;
+					const toProxyModule = (url: string) =>
+						`${virtualPrefix}/__npm_proxy__/${encodeURIComponent(url)}`;
+					for (const [name, rawVer] of Object.entries(allDeps)) {
+						const ver = String(rawVer).replace(/^[\^~>=<*\s]+/, "").split(/\s/)[0] || "latest";
+						imports[name] = toProxyModule(`https://esm.sh/${name}@${ver}?bundle`);
+						if (name === "react") {
+							imports["react/jsx-runtime"] = toProxyModule(`https://esm.sh/react@${ver}/jsx-runtime?bundle`);
+							imports["react/jsx-dev-runtime"] = toProxyModule(`https://esm.sh/react@${ver}/jsx-dev-runtime?bundle`);
+						}
+						if (name === "react-dom") {
+							imports["react-dom/client"] = toProxyModule(`https://esm.sh/react-dom@${ver}/client?bundle`);
+							imports["react-dom/server"] = toProxyModule(`https://esm.sh/react-dom@${ver}/server?bundle`);
+						}
+					}
+					rendererImportMap = imports;
+					logInfo(`[renderViaIframe] import map built for: [${Object.keys(imports).join(", ")}]`);
+					sw?.postMessage({ type: "set-import-map", data: { port: request.port, importMap: imports } });
+				} catch (fsErr) {
+					logWarn(`[renderViaIframe] could not read ${pkgPath}:`, fsErr);
+				}
+			}
+		} catch (listErr) {
+			logWarn("[renderViaIframe] could not fetch server list for import map:", listErr);
+		}
+
 		// renderer.html is a plain extension page (not in manifest sandbox.pages)
 		// at /sandbox/renderer.html — within the SW scope /sandbox/ — so the SW
 		// intercepts all fetches made by it (including /__virtual__/* requests).
 		const rendererUrl =
 			chrome.runtime.getURL("sandbox/renderer.html") +
-			`?port=${request.port}&path=${encodeURIComponent(path)}`;
+			`?port=${request.port}&path=${encodeURIComponent(path)}&importMap=${encodeURIComponent(JSON.stringify(rendererImportMap))}`;
 
 		return new Promise<SandboxServerRequestResult>((resolve) => {
 			const iframe = document.createElement("iframe");
@@ -952,12 +998,12 @@ export class SandboxContainerService {
 			iframe.name = renderId;
 
 			let settled = false;
-			const settle = (html: string) => {
+			const settle = (html: string, keepIframe = false) => {
 				if (settled) return;
 				settled = true;
 				clearTimeout(timeoutId);
 				window.removeEventListener("message", messageHandler);
-				iframe.remove();
+				if (!keepIframe) iframe.remove();
 				resolve({
 					port: request.port,
 					url: virtualUrl,
@@ -971,19 +1017,71 @@ export class SandboxContainerService {
 			};
 
 			// renderer-utils.js postMessages once React has mounted.
+			// renderer.js also relays SW fetch requests through this handler.
 			const messageHandler = (event: MessageEvent) => {
 				if (
 					event.data?.type === "virtual-renderer-ready" &&
 					event.data.renderId === renderId
 				) {
 					settle((event.data.html as string) ?? "");
+					return;
+				}
+
+				if (
+					event.data?.type === "sw-relay-request" &&
+					event.source === iframe.contentWindow
+				) {
+					const { id, portNum, method, url: swUrl, headers, body } =
+						event.data as {
+							id: number;
+							portNum: number;
+							method: string;
+							url: string;
+							headers: Record<string, string>;
+							body: ArrayBuffer | null;
+						};
+					void this.request(
+						"server.handleSwRequest",
+						{
+							id,
+							port: portNum,
+							method,
+							path: swUrl,
+							headers: headers ?? {},
+							body: body ?? null,
+						},
+						120_000,
+					)
+						.then((result) => {
+							const _r = result as { statusCode?: number; headers?: Record<string, string>; bodyBase64?: string };
+							let _preview = '';
+							try { _preview = atob(_r.bodyBase64 ?? '').slice(0, 400); } catch (_) {}
+							logInfo(`[renderViaIframe] sw-relay done id=${id} status=${_r.statusCode} ct=${_r.headers?.['content-type']} body=${_preview}`);
+							iframe.contentWindow?.postMessage(
+								{ type: "sw-relay-response", id, data: result },
+								"*",
+							);
+						})
+						.catch((err: unknown) => {
+							iframe.contentWindow?.postMessage(
+								{
+									type: "sw-relay-response",
+									id,
+									error:
+										err instanceof Error ? err.message : String(err),
+								},
+								"*",
+							);
+						});
 				}
 			};
 			window.addEventListener("message", messageHandler);
 
 			const timeoutId = window.setTimeout(() => {
-				logWarn("[renderViaIframe] Timeout waiting for renderer signal");
-				settle("");
+				logWarn("[renderViaIframe] Timeout — keeping iframe alive for inspection. Check devtools for the hidden iframe.");
+				// DEBUG: pass true so settle() does NOT remove the iframe.
+				// Revert: change settle("", true) back to settle("") when done debugging.
+				settle("", true);
 			}, timeoutMs);
 
 			document.body.appendChild(iframe);

@@ -17,7 +17,7 @@ const schema = z.object({
 		.min(1)
 		.max(120_000)
 		.optional()
-		.describe("Request timeout in milliseconds (default 15000)."),
+		.describe("Request timeout in milliseconds (default 60000)."),
 	maxHtmlChars: z
 		.number()
 		.int()
@@ -44,7 +44,7 @@ export const createContainerRenderServerTool: ToolFactory<
 				port: input.port,
 				path,
 				method: "GET",
-				timeoutMs: input.timeoutMs ?? 15_000,
+				timeoutMs: input.timeoutMs ?? 60_000,
 				responseType: "html",
 				useIframe: true,
 			});

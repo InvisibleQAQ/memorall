@@ -16,6 +16,106 @@ let requestId = 0;
 // Registered virtual server ports
 const registeredPorts = new Set();
 
+// Import maps for bare-specifier rewriting, keyed by virtual server port.
+// Populated via 'set-import-map' message from renderViaIframe.
+const portImportMaps = new Map();
+
+function toProxyModulePath(port, remoteUrl) {
+  return `/__virtual__/${port}/__npm_proxy__/${encodeURIComponent(remoteUrl)}`;
+}
+
+function resolveRemoteModuleSpecifier(specifier, remoteUrl) {
+  if (
+    specifier.startsWith('/__virtual__/') ||
+    specifier.startsWith('chrome-extension://') ||
+    specifier.startsWith('data:') ||
+    specifier.startsWith('blob:')
+  ) {
+    return null;
+  }
+  if (specifier.startsWith('/')) {
+    return new URL(specifier, remoteUrl).href;
+  }
+  if (specifier.startsWith('./') || specifier.startsWith('../')) {
+    return new URL(specifier, remoteUrl).href;
+  }
+  if (specifier.startsWith('https://esm.sh/')) {
+    return specifier;
+  }
+  return null;
+}
+
+function rewriteSpecifier(specifier, importMap) {
+  return importMap[specifier] || specifier;
+}
+
+/**
+ * Rewrite bare module specifiers (e.g. "react/jsx-runtime") in JS source.
+ * Handles:
+ * - import ... from "spec"
+ * - export ... from "spec"
+ * - import "spec"
+ * - import("spec")
+ */
+function rewriteBareSpecifiers(code, importMap) {
+  let rewritten = code;
+
+  rewritten = rewritten.replace(
+    /\b(from)\s+(['"])((?!\/|\.\/|\.\.\/|https?:\/\/)[^'"]+)\2/g,
+    (match, keyword, quote, specifier) => `${keyword} ${quote}${rewriteSpecifier(specifier, importMap)}${quote}`
+  );
+
+  rewritten = rewritten.replace(
+    /\b(import)\s+(['"])((?!\/|\.\/|\.\.\/|https?:\/\/)[^'"]+)\2/g,
+    (match, keyword, quote, specifier) => `${keyword} ${quote}${rewriteSpecifier(specifier, importMap)}${quote}`
+  );
+
+  rewritten = rewritten.replace(
+    /\bimport\s*\(\s*(['"])((?!\/|\.\/|\.\.\/|https?:\/\/)[^'"]+)\1\s*\)/g,
+    (match, quote, specifier) => `import(${quote}${rewriteSpecifier(specifier, importMap)}${quote})`
+  );
+
+  return rewritten;
+}
+
+function rewriteRemoteModuleImports(code, port, remoteUrl) {
+  const rewriteResolved = (specifier) => {
+    const resolved = resolveRemoteModuleSpecifier(specifier, remoteUrl);
+    return resolved ? toProxyModulePath(port, resolved) : specifier;
+  };
+
+  let rewritten = code;
+
+  rewritten = rewritten.replace(
+    /\b(from)\s*(['"])([^'"]+)\2/g,
+    (match, keyword, quote, specifier) => `${keyword} ${quote}${rewriteResolved(specifier)}${quote}`
+  );
+
+  rewritten = rewritten.replace(
+    /\b(import)\s*(['"])([^'"]+)\2/g,
+    (match, keyword, quote, specifier) => `${keyword} ${quote}${rewriteResolved(specifier)}${quote}`
+  );
+
+  rewritten = rewritten.replace(
+    /\bimport\s*\(\s*(['"])([^'"]+)\1\s*\)/g,
+    (match, quote, specifier) => `import(${quote}${rewriteResolved(specifier)}${quote})`
+  );
+
+  rewritten = rewritten.replace(
+    /((?:import|export)[^'"\n\r]*?\bfrom)\s*(['"])([^'"]+)\2/g,
+    (match, prefix, quote, specifier) => `${prefix} ${quote}${rewriteResolved(specifier)}${quote}`
+  );
+
+  return rewritten;
+}
+
+function shouldRewriteModule(path, text) {
+  if (/\.(?:[cm]?[jt]sx?|vue|svelte)(?:\?.*)?$/i.test(path)) {
+    return true;
+  }
+  return /\b(?:import|export)\b/.test(text);
+}
+
 /**
  * Decode base64 string to Uint8Array
  */
@@ -65,6 +165,11 @@ self.addEventListener('message', (event) => {
   if (type === 'server-unregistered' && data) {
     registeredPorts.delete(data.port);
     DEBUG && console.log(`[SW] Server unregistered from port ${data.port}`);
+  }
+
+  if (type === 'set-import-map' && data) {
+    portImportMaps.set(data.port, data.importMap);
+    DEBUG && console.log(`[SW] Import map registered for port ${data.port}:`, Object.keys(data.importMap));
   }
 });
 
@@ -176,13 +281,13 @@ async function sendRequest(port, method, url, headers, body) {
   return new Promise((resolve, reject) => {
     pendingRequests.set(id, { resolve, reject });
 
-    // Set timeout for request
-    setTimeout(() => {
-      if (pendingRequests.has(id)) {
-        pendingRequests.delete(id);
-        reject(new Error('Request timeout'));
-      }
-    }, 30000);
+    // Set timeout for request (120 s — Vite first-compile can take 30–60 s)
+    // setTimeout(() => {
+    //   if (pendingRequests.has(id)) {
+    //     pendingRequests.delete(id);
+    //     reject(new Error('Request timeout'));
+    //   }
+    // }, 120000);
 
     mainPort.postMessage({
       type: 'request',
@@ -308,6 +413,10 @@ self.addEventListener('fetch', (event) => {
  */
 async function handleVirtualRequest(request, port, path) {
   try {
+    if (path.startsWith('/__npm_proxy__/')) {
+      return handleProxyModuleRequest(port, path);
+    }
+
     // Build headers object
     const headers = {};
     request.headers.forEach((value, key) => {
@@ -342,8 +451,23 @@ async function handleVirtualRequest(request, port, path) {
     let finalResponse;
     if (response.bodyBase64 && response.bodyBase64.length > 0) {
       try {
-        const bytes = base64ToBytes(response.bodyBase64);
+        let bytes = base64ToBytes(response.bodyBase64);
         DEBUG && console.log('[SW] Decoded body length:', bytes.length);
+
+        // Rewrite bare module specifiers when we have an import map for this port.
+        // Do not rely on Content-Type here; virtual servers sometimes omit it for
+        // transformed modules, and we still need to rewrite imports before the
+        // browser evaluates the module source.
+        if (portImportMaps.has(port)) {
+          const text = new TextDecoder().decode(bytes);
+          if (shouldRewriteModule(path, text)) {
+            const rewritten = rewriteBareSpecifiers(text, portImportMaps.get(port));
+            if (rewritten !== text) {
+              bytes = new TextEncoder().encode(rewritten);
+              DEBUG && console.log('[SW] Rewrote bare specifiers in', path);
+            }
+          }
+        }
 
         // Use Blob to ensure proper body handling
         const blob = new Blob([bytes], { type: response.headers['Content-Type'] || 'application/octet-stream' });
@@ -386,6 +510,42 @@ async function handleVirtualRequest(request, port, path) {
     return new Response(`Service Worker Error: ${error.message}`, {
       status: 500,
       statusText: 'Internal Server Error',
+      headers: { 'Content-Type': 'text/plain' },
+    });
+  }
+}
+
+async function handleProxyModuleRequest(port, path) {
+  try {
+    const encodedUrl = path.slice('/__npm_proxy__/'.length).split('?')[0];
+    const remoteUrl = decodeURIComponent(encodedUrl);
+    const remoteResponse = await fetch(remoteUrl);
+
+    if (!remoteResponse.ok) {
+      return new Response(`Module proxy fetch failed: ${remoteResponse.status} ${remoteResponse.statusText}`, {
+        status: remoteResponse.status,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    }
+
+    const contentType = remoteResponse.headers.get('content-type') || 'application/javascript; charset=utf-8';
+    const text = await remoteResponse.text();
+    const rewritten = rewriteRemoteModuleImports(text, port, remoteUrl);
+
+    return new Response(rewritten, {
+      status: remoteResponse.status,
+      statusText: remoteResponse.statusText,
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-cache',
+        'Cross-Origin-Embedder-Policy': 'credentialless',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+      },
+    });
+  } catch (error) {
+    return new Response(`Module proxy error: ${error.message}`, {
+      status: 500,
       headers: { 'Content-Type': 'text/plain' },
     });
   }

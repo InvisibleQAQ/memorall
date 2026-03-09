@@ -98,6 +98,7 @@ const toServerInfo = (serverState) => ({
 	port: serverState.port,
 	url: serverState.url,
 	renderUrl: serverState.renderUrl,
+	rootDir: serverState.rootDir,
 });
 
 const getServerBridge = (containerInstance) => {
@@ -596,7 +597,8 @@ const handleOperation = async (request) => {
 			}
 
 			const url = resolveServerBaseUrl(bridge, port);
-			const state = { kind, port, url, renderUrl: url, stop, handleRequest };
+			const resolvedRootDir = normalizePath(payload.rootDir || "/");
+			const state = { kind, port, url, renderUrl: url, stop, handleRequest, rootDir: resolvedRootDir };
 			servers.set(port, state);
 			return toServerInfo(state);
 		}

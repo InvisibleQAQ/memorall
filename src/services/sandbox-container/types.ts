@@ -193,6 +193,7 @@ export interface SandboxServerInfo {
 	port: number;
 	url: string;
 	renderUrl: string;
+	rootDir?: string;
 }
 
 export interface SandboxListServersResult {
