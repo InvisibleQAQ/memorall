@@ -40,6 +40,29 @@ export interface ChatStreamResult {
 	error?: string;
 }
 
+const mergeActions = (
+	current: ChatAction[],
+	incoming: ChatAction[],
+): ChatAction[] => {
+	if (incoming.length === 0) {
+		return current;
+	}
+
+	const merged = [...current];
+
+	for (const action of incoming) {
+		const existingIndex = merged.findIndex((item) => item.id === action.id);
+		if (existingIndex === -1) {
+			merged.push(action);
+			continue;
+		}
+
+		merged[existingIndex] = action;
+	}
+
+	return merged;
+};
+
 export class ChatService {
 	private static instance: ChatService;
 	private activeJobs = new Map<string, AbortController>();
@@ -131,11 +154,11 @@ export class ChatService {
 						// Use the final content from the job result
 						currentContent = chatResult.content;
 						if (chatResult.metadata?.actions) {
-							chatResult.metadata.actions.forEach((action) => {
-								if (!actions.find((a) => a.id === action.id)) {
-									actions.push(action);
-								}
-							});
+							actions.splice(
+								0,
+								actions.length,
+								...mergeActions(actions, chatResult.metadata.actions),
+							);
 						}
 					}
 				}
@@ -156,12 +179,12 @@ export class ChatService {
 						}
 					} else if (chatResult.type === "action" && chatResult.actions) {
 						// Handle action updates
-						chatResult.actions.forEach((action) => {
-							if (!actions.find((a) => a.id === action.id)) {
-								actions.push(action);
-							}
-						});
-						callbacks?.onAction?.(actions);
+						actions.splice(
+							0,
+							actions.length,
+							...mergeActions(actions, chatResult.actions),
+						);
+						callbacks?.onAction?.([...actions]);
 					} else if (chatResult.type === "execute-start") {
 						callbacks?.onExecuteStart?.({
 							node: chatResult.node,
@@ -172,15 +195,15 @@ export class ChatService {
 						// This replaces the accumulated content with the final version
 						currentContent = chatResult.content;
 						if (chatResult.metadata?.actions) {
-							chatResult.metadata.actions.forEach((action) => {
-								if (!actions.find((a) => a.id === action.id)) {
-									actions.push(action);
-								}
-							});
+							actions.splice(
+								0,
+								actions.length,
+								...mergeActions(actions, chatResult.metadata.actions),
+							);
 						}
 						// Notify with the final cited content
 						callbacks?.onContent?.(currentContent);
-						callbacks?.onAction?.(actions);
+						callbacks?.onAction?.([...actions]);
 					}
 				}
 			}

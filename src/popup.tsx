@@ -29,6 +29,8 @@ const PopupApp: React.FC = () => {
 // Initialize popup with initial route detection before first render
 const container = document.getElementById("root");
 if (container) {
+	document.documentElement.dataset.uiSurface = "popup";
+
 	const render = () => {
 		const root = createRoot(container);
 		root.render(<PopupApp />);

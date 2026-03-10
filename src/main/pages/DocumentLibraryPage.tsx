@@ -5,10 +5,14 @@ import { useDocumentLibrary } from "@/main/modules/documents/hooks/useDocumentLi
 import { DocumentLibraryHeader } from "@/main/modules/documents/components/DocumentLibraryHeader";
 import { DocumentLibrarySidebar } from "@/main/modules/documents/components/DocumentLibrarySidebar";
 import { DocumentLibraryContent } from "@/main/modules/documents/components/DocumentLibraryContent";
+import { DocumentLibraryCompactNavigator } from "@/main/modules/documents/components/DocumentLibraryCompactNavigator";
 
 export const DocumentLibraryPage: React.FC = () => {
 	const { t } = useTranslation("documents");
 	const lib = useDocumentLibrary();
+	const isPopupSurface =
+		typeof document !== "undefined" &&
+		document.documentElement.dataset.uiSurface === "popup";
 	const activeTree = lib.isWorkspaceSection ? lib.workspaceTree : lib.tree;
 
 	if (lib.loading) {
@@ -20,12 +24,13 @@ export const DocumentLibraryPage: React.FC = () => {
 	}
 
 	return (
-		<div className="flex flex-col h-full overflow-hidden bg-background">
+		<div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
 			<DocumentLibraryHeader
 				currentPath={lib.currentPath}
 				activeTree={activeTree}
-				homeTitle={lib.isWorkspaceSection ? "Workspace" : t("title")}
+				homeTitle={lib.isWorkspaceSection ? t("sidebar.workspace") : t("title")}
 				isWorkspaceSection={lib.isWorkspaceSection}
+				compact={isPopupSurface}
 				viewMode={lib.viewMode}
 				searchQuery={lib.searchQuery}
 				topics={lib.topics}
@@ -41,42 +46,86 @@ export const DocumentLibraryPage: React.FC = () => {
 				onTriggerUpload={lib.triggerFileUpload}
 				onCreateFolder={lib.handleCreateFolder}
 			/>
-			<div className="flex-1 flex overflow-hidden">
-				<DocumentLibrarySidebar
-					tree={lib.tree}
-					workspaceTree={lib.workspaceTree}
-					selectedSection={lib.selectedSection}
-					selectedNodeId={lib.selectedNode?.id ?? null}
-					docsTitle={t("title")}
-					onSelectDocNode={lib.handleSelectDocNode}
-					onSelectWorkspaceNode={lib.handleSelectWorkspaceNode}
-					onSelectWorkspaceRoot={lib.handleSelectWorkspaceSection}
-					onToggleExpand={lib.handleToggleExpand}
-					onToggleExpandWorkspace={lib.handleToggleExpandWorkspace}
-					onMove={lib.handleMove}
-				/>
-				<DocumentLibraryContent
-					selectedNode={lib.selectedNode}
-					isFileSelected={lib.isFileSelected}
-					isFolderSelected={lib.isFolderSelected}
-					isWorkspaceSection={lib.isWorkspaceSection}
-					folderContents={lib.folderContents}
-					viewMode={lib.viewMode}
-					fileTopicMap={lib.fileTopicMap}
-					selectedTopicIds={lib.selectedTopicIds}
-					onSelectNodeById={lib.handleSelectNodeInActiveTree}
-					onOpenFolderByPath={lib.handleOpenFolderByPath}
-					onCloseViewer={lib.handleCloseViewer}
-					onDeleteItem={lib.handleDeleteItem}
-					onRenameItem={lib.handleRenameItem}
-					onDownloadFile={lib.handleDownloadFile}
-					onDownloadSelectedFile={lib.handleDownloadSelectedFile}
-					onManageTopics={lib.handleManageFileTopic}
-					onConvertToKnowledge={lib.handleConvertToKnowledge}
-					onDeleteSelectedFile={lib.handleDeleteSelectedFile}
-					onToggleTopicFilter={lib.handleToggleTopicFilter}
-				/>
-			</div>
+			{isPopupSurface ? (
+				<div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+					<DocumentLibraryCompactNavigator
+						tree={lib.tree}
+						workspaceTree={lib.workspaceTree}
+						selectedSection={lib.selectedSection}
+						selectedNodeId={lib.selectedNode?.id ?? null}
+						docsTitle={t("title")}
+						onSelectDocumentsRoot={lib.handleSelectDocumentsSection}
+						onSelectWorkspaceRoot={lib.handleSelectWorkspaceSection}
+						onSelectDocNode={lib.handleSelectDocNode}
+						onSelectWorkspaceNode={lib.handleSelectWorkspaceNode}
+						onToggleExpand={lib.handleToggleExpand}
+						onToggleExpandWorkspace={lib.handleToggleExpandWorkspace}
+						onMove={lib.handleMove}
+					/>
+					<div className="min-w-0 flex-1 overflow-hidden">
+						<DocumentLibraryContent
+							selectedNode={lib.selectedNode}
+							isFileSelected={lib.isFileSelected}
+							isFolderSelected={lib.isFolderSelected}
+							isWorkspaceSection={lib.isWorkspaceSection}
+							folderContents={lib.folderContents}
+							viewMode={lib.viewMode}
+							fileTopicMap={lib.fileTopicMap}
+							selectedTopicIds={lib.selectedTopicIds}
+							onSelectNodeById={lib.handleSelectNodeInActiveTree}
+							onOpenFolderByPath={lib.handleOpenFolderByPath}
+							onCloseViewer={lib.handleCloseViewer}
+							onDeleteItem={lib.handleDeleteItem}
+							onRenameItem={lib.handleRenameItem}
+							onDownloadFile={lib.handleDownloadFile}
+							onDownloadSelectedFile={lib.handleDownloadSelectedFile}
+							onManageTopics={lib.handleManageFileTopic}
+							onConvertToKnowledge={lib.handleConvertToKnowledge}
+							onDeleteSelectedFile={lib.handleDeleteSelectedFile}
+							onToggleTopicFilter={lib.handleToggleTopicFilter}
+						/>
+					</div>
+				</div>
+			) : (
+				<div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+					<DocumentLibrarySidebar
+						tree={lib.tree}
+						workspaceTree={lib.workspaceTree}
+						selectedSection={lib.selectedSection}
+						selectedNodeId={lib.selectedNode?.id ?? null}
+						docsTitle={t("title")}
+						onSelectDocNode={lib.handleSelectDocNode}
+						onSelectWorkspaceNode={lib.handleSelectWorkspaceNode}
+						onSelectWorkspaceRoot={lib.handleSelectWorkspaceSection}
+						onToggleExpand={lib.handleToggleExpand}
+						onToggleExpandWorkspace={lib.handleToggleExpandWorkspace}
+						onMove={lib.handleMove}
+					/>
+					<div className="min-w-0 flex-1 overflow-hidden">
+						<DocumentLibraryContent
+							selectedNode={lib.selectedNode}
+							isFileSelected={lib.isFileSelected}
+							isFolderSelected={lib.isFolderSelected}
+							isWorkspaceSection={lib.isWorkspaceSection}
+							folderContents={lib.folderContents}
+							viewMode={lib.viewMode}
+							fileTopicMap={lib.fileTopicMap}
+							selectedTopicIds={lib.selectedTopicIds}
+							onSelectNodeById={lib.handleSelectNodeInActiveTree}
+							onOpenFolderByPath={lib.handleOpenFolderByPath}
+							onCloseViewer={lib.handleCloseViewer}
+							onDeleteItem={lib.handleDeleteItem}
+							onRenameItem={lib.handleRenameItem}
+							onDownloadFile={lib.handleDownloadFile}
+							onDownloadSelectedFile={lib.handleDownloadSelectedFile}
+							onManageTopics={lib.handleManageFileTopic}
+							onConvertToKnowledge={lib.handleConvertToKnowledge}
+							onDeleteSelectedFile={lib.handleDeleteSelectedFile}
+							onToggleTopicFilter={lib.handleToggleTopicFilter}
+						/>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

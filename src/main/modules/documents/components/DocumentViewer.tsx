@@ -244,10 +244,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	};
 
 	return (
-		<div className="flex flex-col h-full bg-card flex-1">
+		<div className="flex h-full min-w-0 flex-1 flex-col bg-card">
 			{/* Header */}
-			<div className="flex items-start justify-between p-4 border-b">
-				<div className="flex-1 min-w-0 mr-4">
+			<div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-start sm:justify-between sm:p-4">
+				<div className="mr-0 min-w-0 flex-1 sm:mr-4">
 					{/* File name + metadata on same line */}
 					<div className="flex items-center gap-2 flex-wrap mb-2">
 						<h2 className="text-lg font-semibold truncate">{file.name}</h2>
@@ -303,7 +303,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 						</Button>
 					) : null}
 				</div>
-				<div className="flex items-center gap-1">
+				<div className="flex flex-wrap items-center gap-1 sm:justify-end">
 					{file.type === "pdf" && (
 						<Button
 							variant="default"
@@ -380,7 +380,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 			<div className="flex-1 flex flex-col overflow-hidden">
 				{/* Preview Section - Takes remaining space */}
 				{file.type === "pdf" && previewUrl && (
-					<div className="flex-1 p-4 overflow-hidden">
+					<div className="flex-1 overflow-hidden p-3 sm:p-4">
 						<div className="border rounded-lg overflow-hidden h-full">
 							<iframe
 								src={previewUrl}
@@ -392,7 +392,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				)}
 
 				{file.type === "image" && previewUrl && (
-					<div className="flex-1 p-4 overflow-hidden">
+					<div className="flex-1 overflow-hidden p-3 sm:p-4">
 						<div className="border rounded-lg overflow-hidden h-full flex items-center justify-center bg-muted/20">
 							<img
 								src={previewUrl}
@@ -443,7 +443,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					})()}
 
 				{file.type === "excel" && excelData && (
-					<div className="flex-1 p-4 overflow-hidden">
+					<div className="flex-1 overflow-hidden p-3 sm:p-4">
 						<div className="border rounded-lg overflow-hidden h-full">
 							<ExcelViewer
 								fileData={excelData}
@@ -455,7 +455,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 				)}
 
 				{loading && (
-					<div className="flex-1 p-4 overflow-hidden">
+					<div className="flex-1 overflow-hidden p-3 sm:p-4">
 						<div className="flex items-center justify-center h-full border rounded-lg">
 							<div className="text-sm text-muted-foreground">
 								{t("viewer.loadingPreview")}
@@ -466,7 +466,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
 				{/* Metadata Section - Only show when showProperties is true */}
 				{showProperties && (
-					<ScrollArea className="flex-shrink-0 border-t max-h-[400px]">
+					<ScrollArea className="max-h-[45%] flex-shrink-0 border-t sm:max-h-[400px]">
 						<div className="p-4 space-y-4">
 							<h3 className="text-sm font-semibold">
 								{t("viewer.documentInformation")}

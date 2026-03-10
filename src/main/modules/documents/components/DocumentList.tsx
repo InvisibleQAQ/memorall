@@ -199,7 +199,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 					return (
 						<div
 							key={folder.id}
-							className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-accent transition-colors ${
+							className={`flex items-center gap-2 px-3 py-3 cursor-pointer hover:bg-accent transition-colors sm:gap-3 sm:px-4 ${
 								isSelected ? "bg-accent" : ""
 							}`}
 							onClick={() => handleItemClick(item)}
@@ -225,7 +225,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 									{t("list.items", { count: folder.childCount })}
 								</div>
 							</div>
-							<div className="text-xs text-muted-foreground">
+							<div className="hidden flex-shrink-0 text-xs text-muted-foreground sm:block">
 								{formatDate(folder.modifiedAt)}
 							</div>
 							<DropdownMenu>
@@ -273,7 +273,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 					return (
 						<div
 							key={file.id}
-							className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-accent transition-colors ${
+							className={`flex items-center gap-2 px-3 py-3 cursor-pointer hover:bg-accent transition-colors sm:gap-3 sm:px-4 ${
 								isSelected ? "bg-accent" : ""
 							}`}
 							onClick={() => handleItemClick(item)}
@@ -314,7 +314,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 									</div>
 								)}
 							</div>
-							<div className="text-xs text-muted-foreground flex-shrink-0">
+							<div className="hidden flex-shrink-0 text-xs text-muted-foreground sm:block">
 								{formatDate(file.modifiedAt)}
 							</div>
 							<DropdownMenu>
@@ -398,7 +398,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 	);
 
 	const renderGridView = () => (
-		<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
+		<div className="grid grid-cols-1 gap-3 p-3 min-[400px]:grid-cols-2 sm:grid-cols-3 sm:gap-4 sm:p-4 md:grid-cols-4 lg:grid-cols-5">
 			{items.map((item) => {
 				const isSelected =
 					selectedItem?.type === item.type &&
@@ -622,7 +622,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
 	}
 
 	return (
-		<div className="h-full overflow-auto flex-1">
+		<div className="h-full min-w-0 overflow-auto flex-1">
 			{viewMode === "list" ? renderListView() : renderGridView()}
 		</div>
 	);

@@ -240,12 +240,36 @@ export function useDocumentLibrary() {
 
 	// ── Node navigation (stable, [] deps) ───────────────────────────────────
 	const handleSelectNode = useCallback((node: DocumentTreeNode | null) => {
+		if (!node) {
+			if (isWorkspaceSectionRef.current) {
+				setSelectedNode(makeWorkspaceRoot(workspaceTreeRef.current));
+				return;
+			}
+			setSelectedNode(treeRef.current[0] ?? null);
+			return;
+		}
 		setSelectedNode(node);
 	}, []);
 
 	const handleSelectDocNode = useCallback((node: DocumentTreeNode) => {
 		setSelectedSection("documents");
 		setSelectedNode(node);
+	}, []);
+
+	/** Select the documents section, falling back to the first top-level node. */
+	const handleSelectDocumentsSection = useCallback(() => {
+		setSelectedSection("documents");
+		const currentNode = selectedNodeRef.current;
+		if (currentNode) {
+			const matchingNode =
+				findNodeById(treeRef.current, currentNode.id) ??
+				findNodeByPath(treeRef.current, currentNode.path);
+			if (matchingNode) {
+				setSelectedNode(matchingNode);
+				return;
+			}
+		}
+		setSelectedNode(treeRef.current[0] ?? null);
 	}, []);
 
 	const handleSelectWorkspaceNode = useCallback((node: DocumentTreeNode) => {
@@ -803,6 +827,7 @@ export function useDocumentLibrary() {
 		// Handlers
 		handleSelectNode,
 		handleSelectDocNode,
+		handleSelectDocumentsSection,
 		handleSelectWorkspaceNode,
 		handleSelectWorkspaceSection,
 		handleToggleExpand,

@@ -25,6 +25,9 @@ import { webAccessRenderer } from "./tools/WebAccess";
 import { apiResultRenderer } from "./tools/APIResult";
 import { defaultActionRenderer } from "./tools/DefaultActionRenderer";
 import { webReadRenderer } from "./tools/WebRead";
+import { webOpenRenderer } from "./tools/WebOpen";
+import { webDomRenderer } from "./tools/WebDom";
+import { fsActionRenderer } from "./tools/FileSystem";
 
 const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["search", "query", "retrieval", "retrieve"], icon: Search },
@@ -72,12 +75,22 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	container_web_read: webReadRenderer,
 	"web access": webAccessRenderer,
 	container_render_server: webAccessRenderer,
+	web_open: webOpenRenderer,
+	web_dom_action: webDomRenderer,
 	web_find_in_page: defaultActionRenderer,
 	"web find in page": defaultActionRenderer,
 	web_search: defaultActionRenderer,
 	"web search": defaultActionRenderer,
 	sandbox_api_result: apiResultRenderer,
 	container_request_server: apiResultRenderer,
+	fs_read: fsActionRenderer,
+	fs_write: fsActionRenderer,
+	fs_edit: fsActionRenderer,
+	fs_ls: fsActionRenderer,
+	fs_glob: fsActionRenderer,
+	fs_grep: fsActionRenderer,
+	fs_mkdir: fsActionRenderer,
+	fs_remove: fsActionRenderer,
 };
 
 interface ActionContentProps {

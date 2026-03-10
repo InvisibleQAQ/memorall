@@ -35,6 +35,29 @@ export interface ChatStreamOptions extends ChatServiceOptions {
 	signal?: AbortSignal;
 }
 
+const mergeActions = (
+	current: ChatAction[],
+	incoming: ChatAction[],
+): ChatAction[] => {
+	if (incoming.length === 0) {
+		return current;
+	}
+
+	const merged = [...current];
+
+	for (const action of incoming) {
+		const existingIndex = merged.findIndex((item) => item.id === action.id);
+		if (existingIndex === -1) {
+			merged.push(action);
+			continue;
+		}
+
+		merged[existingIndex] = action;
+	}
+
+	return merged;
+};
+
 export class EmbeddedChatService {
 	private static instance: EmbeddedChatService;
 	private activeJobs = new Map<string, AbortController>();
@@ -150,26 +173,21 @@ export class EmbeddedChatService {
 						}
 					} else if (chatResult.type === "action" && chatResult.actions) {
 						// Handle action updates
-						chatResult.actions.forEach((action) => {
-							if (!finalActions.find((a) => a.id === action.id)) {
-								finalActions.push(action);
-							}
-						});
-						onAction?.(finalActions);
+						finalActions = mergeActions(finalActions, chatResult.actions);
+						onAction?.([...finalActions]);
 					} else if (chatResult.type === "final") {
 						// Handle final content update (e.g., after citation step)
 						// This replaces the accumulated content with the final version
 						finalContent = chatResult.content;
 						if (chatResult.metadata?.actions) {
-							chatResult.metadata.actions.forEach((action) => {
-								if (!finalActions.find((a) => a.id === action.id)) {
-									finalActions.push(action);
-								}
-							});
+							finalActions = mergeActions(
+								finalActions,
+								chatResult.metadata.actions,
+							);
 						}
 						// Notify with the final cited content
 						onProgress?.(finalContent, false);
-						onAction?.(finalActions);
+						onAction?.([...finalActions]);
 					}
 				}
 
@@ -188,8 +206,11 @@ export class EmbeddedChatService {
 						}
 
 						if (chatResult.metadata?.actions) {
-							finalActions = chatResult.metadata.actions;
-							onAction?.(finalActions);
+							finalActions = mergeActions(
+								finalActions,
+								chatResult.metadata.actions,
+							);
+							onAction?.([...finalActions]);
 						}
 					}
 				}

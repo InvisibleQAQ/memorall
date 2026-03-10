@@ -24,6 +24,14 @@ export interface InProgressMessage {
 	};
 }
 
+const cloneActions = (
+	actions: InProgressMessage["actions"],
+): InProgressMessage["actions"] =>
+	actions.map((action) => ({
+		...action,
+		metadata: { ...action.metadata },
+	}));
+
 export const useChat = (model: string) => {
 	const [inputValue, setInputValue] = useState("");
 	const [status, setStatus] = useState<ChatStatus>("ready");
@@ -225,7 +233,7 @@ export const useChat = (model: string) => {
 					onAction: (actions) => {
 						// Only update in-progress message, not the store
 						setInProgressMessage((prev) =>
-							prev ? { ...prev, actions } : null,
+							prev ? { ...prev, actions: cloneActions(actions) } : null,
 						);
 					},
 					onExecuteStart: (event) => {
@@ -270,7 +278,11 @@ export const useChat = (model: string) => {
 				// This ensures smooth transition from streaming to final
 				setInProgressMessage((prev) =>
 					prev
-						? { ...prev, content: result.content, actions: result.actions }
+						? {
+								...prev,
+								content: result.content,
+								actions: cloneActions(result.actions),
+							}
 						: null,
 				);
 

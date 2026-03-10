@@ -34,6 +34,7 @@ interface DocumentLibraryHeaderProps {
 	activeTree: DocumentTreeNode[];
 	homeTitle: string;
 	isWorkspaceSection: boolean;
+	compact?: boolean;
 	viewMode: "grid" | "list";
 	searchQuery: string;
 	topics: Array<Topic & { fileCount: number }>;
@@ -55,6 +56,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 	activeTree,
 	homeTitle,
 	isWorkspaceSection,
+	compact = false,
 	viewMode,
 	searchQuery,
 	topics,
@@ -72,32 +74,33 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 }: DocumentLibraryHeaderProps) {
 	const { t } = useTranslation("documents");
 
-	return (
-		<div className="border-b bg-card">
-			{/* Row 1: Breadcrumb + Actions */}
-			<div className="flex items-center justify-between gap-2 px-2 md:px-3 py-2 border-b">
-				<DocumentBreadcrumb
-					currentPath={currentPath}
-					tree={activeTree}
-					onNavigate={onNavigate}
-					homeTitle={homeTitle}
-				/>
+	if (compact) {
+		return (
+			<div className="border-b bg-card">
+				<div className="flex items-center gap-2 border-b px-2 py-2">
+					<DocumentBreadcrumb
+						currentPath={currentPath}
+						tree={activeTree}
+						onNavigate={onNavigate}
+						homeTitle={homeTitle}
+					/>
 
-				<div className="flex items-center gap-1 flex-shrink-0">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button size="sm" className="h-8 gap-1.5">
+							<Button size="sm" className="h-8 gap-1.5 px-2.5">
 								<Plus className="h-4 w-4" />
-								<span className="hidden md:inline">{t("library.add")}</span>
+								<span className="hidden min-[520px]:inline">
+									{t("library.add")}
+								</span>
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
 							<DropdownMenuItem onClick={onCreateDocument}>
-								<FileText className="h-4 w-4 mr-2" />
+								<FileText className="mr-2 h-4 w-4" />
 								{t("upload.createDocument", { defaultValue: "New Document" })}
 							</DropdownMenuItem>
 							<DropdownMenuItem onClick={onTriggerUpload}>
-								<Upload className="h-4 w-4 mr-2" />
+								<Upload className="mr-2 h-4 w-4" />
 								{t("upload.uploadFiles")}
 							</DropdownMenuItem>
 							<DropdownMenuItem
@@ -107,7 +110,116 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 									})
 								}
 							>
-								<FolderPlus className="h-4 w-4 mr-2" />
+								<FolderPlus className="mr-2 h-4 w-4" />
+								{t("upload.createFolder")}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
+
+				<div className="flex items-center gap-2 px-2 py-2">
+					<div className="relative min-w-0 flex-1">
+						<Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+						<Input
+							placeholder={t("library.searchPlaceholder")}
+							value={searchQuery}
+							onChange={(e) => onSearchChange(e.target.value)}
+							className="h-8 pl-8 text-sm"
+						/>
+					</div>
+
+					{!isWorkspaceSection && (
+						<TopicFilterDropdown
+							topics={topics}
+							selectedTopicIds={selectedTopicIds}
+							onSelectionChange={onTopicFilterChange}
+							className="w-[104px] min-w-[104px] px-2"
+						/>
+					)}
+
+					<div className="flex flex-shrink-0 items-center gap-0.5 rounded-md border p-0.5">
+						<Button
+							variant={viewMode === "list" ? "secondary" : "ghost"}
+							size="sm"
+							onClick={() => onViewModeChange("list")}
+							className="h-7 w-7 p-0"
+							title={t("library.listView")}
+						>
+							<List className="h-4 w-4" />
+						</Button>
+						<Button
+							variant={viewMode === "grid" ? "secondary" : "ghost"}
+							size="sm"
+							onClick={() => onViewModeChange("grid")}
+							className="h-7 w-7 p-0"
+							title={t("library.gridView")}
+						>
+							<Grid3x3 className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+
+				{!isWorkspaceSection && selectedTopicIds.length > 0 && (
+					<div className="overflow-x-auto px-2 pb-2">
+						<ActiveTopicChips
+							selectedTopics={topics.filter((topic) =>
+								selectedTopicIds.includes(topic.id),
+							)}
+							onRemoveTopic={onRemoveTopicFilter}
+							onClearAll={onClearTopicFilters}
+							className="min-w-max flex-nowrap"
+						/>
+					</div>
+				)}
+
+				{error && (
+					<div className="px-2 pb-2">
+						<Alert variant="destructive">
+							<AlertCircle className="h-4 w-4" />
+							<AlertDescription>{error}</AlertDescription>
+						</Alert>
+					</div>
+				)}
+			</div>
+		);
+	}
+
+	return (
+		<div className="border-b bg-card">
+			{/* Row 1: Breadcrumb + Actions */}
+			<div className="flex items-center justify-between gap-2 border-b px-2 py-2 md:px-3">
+				<DocumentBreadcrumb
+					currentPath={currentPath}
+					tree={activeTree}
+					onNavigate={onNavigate}
+					homeTitle={homeTitle}
+				/>
+
+				<div className="flex flex-shrink-0 items-center gap-1">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button size="sm" className="h-8 gap-1.5">
+								<Plus className="h-4 w-4" />
+								<span className="hidden md:inline">{t("library.add")}</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem onClick={onCreateDocument}>
+								<FileText className="mr-2 h-4 w-4" />
+								{t("upload.createDocument", { defaultValue: "New Document" })}
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={onTriggerUpload}>
+								<Upload className="mr-2 h-4 w-4" />
+								{t("upload.uploadFiles")}
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() =>
+									NiceModal.show(CreateFolderDialog, {
+										onCreateFolder,
+									})
+								}
+							>
+								<FolderPlus className="mr-2 h-4 w-4" />
 								{t("upload.createFolder")}
 							</DropdownMenuItem>
 						</DropdownMenuContent>
@@ -116,8 +228,8 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 			</div>
 
 			{/* Row 2: Search + Topic Filter + View Controls */}
-			<div className="flex items-center gap-2 px-2 md:px-3 py-2">
-				<div className="flex items-center gap-2 flex-1 min-w-0">
+			<div className="flex items-center gap-2 px-2 py-2 md:px-3">
+				<div className="flex min-w-0 flex-1 items-center gap-2">
 					<div className="relative flex-1 min-w-0">
 						<Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
 						<Input
@@ -138,7 +250,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 					)}
 				</div>
 
-				<div className="flex items-center gap-0.5 border rounded-md p-0.5 flex-shrink-0">
+				<div className="flex flex-shrink-0 items-center gap-0.5 rounded-md border p-0.5">
 					<Button
 						variant={viewMode === "list" ? "secondary" : "ghost"}
 						size="sm"

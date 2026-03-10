@@ -29,6 +29,8 @@ const StandaloneApp: React.FC = () => {
 // Initialize standalone page
 const container = document.getElementById("root");
 if (container) {
+	document.documentElement.dataset.uiSurface = "standalone";
+
 	const root = createRoot(container);
 	root.render(<StandaloneApp />);
 } else {
