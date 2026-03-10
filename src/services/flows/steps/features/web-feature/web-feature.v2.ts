@@ -54,6 +54,9 @@ Only one web session can be active at a time. Reuse the current session whenever
 - Do not assume a selector when reading page content. If you are not confident about the page structure, read the page first without a selector or inspect/query DOM before narrowing to a selector.
 - If a selector-based read returns empty or clearly incomplete content, do not assume the page has no content. Try another selector or inspect the DOM structure first.
 - Prefer stable selectors such as semantic container IDs, "main", "article", or clearly relevant content regions when they are confirmed to exist.
+- For form filling, first use web_dom_action with action="query" and a narrow selector, then choose a returned element where visible=true and acceptsTextInput=true.
+- Use the returned index value exactly for follow-up read/click/input/focus actions. Do not use the row position if the list order changes.
+- Do not type into input[type=file], hidden, submit, button, checkbox, radio, or other non-text inputs.
 
 ## AVAILABLE TOOLS
 - web_open: open URL, wait for the initial navigation load, and keep a session.

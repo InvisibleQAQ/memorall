@@ -22,9 +22,16 @@ export interface WebDomElementInfo {
 	id: string | null;
 	name: string | null;
 	type: string | null;
+	placeholder: string | null;
+	ariaLabel: string | null;
+	title: string | null;
+	role: string | null;
 	text: string;
 	value: string | null;
 	href: string | null;
+	disabled: boolean;
+	visible: boolean;
+	acceptsTextInput: boolean;
 }
 
 export interface WebSnapshotPayload {

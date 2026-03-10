@@ -595,6 +595,12 @@ const elementInfo = (element: Element, index: number): WebDomElementInfo => ({
 	id: element.getAttribute("id"),
 	name: element.getAttribute("name"),
 	type: element.getAttribute("type"),
+	placeholder: element.getAttribute("placeholder"),
+	ariaLabel:
+		element.getAttribute("aria-label") ||
+		element.getAttribute("aria-labelledby"),
+	title: element.getAttribute("title"),
+	role: element.getAttribute("role"),
 	text: (element.textContent ?? "").trim(),
 	value:
 		element instanceof HTMLInputElement ||
@@ -608,7 +614,73 @@ const elementInfo = (element: Element, index: number): WebDomElementInfo => ({
 		element instanceof HTMLLinkElement
 			? element.getAttribute("href")
 			: null,
+	disabled:
+		(element instanceof HTMLInputElement ||
+			element instanceof HTMLTextAreaElement ||
+			element instanceof HTMLSelectElement ||
+			element instanceof HTMLButtonElement) &&
+		element.disabled,
+	visible: isElementVisible(element),
+	acceptsTextInput: acceptsTextInput(element),
 });
+
+const isElementVisible = (element: Element): boolean => {
+	if (!(element instanceof HTMLElement)) {
+		return true;
+	}
+	if (element.hidden) {
+		return false;
+	}
+	const style = window.getComputedStyle(element);
+	if (style.display === "none" || style.visibility === "hidden") {
+		return false;
+	}
+	return Boolean(
+		element.offsetWidth ||
+			element.offsetHeight ||
+			element.getClientRects().length,
+	);
+};
+
+const acceptsTextInput = (element: Element): boolean => {
+	if (element instanceof HTMLTextAreaElement) {
+		return true;
+	}
+	if (!(element instanceof HTMLInputElement)) {
+		return false;
+	}
+	const inputType = (element.type || "text").toLowerCase();
+	return [
+		"",
+		"text",
+		"search",
+		"email",
+		"url",
+		"tel",
+		"password",
+		"number",
+		"date",
+		"datetime-local",
+		"month",
+		"time",
+		"week",
+	].includes(inputType);
+};
+
+const assertTextInputTarget = (element: Element): void => {
+	if (element instanceof HTMLTextAreaElement) {
+		return;
+	}
+	if (!(element instanceof HTMLInputElement)) {
+		throw new Error("Target element does not support text input.");
+	}
+	const inputType = (element.type || "text").toLowerCase();
+	if (!acceptsTextInput(element)) {
+		throw new Error(
+			`Target element is input[type=${inputType}] and does not support text input. Query again and choose a visible element with acceptsTextInput=true.`,
+		);
+	}
+};
 
 export const queryDomElements = async (
 	session: WebSessionState,
@@ -1036,21 +1108,29 @@ export const performDomAction = async (
 					).value ?? null,
 			};
 		}
-		if (action === "input") {
-			if (
-				!(element instanceof HTMLInputElement) &&
-				!(element instanceof HTMLTextAreaElement)
-			) {
-				throw new Error("Target element does not support value input.");
-			}
+		if (
+			action === "input" &&
+			"focus" in element &&
+			typeof element.focus === "function"
+		) {
+			assertTextInputTarget(element);
 			const inputValue = options.value ?? "";
-			element.focus();
-			element.value = inputValue;
-			element.dispatchEvent(new Event("input", { bubbles: true }));
-			element.dispatchEvent(new Event("change", { bubbles: true }));
+			element?.focus();
+			if (
+				element instanceof HTMLInputElement ||
+				element instanceof HTMLTextAreaElement
+			) {
+				element.value = inputValue;
+				element.dispatchEvent(new Event("input", { bubbles: true }));
+				element.dispatchEvent(new Event("change", { bubbles: true }));
+			}
 			return {
 				label: element.tagName.toLowerCase(),
-				text: element.value,
+				text:
+					element instanceof HTMLInputElement ||
+					element instanceof HTMLTextAreaElement
+						? element.value
+						: "",
 				value: inputValue,
 			};
 		}

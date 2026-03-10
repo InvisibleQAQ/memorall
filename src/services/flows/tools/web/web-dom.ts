@@ -45,6 +45,50 @@ const schema = z.object({
 
 type Input = z.infer<typeof schema>;
 
+const isButtonLikeType = (value: string | null): boolean =>
+	["button", "submit", "reset", "checkbox", "radio", "image"].includes(
+		(value || "").toLowerCase(),
+	);
+
+const getDomQueryPriority = (
+	record: Awaited<ReturnType<typeof queryDomElements>>[number],
+): number => {
+	let score = 0;
+	if (record.visible) score += 1000;
+	if (!record.disabled) score += 400;
+	if (record.acceptsTextInput) score += 300;
+	if ((record.type || "").toLowerCase() === "search") score += 150;
+	if ((record.type || "").toLowerCase() === "text") score += 125;
+	if (record.placeholder || record.ariaLabel || record.name || record.id)
+		score += 60;
+	if ((record.type || "").toLowerCase() === "file") score -= 900;
+	if ((record.type || "").toLowerCase() === "hidden") score -= 800;
+	if (isButtonLikeType(record.type)) score -= 500;
+	return score;
+};
+
+const buildElementLabel = (
+	record: Awaited<ReturnType<typeof queryDomElements>>[number],
+): string => {
+	const parts = [record.tagName];
+	if (record.type) {
+		parts.push(`[type=${record.type}]`);
+	}
+	if (record.id) {
+		parts.push(`#${record.id}`);
+	}
+	if (record.name) {
+		parts.push(`[name=${record.name}]`);
+	}
+	if (record.placeholder) {
+		parts.push(`[placeholder=${record.placeholder}]`);
+	}
+	if (record.ariaLabel) {
+		parts.push(`[aria-label=${record.ariaLabel}]`);
+	}
+	return parts.join("");
+};
+
 export const createWebDomActionTool: ToolFactory<
 	Input,
 	undefined
@@ -66,12 +110,29 @@ export const createWebDomActionTool: ToolFactory<
 					input.selector,
 					input.maxResults ?? 20,
 				);
-				const actionResult = elements.map((record) => ({
-					index: record.index,
-					label: `${record.tagName}#${record.id || "no-id"}[${record.name || "no-name"}]`,
-					text: record.text,
-					value: record.value,
-				}));
+				const actionResult = [...elements]
+					.sort(
+						(a, b) =>
+							getDomQueryPriority(b) - getDomQueryPriority(a) ||
+							a.index - b.index,
+					)
+					.map((record) => ({
+						index: record.index,
+						label: buildElementLabel(record),
+						tagName: record.tagName,
+						type: record.type,
+						id: record.id,
+						name: record.name,
+						placeholder: record.placeholder,
+						ariaLabel: record.ariaLabel,
+						title: record.title,
+						role: record.role,
+						visible: record.visible,
+						disabled: record.disabled,
+						acceptsTextInput: record.acceptsTextInput,
+						text: record.text,
+						value: record.value,
+					}));
 
 				return createWebResult({
 					actionType: "web_dom_action",
@@ -80,6 +141,7 @@ export const createWebDomActionTool: ToolFactory<
 					url: session.currentUrl,
 					action: input.action,
 					selector: input.selector,
+					note: "Use the returned `index` value for follow-up read/click/input/focus actions. Prefer visible elements with acceptsTextInput=true for text entry.",
 					result: actionResult,
 				});
 			}
