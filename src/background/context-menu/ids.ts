@@ -1,0 +1,14 @@
+export const MENU_IDS = {
+	SAVE_PAGE: "save-page",
+	CONVERT_TO_KNOWLEDGE: "convert-to-knowledge",
+	SAVE_DIVIDER: "save-divider",
+	RECALL: "recall",
+	RECALL_IMAGE: "recall-image",
+	RECALL_DIVIDER: "recall-divider",
+	START_CAPTURE: "start-capture",
+	STOP_CAPTURE: "stop-capture",
+	VIEW_ACTIVITIES: "view-activities",
+	ACTIVITY_DIVIDER: "activity-divider",
+	OPEN_PLATFORM: "open-platform",
+	OPEN_DOCUMENTS: "open-documents",
+} as const;
