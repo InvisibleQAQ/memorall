@@ -1,6 +1,7 @@
 import z from "zod";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import {
+	closeWebSession,
 	createDefaultWebErrorResult,
 	createWebResult,
 	openWebSession,
@@ -15,7 +16,7 @@ const schema = z.object({
 		.enum(["iframe", "tab", "window"])
 		.optional()
 		.describe(
-			"Open mode. `iframe` keeps interactive DOM actions; `tab`/`window` use wide-access browser container.",
+			"Open mode. `iframe` uses offscreen embedding; `tab`/`window` use browser-backed page access.",
 		),
 	timeoutMs: z
 		.number()
@@ -45,17 +46,21 @@ export const createWebOpenTool: ToolFactory<
 > = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Open a web URL in `iframe` (interactive DOM) or `tab`/`window` (wide-access) mode, and expose `sessionId` for follow-up actions.",
+		"Open a web URL in `iframe` or browser-backed `tab`/`window` mode, wait for the initial navigation load, and expose `sessionId` for follow-up actions. Use `web_wait` for SPA/render waits and `web_read` to retrieve page content.",
 	schema,
 	execute: async (input) => {
+		let disposableSessionId: string | undefined;
 		try {
-			const { session } = await openWebSession({
+			const { session, disposable, renderReady } = await openWebSession({
 				url: input.url,
 				timeoutMs: input.timeoutMs ?? 15_000,
 				maxHtmlChars: input.maxHtmlChars ?? 160_000,
 				persist: input.keepSession ?? true,
 				mode: input.browserMode,
 			});
+			if (disposable) {
+				disposableSessionId = session.id;
+			}
 
 			return createWebResult({
 				actionType: "web_open",
@@ -66,10 +71,14 @@ export const createWebOpenTool: ToolFactory<
 				title: session.title,
 				domAccessible: session.domAccessible,
 				browserMode: session.mode,
-				html: session.html,
+				renderReady,
 			});
 		} catch (error) {
 			return createDefaultWebErrorResult(error);
+		} finally {
+			if (disposableSessionId) {
+				await closeWebSession(disposableSessionId);
+			}
 		}
 	},
 });

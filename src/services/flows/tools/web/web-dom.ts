@@ -6,7 +6,7 @@ import {
 	createWebResult,
 	getWebSession,
 	performDomAction,
-	refreshWebSession,
+	queryDomElements,
 } from "./web-tool-registry";
 
 const TOOL_NAME = "web_dom_action" as const;
@@ -55,19 +55,39 @@ export const createWebDomActionTool: ToolFactory<
 	schema,
 	execute: async (input) => {
 		try {
-			const session = getWebSession(input.sessionId);
-			refreshWebSession(input.sessionId);
+			const session = await getWebSession(input.sessionId);
 			if (!session.domAccessible) {
-				throw new Error(
-					"web_dom_action requires iframe mode session (tab/window modes are not DOM-accessible).",
+				throw new Error("Current session cannot expose DOM actions.");
+			}
+
+			if (input.action === "query") {
+				const elements = await queryDomElements(
+					session,
+					input.selector,
+					input.maxResults ?? 20,
 				);
+				const actionResult = elements.map((record) => ({
+					index: record.index,
+					label: `${record.tagName}#${record.id || "no-id"}[${record.name || "no-name"}]`,
+					text: record.text,
+					value: record.value,
+				}));
+
+				return createWebResult({
+					actionType: "web_dom_action",
+					success: true,
+					sessionId: session.id,
+					url: session.currentUrl,
+					action: input.action,
+					selector: input.selector,
+					result: actionResult,
+				});
 			}
 
 			const actionResult = await performDomAction(session, input.action, {
 				selector: input.selector,
 				index: input.index ?? 0,
 				value: input.value,
-				maxResults: input.maxResults,
 			});
 
 			return createWebResult({

@@ -1,4 +1,10 @@
-import { Annotation, END, START, StateGraph } from "@langchain/langgraph/web";
+import {
+	Annotation,
+	END,
+	START,
+	StateGraph,
+	type LangGraphRunnableConfig,
+} from "@langchain/langgraph/web";
 import type {
 	ChatCompletionMessageParam,
 	ChatCompletionMessageToolCall,
@@ -10,6 +16,13 @@ import {
 } from "@/services/flows/tool-registry";
 import type { BaseTool } from "@/services/flows/interfaces/tool";
 import { logWarn } from "@/utils/logger";
+import {
+	FLOW_RUN_LIFECYCLE_CONFIG_KEY,
+	createFlowRunLifecycle,
+	getFlowRunLifecycle,
+	type FlowRunFinishCallback,
+	type FlowRunLifecycle,
+} from "@/services/flows/runtime/run-lifecycle";
 
 export type ToolName = `${keyof ToolTypeRegistry & string}`;
 
@@ -144,6 +157,75 @@ type LangGraphInvokeResult<T> = ReturnType<CompiledGraph<T>["invoke"]>;
 type LangGraphStreamResult<T> = ReturnType<CompiledGraph<T>["stream"]>;
 type LangGraphInvokeOptions<T> = Parameters<CompiledGraph<T>["invoke"]>[1];
 type LangGraphStreamOptions<T> = Parameters<CompiledGraph<T>["stream"]>[1];
+type LangGraphStreamValue<T> = Awaited<LangGraphStreamResult<T>>;
+
+const wrapStreamWithLifecycle = <TStream extends AsyncIterable<unknown>>(
+	stream: TStream,
+	onDrain: () => Promise<void>,
+): TStream => {
+	let drained = false;
+
+	const drainOnce = async (): Promise<void> => {
+		if (drained) {
+			return;
+		}
+		drained = true;
+		await onDrain();
+	};
+
+	const createIterator = (): AsyncIterator<unknown> => {
+		const iterator = stream[Symbol.asyncIterator]();
+
+		return {
+			next: async (value?: unknown) => {
+				try {
+					const result = await iterator.next(value);
+					if (result.done) {
+						await drainOnce();
+					}
+					return result;
+				} catch (error) {
+					await drainOnce();
+					throw error;
+				}
+			},
+			return: async (value?: unknown) => {
+				try {
+					if (typeof iterator.return === "function") {
+						return await iterator.return(value);
+					}
+					return {
+						done: true,
+						value,
+					};
+				} finally {
+					await drainOnce();
+				}
+			},
+			throw: async (error?: unknown) => {
+				try {
+					if (typeof iterator.throw === "function") {
+						return await iterator.throw(error);
+					}
+					throw error;
+				} finally {
+					await drainOnce();
+				}
+			},
+		};
+	};
+
+	return new Proxy(stream as object, {
+		get(target, property, receiver) {
+			if (property === Symbol.asyncIterator) {
+				return createIterator;
+			}
+
+			const value = Reflect.get(target, property, receiver);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	}) as TStream;
+};
 
 export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 	protected workflow!: StateGraph<T, T, unknown, N | typeof START | typeof END>;
@@ -223,6 +305,32 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 
 	protected chat = GraphBase.chat;
 
+	protected getRunLifecycle(
+		runConfig?: LangGraphRunnableConfig,
+	): FlowRunLifecycle | undefined {
+		return getFlowRunLifecycle(runConfig);
+	}
+
+	protected onFinish(
+		runConfig: LangGraphRunnableConfig | undefined,
+		key: string,
+		callback: FlowRunFinishCallback,
+	): void {
+		this.getRunLifecycle(runConfig)?.onFinish(key, callback);
+	}
+
+	private withRunLifecycle<
+		TOptions extends { configurable?: object } | undefined,
+	>(options: TOptions, runLifecycle: FlowRunLifecycle): TOptions {
+		return {
+			...(options ?? {}),
+			configurable: {
+				...(options?.configurable ?? {}),
+				[FLOW_RUN_LIFECYCLE_CONFIG_KEY]: runLifecycle,
+			},
+		} as TOptions;
+	}
+
 	protected compile(
 		options?: Parameters<typeof this.workflow.compile>[0],
 	): CompiledGraph<T> {
@@ -240,15 +348,51 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 		options?: LangGraphInvokeOptions<T>,
 	): LangGraphInvokeResult<T> {
 		const arg = input as Parameters<typeof this.app.invoke>[0];
-		return this.app.invoke(arg, options);
+		const existingLifecycle = getFlowRunLifecycle(options);
+		const runLifecycle = existingLifecycle ?? createFlowRunLifecycle();
+		const ownsLifecycle = !existingLifecycle;
+
+		return (async () => {
+			try {
+				return await this.app.invoke(
+					arg,
+					this.withRunLifecycle(options, runLifecycle),
+				);
+			} finally {
+				if (ownsLifecycle) {
+					await runLifecycle.drain();
+				}
+			}
+		})() as LangGraphInvokeResult<T>;
 	}
 
-	stream(
+	async stream(
 		input: Partial<T>,
 		options?: LangGraphStreamOptions<T>,
 	): LangGraphStreamResult<T> {
 		const arg = input as Parameters<typeof this.app.stream>[0];
-		return this.app.stream(arg, options);
+		const existingLifecycle = getFlowRunLifecycle(options);
+		const runLifecycle = existingLifecycle ?? createFlowRunLifecycle();
+		const ownsLifecycle = !existingLifecycle;
+
+		try {
+			const stream = await this.app.stream(
+				arg,
+				this.withRunLifecycle(options, runLifecycle),
+			);
+			const wrappedStream = ownsLifecycle
+				? wrapStreamWithLifecycle(stream as AsyncIterable<unknown>, () =>
+						runLifecycle.drain(),
+					)
+				: stream;
+
+			return wrappedStream as LangGraphStreamValue<T>;
+		} catch (error) {
+			if (ownsLifecycle) {
+				await runLifecycle.drain();
+			}
+			throw error;
+		}
 	}
 
 	getGraph() {

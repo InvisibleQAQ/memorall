@@ -27,7 +27,7 @@ import {
 	WEB_FEATURE_NAME,
 	WEB_FEATURE_SYSTEM_PROMPT,
 	WEB_FEATURE_TOOLS,
-} from "./steps/features/web-feature";
+} from "./steps/features/web-feature/web-feature.v2";
 
 /**
  * Flow Builder Catalog

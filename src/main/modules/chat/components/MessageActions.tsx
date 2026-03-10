@@ -72,6 +72,8 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	container_web_read: webReadRenderer,
 	"web access": webAccessRenderer,
 	container_render_server: webAccessRenderer,
+	web_find_in_page: defaultActionRenderer,
+	"web find in page": defaultActionRenderer,
 	web_search: defaultActionRenderer,
 	"web search": defaultActionRenderer,
 	sandbox_api_result: apiResultRenderer,

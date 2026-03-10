@@ -5,11 +5,14 @@ import type { ActionRenderer } from "@/main/modules/chat/components/types";
 import type { MessageActionItem } from "@/main/modules/chat/components/types";
 
 interface WebReadPayload {
-	url: string;
+	url?: string;
 	requestedUrl?: string;
-	html?: string;
-	text?: string;
 	title?: string;
+	content?: string;
+	contentMode?: "text" | "html" | "clean_html";
+	selector?: string;
+	matchCount?: number;
+	fallback?: string;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -19,25 +22,43 @@ const extractWebReadPayload = (
 	item: MessageActionItem,
 ): WebReadPayload | null => {
 	const fromMetadata = item.metadata;
-	if (fromMetadata && typeof fromMetadata.url === "string") {
+	if (isRecord(fromMetadata)) {
 		return {
 			requestedUrl:
 				typeof fromMetadata.requestedUrl === "string"
 					? fromMetadata.requestedUrl
 					: undefined,
-			url: fromMetadata.url,
-			html:
-				typeof fromMetadata.html === "string" ? fromMetadata.html : undefined,
-			text:
-				typeof fromMetadata.text === "string" ? fromMetadata.text : undefined,
+			url: typeof fromMetadata.url === "string" ? fromMetadata.url : undefined,
 			title:
 				typeof fromMetadata.title === "string" ? fromMetadata.title : undefined,
+			content:
+				typeof fromMetadata.content === "string"
+					? fromMetadata.content
+					: undefined,
+			contentMode:
+				fromMetadata.contentMode === "text" ||
+				fromMetadata.contentMode === "html" ||
+				fromMetadata.contentMode === "clean_html"
+					? fromMetadata.contentMode
+					: undefined,
+			selector:
+				typeof fromMetadata.selector === "string"
+					? fromMetadata.selector
+					: undefined,
+			matchCount:
+				typeof fromMetadata.matchCount === "number"
+					? fromMetadata.matchCount
+					: undefined,
+			fallback:
+				typeof fromMetadata.fallback === "string"
+					? fromMetadata.fallback
+					: undefined,
 		};
 	}
 
 	try {
 		const parsed = JSON.parse(item.description);
-		if (!isRecord(parsed) || typeof parsed.url !== "string") {
+		if (!isRecord(parsed)) {
 			return null;
 		}
 		return {
@@ -45,18 +66,29 @@ const extractWebReadPayload = (
 				typeof parsed.requestedUrl === "string"
 					? parsed.requestedUrl
 					: undefined,
-			url: parsed.url,
-			html: typeof parsed.html === "string" ? parsed.html : undefined,
-			text: typeof parsed.text === "string" ? parsed.text : undefined,
+			url: typeof parsed.url === "string" ? parsed.url : undefined,
 			title: typeof parsed.title === "string" ? parsed.title : undefined,
+			content: typeof parsed.content === "string" ? parsed.content : undefined,
+			contentMode:
+				parsed.contentMode === "text" ||
+				parsed.contentMode === "html" ||
+				parsed.contentMode === "clean_html"
+					? parsed.contentMode
+					: undefined,
+			selector:
+				typeof parsed.selector === "string" ? parsed.selector : undefined,
+			matchCount:
+				typeof parsed.matchCount === "number" ? parsed.matchCount : undefined,
+			fallback:
+				typeof parsed.fallback === "string" ? parsed.fallback : undefined,
 		};
 	} catch {
 		return null;
 	}
 };
 
-const isTextPayload = (payload: WebReadPayload): boolean =>
-	!!payload.text && !payload.html;
+const isHtmlMode = (payload: WebReadPayload): boolean =>
+	payload.contentMode === "html" || payload.contentMode === "clean_html";
 
 export const webReadRenderer: ActionRenderer = (item, isOpen) => {
 	if (!isOpen) return null;
@@ -71,7 +103,15 @@ export const webReadRenderer: ActionRenderer = (item, isOpen) => {
 	}
 
 	const displayUrl = payload.url || payload.requestedUrl || "";
-	const htmlContent = payload.html?.trim() || "";
+	const content = payload.content?.trim() || "";
+	const metadataBits = [
+		payload.contentMode ? `mode: ${payload.contentMode}` : null,
+		payload.selector ? `selector: ${payload.selector}` : null,
+		typeof payload.matchCount === "number"
+			? `matches: ${payload.matchCount}`
+			: null,
+		payload.fallback ? `fallback: ${payload.fallback}` : null,
+	].filter(Boolean);
 
 	return (
 		<div className="w-full rounded-lg border border-border/60 overflow-hidden bg-background">
@@ -93,32 +133,26 @@ export const webReadRenderer: ActionRenderer = (item, isOpen) => {
 					<ExternalLink className="w-3.5 h-3.5" />
 				</button>
 			</div>
-			{htmlContent ? (
+			{content && isHtmlMode(payload) ? (
 				<iframe
 					title={t("actions.webRead.iframeTitle", {
 						defaultValue: "web_read HTML preview",
 					})}
-					srcDoc={htmlContent}
+					srcDoc={content}
 					className="w-full h-[360px] bg-white"
 					sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts"
 				/>
 			) : (
 				<pre className="max-h-[360px] overflow-auto p-3 text-xs whitespace-pre-wrap break-words bg-muted/20">
-					{payload.text ||
+					{content ||
 						t("actions.webRead.emptyText", {
-							defaultValue: "No readable HTML/text found.",
+							defaultValue: "No readable content found.",
 						})}
 				</pre>
 			)}
-			{isTextPayload(payload) ? null : (
+			{metadataBits.length === 0 ? null : (
 				<div className="px-3 py-2 text-xs text-muted-foreground border-t border-border/60">
-					{t("actions.webRead.textFallback", {
-						defaultValue: "Text preview",
-					})}
-					:{" "}
-					<span className="font-mono">
-						{payload.text?.slice(0, 200) ?? "—"}
-					</span>
+					<span className="font-mono">{metadataBits.join(" | ")}</span>
 				</div>
 			)}
 		</div>

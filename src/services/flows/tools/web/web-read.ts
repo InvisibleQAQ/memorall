@@ -1,4 +1,5 @@
 import z from "zod";
+import sanitizeHtml from "sanitize-html";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import {
@@ -6,12 +7,18 @@ import {
 	createWebResult,
 	getOrOpenWebSession,
 	closeWebSession,
-	queryDomElements,
-	refreshWebSession,
 	fetchRenderedFallback,
 } from "./web-tool-registry";
 
 const TOOL_NAME = "web_read" as const;
+const CONTENT_MODE_VALUES = [
+	"text",
+	"structure_text",
+	"html",
+	"clean_html",
+] as const;
+type ContentMode = (typeof CONTENT_MODE_VALUES)[number];
+type NormalizedContentMode = "text" | "html" | "clean_html";
 
 const schema = z.object({
 	sessionId: z.string().optional().describe("Active web session to read."),
@@ -42,21 +49,123 @@ const schema = z.object({
 		.string()
 		.optional()
 		.describe("Optional selector for a focused read."),
+	contentMode: z
+		.enum(CONTENT_MODE_VALUES)
+		.optional()
+		.describe(
+			"Content format. Default is `text`. `text` returns readable page text, `html` returns rendered HTML, `clean_html` returns HTML with tags only and no attributes/scripts/styles.",
+		),
 });
 
 type Input = z.infer<typeof schema>;
 
-const readBySelector = (
-	sessionId: string,
-	selector: string,
-): ReturnType<typeof createWebResult> => {
-	const session = refreshWebSession(sessionId);
-	const elements = queryDomElements(session, selector, 10).map(
-		(entry, index) => ({
-			index,
-			...entry,
-		}),
+const parseHtml = (html: string): Document =>
+	new DOMParser().parseFromString(
+		html || "<html><body></body></html>",
+		"text/html",
 	);
+
+const truncateContent = (value: string, maxChars: number): string => {
+	if (value.length <= maxChars) {
+		return value;
+	}
+	return `${value.slice(0, maxChars)}\n...truncated`;
+};
+
+const normalizeContentMode = (
+	contentMode: ContentMode,
+): NormalizedContentMode =>
+	contentMode === "structure_text" ? "text" : contentMode;
+
+const createCleanHtml = (html: string): string => {
+	return sanitizeHtml(html, {
+		allowedTags: false,
+		allowedAttributes: {},
+		disallowedTagsMode: "discard",
+		exclusiveFilter: (frame) =>
+			frame.tag === "script" ||
+			frame.tag === "style" ||
+			frame.tag === "noscript" ||
+			frame.tag === "link",
+	});
+};
+
+const extractSelectorHtml = (
+	html: string,
+	selector: string,
+	maxMatches = 10,
+): { html: string; matchCount: number } => {
+	const document = parseHtml(html);
+	const matchedElements = Array.from(document.querySelectorAll(selector)).slice(
+		0,
+		maxMatches,
+	);
+	return {
+		html: matchedElements.map((element) => element.outerHTML).join("\n"),
+		matchCount: matchedElements.length,
+	};
+};
+
+const extractTextFromHtml = (html: string): string => {
+	const document = parseHtml(html);
+	return (
+		document.body?.innerText ??
+		document.body?.textContent ??
+		document.documentElement?.textContent ??
+		""
+	).trim();
+};
+
+const buildReadContent = ({
+	rawHtml,
+	rawText,
+	contentMode,
+	maxChars,
+}: {
+	rawHtml: string;
+	rawText: string;
+	contentMode: ContentMode;
+	maxChars: number;
+}): {
+	contentMode: NormalizedContentMode;
+	content: string;
+} => {
+	const normalizedMode = normalizeContentMode(contentMode);
+
+	if (normalizedMode === "text") {
+		return {
+			contentMode: normalizedMode,
+			content: truncateContent(rawText, maxChars),
+		};
+	}
+
+	if (normalizedMode === "clean_html") {
+		const cleanHtml = createCleanHtml(rawHtml);
+		return {
+			contentMode: normalizedMode,
+			content: truncateContent(cleanHtml, maxChars),
+		};
+	}
+
+	return {
+		contentMode: normalizedMode,
+		content: truncateContent(rawHtml, maxChars),
+	};
+};
+
+const readBySelector = async (
+	session: Awaited<ReturnType<typeof getOrOpenWebSession>>["session"],
+	selector: string,
+	contentMode: ContentMode,
+	maxChars: number,
+): Promise<ReturnType<typeof createWebResult>> => {
+	const selectorHtml = extractSelectorHtml(session.html, selector, 10);
+	const transformedContent = buildReadContent({
+		rawHtml: selectorHtml.html,
+		rawText: extractTextFromHtml(selectorHtml.html),
+		contentMode,
+		maxChars,
+	});
 	return createWebResult({
 		actionType: "web_read",
 		success: true,
@@ -64,8 +173,11 @@ const readBySelector = (
 		url: session.currentUrl,
 		title: session.title,
 		domAccessible: session.domAccessible,
-		html: session.html,
-		elements,
+		browserMode: session.mode,
+		selector,
+		matchCount: selectorHtml.matchCount,
+		contentMode: transformedContent.contentMode,
+		content: transformedContent.content,
 	});
 };
 
@@ -75,30 +187,39 @@ export const createWebReadTool: ToolFactory<
 > = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Read rendered HTML/text from an active web session or directly from a URL.",
+		"Read rendered page content from an active web session or directly from a URL. Default output is readable text.",
 	schema,
 	execute: async (input) => {
 		let disposableSession = false;
 		let sessionId = input.sessionId;
+		const contentMode = input.contentMode ?? "text";
+		const maxChars = input.maxHtmlChars ?? 160_000;
 		try {
 			const sessionResult = await getOrOpenWebSession({
 				sessionId: input.sessionId,
 				url: input.url,
 				timeoutMs: input.timeoutMs ?? 15_000,
-				maxHtmlChars: input.maxHtmlChars ?? 160_000,
+				maxHtmlChars: maxChars,
 				browserMode: input.browserMode,
 			});
 			disposableSession = sessionResult.disposable;
 			sessionId = sessionResult.session.id;
-			const session = refreshWebSession(
-				sessionId,
-				input.maxHtmlChars ?? 160_000,
-			);
-			if (!session.domAccessible) {
+			const session = sessionResult.session;
+			if (input.selector) {
+				return readBySelector(session, input.selector, contentMode, maxChars);
+			}
+
+			if (session.mode === "iframe" && !session.domAccessible) {
 				const fallback = await fetchRenderedFallback({
 					url: session.requestedUrl,
 					timeoutMs: input.timeoutMs ?? 15_000,
-					maxHtmlChars: input.maxHtmlChars ?? 160_000,
+					maxHtmlChars: maxChars,
+				});
+				const transformedFallback = buildReadContent({
+					rawHtml: fallback.html,
+					rawText: fallback.text,
+					contentMode,
+					maxChars,
 				});
 				return createWebResult({
 					actionType: "web_read",
@@ -107,15 +228,19 @@ export const createWebReadTool: ToolFactory<
 					url: fallback.currentUrl,
 					title: fallback.title,
 					domAccessible: false,
+					browserMode: session.mode,
+					contentMode: transformedFallback.contentMode,
+					content: transformedFallback.content,
 					fallback: "network",
-					html: fallback.html,
-					text: fallback.text,
 				});
 			}
 
-			if (input.selector) {
-				return readBySelector(sessionId, input.selector);
-			}
+			const transformedContent = buildReadContent({
+				rawHtml: session.html,
+				rawText: session.text,
+				contentMode,
+				maxChars,
+			});
 
 			return createWebResult({
 				actionType: "web_read",
@@ -124,14 +249,15 @@ export const createWebReadTool: ToolFactory<
 				url: session.currentUrl,
 				title: session.title,
 				domAccessible: session.domAccessible,
-				html: session.html,
-				text: session.text,
+				browserMode: session.mode,
+				contentMode: transformedContent.contentMode,
+				content: transformedContent.content,
 			});
 		} catch (error) {
 			return createDefaultWebErrorResult(error);
 		} finally {
 			if (disposableSession && sessionId) {
-				closeWebSession(sessionId);
+				await closeWebSession(sessionId);
 			}
 		}
 	},

@@ -1,11 +1,15 @@
-interface WebElementRecord {
-	index?: number;
-	label: string | null;
-	text: string;
-	value: string | null;
-}
-
-type WebBrowserMode = "iframe" | "tab" | "window";
+import {
+	WEB_BROWSER_COMMAND_SOURCE,
+	isWebBrowserCommandResponse,
+	type WebBrowserCommandRequest,
+	type WebBrowserCommandResponse,
+	type WebBrowserMode,
+	type WebDomActionName,
+	type WebDomElementInfo,
+	type WebElementRecord,
+	type WebSnapshotPayload,
+	type WebWaitSelectorState,
+} from "./web-browser-protocol";
 
 interface WebSessionState {
 	id: string;
@@ -34,6 +38,7 @@ interface OpenSessionArgs {
 interface OpenSessionResult {
 	session: WebSessionState;
 	disposable: boolean;
+	renderReady: boolean;
 }
 
 interface SearchMatch {
@@ -59,26 +64,18 @@ interface ActiveWebSessionInfo {
 	mode?: WebBrowserMode;
 }
 
-interface DomElementInfo {
-	index: number;
-	tagName: string;
-	id: string | null;
-	name: string | null;
-	type: string | null;
-	text: string;
-	value: string | null;
-	href: string | null;
-}
+type SuccessfulWebBrowserCommandResponse = Extract<
+	WebBrowserCommandResponse,
+	{ success: true }
+>;
 
 const WEB_SESSIONS = new Map<string, WebSessionState>();
 const SESSION_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_MAX_HTML_CHARS = 160_000;
-const MAX_SNAP_SHOT_HTML_CHARS = 500_000;
 const DEFAULT_POLL_INTERVAL_MS = 250;
-type InactivityTimer = ReturnType<typeof window.setTimeout>;
 let activeSessionId: string | undefined;
-let activeSessionTimeout: InactivityTimer | null | number = null;
+let activeSessionTimeout: number | null = null;
 
 const buildIframe = (url: string): HTMLIFrameElement => {
 	const iframe = document.createElement("iframe");
@@ -103,7 +100,28 @@ const truncate = (value: string, max: number): string => {
 	return `${value.slice(0, max)}\n...truncated`;
 };
 
-const isWideWebMode = (mode?: WebBrowserMode): mode is "tab" | "window" =>
+const normalizeReadableText = (value: string): string =>
+	value.replace(/\s+/g, " ").trim();
+
+const extractReadableHtmlText = (html: string): string =>
+	html
+		.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+		.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+		.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, " ")
+		.replace(/<!--[\s\S]*?-->/g, " ")
+		.replace(/<[^>]+>/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+
+const hasReadableSessionContent = ({
+	html,
+	text,
+}: Pick<WebSessionState, "html" | "text">): boolean =>
+	Boolean(normalizeReadableText(text) || extractReadableHtmlText(html));
+
+const isWideWebMode = (
+	mode?: WebBrowserMode,
+): mode is Exclude<WebBrowserMode, "iframe"> =>
 	mode === "tab" || mode === "window";
 
 const ensureBrowserEnvironment = (): void => {
@@ -183,219 +201,140 @@ const safeHtml = (doc: Document | null): string => {
 	return doc.documentElement?.outerHTML ?? "";
 };
 
-const extractTextFromDocument = (doc: Document): string => {
-	return doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
-};
-
-const openBrowserTab = async (url: string): Promise<number> => {
-	if (
-		typeof chrome === "undefined" ||
-		typeof chrome.tabs === "undefined" ||
-		typeof chrome.tabs.create !== "function"
-	) {
-		throw new Error("chrome.tabs.create is unavailable in this environment.");
-	}
-
-	const tab = await chrome.tabs.create({
-		url,
-		active: false,
-	});
-	if (!tab?.id) {
-		throw new Error("Failed to open background tab for web session.");
-	}
-	return tab.id;
-};
-
-const openBrowserWindow = async (
-	url: string,
-): Promise<{ tabId: number; windowId: number }> => {
-	if (
-		typeof chrome === "undefined" ||
-		typeof chrome.windows === "undefined" ||
-		typeof chrome.windows.create !== "function"
-	) {
-		throw new Error(
-			"chrome.windows.create is unavailable in this environment.",
-		);
-	}
-
-	const browserWindow = await chrome.windows.create({
-		url,
-		focused: false,
-		state: "minimized",
-		type: "normal",
-	});
-
-	if (!browserWindow) {
-		throw new Error("Create window error");
-	}
-
-	let tabId = browserWindow.tabs?.[0]?.id;
-	if (typeof tabId !== "number" && typeof browserWindow.id === "number") {
-		const tabs = await chrome.tabs.query({ windowId: browserWindow.id });
-		tabId = tabs.find((tab) => typeof tab.id === "number")?.id;
-	}
-
-	if (!browserWindow.id || typeof tabId !== "number") {
-		throw new Error("Failed to open background window for web session.");
-	}
-	return { tabId, windowId: browserWindow.id };
-};
-
-const closeBrowserTab = (tabId: number): void => {
-	if (
-		typeof chrome === "undefined" ||
-		typeof chrome.tabs === "undefined" ||
-		typeof chrome.tabs.remove !== "function"
-	) {
-		return;
-	}
-	void Promise.resolve(chrome.tabs.remove(tabId)).catch(() => {});
-};
-
-const closeBrowserWindow = (windowId: number): void => {
-	if (
-		typeof chrome === "undefined" ||
-		typeof chrome.windows === "undefined" ||
-		typeof chrome.windows.remove !== "function"
-	) {
-		return;
-	}
-	void Promise.resolve(chrome.windows.remove(windowId)).catch(() => {});
-};
-
-const waitForTabReady = async (
-	tabId: number,
-	timeoutMs: number,
-): Promise<void> => {
-	const deadline = Date.now() + timeoutMs;
-	while (Date.now() < deadline) {
-		const tab = await chrome.tabs.get(tabId);
-		if (
-			tab.status === "complete" &&
-			tab.url &&
-			!tab.url.startsWith("chrome://")
-		) {
-			return;
-		}
-		await new Promise((resolve) => window.setTimeout(resolve, 250));
-	}
-	throw new Error(`Timed out waiting for tab ${tabId} to become ready.`);
-};
-
-type TabContentPayload = {
-	url: string;
-	title: string;
-	html: string;
-	text: string;
-};
-
-const captureTabContent = async (tabId: number): Promise<TabContentPayload> => {
-	const response = await chrome.tabs.sendMessage(tabId, {
-		type: "web-tool:tab-capture",
-	});
-	if (!response || typeof response !== "object") {
-		throw new Error("Failed to read tab content.");
-	}
-
-	const safeResponse = response as Record<string, unknown>;
-	if (safeResponse.success === false) {
-		throw new Error(
-			typeof safeResponse.error === "string"
-				? safeResponse.error
-				: "Tab capture failed.",
-		);
-	}
-
-	if (
-		typeof safeResponse.url !== "string" ||
-		typeof safeResponse.title !== "string" ||
-		typeof safeResponse.html !== "string" ||
-		typeof safeResponse.text !== "string"
-	) {
-		throw new Error("Invalid tab capture response.");
-	}
-
-	return {
-		url: safeResponse.url,
-		title: safeResponse.title,
-		html: safeResponse.html,
-		text: safeResponse.text,
-	};
-};
-
-const captureSnapshot = (
-	session: WebSessionState,
-	maxHtmlChars: number,
-): WebSessionState => {
-	if (session.mode === "tab") {
-		return {
-			...session,
-			lastAccessedAt: Date.now(),
-		};
-	}
-
-	const document = safeDocument(session);
-	const html = safeHtml(document);
-	return {
-		...session,
-		currentUrl: safeCurrentUrl(session, session.requestedUrl),
-		title: safeTitle(document),
-		html: truncate(html, Math.min(maxHtmlChars, MAX_SNAP_SHOT_HTML_CHARS)),
-		text: safeText(document),
-		domAccessible: Boolean(document),
-		lastAccessedAt: Date.now(),
-	};
-};
+const extractTextFromDocument = (doc: Document): string =>
+	doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
 
 const scheduleInactivityClose = (sessionId: string): void => {
 	if (activeSessionTimeout) {
 		window.clearTimeout(activeSessionTimeout);
 	}
 	activeSessionTimeout = window.setTimeout(() => {
-		closeWebSession(sessionId);
+		void closeWebSession(sessionId);
 	}, SESSION_TTL_MS);
 };
 
-const disposeSessionArtifacts = (session: WebSessionState): void => {
+const applySnapshotToSession = (
+	session: WebSessionState,
+	snapshot: WebSnapshotPayload,
+): WebSessionState => {
+	session.currentUrl = snapshot.url;
+	session.title = snapshot.title;
+	session.html = snapshot.html;
+	session.text = snapshot.text;
+	session.domAccessible = snapshot.domAccessible;
+	session.lastAccessedAt = Date.now();
+	return session;
+};
+
+const captureIframeSnapshot = (session: WebSessionState): WebSessionState => {
+	const document = safeDocument(session);
+	const html = safeHtml(document);
+	session.currentUrl = safeCurrentUrl(session, session.requestedUrl);
+	session.title = safeTitle(document);
+	session.html = html;
+	session.text = safeText(document);
+	session.domAccessible = Boolean(document);
+	session.lastAccessedAt = Date.now();
+	return session;
+};
+
+const sendWebBrowserCommand = async (
+	request: WebBrowserCommandRequest,
+): Promise<SuccessfulWebBrowserCommandResponse> => {
+	const rawResponse = await chrome.runtime.sendMessage(request);
+	if (!isWebBrowserCommandResponse(rawResponse)) {
+		throw new Error("Invalid response from browser web handler.");
+	}
+	if (!rawResponse.success) {
+		throw new Error(rawResponse.error);
+	}
+	return rawResponse;
+};
+
+const captureBrowserSnapshot = async (
+	session: WebSessionState,
+	maxHtmlChars: number,
+	timeoutMs: number,
+): Promise<WebSessionState> => {
+	if (typeof session.tabId !== "number") {
+		throw new Error("Browser-backed web session is missing tabId.");
+	}
+
+	const response = await sendWebBrowserCommand({
+		source: WEB_BROWSER_COMMAND_SOURCE,
+		command: "snapshot",
+		sessionId: session.id,
+		tabId: session.tabId,
+		timeoutMs,
+		maxHtmlChars,
+	});
+	if (response.command !== "snapshot") {
+		throw new Error("Invalid browser snapshot response.");
+	}
+
+	return applySnapshotToSession(session, response.snapshot);
+};
+
+const disposeSessionArtifacts = async (
+	session: WebSessionState,
+): Promise<void> => {
 	if (session.mode === "iframe") {
 		session.iframe?.remove();
 		return;
 	}
 
-	if (typeof session.tabId === "number") {
-		closeBrowserTab(session.tabId);
+	if (
+		typeof session.tabId !== "number" &&
+		typeof session.windowId !== "number"
+	) {
+		return;
 	}
 
-	if (typeof session.windowId === "number") {
-		closeBrowserWindow(session.windowId);
+	await sendWebBrowserCommand({
+		source: WEB_BROWSER_COMMAND_SOURCE,
+		command: "close",
+		sessionId: session.id,
+		tabId: session.tabId,
+		windowId: session.windowId,
+	}).catch(() => {});
+};
+
+const closeAllWebSessions = async (): Promise<void> => {
+	for (const sessionId of Array.from(WEB_SESSIONS.keys())) {
+		await closeWebSession(sessionId);
 	}
 };
 
-const closeAllWebSessions = (): void => {
-	for (const session of WEB_SESSIONS.values()) {
-		disposeSessionArtifacts(session);
-	}
-	WEB_SESSIONS.clear();
-	activeSessionId = undefined;
+export const disposeActiveWebSession = async (
+	_reason?: string,
+): Promise<void> => {
 	if (activeSessionTimeout) {
 		window.clearTimeout(activeSessionTimeout);
 		activeSessionTimeout = null;
 	}
+
+	await closeAllWebSessions();
+	activeSessionId = undefined;
 };
 
-const touchSession = (
+const touchSession = async (
 	sessionId: string,
 	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
-): WebSessionState => {
+	timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<WebSessionState> => {
 	const session = WEB_SESSIONS.get(sessionId);
 	if (!session) {
 		throw new Error(`No active web session: ${sessionId}`);
 	}
-	const refreshed = captureSnapshot(session, maxHtmlChars);
-	WEB_SESSIONS.set(sessionId, refreshed);
+
+	if (session.mode === "iframe") {
+		captureIframeSnapshot(session);
+	} else {
+		await captureBrowserSnapshot(session, maxHtmlChars, timeoutMs);
+	}
+
 	scheduleInactivityClose(sessionId);
-	return refreshed;
+	return session;
 };
 
 export const openWebSession = async ({
@@ -406,81 +345,58 @@ export const openWebSession = async ({
 	mode = "iframe",
 }: OpenSessionArgs): Promise<OpenSessionResult> => {
 	ensureBrowserEnvironment();
-	if (!document.body) {
+	if (!document.body && mode === "iframe") {
 		throw new Error("Document body is not available for web sessions.");
 	}
-	closeAllWebSessions();
+
+	await closeAllWebSessions();
 
 	const safeUrl = normalizeInputUrl(url);
 	const id = crypto.randomUUID();
 	const now = Date.now();
 
 	if (isWideWebMode(mode)) {
-		let effectiveMode = mode;
-		let tabId: number | undefined;
-		let windowId: number | undefined;
-		if (mode === "window") {
-			try {
-				const opened = await openBrowserWindow(safeUrl);
-				tabId = opened.tabId;
-				windowId = opened.windowId;
-			} catch {
-				effectiveMode = "tab";
-			}
-		}
-
-		if (typeof tabId !== "number") {
-			tabId = await openBrowserTab(safeUrl);
-		}
-
-		let fallback: Pick<
-			WebSessionState,
-			"title" | "html" | "text" | "currentUrl"
-		> | null = null;
-		try {
-			await waitForTabReady(tabId, timeoutMs);
-			try {
-				const tabSnapshot = await captureTabContent(tabId);
-				fallback = {
-					currentUrl: tabSnapshot.url,
-					title: tabSnapshot.title,
-					html: tabSnapshot.html,
-					text: tabSnapshot.text,
-				};
-			} catch {
-				const networkFallback = await fetchRenderedFallback({
-					url: safeUrl,
-					timeoutMs,
-					maxHtmlChars,
-				});
-				fallback = networkFallback;
-			}
-		} catch {
-			fallback = null;
+		const response = await sendWebBrowserCommand({
+			source: WEB_BROWSER_COMMAND_SOURCE,
+			command: "open",
+			sessionId: id,
+			url: safeUrl,
+			mode,
+			timeoutMs,
+			maxHtmlChars,
+		});
+		if (response.command !== "open") {
+			throw new Error("Invalid browser open response.");
 		}
 
 		const session: WebSessionState = {
 			id,
 			requestedUrl: safeUrl,
-			currentUrl: fallback?.currentUrl ?? safeUrl,
-			title: fallback?.title ?? "",
-			html: fallback?.html ?? "",
-			text: fallback?.text ?? "",
+			currentUrl: safeUrl,
+			title: "",
+			html: "",
+			text: "",
 			domAccessible: false,
 			lastAccessedAt: now,
 			createdAt: now,
-			mode: effectiveMode,
-			tabId,
-			windowId,
+			mode: response.surface.mode,
+			tabId: response.surface.tabId,
+			windowId: response.surface.windowId,
 		};
-		const snapshot = captureSnapshot(
-			session,
-			Math.min(maxHtmlChars, MAX_SNAP_SHOT_HTML_CHARS),
-		);
-		WEB_SESSIONS.set(id, snapshot);
+		applySnapshotToSession(session, response.snapshot);
+		WEB_SESSIONS.set(id, session);
 		activeSessionId = id;
+		const renderState = await waitForPageRender({
+			session,
+			timeoutMs,
+			maxHtmlChars,
+		});
 		scheduleInactivityClose(id);
-		return { session: snapshot, disposable: !persist };
+		return {
+			session,
+			disposable: !persist,
+			renderReady: renderState.matched,
+		};
 	}
 
 	const iframe = buildIframe(safeUrl);
@@ -490,7 +406,7 @@ export const openWebSession = async ({
 		iframe.src = safeUrl;
 		await loadPromise;
 
-		const baseState: WebSessionState = {
+		const session: WebSessionState = {
 			id,
 			requestedUrl: safeUrl,
 			currentUrl: safeUrl,
@@ -503,21 +419,31 @@ export const openWebSession = async ({
 			mode: "iframe",
 			iframe,
 		};
-		const session = captureSnapshot(baseState, maxHtmlChars);
+		captureIframeSnapshot(session);
 		WEB_SESSIONS.set(id, session);
 		activeSessionId = id;
+		const renderState = await waitForPageRender({
+			session,
+			timeoutMs,
+			maxHtmlChars,
+		});
 		scheduleInactivityClose(id);
-		return { session, disposable: !persist };
+		return {
+			session,
+			disposable: !persist,
+			renderReady: renderState.matched,
+		};
 	} catch (error) {
 		iframe.remove();
 		throw error instanceof Error ? error : new Error(String(error));
 	}
 };
 
-export const refreshWebSession = (
+export const refreshWebSession = async (
 	sessionId: string,
 	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
-): WebSessionState => {
+	timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<WebSessionState> => {
 	if (sessionId !== activeSessionId) {
 		throw new Error(
 			`Invalid web session scope. Only one web session is supported. ${
@@ -527,21 +453,26 @@ export const refreshWebSession = (
 			}`,
 		);
 	}
+
 	const session = WEB_SESSIONS.get(sessionId);
 	if (!session) {
 		throw new Error(`No active web session: ${sessionId}`);
 	}
-	return touchSession(sessionId, maxHtmlChars);
+
+	return touchSession(sessionId, maxHtmlChars, timeoutMs);
 };
 
-export const getWebSession = (sessionId: string): WebSessionState => {
-	return refreshWebSession(sessionId);
-};
+export const getWebSession = async (
+	sessionId: string,
+	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
+	timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<WebSessionState> =>
+	refreshWebSession(sessionId, maxHtmlChars, timeoutMs);
 
 export const fetchRenderedFallback = async ({
 	url,
 	timeoutMs = DEFAULT_TIMEOUT_MS,
-	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
+	maxHtmlChars: _maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
 }: {
 	url: string;
 	timeoutMs?: number;
@@ -564,7 +495,7 @@ export const fetchRenderedFallback = async ({
 		return {
 			currentUrl: response.url,
 			title: document.title || "",
-			html: truncate(html, Math.min(maxHtmlChars, MAX_SNAP_SHOT_HTML_CHARS)),
+			html,
 			text: extractTextFromDocument(document),
 		};
 	} finally {
@@ -596,7 +527,7 @@ export const getOrOpenWebSession = async ({
 			);
 		}
 		return {
-			session: getWebSession(sessionId),
+			session: await getWebSession(sessionId, maxHtmlChars, timeoutMs),
 			disposable: false,
 		};
 	}
@@ -611,11 +542,7 @@ export const getOrOpenWebSession = async ({
 	return { session, disposable };
 };
 
-export const closeWebSession = (sessionId: string): void => {
-	if (sessionId !== activeSessionId) {
-		WEB_SESSIONS.delete(sessionId);
-		return;
-	}
+export const closeWebSession = async (sessionId: string): Promise<void> => {
 	const session = WEB_SESSIONS.get(sessionId);
 	if (!session) {
 		if (activeSessionId === sessionId) {
@@ -627,7 +554,8 @@ export const closeWebSession = (sessionId: string): void => {
 		}
 		return;
 	}
-	disposeSessionArtifacts(session);
+
+	await disposeSessionArtifacts(session);
 	WEB_SESSIONS.delete(sessionId);
 	if (activeSessionId === sessionId) {
 		activeSessionId = undefined;
@@ -661,14 +589,19 @@ export const getActiveWebSessionInfo = (): ActiveWebSessionInfo => {
 	};
 };
 
-const elementInfo = (element: Element): DomElementInfo => ({
-	index: 0,
+const elementInfo = (element: Element, index: number): WebDomElementInfo => ({
+	index,
 	tagName: element.tagName.toLowerCase(),
 	id: element.getAttribute("id"),
 	name: element.getAttribute("name"),
-	type: (element.getAttribute("type") ?? null) as string | null,
+	type: element.getAttribute("type"),
 	text: (element.textContent ?? "").trim(),
-	value: (element as HTMLInputElement | HTMLTextAreaElement).value ?? null,
+	value:
+		element instanceof HTMLInputElement ||
+		element instanceof HTMLTextAreaElement ||
+		element instanceof HTMLSelectElement
+			? element.value
+			: null,
 	href:
 		element instanceof HTMLAnchorElement ||
 		element instanceof HTMLAreaElement ||
@@ -677,30 +610,49 @@ const elementInfo = (element: Element): DomElementInfo => ({
 			: null,
 });
 
-export const queryDomElements = (
+export const queryDomElements = async (
 	session: WebSessionState,
 	selector: string,
 	maxResults: number,
-): DomElementInfo[] => {
-	const document = safeDocument(session);
-	if (!document) {
-		throw new Error("DOM is not accessible for this session.");
+	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
+	timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<WebDomElementInfo[]> => {
+	if (session.mode === "iframe") {
+		const document = safeDocument(session);
+		if (!document) {
+			throw new Error("DOM is not accessible for this session.");
+		}
+
+		const result: WebDomElementInfo[] = [];
+		document.querySelectorAll(selector).forEach((node, index) => {
+			if (result.length >= maxResults || !(node instanceof Element)) {
+				return;
+			}
+			result.push(elementInfo(node, index));
+		});
+		return result;
 	}
-	const nodeList = document.querySelectorAll(selector);
-	const result: DomElementInfo[] = [];
 
-	nodeList.forEach((node, index) => {
-		if (result.length >= maxResults) {
-			return;
-		}
-		if (!(node instanceof Element)) {
-			return;
-		}
-		const info = elementInfo(node);
-		result.push({ ...info, index });
+	if (typeof session.tabId !== "number") {
+		throw new Error("Browser-backed web session is missing tabId.");
+	}
+
+	const response = await sendWebBrowserCommand({
+		source: WEB_BROWSER_COMMAND_SOURCE,
+		command: "dom-query",
+		sessionId: session.id,
+		tabId: session.tabId,
+		timeoutMs,
+		maxHtmlChars,
+		selector,
+		maxResults,
 	});
+	if (response.command !== "dom-query") {
+		throw new Error("Invalid browser DOM query response.");
+	}
 
-	return result;
+	applySnapshotToSession(session, response.snapshot);
+	return response.elements;
 };
 
 const getIndexedElement = (
@@ -821,10 +773,7 @@ export const searchInSessionHtml = async ({
 	if (selector) {
 		const elements = doc.querySelectorAll(selector);
 		elements.forEach((element, elementIndex) => {
-			if (nodes.length >= maxMatches) {
-				return;
-			}
-			if (!(element instanceof Element)) {
+			if (nodes.length >= maxMatches || !(element instanceof Element)) {
 				return;
 			}
 
@@ -852,152 +801,285 @@ export const waitForDomSelector = async ({
 	state = "present",
 	timeoutMs = DEFAULT_TIMEOUT_MS,
 	intervalMs = DEFAULT_POLL_INTERVAL_MS,
+	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
 }: {
 	session: WebSessionState;
 	selector: string;
-	state?: "present" | "absent";
+	state?: WebWaitSelectorState;
 	timeoutMs?: number;
 	intervalMs?: number;
+	maxHtmlChars?: number;
 }): Promise<{ matched: boolean; html: string; lastText: string }> => {
-	if (!safeDocument(session)) {
-		throw new Error("DOM is not accessible for this session.");
+	if (session.mode === "iframe") {
+		if (!safeDocument(session)) {
+			throw new Error("DOM is not accessible for this session.");
+		}
+
+		const start = Date.now();
+		const expectPresent = state === "present";
+		while (true) {
+			await refreshWebSession(session.id, maxHtmlChars, timeoutMs);
+			const document = safeDocument(session);
+			const matched = Boolean(document?.querySelector(selector));
+			if ((expectPresent && matched) || (!expectPresent && !matched)) {
+				return {
+					matched: true,
+					html: safeHtml(document),
+					lastText: safeText(document),
+				};
+			}
+			if (Date.now() - start >= timeoutMs) {
+				return {
+					matched: false,
+					html: safeHtml(document),
+					lastText: safeText(document),
+				};
+			}
+			await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+		}
 	}
 
-	const start = Date.now();
-	const expectPresent = state === "present";
+	if (typeof session.tabId !== "number") {
+		throw new Error("Browser-backed web session is missing tabId.");
+	}
+
+	const response = await sendWebBrowserCommand({
+		source: WEB_BROWSER_COMMAND_SOURCE,
+		command: "wait-selector",
+		sessionId: session.id,
+		tabId: session.tabId,
+		timeoutMs,
+		intervalMs,
+		maxHtmlChars,
+		selector,
+		state,
+	});
+	if (response.command !== "wait-selector") {
+		throw new Error("Invalid browser wait response.");
+	}
+
+	applySnapshotToSession(session, response.snapshot);
+	return {
+		matched: response.matched,
+		html: session.html,
+		lastText: session.text,
+	};
+};
+
+export const waitForPageRender = async ({
+	session,
+	timeoutMs = DEFAULT_TIMEOUT_MS,
+	intervalMs = DEFAULT_POLL_INTERVAL_MS,
+	stabilityMs = 1_000,
+	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
+}: {
+	session: WebSessionState;
+	timeoutMs?: number;
+	intervalMs?: number;
+	stabilityMs?: number;
+	maxHtmlChars?: number;
+}): Promise<{ matched: boolean; html: string; lastText: string }> => {
+	if (session.mode === "iframe" && !safeDocument(session)) {
+		throw new Error("Current iframe session cannot observe page render state.");
+	}
+
+	const startedAt = Date.now();
+	let stableSince: number | null = null;
+	let previousSnapshot:
+		| {
+				currentUrl: string;
+				title: string;
+				html: string;
+				text: string;
+		  }
+		| undefined;
+
 	while (true) {
-		refreshWebSession(session.id);
-		const document = safeDocument(session);
-		const matched = Boolean(document?.querySelector(selector));
-		if ((expectPresent && matched) || (!expectPresent && !matched)) {
-			return {
-				matched: true,
-				html: truncate(safeHtml(document), DEFAULT_MAX_HTML_CHARS),
-				lastText: safeText(document),
-			};
+		await refreshWebSession(session.id, maxHtmlChars, timeoutMs);
+
+		const currentSnapshot = {
+			currentUrl: session.currentUrl,
+			title: session.title,
+			html: session.html,
+			text: session.text,
+		};
+
+		const isStable =
+			previousSnapshot?.currentUrl === currentSnapshot.currentUrl &&
+			previousSnapshot?.title === currentSnapshot.title &&
+			previousSnapshot?.html === currentSnapshot.html &&
+			previousSnapshot?.text === currentSnapshot.text;
+		const hasReadableContent = hasReadableSessionContent(currentSnapshot);
+
+		const now = Date.now();
+		if (isStable && hasReadableContent) {
+			stableSince ??= now;
+			if (now - stableSince >= stabilityMs) {
+				return {
+					matched: true,
+					html: session.html,
+					lastText: session.text,
+				};
+			}
+		} else {
+			previousSnapshot = currentSnapshot;
+			stableSince = null;
 		}
-		if (Date.now() - start >= timeoutMs) {
+
+		if (now - startedAt >= timeoutMs) {
 			return {
 				matched: false,
-				html: truncate(safeHtml(document), DEFAULT_MAX_HTML_CHARS),
-				lastText: safeText(document),
+				html: session.html,
+				lastText: session.text,
 			};
 		}
+
 		await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
 	}
 };
 
 export const performDomAction = async (
 	session: WebSessionState,
-	action:
-		| "query"
-		| "read"
-		| "click"
-		| "input"
-		| "focus"
-		| "scrollBottom"
-		| "scrollTop",
+	action: WebDomActionName,
 	options: {
 		selector: string;
 		index?: number;
 		value?: string;
-		maxResults?: number;
 	},
-): Promise<WebElementRecord | WebElementRecord[]> => {
+	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
+	timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<WebElementRecord> => {
 	const index = options.index ?? 0;
-	const maxResults = options.maxResults ?? 20;
-	const document = safeDocument(session);
-	if (!document) {
-		throw new Error("DOM is not accessible for this session.");
-	}
 
-	if (action === "query") {
-		const records = queryDomElements(session, options.selector, maxResults).map(
-			(record) => ({
-				index: record.index,
-				label: `${record.tagName}#${record.id || "no-id"}[${record.name || "no-name"}]`,
-				text: record.text,
-				value: record.value,
-			}),
-		);
-		return records;
-	}
-
-	const element = getIndexedElement(session, options.selector, index);
-	if (action === "focus") {
-		(element as HTMLElement).focus();
-		return {
-			label: element.tagName.toLowerCase(),
-			text: element.textContent ?? "",
-			value: (element as HTMLInputElement | HTMLTextAreaElement).value ?? null,
-		};
-	}
-	if (action === "scrollBottom") {
-		session.iframe?.contentWindow?.scrollTo({
-			top: document.body?.scrollHeight ?? 0,
-			left: 0,
-			behavior: "smooth",
-		});
-		return {
-			label: element.tagName.toLowerCase(),
-			text: element.textContent ?? "",
-			value: (element as HTMLInputElement | HTMLTextAreaElement).value ?? null,
-		};
-	}
-	if (action === "scrollTop") {
-		session.iframe?.contentWindow?.scrollTo({
-			top: 0,
-			left: 0,
-			behavior: "smooth",
-		});
-		return {
-			label: element.tagName.toLowerCase(),
-			text: element.textContent ?? "",
-			value: (element as HTMLInputElement | HTMLTextAreaElement).value ?? null,
-		};
-	}
-	if (action === "read") {
-		return {
-			label: element.tagName.toLowerCase(),
-			text: element.textContent ?? "",
-			value:
-				"value" in element && typeof element.value === "string"
-					? element.value
-					: null,
-		};
-	}
-	if (
-		action === "click" &&
-		"click" in element &&
-		typeof element.click === "function"
-	) {
-		element.click();
-		return {
-			label: element.tagName.toLowerCase(),
-			text: element.textContent ?? "",
-			value: (element as HTMLInputElement | HTMLTextAreaElement).value ?? null,
-		};
-	}
-	if (action === "input") {
-		if (
-			!(element instanceof HTMLInputElement) &&
-			!(element instanceof HTMLTextAreaElement)
-		) {
-			throw new Error("Target element does not support value input.");
+	if (session.mode === "iframe") {
+		const document = safeDocument(session);
+		if (!document) {
+			throw new Error("DOM is not accessible for this session.");
 		}
-		const inputValue = options.value ?? "";
-		element.focus();
-		element.value = inputValue;
-		element.dispatchEvent(new Event("input", { bubbles: true }));
-		element.dispatchEvent(new Event("change", { bubbles: true }));
-		return {
-			label: element.tagName.toLowerCase(),
-			text: element.value,
-			value: inputValue,
-		};
+
+		const element = getIndexedElement(session, options.selector, index);
+		if (action === "focus") {
+			(element as HTMLElement).focus();
+			return {
+				label: element.tagName.toLowerCase(),
+				text: element.textContent ?? "",
+				value:
+					(
+						element as
+							| HTMLInputElement
+							| HTMLTextAreaElement
+							| HTMLSelectElement
+					).value ?? null,
+			};
+		}
+		if (action === "scrollBottom") {
+			session.iframe?.contentWindow?.scrollTo({
+				top: document.body?.scrollHeight ?? 0,
+				left: 0,
+				behavior: "smooth",
+			});
+			return {
+				label: element.tagName.toLowerCase(),
+				text: element.textContent ?? "",
+				value:
+					(
+						element as
+							| HTMLInputElement
+							| HTMLTextAreaElement
+							| HTMLSelectElement
+					).value ?? null,
+			};
+		}
+		if (action === "scrollTop") {
+			session.iframe?.contentWindow?.scrollTo({
+				top: 0,
+				left: 0,
+				behavior: "smooth",
+			});
+			return {
+				label: element.tagName.toLowerCase(),
+				text: element.textContent ?? "",
+				value:
+					(
+						element as
+							| HTMLInputElement
+							| HTMLTextAreaElement
+							| HTMLSelectElement
+					).value ?? null,
+			};
+		}
+		if (action === "read") {
+			return {
+				label: element.tagName.toLowerCase(),
+				text: element.textContent ?? "",
+				value:
+					"value" in element && typeof element.value === "string"
+						? element.value
+						: null,
+			};
+		}
+		if (
+			action === "click" &&
+			"click" in element &&
+			typeof element.click === "function"
+		) {
+			element.click();
+			return {
+				label: element.tagName.toLowerCase(),
+				text: element.textContent ?? "",
+				value:
+					(
+						element as
+							| HTMLInputElement
+							| HTMLTextAreaElement
+							| HTMLSelectElement
+					).value ?? null,
+			};
+		}
+		if (action === "input") {
+			if (
+				!(element instanceof HTMLInputElement) &&
+				!(element instanceof HTMLTextAreaElement)
+			) {
+				throw new Error("Target element does not support value input.");
+			}
+			const inputValue = options.value ?? "";
+			element.focus();
+			element.value = inputValue;
+			element.dispatchEvent(new Event("input", { bubbles: true }));
+			element.dispatchEvent(new Event("change", { bubbles: true }));
+			return {
+				label: element.tagName.toLowerCase(),
+				text: element.value,
+				value: inputValue,
+			};
+		}
+
+		throw new Error(`Unsupported dom action: ${action}`);
 	}
 
-	throw new Error(`Unsupported dom action: ${action}`);
+	if (typeof session.tabId !== "number") {
+		throw new Error("Browser-backed web session is missing tabId.");
+	}
+
+	const response = await sendWebBrowserCommand({
+		source: WEB_BROWSER_COMMAND_SOURCE,
+		command: "dom-action",
+		sessionId: session.id,
+		tabId: session.tabId,
+		timeoutMs,
+		maxHtmlChars,
+		action,
+		selector: options.selector,
+		index,
+		value: options.value,
+	});
+	if (response.command !== "dom-action") {
+		throw new Error("Invalid browser DOM action response.");
+	}
+
+	applySnapshotToSession(session, response.snapshot);
+	return response.result;
 };
 
 export const createDefaultWebErrorResult = (error: unknown): string => {

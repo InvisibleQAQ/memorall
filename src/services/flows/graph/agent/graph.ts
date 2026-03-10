@@ -15,7 +15,7 @@ import type { BaseFlow } from "@/services/flows/flow-registry";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 
 // Tool names available to the agent
-const DEFAULT_TOOL_NAMES = ["current_time", "js_execute"] as const;
+const DEFAULT_TOOL_NAMES = ["current_time"] as const;
 
 // Derive services from tools + graph's own needs (llm for calling the model)
 type AgentServices = CombinedServices<typeof DEFAULT_TOOL_NAMES, "llm">;

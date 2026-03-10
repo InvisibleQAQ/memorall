@@ -24,6 +24,10 @@ function handleActivityCaptured(
 				sendResponse({ success: false, error: "No tab ID" });
 				return;
 			}
+			if (typeof message.activityType !== "string") {
+				sendResponse({ success: false, error: "Invalid activity type" });
+				return;
+			}
 			await activityTrackingManager.handleActivityFromContent(
 				message.activityType,
 				message.data,

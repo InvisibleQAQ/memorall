@@ -22,11 +22,230 @@ import type {
 	MessageResponse,
 	ExtractedSelectionData,
 } from "./embedded/types";
+import {
+	WEB_CONTENT_COMMAND_SOURCE,
+	isWebContentCommandRequest,
+	type WebContentCommandRequest,
+	type WebContentCommandResponse,
+	type WebDomActionName,
+	type WebDomElementInfo,
+	type WebElementRecord,
+} from "@/services/flows/tools/web/web-browser-protocol";
 import { logInfo } from "./utils/logger";
 
 // Track mouse position for UI positioning
 let lastMouseX = 0;
 let lastMouseY = 0;
+
+const buildWebSnapshot = () => ({
+	url: window.location.href,
+	title: document.title || "",
+	html: document.documentElement?.outerHTML || document.body?.innerHTML || "",
+	text: document.body?.innerText || document.documentElement?.textContent || "",
+	domAccessible: true,
+});
+
+const createDomElementInfo = (
+	element: Element,
+	index: number,
+): WebDomElementInfo => ({
+	index,
+	tagName: element.tagName.toLowerCase(),
+	id: element.getAttribute("id"),
+	name: element.getAttribute("name"),
+	type: element.getAttribute("type"),
+	text: (element.textContent ?? "").trim(),
+	value:
+		element instanceof HTMLInputElement ||
+		element instanceof HTMLTextAreaElement ||
+		element instanceof HTMLSelectElement
+			? element.value
+			: null,
+	href:
+		element instanceof HTMLAnchorElement ||
+		element instanceof HTMLAreaElement ||
+		element instanceof HTMLLinkElement
+			? element.getAttribute("href")
+			: null,
+});
+
+const createElementRecord = (element: Element): WebElementRecord => ({
+	label: element.tagName.toLowerCase(),
+	text: element.textContent ?? "",
+	value:
+		element instanceof HTMLInputElement ||
+		element instanceof HTMLTextAreaElement ||
+		element instanceof HTMLSelectElement
+			? element.value
+			: null,
+});
+
+const getIndexedElement = (selector: string, index: number): Element => {
+	const nodeList = document.querySelectorAll(selector);
+	const node = nodeList.item(index);
+	if (!node) {
+		throw new Error(`No element at index ${index} for selector: ${selector}`);
+	}
+	if (!(node instanceof Element)) {
+		throw new Error("Matched node is not a valid Element.");
+	}
+	return node;
+};
+
+const executeDomAction = (
+	action: WebDomActionName,
+	request: Extract<WebContentCommandRequest, { type: "web-tool:dom-action" }>,
+): WebElementRecord => {
+	const element = getIndexedElement(request.selector, request.index ?? 0);
+
+	if (action === "focus") {
+		(element as HTMLElement).focus();
+		return createElementRecord(element);
+	}
+
+	if (action === "scrollBottom") {
+		window.scrollTo({
+			top: document.body?.scrollHeight ?? 0,
+			left: 0,
+			behavior: "smooth",
+		});
+		return createElementRecord(element);
+	}
+
+	if (action === "scrollTop") {
+		window.scrollTo({
+			top: 0,
+			left: 0,
+			behavior: "smooth",
+		});
+		return createElementRecord(element);
+	}
+
+	if (action === "read") {
+		return createElementRecord(element);
+	}
+
+	if (action === "click") {
+		if (typeof (element as HTMLElement).click !== "function") {
+			throw new Error("Target element does not support click.");
+		}
+		(element as HTMLElement).click();
+		return createElementRecord(element);
+	}
+
+	if (action === "input") {
+		if (
+			!(element instanceof HTMLInputElement) &&
+			!(element instanceof HTMLTextAreaElement)
+		) {
+			throw new Error("Target element does not support value input.");
+		}
+		const inputValue = request.value ?? "";
+		element.focus();
+		element.value = inputValue;
+		element.dispatchEvent(new Event("input", { bubbles: true }));
+		element.dispatchEvent(new Event("change", { bubbles: true }));
+		return {
+			label: element.tagName.toLowerCase(),
+			text: element.value,
+			value: inputValue,
+		};
+	}
+
+	throw new Error(`Unsupported dom action: ${action}`);
+};
+
+const createWebContentErrorResponse = (
+	request: WebContentCommandRequest,
+	error: unknown,
+): WebContentCommandResponse => ({
+	source: WEB_CONTENT_COMMAND_SOURCE,
+	type:
+		request.type === "web-tool:snapshot"
+			? "web-tool:snapshot-result"
+			: request.type === "web-tool:dom-query"
+				? "web-tool:dom-query-result"
+				: request.type === "web-tool:dom-action"
+					? "web-tool:dom-action-result"
+					: "web-tool:wait-selector-result",
+	success: false,
+	error: error instanceof Error ? error.message : String(error),
+});
+
+const handleWebContentCommand = async (
+	request: WebContentCommandRequest,
+): Promise<WebContentCommandResponse> => {
+	try {
+		switch (request.type) {
+			case "web-tool:snapshot":
+				return {
+					source: WEB_CONTENT_COMMAND_SOURCE,
+					type: "web-tool:snapshot-result",
+					success: true,
+					snapshot: buildWebSnapshot(),
+				};
+
+			case "web-tool:dom-query": {
+				const elements = Array.from(document.querySelectorAll(request.selector))
+					.filter((node): node is Element => node instanceof Element)
+					.slice(0, request.maxResults)
+					.map((element, index) => createDomElementInfo(element, index));
+
+				return {
+					source: WEB_CONTENT_COMMAND_SOURCE,
+					type: "web-tool:dom-query-result",
+					success: true,
+					snapshot: buildWebSnapshot(),
+					elements,
+				};
+			}
+
+			case "web-tool:dom-action": {
+				const result = executeDomAction(request.action, request);
+				return {
+					source: WEB_CONTENT_COMMAND_SOURCE,
+					type: "web-tool:dom-action-result",
+					success: true,
+					snapshot: buildWebSnapshot(),
+					result,
+				};
+			}
+
+			case "web-tool:wait-selector": {
+				const start = Date.now();
+				const expectPresent = request.state === "present";
+				while (true) {
+					const matched = Boolean(document.querySelector(request.selector));
+					if ((expectPresent && matched) || (!expectPresent && !matched)) {
+						return {
+							source: WEB_CONTENT_COMMAND_SOURCE,
+							type: "web-tool:wait-selector-result",
+							success: true,
+							snapshot: buildWebSnapshot(),
+							matched: true,
+						};
+					}
+
+					if (Date.now() - start >= request.timeoutMs) {
+						return {
+							source: WEB_CONTENT_COMMAND_SOURCE,
+							type: "web-tool:wait-selector-result",
+							success: true,
+							snapshot: buildWebSnapshot(),
+							matched: false,
+						};
+					}
+
+					await new Promise((resolve) =>
+						window.setTimeout(resolve, request.intervalMs),
+					);
+				}
+			}
+		}
+	} catch (error) {
+		return createWebContentErrorResponse(request, error);
+	}
+};
 
 // Track mouse position for context menu positioning
 document.addEventListener("contextmenu", (e) => {
@@ -38,12 +257,17 @@ document.addEventListener("contextmenu", (e) => {
 const messageListener = (
 	rawMessage: unknown,
 	_sender: chrome.runtime.MessageSender,
-	sendResponse: (response: MessageResponse) => void,
+	sendResponse: (response: MessageResponse | WebContentCommandResponse) => void,
 ): boolean => {
 	// Job notifications (relayed by background via chrome.tabs.sendMessage) are
 	// handled by ChromeRuntimeBridge's own onMessage listener. Return false so
 	// Chrome closes the channel immediately — no "Unknown message type" noise.
 	if (isJobNotificationMessage(rawMessage)) return false;
+
+	if (isWebContentCommandRequest(rawMessage)) {
+		void handleWebContentCommand(rawMessage).then(sendResponse);
+		return true;
+	}
 
 	const message = rawMessage as BackgroundMessage;
 

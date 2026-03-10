@@ -46,13 +46,13 @@ Use this feature when the agent needs to work with web pages, including:
 ## AVAILABLE TOOLS
 - web_open: open URL and keep a session.
 - web_read: read rendered page (or selected DOM region).
-- web_search: search text/regex in rendered page content.
+- web_find_in_page: find text/regex matches inside the current rendered page content. It does not search the web or a search engine.
 - web_dom_action: query DOM nodes, click, input text, read node details, focus, scroll.
 - web_wait: wait for timeout or selector appear/disappear.
 
 ## RECOMMENDED WORKFLOW
 1. Use web_open with keepSession=true to create a session.
-2. Use web_read or web_search to inspect content.
+2. Use web_read or web_find_in_page to inspect content.
 3. Use web_dom_action for field fill/click interactions.
 4. Use web_wait after navigation-heavy UI actions.
 `;
@@ -84,7 +84,7 @@ ${createdAt}`.trim();
 export const WEB_FEATURE_TOOLS = [
 	"web_open",
 	"web_read",
-	"web_search",
+	"web_find_in_page",
 	"web_dom_action",
 	"web_wait",
 ] as const;

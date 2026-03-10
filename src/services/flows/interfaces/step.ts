@@ -1,4 +1,8 @@
 import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
+import {
+	getFlowRunLifecycle,
+	type FlowRunLifecycle,
+} from "@/services/flows/runtime/run-lifecycle";
 
 // ============================================================================
 // Core Step Types
@@ -21,6 +25,7 @@ export interface StepExecuteParams<
 	config: TConfig;
 	metadata?: Record<string, unknown>;
 	runConfig?: LangGraphRunnableConfig;
+	runLifecycle?: FlowRunLifecycle;
 }
 
 /** A step definition: name + execute function */
@@ -147,6 +152,7 @@ export function bindStep<
 				config: config as TConfig,
 				metadata,
 				runConfig,
+				runLifecycle: getFlowRunLifecycle(runConfig),
 			}),
 		toNode: <TState = TOutput>(options?: {
 			mapInput?: (
@@ -219,6 +225,7 @@ export function bindStep<
 					config: config as TConfig,
 					metadata,
 					runConfig,
+					runLifecycle: getFlowRunLifecycle(runConfig),
 				});
 				return await mapOutput(result.output, result, state, runConfig);
 			};

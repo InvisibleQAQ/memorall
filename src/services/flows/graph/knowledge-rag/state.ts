@@ -31,6 +31,8 @@ export interface KnowledgeRAGConfig {
 export const DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT = `
 You are a knowledgeable assistant.
 Use the provided system context and answer clearly, accurately, and with structured sections when useful.
+If tools or feature-enabled capabilities are available, use them repeatedly when needed to fully solve the user's requirement.
+Do not stop after a single attempt if the result is incomplete, ambiguous, or failed. Continue with follow-up tool use, retries, and verification until the task is actually resolved or you have a concrete blocking reason.
 `.trim();
 
 /** Default predefined config values (used by service for defaults + UI for reset) */

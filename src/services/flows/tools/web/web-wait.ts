@@ -8,6 +8,7 @@ import {
 	getOrOpenWebSession,
 	refreshWebSession,
 	waitForDomSelector,
+	waitForPageRender,
 } from "./web-tool-registry";
 
 const TOOL_NAME = "web_wait" as const;
@@ -19,6 +20,12 @@ const schema = z.object({
 		.enum(["iframe", "tab", "window"])
 		.optional()
 		.describe("Open mode when no sessionId is provided."),
+	waitMode: z
+		.enum(["render", "selector", "time"])
+		.optional()
+		.describe(
+			"Wait mode. `render` waits for page snapshot stability, `selector` waits for a DOM selector state, `time` waits a fixed duration.",
+		),
 	selector: z.string().optional().describe("DOM selector to wait for."),
 	state: z
 		.enum(["present", "absent"])
@@ -37,7 +44,16 @@ const schema = z.object({
 		.min(50)
 		.max(2_000)
 		.optional()
-		.describe("Polling interval when waiting for selector."),
+		.describe(
+			"Polling interval when waiting for render or selector stability.",
+		),
+	stabilityMs: z
+		.number()
+		.int()
+		.min(100)
+		.max(10_000)
+		.optional()
+		.describe("Stable unchanged duration required for `render` mode."),
 	delayMs: z
 		.number()
 		.int()
@@ -52,16 +68,24 @@ type Input = z.infer<typeof schema>;
 const waitFixedDelay = async (delayMs: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, delayMs));
 
+const truncateContent = (value: string, maxChars: number): string => {
+	if (value.length <= maxChars) {
+		return value;
+	}
+	return `${value.slice(0, maxChars)}\n...truncated`;
+};
+
 export const createWebWaitTool: ToolFactory<
 	Input,
 	undefined
 > = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Wait for fixed delay or wait for selector state (present/absent) in a web session.",
+		"Wait for page render stability, selector state, or a fixed time in a web session.",
 	schema,
 	execute: async (input) => {
 		let disposableSessionId: string | undefined;
+		const maxChars = 160_000;
 		try {
 			const { session, disposable } = await getOrOpenWebSession({
 				sessionId: input.sessionId,
@@ -72,31 +96,50 @@ export const createWebWaitTool: ToolFactory<
 			if (disposable) {
 				disposableSessionId = session.id;
 			}
-			if (!session.domAccessible && input.selector) {
+			const waitMode =
+				input.waitMode ??
+				(input.selector ? "selector" : input.delayMs ? "time" : "render");
+
+			if (waitMode === "selector" && !input.selector) {
+				throw new Error("`selector` is required when waitMode=`selector`.");
+			}
+			if (waitMode === "selector" && !session.domAccessible) {
 				throw new Error(
 					"Current session cannot expose DOM for selector waits.",
 				);
 			}
 
-			refreshWebSession(session.id);
-
 			let result: { matched: boolean; html: string; lastText: string };
-			if (input.selector) {
+			if (waitMode === "selector") {
 				result = await waitForDomSelector({
 					session,
-					selector: input.selector,
+					selector: input.selector!,
 					state: input.state ?? "present",
 					timeoutMs: input.timeoutMs ?? 15_000,
 					intervalMs: input.intervalMs ?? 250,
+					maxHtmlChars: maxChars,
 				});
-			} else {
+			} else if (waitMode === "time") {
 				const delay = input.delayMs ?? 1_000;
 				await waitFixedDelay(delay);
+				await refreshWebSession(
+					session.id,
+					maxChars,
+					input.timeoutMs ?? 15_000,
+				);
 				result = {
 					matched: true,
 					html: session.html,
 					lastText: session.text,
 				};
+			} else {
+				result = await waitForPageRender({
+					session,
+					timeoutMs: input.timeoutMs ?? 15_000,
+					intervalMs: input.intervalMs ?? 250,
+					stabilityMs: input.stabilityMs ?? 1_000,
+					maxHtmlChars: maxChars,
+				});
 			}
 
 			const output = createWebResult({
@@ -104,17 +147,18 @@ export const createWebWaitTool: ToolFactory<
 				success: true,
 				sessionId: session.id,
 				url: session.currentUrl,
+				waitMode,
 				matched: result.matched,
-				html: result.html,
-				text: result.lastText,
+				html: truncateContent(result.html, maxChars),
+				text: truncateContent(result.lastText, maxChars),
 			});
 			if (disposableSessionId) {
-				closeWebSession(disposableSessionId);
+				await closeWebSession(disposableSessionId);
 			}
 			return output;
 		} catch (error) {
 			if (disposableSessionId) {
-				closeWebSession(disposableSessionId);
+				await closeWebSession(disposableSessionId);
 			}
 			return createDefaultWebErrorResult(error);
 		}
