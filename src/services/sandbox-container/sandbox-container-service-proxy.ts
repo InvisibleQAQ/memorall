@@ -1,6 +1,11 @@
 import { backgroundJob } from "@/services/background-jobs/background-job";
-import { logInfo } from "@/utils/logger";
+import { logInfo, logWarn } from "@/utils/logger";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import type { ISandboxContainerService } from "./interfaces/sandbox-container-service.interface";
+import {
+	decodeSwResponseBodyPreview,
+	hasSwTransformErrorHeader,
+} from "./sw-response-utils";
 import type {
 	SandboxExecutionRequest,
 	SandboxExecutionResult,
@@ -38,6 +43,8 @@ import type {
 	SandboxStartServerRequest,
 	SandboxStartServerResult,
 	SandboxStopServerRequest,
+	SandboxHandleSwRequestPayload,
+	SandboxHandleSwRequestResult,
 } from "./types";
 
 const SANDBOX_OPERATION_JOB_NAME = "sandbox-operation" as const;
@@ -259,6 +266,48 @@ export class SandboxContainerServiceProxy implements ISandboxContainerService {
 		request: SandboxRestoreSnapshotRequest,
 	): Promise<{ restored: true }> {
 		return this.request("snapshot.restore", request);
+	}
+
+	async handleSwRequestWithRetry(
+		params: SandboxHandleSwRequestPayload,
+	): Promise<SandboxHandleSwRequestResult> {
+		const makeRequest = () =>
+			this.request("server.handleSwRequest", params, 120_000);
+
+		let result = await makeRequest();
+		const shouldInspectBody =
+			(result.statusCode ?? 200) >= 400 || hasSwTransformErrorHeader(result);
+
+		if (shouldInspectBody) {
+			const bodyText = decodeSwResponseBodyPreview(result, 1200);
+
+			const match = bodyText.match(
+				/Workspace file not materialized: (\/workspaces\/[^\s]+|\/workspace\/[^\s]+)/,
+			);
+			const missingPath = match?.[1] ?? null;
+
+			if (missingPath) {
+				try {
+					const bytes =
+						await documentFileSystemService.getWorkspaceFileContent(
+							missingPath,
+						);
+					const content = new TextDecoder().decode(bytes);
+					await this.request("fs.materializeWorkspaceFile", {
+						path: missingPath,
+						content,
+					});
+					result = await makeRequest();
+				} catch (err) {
+					logWarn(
+						"[SW relay proxy] Failed to materialize workspace file for retry",
+						{ missingPath, err },
+					);
+				}
+			}
+		}
+
+		return result;
 	}
 }
 

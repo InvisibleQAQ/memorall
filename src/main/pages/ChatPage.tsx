@@ -1,5 +1,11 @@
 "use client";
-import React, { useEffect, useState, useMemo } from "react";
+import React, {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	useMemo,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -25,11 +31,14 @@ import {
 } from "@/main/modules/llm/components";
 import { cn } from "@/lib/utils";
 import { serviceManager } from "@/services";
+import type { SandboxServerInfo } from "@/services/sandbox-container";
+import { SandboxServersPanel } from "@/main/components/molecules/SandboxServersPanel";
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
 	const { model, isInitialized, handleModelLoaded } = useCurrentModel();
 	const { downloadProgress, quickDownloadModel } = useDownloadProgress();
+	const [sandboxServers, setSandboxServers] = useState<SandboxServerInfo[]>([]);
 	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
 	const [isLoadingTopics, setIsLoadingTopics] = useState(false);
 	const [agentFlows, setAgentFlows] = useState<
@@ -54,6 +63,33 @@ export const ChatPage: React.FC = () => {
 		insertSeparator,
 		deleteMessages,
 	} = useChat(model);
+
+	// Sandbox servers panel
+	const fetchServers = useCallback(async () => {
+		try {
+			const result = await serviceManager
+				.getSandboxContainerService()
+				.listServers();
+			setSandboxServers(result.servers);
+		} catch {
+			// sandbox may not be ready yet — ignore
+		}
+	}, []);
+
+	// Fetch on mount
+	useEffect(() => {
+		void fetchServers();
+	}, [fetchServers]);
+
+	// Refresh after each assistant response finishes
+	const wasInProgressRef = useRef(false);
+	useEffect(() => {
+		const isNow = inProgressMessage != null;
+		if (!isNow && wasInProgressRef.current) {
+			void fetchServers();
+		}
+		wasInProgressRef.current = isNow;
+	}, [inProgressMessage, fetchServers]);
 
 	// Memoized message groups - split into completed and latest
 	const { groups, inprogressGroup, completedGroupsIds } = useMemo(() => {
@@ -183,6 +219,10 @@ export const ChatPage: React.FC = () => {
 
 	return (
 		<div className="flex h-full bg-background">
+			<SandboxServersPanel
+				servers={sandboxServers}
+				onRefresh={() => void fetchServers()}
+			/>
 			<div className="flex flex-col flex-1 min-w-0">
 				<Conversation className="flex-1 min-h-0">
 					<ConversationContent className="max-w-3xl mx-auto space-y-6">

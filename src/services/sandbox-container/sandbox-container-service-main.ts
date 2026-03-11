@@ -1,6 +1,10 @@
 import { logError, logInfo, logWarn } from "@/utils/logger";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import type { ISandboxContainerService } from "./interfaces/sandbox-container-service.interface";
+import {
+	decodeSwResponseBodyPreview,
+	hasSwTransformErrorHeader,
+} from "./sw-response-utils";
 import type {
 	SandboxErrorEnvelope,
 	SandboxExecutionRequest,
@@ -38,6 +42,7 @@ import type {
 	SandboxServerRequestResult,
 	SandboxServerRenderUrlRequest,
 	SandboxServerRenderUrlResult,
+	SandboxHandleSwRequestResult,
 	SandboxResponseMessage,
 } from "./types";
 
@@ -166,6 +171,7 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		await this.registerSandboxServiceWorker();
 
 		window.addEventListener("message", this.onMessage);
+		window.addEventListener("message", this.onFsMessage);
 
 		const iframe = document.createElement("iframe");
 		iframe.style.display = "none";
@@ -314,6 +320,64 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		}, 20_000);
 	}
 
+	/**
+	 * Call server.handleSwRequest and retry once if a workspace file needs
+	 * materialization. This covers both explicit HTTP failures and Vite/Next
+	 * transform errors, which come back as 200 + X-Transform-Error.
+	 * Used by both relaySwMessage (SW mainPort path) and renderViaIframe messageHandler.
+	 */
+	async handleSwRequestWithRetry(params: {
+		id: number;
+		port: number;
+		method: string;
+		path: string;
+		headers: Record<string, string>;
+		body: ArrayBuffer | null;
+	}): Promise<SandboxHandleSwRequestResult> {
+		const makeRequest = () =>
+			this.request(
+				"server.handleSwRequest",
+				{
+					id: params.id,
+					port: params.port,
+					method: params.method,
+					path: params.path,
+					headers: params.headers,
+					body: params.body,
+				},
+				120_000,
+			);
+
+		let result = await makeRequest();
+		const shouldInspectBody =
+			(result.statusCode ?? 200) >= 400 || hasSwTransformErrorHeader(result);
+
+		if (shouldInspectBody) {
+			const bodyText = decodeSwResponseBodyPreview(result, 1200);
+			const transformError = hasSwTransformErrorHeader(result);
+
+			logInfo(
+				`[SW relay] ${params.method} ${params.path} → ${result.statusCode ?? 200} | transformError=${transformError} | bodyBase64 length=${result.bodyBase64?.length ?? 0} | bodyText=${bodyText || "(empty)"}`,
+			);
+
+			const missingPath = this.extractUnmaterializedWorkspacePath(bodyText);
+			if (missingPath) {
+				logInfo(
+					`[SW relay] materializing ${missingPath} and retrying ${params.method} ${params.path}`,
+				);
+				await this.materializeMountedWorkspaceFile(missingPath);
+				result = await makeRequest();
+			} else if ((result.statusCode ?? 200) >= 400 || transformError) {
+				logError(
+					`[SW relay] ${params.method} ${params.path} → ${result.statusCode ?? 200} no retry match`,
+					bodyText || "(no body)",
+				);
+			}
+		}
+
+		return result;
+	}
+
 	private async relaySwMessage(msg: {
 		type: string;
 		id: number;
@@ -328,24 +392,21 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		if (msg.type !== "request" || !this.swRelayChannel) return;
 		const { id, data } = msg;
 		try {
-			const result = await this.request(
-				"server.handleSwRequest",
-				{
-					id,
-					port: data.port,
-					method: data.method,
-					path: data.url,
-					headers: data.headers ?? {},
-					body: data.body ?? null,
-				},
-				120_000,
-			);
+			const result = await this.handleSwRequestWithRetry({
+				id,
+				port: data.port,
+				method: data.method,
+				path: data.url,
+				headers: data.headers ?? {},
+				body: data.body ?? null,
+			});
 			this.swRelayChannel.port1.postMessage({
 				type: "response",
 				id,
 				data: result,
 			});
 		} catch (err) {
+			logError(`[SW relay] ${data.method} ${data.url} → error`, err);
 			this.swRelayChannel.port1.postMessage({
 				type: "response",
 				id,
@@ -353,6 +414,146 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 			});
 		}
 	}
+
+	// ── VFS bridge ───────────────────────────────────────────────────────────
+	// The sandbox VFS posts memorall-sandbox-fs-req / memorall-sandbox-fs-notify
+	// messages so workspace writes/reads go through documentFileSystemService
+	// for persistence rather than staying in-memory only.
+
+	private onFsMessage = (event: MessageEvent<unknown>): void => {
+		if (event.source !== this.iframe?.contentWindow) return;
+		const data = event.data as Record<string, unknown> | null;
+		if (!data || typeof data !== "object") return;
+
+		if (data["channel"] === "memorall-sandbox-fs-req") {
+			void this.handleFsAsyncRequest(
+				data as {
+					requestId: string;
+					operation: string;
+					payload: Record<string, unknown>;
+				},
+			);
+			return;
+		}
+		if (data["channel"] === "memorall-sandbox-fs-notify") {
+			this.handleFsNotify(
+				data as { operation: string; payload: Record<string, unknown> },
+			);
+		}
+	};
+
+	private async handleFsAsyncRequest(req: {
+		requestId: string;
+		operation: string;
+		payload: Record<string, unknown>;
+	}): Promise<void> {
+		if (!this.iframe?.contentWindow) return;
+		try {
+			const result = await this.dispatchFsToDocumentService(
+				req.operation,
+				req.payload,
+			);
+			this.iframe.contentWindow.postMessage(
+				{
+					channel: "memorall-sandbox-fs-res",
+					requestId: req.requestId,
+					ok: true,
+					result,
+				},
+				"*",
+			);
+		} catch (err) {
+			this.iframe.contentWindow.postMessage(
+				{
+					channel: "memorall-sandbox-fs-res",
+					requestId: req.requestId,
+					ok: false,
+					error: err instanceof Error ? err.message : String(err),
+				},
+				"*",
+			);
+		}
+	}
+
+	private handleFsNotify(msg: {
+		operation: string;
+		payload: Record<string, unknown>;
+	}): void {
+		void this.dispatchFsToDocumentService(msg.operation, msg.payload).catch(
+			(err) => {
+				logWarn("[sandbox-fs-notify] failed", {
+					operation: msg.operation,
+					err,
+				});
+			},
+		);
+	}
+
+	private async dispatchFsToDocumentService(
+		operation: string,
+		payload: Record<string, unknown>,
+	): Promise<unknown> {
+		const path = this.toWorkspaceCanonicalPath(
+			this.normalizeVirtualPath(String(payload["path"] ?? "")),
+		);
+		switch (operation) {
+			case "fs.readFile": {
+				if (this.isWorkspacePath(path)) {
+					await this.syncWorkspaceMount();
+					const bytes =
+						await documentFileSystemService.getWorkspaceFileContent(path);
+					return { content: new TextDecoder().decode(bytes) };
+				}
+				if (this.isDocumentsPath(path)) {
+					await this.syncDocumentsMount();
+					const logicalPath = this.toDocumentsLogicalPath(path) ?? "/";
+					const bytes =
+						await documentFileSystemService.getFileContent(logicalPath);
+					return { content: new TextDecoder().decode(bytes) };
+				}
+				throw new Error(`Path not in workspace or documents: ${path}`);
+			}
+			case "fs.writeFile": {
+				if (this.isWorkspacePath(path)) {
+					await this.syncWorkspaceMount();
+					await documentFileSystemService.writeWorkspaceFile(
+						path,
+						String(payload["content"] ?? ""),
+					);
+				}
+				return { path };
+			}
+			case "fs.mkdir": {
+				if (this.isWorkspacePath(path)) {
+					await this.syncWorkspaceMount();
+					await documentFileSystemService.mkdirWorkspace(path);
+				}
+				return { path };
+			}
+			case "fs.unlink": {
+				if (this.isWorkspacePath(path)) {
+					await this.syncWorkspaceMount();
+					await documentFileSystemService.deleteWorkspaceFile(path);
+				}
+				return { path };
+			}
+			case "fs.rename": {
+				const newPath = this.toWorkspaceCanonicalPath(
+					this.normalizeVirtualPath(String(payload["newPath"] ?? "")),
+				);
+				if (this.isWorkspacePath(path)) {
+					await this.syncWorkspaceMount();
+					const newName = newPath.split("/").pop()!;
+					await documentFileSystemService.renameWorkspaceFile(path, newName);
+				}
+				return { oldPath: path, newPath };
+			}
+			default:
+				throw new Error(`Unknown fs bridge operation: ${operation}`);
+		}
+	}
+
+	// ── End VFS bridge ────────────────────────────────────────────────────────
 
 	private onMessage = (event: MessageEvent<unknown>): void => {
 		if (!this.iframe?.contentWindow) {
@@ -441,6 +642,7 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 
 		if (typeof window !== "undefined") {
 			window.removeEventListener("message", this.onMessage);
+			window.removeEventListener("message", this.onFsMessage);
 		}
 
 		if (this.iframe) {
@@ -1047,6 +1249,11 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 			},
 			timeoutMs,
 		);
+		// Flush any sync writes (scaffolded template files) that queued via
+		// pendingWorkspaceOps but weren't persisted by the async bridge yet.
+		await this.flushWorkspaceWrites().catch((err) =>
+			logWarn("Failed to flush workspace writes after server.start", { err }),
+		);
 		return { ...result, renderUrl: this.resolveRenderUrl(result.renderUrl) };
 	}
 
@@ -1102,7 +1309,7 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 			request.port,
 			request.path,
 		);
-		const { path, virtualUrl, rendererUrl, importMap } = previewConfig;
+		const { virtualUrl, rendererUrl, importMap } = previewConfig;
 		const timeoutMs = request.timeoutMs ?? 120_000;
 		// Unique ID to match the postMessage from renderer-utils.js.
 		// Passed via iframe.name (survives document.write inside the renderer).
@@ -1172,31 +1379,15 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 						headers: Record<string, string>;
 						body: ArrayBuffer | null;
 					};
-					void this.request(
-						"server.handleSwRequest",
-						{
-							id,
-							port: portNum,
-							method,
-							path: swUrl,
-							headers: headers ?? {},
-							body: body ?? null,
-						},
-						120_000,
-					)
+					void this.handleSwRequestWithRetry({
+						id,
+						port: portNum,
+						method,
+						path: swUrl,
+						headers: headers ?? {},
+						body: body ?? null,
+					})
 						.then((result) => {
-							const _r = result as {
-								statusCode?: number;
-								headers?: Record<string, string>;
-								bodyBase64?: string;
-							};
-							let _preview = "";
-							try {
-								_preview = atob(_r.bodyBase64 ?? "").slice(0, 400);
-							} catch (_) {}
-							logInfo(
-								`[renderViaIframe] sw-relay done id=${id} status=${_r.statusCode} ct=${_r.headers?.["content-type"]} body=${_preview}`,
-							);
 							iframe.contentWindow?.postMessage(
 								{ type: "sw-relay-response", id, data: result },
 								"*",

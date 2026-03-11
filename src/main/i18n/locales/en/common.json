@@ -260,6 +260,19 @@
 		"testingPlaceholder": "Testing harness will appear here.",
 		"ready": "Ready"
 	},
+	"sandboxPanel": {
+		"title": "Sandbox Servers",
+		"refresh": "Refresh",
+		"expand": "Expand",
+		"collapse": "Collapse",
+		"openInTab": "Open in new tab",
+		"resolvingUrl": "Resolving URL…",
+		"browser": "Web Browser",
+		"api": "API / Postman",
+		"send": "Send",
+		"bodyPlaceholder": "{\"key\": \"value\"}",
+		"pathPlaceholder": "/api/..."
+	},
 	"copilot": {
 		"error": "useCopilot must be used within a CopilotProvider",
 		"steps": {

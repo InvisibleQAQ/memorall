@@ -163,7 +163,7 @@ export type SandboxServerTemplate =
 	| "next-app";
 
 export interface SandboxStartServerRequest {
-	kind: SandboxServerKind;
+	kind?: SandboxServerKind;
 	port: number;
 	hostname?: string;
 	entryPath?: string;
@@ -182,6 +182,8 @@ export interface SandboxStartServerResult {
 	port: number;
 	url: string;
 	renderUrl: string;
+	rootDir?: string;
+	createdFiles?: string[];
 }
 
 export interface SandboxStopServerRequest {

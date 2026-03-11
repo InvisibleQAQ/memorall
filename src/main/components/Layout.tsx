@@ -19,6 +19,7 @@ import {
 	LogIn,
 	LogOut,
 	User as UserIcon,
+	ExternalLink,
 } from "lucide-react";
 import {
 	Tooltip,
@@ -56,6 +57,7 @@ import { VietnamFlag, USFlag } from "@/main/components/atoms/flags";
 import { useAuth, useAuthActions } from "@/main/modules/supabase";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { logError, logInfo } from "@/utils/logger";
+import { openStandalonePage } from "@/utils/open-standalone";
 
 import manifest from "../../../manifest.json";
 
@@ -307,6 +309,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
 						{/* Process Monitor, Settings and Copilot */}
 						<div className="flex items-center gap-2">
+							{document.documentElement.dataset.uiSurface === "popup" && (
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<button
+												onClick={openStandalonePage}
+												className="text-muted-foreground hover:text-foreground hover:bg-muted/50 p-2 text-sm font-medium flex items-center rounded-md transition-all duration-200 ease-in-out"
+											>
+												<ExternalLink size={16} />
+											</button>
+										</TooltipTrigger>
+										<TooltipContent side="bottom">
+											<p>
+												{t("common.openStandalone", {
+													defaultValue: "Open in standalone",
+												})}
+											</p>
+										</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+							)}
 							<CopilotTrigger />
 							<ProcessMonitor />
 							<TooltipProvider>

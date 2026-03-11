@@ -57,7 +57,8 @@ If user require to write code, execute code please use this actively to write an
   - create/update/read project files
   - fetch API/HTML resources from within the container runtime context
 - Prefer container tools for multi-step coding tasks where reproducible runtime state matters.
-- To start any server (HTTP, Express, Vite, Next.js, etc.), always use "container_start_server" or "container_setup_server".
+- To start any server (HTTP, Express, Vite, Next.js, etc.), always use "container_start_server".
+- After writing or modifying any file in a running server's project, always call "container_restart_server" so changes take effect.
 - Never use "container_run_code" to start or host a long-running server.
 
 ## WHEN NOT TO USE THIS FEATURE
@@ -70,13 +71,17 @@ If user require to write code, execute code please use this actively to write an
 - "container_install_package"
 2) Execute and verify:
 - "container_run_code"
-3) Quick server setup — scaffold + install + start + preview in ONE call:
-- "container_setup_server" with template="vite-react"|"next-pages"|"next-app"|"express"
-  Use this whenever the user asks to create/run a new app from scratch.
-  It automatically scaffolds files, installs packages, starts the server, and returns an iframe preview.
-4) Manual server lifecycle (when files already exist or custom setup needed):
-- "container_start_server" -> "container_list_servers" -> "container_stop_server"
+3) Start a server:
+- "container_start_server" with projectDir="/workspaces/<app-name>"
+  - New project: add template="vite-react"|"next-pages"|"next-app"|"express" → scaffolds + installs + starts
+  - Existing project: omit template → kind auto-detected from config files
+4) After modifying any file in a running server: **ALWAYS restart**:
+- "container_restart_server" with port + projectDir
+  Call this immediately after every container_write_file / container_run_code that changes server files.
 5) Access a started server by URL:
+- ALWAYS call "container_list_servers" first to get the actual server URL.
+- Pass the \`url\` field from the server list to "container_web_access_v2" — NEVER construct a URL manually.
+- NEVER use "localhost", "127.0.0.1", or any hardcoded hostname/port. The sandbox assigns its own URL; only the value from "container_list_servers" is correct.
 - "container_web_access_v2" with useIframe=true for web UI pages (Vite, Next.js, React SPA, Express HTML page)
 - "container_web_access_v2" with useIframe=false for API-style endpoints (JSON / plain text response)
 6) Diagnostics:
@@ -84,17 +89,32 @@ If user require to write code, execute code please use this actively to write an
 
 ## SERVER SETUP GUIDE
 
-### When to use container_setup_server (preferred for new projects)
-- User says: "create a React app", "make a Next.js app", "build an Express API", "start a Vite project"
-- User says: "show me a running [framework] example"
-- Starting fresh with no existing project files
-- Single tool call → files scaffolded + packages installed + server running + iframe preview shown
+### container_start_server — CRITICAL: "kind" vs "template" are DIFFERENT parameters
 
-### When to use container_start_server instead
-- Project files already exist in the VFS (custom code already written)
-- User asks to restart a stopped server
-- Need fine-grained control over entryPath or hostname
-- Never start a server with "container_run_code". Use "container_start_server".
+**"kind"** = the server framework used to RUN the server. Values: "express" | "vite" | "next" | "auto"
+**"template"** = a scaffold preset applied ONLY when "projectDir" is EMPTY. Values: "express" | "vite-react" | "next-pages" | "next-app"
+
+**RULES — read carefully:**
+1. "kind" controls HOW the server starts. ALWAYS set it explicitly or use "auto" to detect from config files.
+2. **If you cannot determine the correct "kind", you MUST use "auto". Do NOT guess or assume any other kind value.**
+3. "template" ONLY scaffolds an empty folder — it does NOT set the server type.
+4. **NEVER assume "template" implies a specific "kind".** They are independent.
+5. When a project already has files, NEVER pass "template" — it is for empty folders only.
+6. When you pass "template", you MUST also set "kind" explicitly (e.g. "express", "vite", "next") so the runtime knows how to start the server. Passing "kind" "auto" with "template" is allowed only if you want runtime detection from generated config files.
+
+**Correct usage:**
+- New Express project (empty folder): "template": "express", kind: "express"
+- New Vite+React project (empty folder): "template": "vite-react", kind: "vite"
+- New Next.js project (empty folder): "template": "next-app", "kind": "next"
+- Existing project (files already present): omit "template"; set "kind": "auto" or explicit kind
+
+**WRONG — do NOT do this:**
+- "template": "express", kind: "auto" → runtime cannot detect kind from an empty folder; will fail
+- "template": "vite-react" with no "kind" → same problem
+
+### MANDATORY: Restart after every file change
+After ANY write to a server's project files, call "container_restart_server" immediately.
+The server does NOT hot-reload automatically — you must restart it for changes to take effect.
 
 ### After the server is running — CRITICAL: choose the right tool
 | Goal | Tool to call |
@@ -104,13 +124,16 @@ If user require to write code, execute code please use this actively to write an
 
 **NEVER** use \`container_web_access_v2\` with \`useIframe: false\` to preview a web UI page. Use \`useIframe: true\` so the browser can execute the app and return rendered HTML.
 
-### Template → framework mapping
-| template      | kind    | default port | use case                    |
-|---------------|---------|-------------|------------------------------|
-| express       | express | 3000        | REST API, HTML pages         |
-| vite-react    | vite    | 5173        | React SPA with HMR           |
-| next-pages    | next    | 3000        | Next.js Pages Router         |
-| next-app      | next    | 3000        | Next.js App Router           |
+> **CRITICAL URL RULE**: Always use the \`url\` field returned by \`container_list_servers\` as the base URL for \`container_web_access_v2\`.
+> **NEVER** pass \`localhost\`, \`127.0.0.1\`, or any self-constructed URL. Using localhost will fail — the sandbox URL is the only valid address.
+
+### Template → kind mapping reference
+| template      | required kind | default port | use case                    |
+|---------------|---------------|-------------|------------------------------|
+| express       | express       | 3000        | REST API, HTML pages         |
+| vite-react    | vite          | 5173        | React SPA with HMR           |
+| next-pages    | next          | 3000        | Next.js Pages Router         |
+| next-app      | next          | 3000        | Next.js App Router           |
 `;
 export const NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT =
 	SYSTEM_PROMPT_INSTRUCTION.trim();
@@ -118,12 +141,12 @@ export const NODEJS_SANDBOX_FEATURE_TOOLS = [
 	"container_run_code",
 	"container_install_package",
 	"container_start_server",
+	"container_restart_server",
 	"container_stop_server",
 	"container_list_servers",
 	"container_get_logs",
 	"container_clear_logs",
 	"container_web_access_v2",
-	"container_setup_server",
 ] as const;
 export const NODEJS_SANDBOX_FEATURE_DESCRIPTION =
 	"Enable isolated Node.js container tools for runtime execution, npm, filesystem, server lifecycle, logs, and resource fetch.";
@@ -147,7 +170,7 @@ const buildRunningServersPrompt = async (
 				`- kind=${server.kind}, port=${server.port}, url=${server.url}, rootDir=${server.rootDir ?? "unknown"}`,
 		);
 
-		return `## CURRENT RUNNING SANDBOX SERVERS\n${lines.join("\n")}\n`;
+		return `## CURRENT RUNNING SANDBOX SERVERS\nIMPORTANT: When calling container_web_access_v2, you MUST use the url listed below. NEVER use localhost or 127.0.0.1.\n${lines.join("\n")}\n`;
 	} catch {
 		return "";
 	}

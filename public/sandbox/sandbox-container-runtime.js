@@ -200,22 +200,29 @@ const scaffoldTemplate = (c, templateName, rootDir) => {
 		vfsBoolState.workspaceMountLoaded = true;
 		mountedWorkspaceDirectories.add(WORKSPACES_MOUNT_ROOT);
 	}
+	const createdFiles = [];
 	for (const [relPath, content] of Object.entries(files)) {
-		const fullPath = normalizePath(`${root}/${relPath}`);
+		// Strip leading slash from relPath so it's always joined relative to root.
+		const rel = relPath.startsWith("/") ? relPath.slice(1) : relPath;
+		const fullPath = normalizePath(`${root}/${rel}`);
 		try {
 			if (c.vfs.existsSync(fullPath)) continue;
-		} catch {
+		} catch (error) {
+			console.error(`[CHECK_FILE_EXIST] Error`, error)
 			// existsSync not available — proceed with write
 		}
 		const parentDir = dirname(fullPath);
 		try {
 			c.vfs.mkdirSync(parentDir, { recursive: true });
-		} catch {
+		} catch (error) {
+			console.error(`[MKDIR] Error`, error)
 			// Already exists or not needed
 		}
 		c.vfs.writeFileSync(fullPath, content);
+		createdFiles.push(fullPath);
 	}
-	pushRuntimeLog("info", `Scaffolded template "${templateName}" into ${root}`);
+	pushRuntimeLog("info", `Scaffolded template "${templateName}" into ${root}: ${createdFiles.length} files`);
+	return createdFiles;
 };
 
 // ---------------------------------------------------------------------------
@@ -510,11 +517,22 @@ const handleOperation = async (request) => {
 		}
 		case "server.start": {
 			const bindHostname = payload.hostname;
-			const kind = payload.kind;
 			const port = payload.port;
+			const resolvedRootDir = normalizePath(payload.rootDir || "/workspaces/app");
 
-			if (payload.template) {
-				scaffoldTemplate(c, payload.template, payload.rootDir || "/");
+			// Check whether the folder already has files so we only scaffold into empty dirs.
+			let folderIsEmpty = true;
+			try {
+				const entries = c.vfs.readdirSync(resolvedRootDir);
+				folderIsEmpty = !entries || entries.length === 0;
+			} catch {
+				folderIsEmpty = true;
+			}
+
+			// Scaffold template only when folder is empty.
+			let createdFiles = [];
+			if (folderIsEmpty && payload.template) {
+				createdFiles = scaffoldTemplate(c, payload.template, resolvedRootDir);
 				if (payload.autoInstall !== false) {
 					const pkgList = TEMPLATE_INSTALL_SPECS[payload.template];
 					if (Array.isArray(pkgList)) {
@@ -530,6 +548,26 @@ const handleOperation = async (request) => {
 				}
 			}
 
+			// Auto-detect server kind from config files when not explicitly given (or "auto").
+			let kind = payload.kind === "auto" ? undefined : payload.kind;
+			if (!kind) {
+				const hasFile = (name) => {
+					try {
+						return c.vfs.existsSync(normalizePath(`${resolvedRootDir}/${name}`));
+					} catch {
+						return false;
+					}
+				};
+				if (hasFile("next.config.js") || hasFile("next.config.ts") || hasFile("next.config.mjs")) {
+					kind = "next";
+				} else if (hasFile("vite.config.js") || hasFile("vite.config.ts") || hasFile("vite.config.mjs")) {
+					kind = "vite";
+				} else {
+					kind = "express";
+				}
+				pushRuntimeLog("info", `Auto-detected server kind: ${kind} for ${resolvedRootDir}`);
+			}
+
 			await stopServerState(port);
 
 			const bridge = await ensureServerBridgeReady(c);
@@ -541,31 +579,14 @@ const handleOperation = async (request) => {
 
 			let handleRequest = null;
 
-			if (kind === "express") {
-				const entryPath = normalizePath(payload.entryPath || "/server.js");
-				await c.runFile(entryPath);
-				const started = await waitForExpressStartup(bridge, port, 3_000);
-				if (!started) {
-					pushRuntimeLog(
-						"warn",
-						`Express startup probe did not confirm readiness for port ${port}; continuing with optimistic server state`,
-					);
-				}
-				handleRequest = (method, path, headers, body) => bridge.handleRequest(port, method, path, headers, body);
-				stop = async () => {
-					await closeTrackedExpressServer(c, port);
-					if (bridge && typeof bridge.unregisterServer === "function") {
-						bridge.unregisterServer(port);
-					}
-				};
-			} else if (kind === "vite") {
+			if (kind === "vite") {
 				if (typeof AlmostNodeLib.ViteDevServer !== "function") {
 					throw new Error("ViteDevServer is not available in runtime bundle");
 				}
 				const viteServer = new AlmostNodeLib.ViteDevServer(c.vfs, {
 					port,
 					hostname: bindHostname,
-					root: payload.rootDir || "/",
+					root: resolvedRootDir,
 				});
 				await viteServer.start();
 				handleRequest = (method, path, headers, body) => viteServer.handleRequest(method, path, headers, body);
@@ -582,7 +603,7 @@ const handleOperation = async (request) => {
 				const nextServer = new AlmostNodeLib.NextDevServer(c.vfs, {
 					port,
 					hostname: bindHostname,
-					root: payload.rootDir || "/",
+					root: resolvedRootDir,
 				});
 				await nextServer.start();
 				handleRequest = (method, path, headers, body) => nextServer.handleRequest(method, path, headers, body);
@@ -593,14 +614,29 @@ const handleOperation = async (request) => {
 					}
 				};
 			} else {
-				throw new Error(`Unsupported server kind: ${kind}`);
+				// express — entryPath is the server entry file inside rootDir
+				const entryPath = normalizePath(payload.entryPath || `${resolvedRootDir}/server.js`);
+				await c.runFile(entryPath);
+				const started = await waitForExpressStartup(bridge, port, 3_000);
+				if (!started) {
+					pushRuntimeLog(
+						"warn",
+						`Express startup probe did not confirm readiness for port ${port}; continuing with optimistic server state`,
+					);
+				}
+				handleRequest = (method, path, headers, body) => bridge.handleRequest(port, method, path, headers, body);
+				stop = async () => {
+					await closeTrackedExpressServer(c, port);
+					if (bridge && typeof bridge.unregisterServer === "function") {
+						bridge.unregisterServer(port);
+					}
+				};
 			}
 
 			const url = resolveServerBaseUrl(bridge, port);
-			const resolvedRootDir = normalizePath(payload.rootDir || "/");
 			const state = { kind, port, url, renderUrl: url, stop, handleRequest, rootDir: resolvedRootDir };
 			servers.set(port, state);
-			return toServerInfo(state);
+			return { ...toServerInfo(state), createdFiles };
 		}
 		case "server.stop":
 			await stopServerState(payload.port);
@@ -662,6 +698,41 @@ const handleOperation = async (request) => {
 		}
 		const normalizedPath = normalizeServerPath(path || "/");
 		const responseData = await server.handleRequest(method ?? "GET", normalizedPath, reqHeaders ?? {}, body ?? null);
+
+		console.log(`[server.handleSwRequest] handleRequest ${normalizedPath}`, responseData)
+		// Detailed responseData diagnostics
+		{
+			const bd = responseData.body;
+			const bdType = typeof bd;
+			const isAB = bd instanceof ArrayBuffer;
+			const isView = ArrayBuffer.isView(bd);
+			const isStr = bdType === "string";
+			const byteLen = isAB ? bd.byteLength : isView ? bd.byteLength : isStr ? bd.length : (bd == null ? 0 : -1);
+			let preview = "";
+			try {
+				if (isStr) preview = bd.slice(0, 300);
+				else if (isAB) preview = new TextDecoder().decode(bd).slice(0, 300);
+				else if (isView) preview = new TextDecoder().decode(bd).slice(0, 300);
+			} catch (_) {}
+			console.log(`[server.handleSwRequest] responseData statusCode=${responseData.statusCode} body typeof=${bdType} isArrayBuffer=${isAB} isView=${isView} isString=${isStr} byteLen=${byteLen}`, preview ? `body preview: ${preview}` : "(no preview)");
+		}
+		// Log error responses so Vite/Next/Express errors are visible in devtools.
+		if ((responseData.statusCode ?? 200) >= 400) {
+			let errorBody = "";
+			try {
+				if (responseData.body) {
+					const raw = responseData.body instanceof ArrayBuffer
+						? responseData.body
+						: ArrayBuffer.isView(responseData.body)
+							? responseData.body.buffer
+							: null;
+					if (raw) errorBody = new TextDecoder().decode(raw).slice(0, 2000);
+					else if (typeof responseData.body === "string") errorBody = responseData.body.slice(0, 2000);
+				}
+			} catch (_) {}
+			console.error(`[server.handleSwRequest] ${method} ${normalizedPath} → ${responseData.statusCode} ${responseData.statusMessage ?? ""}`, errorBody || "(no body)");
+			pushRuntimeLog("error", `Server error: ${method} ${normalizedPath} → ${responseData.statusCode}: ${errorBody.slice(0, 500) || "(no body)"}`);
+		}
 		// Base64-encode body for SW transport
 		const rawBody = responseData.body;
 		let bodyBytes;
@@ -671,7 +742,10 @@ const handleOperation = async (request) => {
 			bodyBytes = new Uint8Array(rawBody);
 		} else if (ArrayBuffer.isView(rawBody)) {
 			bodyBytes = new Uint8Array(rawBody.buffer, rawBody.byteOffset, rawBody.byteLength);
+		} else if (typeof rawBody === "string") {
+			bodyBytes = new TextEncoder().encode(rawBody);
 		} else {
+			console.warn("[server.handleSwRequest] unknown body type, body will be empty:", typeof rawBody, rawBody);
 			bodyBytes = new Uint8Array(0);
 		}
 		let bodyBase64 = "";

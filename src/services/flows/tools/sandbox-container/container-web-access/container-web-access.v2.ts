@@ -238,7 +238,7 @@ const renderSandboxPage = async (
 			}
 
 			void sandboxContainer
-				.request("server.handleSwRequest", {
+				.handleSwRequestWithRetry({
 					id: eventData.id,
 					port: eventData.portNum,
 					method: eventData.method,

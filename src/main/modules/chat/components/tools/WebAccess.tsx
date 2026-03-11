@@ -317,7 +317,7 @@ const WebAccessPreview: React.FC<{ payload: WebAccessPayload }> = ({
 			const message = data;
 			void serviceManager
 				.getSandboxContainerService()
-				.request("server.handleSwRequest", {
+				.handleSwRequestWithRetry({
 					id: message.id,
 					port: message.portNum,
 					method: message.method,

@@ -14,6 +14,7 @@ import "./documents/doc-move";
 import "./sandbox-container/container-run-code";
 import "./sandbox-container/container-install-package";
 import "./sandbox-container/container-start-server";
+import "./sandbox-container/container-restart-server";
 import "./sandbox-container/container-stop-server";
 import "./sandbox-container/container-list-servers";
 import "./sandbox-container/container-get-logs";
@@ -22,7 +23,7 @@ import "./sandbox-container/container-fetch-resource";
 import "./sandbox-container/container-web-access";
 import "./sandbox-container/container-request-server";
 import "./sandbox-container/container-render-server";
-import "./sandbox-container/container-setup-server";
+// container-setup-server merged into container-start-server
 
 import "./web/web-open";
 import "./web/web-read";

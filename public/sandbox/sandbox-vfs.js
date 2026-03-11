@@ -170,6 +170,41 @@ export const installDocumentsVfsOverlay = (vfs) => {
 		}
 	};
 
+	// -------------------------------------------------------------------------
+	// Parent bridge — async request/response and fire-and-forget notify channels
+	// so the sandbox VFS can persist workspace changes to documentFileSystemService.
+	// -------------------------------------------------------------------------
+	const fsPending = new Map();
+
+	const onFsResponse = (event) => {
+		if (!event.data || event.data.channel !== "memorall-sandbox-fs-res") return;
+		const pending = fsPending.get(event.data.requestId);
+		if (!pending) return;
+		fsPending.delete(event.data.requestId);
+		if (event.data.ok) pending.resolve(event.data.result);
+		else pending.reject(new Error(event.data.error ?? "fs async bridge error"));
+	};
+	window.addEventListener("message", onFsResponse);
+
+	const sendFsRequest = (operation, payload) =>
+		new Promise((resolve, reject) => {
+			const requestId = Math.random().toString(36).slice(2, 12);
+			fsPending.set(requestId, { resolve, reject });
+			window.parent.postMessage(
+				{ channel: "memorall-sandbox-fs-req", requestId, operation, payload },
+				"*",
+			);
+		});
+
+	const sendFsNotify = (operation, payload) => {
+		try {
+			window.parent.postMessage(
+				{ channel: "memorall-sandbox-fs-notify", operation, payload },
+				"*",
+			);
+		} catch (_) {}
+	};
+
 	const removeWorkspacePath = (path) => {
 		if (mountedWorkspaceFiles.has(path)) {
 			mountedWorkspaceFiles.delete(path);
@@ -347,6 +382,7 @@ export const installDocumentsVfsOverlay = (vfs) => {
 			ensureParentDirectories(path, mountedWorkspaceDirectories);
 			materializedWorkspaceFiles.set(path, readTextContent(content));
 			pendingWorkspaceOps.push({ op: "write", path, content: materializedWorkspaceFiles.get(path) || "" });
+			sendFsNotify("fs.writeFile", { path, content: materializedWorkspaceFiles.get(path) || "" });
 		}
 	};
 
@@ -365,6 +401,7 @@ export const installDocumentsVfsOverlay = (vfs) => {
 		if (isWorkspacePath(path)) {
 			ensureParentDirectories(path, mountedWorkspaceDirectories);
 			mountedWorkspaceDirectories.add(path);
+			sendFsNotify("fs.mkdir", { path, recursive: options?.recursive !== false });
 		}
 	};
 
@@ -383,6 +420,7 @@ export const installDocumentsVfsOverlay = (vfs) => {
 		if (isWorkspacePath(path)) {
 			removeWorkspacePath(path);
 			pendingWorkspaceOps.push({ op: "delete", path });
+			sendFsNotify("fs.unlink", { path });
 		}
 	};
 
@@ -438,8 +476,82 @@ export const installDocumentsVfsOverlay = (vfs) => {
 				}
 			}
 			pendingWorkspaceOps.push({ op: "rename", oldPath, newPath });
+			sendFsNotify("fs.rename", { oldPath, newPath });
 		}
 	};
+
+	// -------------------------------------------------------------------------
+	// Async methods — workspace/document paths go to the parent bridge
+	// (documentFileSystemService) so all reads/writes are persisted.
+	// Non-mounted paths fall back to the underlying sync VFS.
+	// -------------------------------------------------------------------------
+
+	vfs.readFile = async (inputPath, encodingOrOptions) => {
+		const path = toCanonicalMountedPath(String(inputPath));
+		const encoding = typeof encodingOrOptions === "string" ? encodingOrOptions : "utf8";
+		if (isWorkspacePath(path) || isDocumentsPath(path)) {
+			const result = await sendFsRequest("fs.readFile", { path, encoding });
+			// Populate in-memory so subsequent sync reads (e.g. Vite internals) work.
+			if (isWorkspacePath(path) && typeof result?.content === "string") {
+				if (!mountedWorkspaceFiles.has(path)) {
+					mountedWorkspaceFiles.add(path);
+					ensureParentDirectories(path, mountedWorkspaceDirectories);
+				}
+				materializedWorkspaceFiles.set(path, result.content);
+				if (original.writeFileSync) original.writeFileSync(path, result.content);
+			}
+			return result?.content ?? "";
+		}
+		if (!original.readFileSync) throw new Error("vfs.readFileSync is not available");
+		return original.readFileSync(path, encoding);
+	};
+
+	vfs.writeFile = async (inputPath, content) => {
+		const path = toCanonicalMountedPath(String(inputPath));
+		// Update in-memory first so the server can read the file immediately.
+		vfs.writeFileSync(inputPath, content);
+		// Persist to documentFileSystemService via parent bridge (awaited).
+		if (isWorkspacePath(path)) {
+			await sendFsRequest("fs.writeFile", { path, content: readTextContent(content) });
+		}
+	};
+
+	vfs.mkdir = async (inputPath, options) => {
+		const path = toCanonicalMountedPath(String(inputPath));
+		vfs.mkdirSync(inputPath, options);
+		if (isWorkspacePath(path)) {
+			await sendFsRequest("fs.mkdir", { path, recursive: options?.recursive !== false });
+		}
+	};
+
+	vfs.readdir = async (inputPath) => vfs.readdirSync(inputPath);
+
+	vfs.unlink = async (inputPath) => {
+		const path = toCanonicalMountedPath(String(inputPath));
+		vfs.unlinkSync(inputPath);
+		if (isWorkspacePath(path)) {
+			await sendFsRequest("fs.unlink", { path });
+		}
+	};
+
+	vfs.rename = async (oldInputPath, newInputPath) => {
+		const oldPath = toCanonicalMountedPath(String(oldInputPath));
+		const newPath = toCanonicalMountedPath(String(newInputPath));
+		vfs.renameSync(oldInputPath, newInputPath);
+		if (isWorkspacePath(oldPath)) {
+			await sendFsRequest("fs.rename", { oldPath, newPath });
+		}
+	};
+
+	vfs.stat = async (inputPath) => vfs.statSync(inputPath);
+
+	vfs.lstat = async (inputPath) => vfs.lstatSync(inputPath);
+
+	vfs.access = async (inputPath, mode) => {
+		vfs.accessSync(inputPath, mode);
+	};
+
+	vfs.exists = async (inputPath) => vfs.existsSync(String(inputPath));
 
 	vfs[VFS_DOCUMENTS_OVERLAY_FLAG] = true;
 };

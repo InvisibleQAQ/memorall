@@ -4,19 +4,14 @@ import {
 	vfsBoolState,
 	mountedDocumentFiles,
 	mountedDocumentDirectories,
-	materializedMountedFiles,
 	mountedWorkspaceFiles,
 	mountedWorkspaceDirectories,
-	materializedWorkspaceFiles,
 	pendingWorkspaceOps,
 	normalizePath,
 	dirname,
 	toCanonicalMountedPath,
 	isDocumentsPath,
 	isWorkspacePath,
-	assertDocumentsMountLoaded,
-	assertWorkspaceMountLoaded,
-	listMountedDir,
 } from "./sandbox-vfs.js";
 
 /**
@@ -29,62 +24,29 @@ export const handleFsOperation = async (operation, payload, c) => {
 		case "fs.writeFile": {
 			const p = toCanonicalMountedPath(payload.path);
 			if (isDocumentsPath(p)) throw new Error(`Path is read-only: ${p}`);
-			c.vfs.writeFileSync(p, payload.content);
+			await c.vfs.writeFile(p, payload.content);
 			return { path: p };
 		}
 		case "fs.readFile": {
 			const p = toCanonicalMountedPath(payload.path);
-			if (mountedDocumentFiles.has(p)) {
-				if (!materializedMountedFiles.has(p)) {
-					throw new Error(`Mounted file is not materialized in sandbox runtime: ${p}`);
-				}
-				return { path: p, content: materializedMountedFiles.get(p) || "" };
-			}
-			if (mountedWorkspaceFiles.has(p)) {
-				if (!materializedWorkspaceFiles.has(p)) {
-					throw new Error(`Workspace file not materialized: ${p}`);
-				}
-				return { path: p, content: materializedWorkspaceFiles.get(p) || "" };
-			}
-			if (isDocumentsPath(p)) {
-				assertDocumentsMountLoaded();
-			}
-			if (isWorkspacePath(p)) {
-				assertWorkspaceMountLoaded();
-			}
-			if (!c.vfs.existsSync(p)) throw new Error(`File not found: ${p}`);
-			return { path: p, content: c.vfs.readFileSync(p, "utf8") };
+			const content = await c.vfs.readFile(p, "utf8");
+			return { path: p, content: typeof content === "string" ? content : new TextDecoder().decode(content) };
 		}
 		case "fs.mkdir": {
 			const p = toCanonicalMountedPath(payload.path);
 			if (isDocumentsPath(p)) throw new Error(`Path is read-only: ${p}`);
-			c.vfs.mkdirSync(p, { recursive: payload.recursive !== false });
+			await c.vfs.mkdir(p, { recursive: payload.recursive !== false });
 			return { path: p };
 		}
 		case "fs.readdir": {
 			const p = toCanonicalMountedPath(payload.path);
-			if (isDocumentsPath(p)) {
-				assertDocumentsMountLoaded();
-				if (!mountedDocumentDirectories.has(p)) throw new Error(`Directory not found: ${p}`);
-				return {
-					path: p,
-					entries: listMountedDir(p, mountedDocumentDirectories, mountedDocumentFiles),
-				};
-			}
-			if (isWorkspacePath(p)) {
-				assertWorkspaceMountLoaded();
-				if (!mountedWorkspaceDirectories.has(p)) throw new Error(`Directory not found: ${p}`);
-				return {
-					path: p,
-					entries: listMountedDir(p, mountedWorkspaceDirectories, mountedWorkspaceFiles),
-				};
-			}
-			return { path: p, entries: c.vfs.readdirSync(p) };
+			const entries = await c.vfs.readdir(p);
+			return { path: p, entries };
 		}
 		case "fs.unlink": {
 			const p = toCanonicalMountedPath(payload.path);
 			if (isDocumentsPath(p)) throw new Error(`Path is read-only: ${p}`);
-			c.vfs.unlinkSync(p);
+			await c.vfs.unlink(p);
 			return { path: p };
 		}
 		case "fs.rename": {
@@ -93,7 +55,7 @@ export const handleFsOperation = async (operation, payload, c) => {
 			if (isDocumentsPath(oldPath) || isDocumentsPath(newPath)) {
 				throw new Error(`Mounted documents path is read-only: ${oldPath} -> ${newPath}`);
 			}
-			c.vfs.renameSync(oldPath, newPath);
+			await c.vfs.rename(oldPath, newPath);
 			return { oldPath, newPath };
 		}
 		case "fs.exists": {
@@ -104,21 +66,12 @@ export const handleFsOperation = async (operation, payload, c) => {
 			if (isWorkspacePath(p) && !vfsBoolState.workspaceMountLoaded) {
 				return { path: p, exists: false };
 			}
-			return {
-				path: p,
-				exists:
-					c.vfs.existsSync(p) ||
-					mountedDocumentFiles.has(p) ||
-					mountedDocumentDirectories.has(p) ||
-					mountedWorkspaceFiles.has(p) ||
-					mountedWorkspaceDirectories.has(p),
-			};
+			return { path: p, exists: await c.vfs.exists(p) };
 		}
 		case "fs.mountDocuments": {
 			mountedDocumentFiles.clear();
 			mountedDocumentDirectories.clear();
 			mountedDocumentDirectories.add(DOCUMENTS_MOUNT_ROOT);
-			materializedMountedFiles.clear();
 			vfsBoolState.documentsMountLoaded = true;
 
 			for (const dirPath of payload.directories ?? []) {
@@ -141,7 +94,6 @@ export const handleFsOperation = async (operation, payload, c) => {
 			mountedWorkspaceFiles.clear();
 			mountedWorkspaceDirectories.clear();
 			mountedWorkspaceDirectories.add(WORKSPACES_MOUNT_ROOT);
-			materializedWorkspaceFiles.clear();
 			pendingWorkspaceOps.length = 0;
 			vfsBoolState.workspaceMountLoaded = true;
 
@@ -164,13 +116,13 @@ export const handleFsOperation = async (operation, payload, c) => {
 		case "fs.materializeDocumentFile": {
 			const p = normalizePath(payload.path);
 			if (!mountedDocumentFiles.has(p)) throw new Error(`Mounted file not found: ${p}`);
-			materializedMountedFiles.set(p, payload.content);
+			await c.vfs.writeFile(p, payload.content);
 			return { path: p, materialized: true };
 		}
 		case "fs.materializeWorkspaceFile": {
 			const p = toCanonicalMountedPath(payload.path);
 			if (!mountedWorkspaceFiles.has(p)) throw new Error(`Mounted file not found: ${p}`);
-			materializedWorkspaceFiles.set(p, payload.content);
+			await c.vfs.writeFile(p, payload.content);
 			return { path: p, materialized: true };
 		}
 		case "fs.flushWorkspaceWrites": {

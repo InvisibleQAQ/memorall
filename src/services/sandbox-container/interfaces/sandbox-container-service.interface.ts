@@ -32,6 +32,8 @@ import type {
 	SandboxStartServerRequest,
 	SandboxStartServerResult,
 	SandboxStopServerRequest,
+	SandboxHandleSwRequestPayload,
+	SandboxHandleSwRequestResult,
 	SandboxOperation,
 	SandboxOperationPayloadMap,
 	SandboxOperationResultMap,
@@ -101,4 +103,9 @@ export interface ISandboxContainerService {
 	restoreSnapshot(
 		request: SandboxRestoreSnapshotRequest,
 	): Promise<{ restored: true }>;
+
+	/** Relay an SW request with automatic workspace-file materialization retry. */
+	handleSwRequestWithRetry(
+		params: SandboxHandleSwRequestPayload,
+	): Promise<SandboxHandleSwRequestResult>;
 }

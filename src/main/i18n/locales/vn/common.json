@@ -259,6 +259,19 @@
 		"testingPlaceholder": "Bộ kiểm thử sẽ xuất hiện ở đây.",
 		"ready": "Sẵn sàng"
 	},
+	"sandboxPanel": {
+		"title": "Máy chủ Sandbox",
+		"refresh": "Làm mới",
+		"expand": "Mở rộng",
+		"collapse": "Thu gọn",
+		"openInTab": "Mở trong tab mới",
+		"resolvingUrl": "Đang phân giải URL…",
+		"browser": "Trình duyệt web",
+		"api": "API / Postman",
+		"send": "Gửi",
+		"bodyPlaceholder": "{\"key\": \"value\"}",
+		"pathPlaceholder": "/api/..."
+	},
 	"copilot": {
 		"error": "useCopilot phải được sử dụng trong CopilotProvider",
 		"steps": {
