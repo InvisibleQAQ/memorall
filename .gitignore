@@ -168,6 +168,9 @@ extension-env.d.ts
 
 publish
 sandbox
+!public/sandbox/
+!public/sandbox/runtime/
+!public/sandbox/runtime/*.js
 
 .claude
 
