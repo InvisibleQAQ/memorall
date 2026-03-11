@@ -1,12 +1,12 @@
 import z from "zod";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
+import { toolRegistry } from "@/services/flows/tool-registry";
 import {
-	closeWebSession,
 	createDefaultWebErrorResult,
 	createWebResult,
-	openWebSession,
-} from "./web-tool-registry";
-import { toolRegistry } from "@/services/flows/tool-registry";
+	requireWebBrowserService,
+	type WebToolServices,
+} from "./web-tool-utils";
 
 const TOOL_NAME = "web_open" as const;
 
@@ -40,24 +40,26 @@ const schema = z.object({
 
 type Input = z.infer<typeof schema>;
 
-export const createWebOpenTool: ToolFactory<
-	Input,
-	undefined
-> = (): Tool<Input> => ({
+export const createWebOpenTool: ToolFactory<Input, WebToolServices> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Open a web URL in `iframe` or browser-backed `tab`/`window` mode, wait for the initial navigation load, and expose `sessionId` for follow-up actions. Use `web_wait` for SPA/render waits and `web_read` to retrieve page content.",
 	schema,
 	execute: async (input) => {
+		const webBrowser = requireWebBrowserService(services);
 		let disposableSessionId: string | undefined;
 		try {
-			const { session, disposable, renderReady } = await openWebSession({
-				url: input.url,
-				timeoutMs: input.timeoutMs ?? 15_000,
-				maxHtmlChars: input.maxHtmlChars ?? 160_000,
-				persist: input.keepSession ?? true,
-				mode: input.browserMode,
-			});
+			const { session, disposable, renderReady } = await webBrowser.openSession(
+				{
+					url: input.url,
+					timeoutMs: input.timeoutMs ?? 15_000,
+					maxHtmlChars: input.maxHtmlChars ?? 160_000,
+					persist: input.keepSession ?? true,
+					mode: input.browserMode,
+				},
+			);
 			if (disposable) {
 				disposableSessionId = session.id;
 			}
@@ -77,7 +79,7 @@ export const createWebOpenTool: ToolFactory<
 			return createDefaultWebErrorResult(error);
 		} finally {
 			if (disposableSessionId) {
-				await closeWebSession(disposableSessionId);
+				await webBrowser.closeSession(disposableSessionId);
 			}
 		}
 	},
@@ -89,7 +91,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: WebToolServices;
 		};
 	}
 }

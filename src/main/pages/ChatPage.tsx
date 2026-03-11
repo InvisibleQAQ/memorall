@@ -32,13 +32,18 @@ import {
 import { cn } from "@/lib/utils";
 import { serviceManager } from "@/services";
 import type { SandboxServerInfo } from "@/services/sandbox-container";
-import { SandboxServersPanel } from "@/main/components/molecules/SandboxServersPanel";
+import type { ActiveWebSessionInfo } from "@/services/web-browser";
+import { RuntimeSessionsPanel } from "@/main/components/molecules/RuntimeSessionsPanel";
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
 	const { model, isInitialized, handleModelLoaded } = useCurrentModel();
 	const { downloadProgress, quickDownloadModel } = useDownloadProgress();
 	const [sandboxServers, setSandboxServers] = useState<SandboxServerInfo[]>([]);
+	const [activeWebSession, setActiveWebSession] =
+		useState<ActiveWebSessionInfo>({
+			isOpen: false,
+		});
 	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
 	const [isLoadingTopics, setIsLoadingTopics] = useState(false);
 	const [agentFlows, setAgentFlows] = useState<
@@ -67,10 +72,12 @@ export const ChatPage: React.FC = () => {
 	// Sandbox servers panel
 	const fetchServers = useCallback(async () => {
 		try {
-			const result = await serviceManager
-				.getSandboxContainerService()
-				.listServers();
-			setSandboxServers(result.servers);
+			const [serversResult, webSessionInfo] = await Promise.all([
+				serviceManager.getSandboxContainerService().listServers(),
+				serviceManager.getWebBrowserService().getActiveSessionInfo(),
+			]);
+			setSandboxServers(serversResult.servers);
+			setActiveWebSession(webSessionInfo);
 		} catch {
 			// sandbox may not be ready yet — ignore
 		}
@@ -219,8 +226,9 @@ export const ChatPage: React.FC = () => {
 
 	return (
 		<div className="flex h-full bg-background">
-			<SandboxServersPanel
+			<RuntimeSessionsPanel
 				servers={sandboxServers}
+				activeWebSession={activeWebSession}
 				onRefresh={() => void fetchServers()}
 			/>
 			<div className="flex flex-col flex-1 min-w-0">

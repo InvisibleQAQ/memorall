@@ -2,14 +2,11 @@ import z from "zod";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import {
-	closeWebSession,
 	createDefaultWebErrorResult,
 	createWebResult,
-	getOrOpenWebSession,
-	refreshWebSession,
-	waitForDomSelector,
-	waitForPageRender,
-} from "./web-tool-registry";
+	requireWebBrowserService,
+	type WebToolServices,
+} from "./web-tool-utils";
 
 const TOOL_NAME = "web_wait" as const;
 
@@ -75,19 +72,19 @@ const truncateContent = (value: string, maxChars: number): string => {
 	return `${value.slice(0, maxChars)}\n...truncated`;
 };
 
-export const createWebWaitTool: ToolFactory<
-	Input,
-	undefined
-> = (): Tool<Input> => ({
+export const createWebWaitTool: ToolFactory<Input, WebToolServices> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Wait for page render stability, selector state, or a fixed time in a web session.",
 	schema,
 	execute: async (input) => {
+		const webBrowser = requireWebBrowserService(services);
 		let disposableSessionId: string | undefined;
 		const maxChars = 160_000;
 		try {
-			const { session, disposable } = await getOrOpenWebSession({
+			const { session, disposable } = await webBrowser.getOrOpenSession({
 				sessionId: input.sessionId,
 				url: input.url,
 				timeoutMs: input.timeoutMs ?? 15_000,
@@ -111,8 +108,8 @@ export const createWebWaitTool: ToolFactory<
 
 			let result: { matched: boolean; html: string; lastText: string };
 			if (waitMode === "selector") {
-				result = await waitForDomSelector({
-					session,
+				result = await webBrowser.waitForDomSelector({
+					sessionId: session.id,
 					selector: input.selector!,
 					state: input.state ?? "present",
 					timeoutMs: input.timeoutMs ?? 15_000,
@@ -122,45 +119,48 @@ export const createWebWaitTool: ToolFactory<
 			} else if (waitMode === "time") {
 				const delay = input.delayMs ?? 1_000;
 				await waitFixedDelay(delay);
-				await refreshWebSession(
-					session.id,
-					maxChars,
-					input.timeoutMs ?? 15_000,
-				);
+				const refreshedSession = await webBrowser.refreshSession({
+					sessionId: session.id,
+					maxHtmlChars: maxChars,
+					timeoutMs: input.timeoutMs ?? 15_000,
+				});
 				result = {
 					matched: true,
-					html: session.html,
-					lastText: session.text,
+					html: refreshedSession.html,
+					lastText: refreshedSession.text,
 				};
 			} else {
-				result = await waitForPageRender({
-					session,
+				result = await webBrowser.waitForPageRender({
+					sessionId: session.id,
 					timeoutMs: input.timeoutMs ?? 15_000,
 					intervalMs: input.intervalMs ?? 250,
 					stabilityMs: input.stabilityMs ?? 1_000,
 					maxHtmlChars: maxChars,
 				});
 			}
+			const latestSession = await webBrowser.refreshSession({
+				sessionId: session.id,
+				maxHtmlChars: maxChars,
+				timeoutMs: input.timeoutMs ?? 15_000,
+			});
 
 			const output = createWebResult({
 				actionType: "web_wait",
 				success: true,
-				sessionId: session.id,
-				url: session.currentUrl,
+				sessionId: latestSession.id,
+				url: latestSession.currentUrl,
 				waitMode,
 				matched: result.matched,
 				html: truncateContent(result.html, maxChars),
 				text: truncateContent(result.lastText, maxChars),
 			});
-			if (disposableSessionId) {
-				await closeWebSession(disposableSessionId);
-			}
 			return output;
 		} catch (error) {
-			if (disposableSessionId) {
-				await closeWebSession(disposableSessionId);
-			}
 			return createDefaultWebErrorResult(error);
+		} finally {
+			if (disposableSessionId) {
+				await webBrowser.closeSession(disposableSessionId);
+			}
 		}
 	},
 });
@@ -171,7 +171,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: WebToolServices;
 		};
 	}
 }

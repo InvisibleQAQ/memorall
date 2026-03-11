@@ -66,7 +66,7 @@ If user require to write code, execute code please use this actively to write an
 2) Execute and verify:
 - "container_run_code"
 3) Quick server setup — scaffold + install + start + preview in ONE call:
-- "container_setup_server" with template="vite-react"|"next-pages"|"next-app"|"express"
+- "container_start_server" with template="vite-react"|"next-pages"|"next-app"|"express"
   Use this whenever the user asks to create/run a new app from scratch.
   It automatically scaffolds files, installs packages, starts the server, and returns an iframe preview.
 4) Manual server lifecycle (when files already exist or custom setup needed):
@@ -85,7 +85,7 @@ If user require to write code, execute code please use this actively to write an
 
 ## SERVER SETUP GUIDE
 
-### When to use container_setup_server (preferred for new projects)
+### When to use container_start_server (preferred for new projects)
 - User says: "create a React app", "make a Next.js app", "build an Express API", "start a Vite project"
 - User says: "show me a running [framework] example"
 - Starting fresh with no existing project files
@@ -126,7 +126,6 @@ export const NODEJS_SANDBOX_FEATURE_TOOLS = [
 	"container_web_access_v2",
 	"container_render_server",
 	"container_request_server",
-	"container_setup_server",
 ] as const;
 export const NODEJS_SANDBOX_FEATURE_DESCRIPTION =
 	"Enable isolated Node.js container tools for runtime execution, npm, filesystem, server lifecycle, logs, and resource fetch.";

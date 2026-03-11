@@ -273,33 +273,49 @@ async function main() {
 			)
 			.replaceAll(
 				"https://unpkg.com/esbuild-wasm@0.20.0/esbuild.wasm",
-				"./vendors/esbuild.wasm",
+				"/sandbox/vendors/esbuild.wasm",
 			);
 		// Force esbuild-wasm to run without spawning blob: workers (MV3 CSP-safe).
 		almostnodeBundle = almostnodeBundle
 			.replaceAll(
 				'initialize({wasmURL:"./esbuild.wasm"})',
-				'initialize({wasmURL:"./vendors/esbuild.wasm",worker:false})',
+				'initialize({wasmURL:"/sandbox/vendors/esbuild.wasm",worker:false})',
 			)
 			.replaceAll(
 				"initialize({wasmURL:'./esbuild.wasm'})",
-				"initialize({wasmURL:'./vendors/esbuild.wasm',worker:false})",
+				"initialize({wasmURL:'/sandbox/vendors/esbuild.wasm',worker:false})",
 			)
 			.replaceAll(
 				'initialize({wasmURL:"./esbuild.wasm",worker:false})',
-				'initialize({wasmURL:"./vendors/esbuild.wasm",worker:false})',
+				'initialize({wasmURL:"/sandbox/vendors/esbuild.wasm",worker:false})',
 			)
 			.replaceAll(
 				"initialize({wasmURL:'./esbuild.wasm',worker:false})",
-				"initialize({wasmURL:'./vendors/esbuild.wasm',worker:false})",
+				"initialize({wasmURL:'/sandbox/vendors/esbuild.wasm',worker:false})",
 			)
 			.replaceAll(
 				'initialize({wasmURL:"./vendors/esbuild.wasm"})',
-				'initialize({wasmURL:"./vendors/esbuild.wasm",worker:false})',
+				'initialize({wasmURL:"/sandbox/vendors/esbuild.wasm",worker:false})',
 			)
 			.replaceAll(
 				"initialize({wasmURL:'./vendors/esbuild.wasm'})",
+				"initialize({wasmURL:'/sandbox/vendors/esbuild.wasm',worker:false})",
+			)
+			.replaceAll(
+				'initialize({wasmURL:"/sandbox/vendors/esbuild.wasm"})',
+				'initialize({wasmURL:"/sandbox/vendors/esbuild.wasm",worker:false})',
+			)
+			.replaceAll(
+				"initialize({wasmURL:'/sandbox/vendors/esbuild.wasm'})",
+				"initialize({wasmURL:'/sandbox/vendors/esbuild.wasm',worker:false})",
+			)
+			.replaceAll(
+				'initialize({wasmURL:"./vendors/esbuild.wasm",worker:false})',
+				'initialize({wasmURL:"/sandbox/vendors/esbuild.wasm",worker:false})',
+			)
+			.replaceAll(
 				"initialize({wasmURL:'./vendors/esbuild.wasm',worker:false})",
+				"initialize({wasmURL:'/sandbox/vendors/esbuild.wasm',worker:false})",
 			);
 		// Rspack rejects node:module specifiers even in dynamic import dead branches.
 		// Replace with non-resolving promise to avoid compile-time scheme handling.
@@ -356,6 +372,25 @@ async function main() {
 	const sandboxSrcDir = path.resolve(process.cwd(), "public/sandbox");
 	const sandboxDestDir = path.resolve(process.cwd(), "sandbox");
 	if (fs.existsSync(sandboxSrcDir)) {
+		ensureDir(sandboxDestDir);
+		const legacySandboxRootFiles = [
+			"js-execute.html",
+			"js-execute.js",
+			"renderer-utils.js",
+			"renderer.html",
+			"renderer.js",
+			"sandbox-container-runtime.html",
+			"sandbox-container-runtime.js",
+			"sandbox-fs-handlers.js",
+			"sandbox-templates.js",
+			"sandbox-vfs.js",
+		];
+		for (const legacyFile of legacySandboxRootFiles) {
+			const legacyPath = path.join(sandboxDestDir, legacyFile);
+			if (fs.existsSync(legacyPath)) {
+				fs.rmSync(legacyPath, { force: true });
+			}
+		}
 		copyDirectory(sandboxSrcDir, sandboxDestDir);
 		console.log("✅ Sandbox assets copied.\n");
 	} else {

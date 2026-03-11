@@ -10,6 +10,7 @@ import {
 	Copy,
 	Check,
 	Lightbulb,
+	Hash,
 } from "lucide-react";
 import dayjs from "dayjs";
 
@@ -40,7 +41,8 @@ export const MessageFooter: React.FC<MessageFooterProps> = React.memo(
 		const [saved, setSaved] = useState(false);
 		const [showFullInfo, setShowFullInfo] = useState(false);
 
-		const { model, provider, timeToAnswer, tokensPerSecond } = metadata;
+		const { model, provider, timeToAnswer, tokensPerSecond, estimatedTokens } =
+			metadata;
 
 		const formatTime = (seconds?: number) => {
 			if (!seconds) return "-";
@@ -206,6 +208,13 @@ export const MessageFooter: React.FC<MessageFooterProps> = React.memo(
 							<div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/50 border border-border/40 text-muted-foreground">
 								<Clock className="w-3 h-3" />
 								<span>{formatTime(timeToAnswer)}</span>
+							</div>
+						)}
+
+						{estimatedTokens !== undefined && (
+							<div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/50 border border-border/40 text-muted-foreground">
+								<Hash className="w-3 h-3" />
+								<span>{estimatedTokens.toLocaleString()} tokens</span>
 							</div>
 						)}
 					</div>

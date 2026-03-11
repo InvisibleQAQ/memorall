@@ -38,6 +38,11 @@ export interface ChatStreamResult {
 	actions: ChatAction[];
 	failed: boolean;
 	error?: string;
+	usage?: {
+		prompt_tokens: number;
+		completion_tokens: number;
+		total_tokens: number;
+	};
 }
 
 const mergeActions = (
@@ -123,6 +128,7 @@ export class ChatService {
 			const actions: ChatAction[] = [];
 			let streamFailed = false;
 			let streamError = "";
+			let usage: ChatStreamResult["usage"];
 
 			if (!("stream" in result)) {
 				return {
@@ -159,6 +165,9 @@ export class ChatService {
 								actions.length,
 								...mergeActions(actions, chatResult.metadata.actions),
 							);
+						}
+						if (chatResult.metadata?.usage) {
+							usage = chatResult.metadata.usage;
 						}
 					}
 				}
@@ -214,6 +223,7 @@ export class ChatService {
 				actions,
 				failed: streamFailed,
 				error: streamFailed ? streamError : undefined,
+				usage,
 			};
 		} catch (error) {
 			const errorMessage =

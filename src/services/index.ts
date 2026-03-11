@@ -4,3 +4,4 @@ import { ServiceManager } from "./service-manager";
 export const serviceManager = ServiceManager.getInstance();
 
 export * from "./sandbox-container";
+export * from "./web-browser";

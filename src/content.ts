@@ -30,7 +30,7 @@ import {
 	type WebDomActionName,
 	type WebDomElementInfo,
 	type WebElementRecord,
-} from "@/services/flows/tools/web/web-browser-protocol";
+} from "@/services/web-browser";
 import { logInfo } from "./utils/logger";
 
 // Track mouse position for UI positioning
@@ -208,7 +208,7 @@ const executeDomAction = (
 	if (action === "input") {
 		assertTextInputTarget(element);
 		const inputValue = request.value ?? "";
-		element.focus();
+		(element as HTMLElement).focus();
 		if (
 			element instanceof HTMLInputElement ||
 			element instanceof HTMLTextAreaElement

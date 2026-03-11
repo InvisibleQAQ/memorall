@@ -19,6 +19,7 @@ import {
 	TextStreamer,
 } from "@huggingface/transformers";
 import { ensureWebGPUSupported } from "@/utils/webgpu";
+import { resolveTokenUsage } from "../utils/token-usage";
 
 interface HFProgressEvent {
 	status?: string;
@@ -414,6 +415,17 @@ export class TransformerDirectLLM implements BaseLLM {
 		const responseText = result.text;
 		const promptTokens = result.promptTokens;
 		const completionTokens = result.completionTokens;
+		const usage = resolveTokenUsage(
+			promptTokens > 0 || completionTokens > 0
+				? {
+						prompt_tokens: promptTokens,
+						completion_tokens: completionTokens,
+						total_tokens: promptTokens + completionTokens,
+					}
+				: undefined,
+			request.messages,
+			responseText,
+		);
 		return {
 			id: `chatcmpl-${Math.random().toString(36).slice(2)}`,
 			object: "chat.completion",
@@ -426,11 +438,7 @@ export class TransformerDirectLLM implements BaseLLM {
 					finish_reason: "stop",
 				},
 			],
-			usage: {
-				prompt_tokens: promptTokens,
-				completion_tokens: completionTokens,
-				total_tokens: promptTokens + completionTokens,
-			},
+			usage,
 		};
 	}
 
@@ -487,12 +495,28 @@ export class TransformerDirectLLM implements BaseLLM {
 			throw error;
 		}
 
-		// Emit final chunk with finish reason
-		yield this.createChunk(modelId, "", "stop");
+		// Emit final chunk with finish reason and real token usage
+		const completionTokens = generationOutcome.completionTokens;
+		yield this.createChunk(
+			modelId,
+			"",
+			"stop",
+			resolveTokenUsage(
+				promptTokens > 0 || completionTokens > 0
+					? {
+							prompt_tokens: promptTokens,
+							completion_tokens: completionTokens,
+							total_tokens: promptTokens + completionTokens,
+						}
+					: undefined,
+				request.messages,
+				generationOutcome.text,
+			),
+		);
 
 		// Update stats for the last response so usage numbers remain accurate if requested later
 		this.lastPromptTokens = promptTokens;
-		this.lastCompletionTokens = generationOutcome.completionTokens;
+		this.lastCompletionTokens = completionTokens;
 		this.lastModelId = modelId;
 	}
 
@@ -626,6 +650,11 @@ export class TransformerDirectLLM implements BaseLLM {
 		modelId: string,
 		token: string,
 		finishReason: "stop" | "length" | null = null,
+		usage?: {
+			prompt_tokens: number;
+			completion_tokens: number;
+			total_tokens: number;
+		},
 	): ChatCompletionChunk {
 		return {
 			id: `chatcmpl-${Math.random().toString(36).slice(2)}`,
@@ -639,6 +668,7 @@ export class TransformerDirectLLM implements BaseLLM {
 					finish_reason: finishReason,
 				},
 			],
+			usage: usage ?? null,
 		};
 	}
 

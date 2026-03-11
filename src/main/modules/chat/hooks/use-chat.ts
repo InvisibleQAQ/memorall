@@ -252,10 +252,14 @@ export const useChat = (model: string) => {
 			const endTime = Date.now();
 			const timeToAnswer = (endTime - startTime) / 1000; // in seconds
 
-			// Estimate tokens (rough estimate: ~4 characters per token)
-			const estimatedTokens = Math.round(result.content.length / 4);
+			// Use actual token count from API if available, otherwise estimate (~4 chars per token)
+			const totalTokens =
+				result.usage?.total_tokens ?? Math.round(result.content.length / 4);
+			const outputTokens =
+				result.usage?.completion_tokens ??
+				Math.round(result.content.length / 4);
 			const tokensPerSecond =
-				timeToAnswer > 0 ? estimatedTokens / timeToAnswer : 0;
+				timeToAnswer > 0 ? outputTokens / timeToAnswer : 0;
 
 			// Handle completion or failure after stream finishes
 			if (result.failed) {
@@ -269,7 +273,7 @@ export const useChat = (model: string) => {
 						provider: provider,
 						timeToAnswer: timeToAnswer,
 						tokensPerSecond: tokensPerSecond,
-						estimatedTokens: estimatedTokens,
+						estimatedTokens: totalTokens,
 					},
 				});
 				throw new Error(result.error || "Chat failed");
@@ -298,7 +302,7 @@ export const useChat = (model: string) => {
 						provider: provider,
 						timeToAnswer: timeToAnswer,
 						tokensPerSecond: tokensPerSecond,
-						estimatedTokens: estimatedTokens,
+						estimatedTokens: totalTokens,
 					},
 				});
 			}

@@ -2,13 +2,13 @@ import z from "zod";
 import sanitizeHtml from "sanitize-html";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
+import type { WebSession } from "@/services/web-browser";
 import {
 	createDefaultWebErrorResult,
 	createWebResult,
-	getOrOpenWebSession,
-	closeWebSession,
-	fetchRenderedFallback,
-} from "./web-tool-registry";
+	requireWebBrowserService,
+	type WebToolServices,
+} from "./web-tool-utils";
 
 const TOOL_NAME = "web_read" as const;
 const CONTENT_MODE_VALUES = [
@@ -154,7 +154,7 @@ const buildReadContent = ({
 };
 
 const readBySelector = async (
-	session: Awaited<ReturnType<typeof getOrOpenWebSession>>["session"],
+	session: WebSession,
 	selector: string,
 	contentMode: ContentMode,
 	maxChars: number,
@@ -181,21 +181,21 @@ const readBySelector = async (
 	});
 };
 
-export const createWebReadTool: ToolFactory<
-	Input,
-	undefined
-> = (): Tool<Input> => ({
+export const createWebReadTool: ToolFactory<Input, WebToolServices> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Read rendered page content from an active web session or directly from a URL. Default output is readable text.",
 	schema,
 	execute: async (input) => {
+		const webBrowser = requireWebBrowserService(services);
 		let disposableSession = false;
 		let sessionId = input.sessionId;
 		const contentMode = input.contentMode ?? "text";
 		const maxChars = input.maxHtmlChars ?? 160_000;
 		try {
-			const sessionResult = await getOrOpenWebSession({
+			const sessionResult = await webBrowser.getOrOpenSession({
 				sessionId: input.sessionId,
 				url: input.url,
 				timeoutMs: input.timeoutMs ?? 15_000,
@@ -210,7 +210,7 @@ export const createWebReadTool: ToolFactory<
 			}
 
 			if (session.mode === "iframe" && !session.domAccessible) {
-				const fallback = await fetchRenderedFallback({
+				const fallback = await webBrowser.fetchRenderedFallback({
 					url: session.requestedUrl,
 					timeoutMs: input.timeoutMs ?? 15_000,
 					maxHtmlChars: maxChars,
@@ -257,7 +257,7 @@ export const createWebReadTool: ToolFactory<
 			return createDefaultWebErrorResult(error);
 		} finally {
 			if (disposableSession && sessionId) {
-				await closeWebSession(sessionId);
+				await webBrowser.closeSession(sessionId);
 			}
 		}
 	},
@@ -269,7 +269,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: WebToolServices;
 		};
 	}
 }

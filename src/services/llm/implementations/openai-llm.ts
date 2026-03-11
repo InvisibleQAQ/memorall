@@ -14,6 +14,12 @@ import type {
 } from "@/types/openai";
 import type { ToolCapabilityInfo } from "../interfaces/tool-capability";
 import { NATIVE_TOOL_SUPPORT } from "../interfaces/tool-capability";
+import {
+	extractChunkOutputText,
+	extractResponseOutputText,
+	normalizeTokenUsage,
+	resolveTokenUsage,
+} from "../utils/token-usage";
 
 // Well-known model configurations with context window and max response tokens
 interface ModelConfig {
@@ -348,7 +354,7 @@ export class OpenAILLM implements BaseLLM {
 		const created = Number(data.created || Math.floor(Date.now() / 1000));
 		const model = String(data.model || body.model);
 
-		return {
+		const response: ChatCompletionResponse = {
 			id: String(data.id || `chatcmpl_${created}`),
 			object: "chat.completion",
 			created,
@@ -363,12 +369,16 @@ export class OpenAILLM implements BaseLLM {
 				finish_reason: (choice.finish_reason ||
 					"stop") as ChatCompletionFinishReason,
 			})),
-			usage: {
-				prompt_tokens: Number(data?.usage?.prompt_tokens ?? 0),
-				completion_tokens: Number(data?.usage?.completion_tokens ?? 0),
-				total_tokens: Number(data?.usage?.total_tokens ?? 0),
-			},
+			usage: undefined,
 		};
+
+		response.usage = resolveTokenUsage(
+			data?.usage,
+			request.messages,
+			extractResponseOutputText(response),
+		);
+
+		return response;
 	}
 
 	private async *createStreamingCompletion(
@@ -384,6 +394,7 @@ export class OpenAILLM implements BaseLLM {
 			top_p: request.top_p,
 			stop: request.stop,
 			stream: true,
+			stream_options: { include_usage: true },
 		};
 
 		// Add tools if provided
@@ -414,6 +425,8 @@ export class OpenAILLM implements BaseLLM {
 		const decoder = new TextDecoder("utf-8");
 		let buffer = "";
 		const model = body.model as string;
+		let completionOutput = "";
+		let finalUsage = normalizeTokenUsage(undefined);
 
 		while (true) {
 			const { value, done } = await reader.read();
@@ -438,6 +451,13 @@ export class OpenAILLM implements BaseLLM {
 						model,
 						choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
 					};
+					if (!finalUsage) {
+						finalChunk.usage = resolveTokenUsage(
+							undefined,
+							request.messages,
+							completionOutput,
+						);
+					}
 					yield finalChunk;
 					return;
 				}
@@ -446,12 +466,34 @@ export class OpenAILLM implements BaseLLM {
 					const choice = Array.isArray(json.choices)
 						? json.choices[0]
 						: undefined;
+
+					// Usage-only chunk (OpenAI sends this as the last chunk when stream_options.include_usage is set)
+					if (!choice && json.usage) {
+						const usage = normalizeTokenUsage(json.usage);
+						if (usage) {
+							finalUsage = usage;
+						}
+						yield {
+							id: String(json.id || `chatcmpl_${Date.now()}`),
+							object: "chat.completion.chunk",
+							created: Number(json.created || Math.floor(Date.now() / 1000)),
+							model: String(json.model || model),
+							choices: [],
+							usage,
+						};
+						continue;
+					}
+
 					if (!choice) continue;
 
 					// Handle tool_calls in streaming
 					const toolCalls: ChatCompletionChunkToolCall[] | undefined =
 						choice?.delta?.tool_calls;
 
+					const usage = normalizeTokenUsage(json.usage);
+					if (usage) {
+						finalUsage = usage;
+					}
 					const chunk: ChatCompletionChunk = {
 						id: String(json.id || `chatcmpl_${Date.now()}`),
 						object: "chat.completion.chunk",
@@ -469,7 +511,9 @@ export class OpenAILLM implements BaseLLM {
 									null) as ChatCompletionFinishReason,
 							},
 						],
+						usage,
 					};
+					completionOutput += extractChunkOutputText(chunk);
 					yield chunk;
 				} catch {
 					// Ignore malformed lines

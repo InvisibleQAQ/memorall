@@ -7,10 +7,8 @@ import type {
 import { stepRegistry } from "@/services/flows/step-registry";
 import { GraphBase, type ToolName } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
-import {
-	disposeActiveWebSession,
-	getActiveWebSessionInfo,
-} from "@/services/flows/tools/web/web-tool-registry";
+import type { ActiveWebSessionInfo } from "@/services/web-browser";
+import type { AllServices } from "@/services/flows/interfaces/tool";
 
 const STEP_NAME = "web-feature" as const;
 export const WEB_FEATURE_NAME = STEP_NAME;
@@ -27,7 +25,7 @@ export interface WebFeatureOutput {
 
 export interface WebFeatureConfig {}
 
-export type WebFeatureServices = {};
+export type WebFeatureServices = Pick<AllServices, "webBrowser"> | undefined;
 
 const SYSTEM_PROMPT_INSTRUCTION = `
 # WEB TOOL FEATURE
@@ -79,9 +77,7 @@ Only one web session can be active at a time. Reuse the current session whenever
 `;
 
 export const WEB_FEATURE_SYSTEM_PROMPT = SYSTEM_PROMPT_INSTRUCTION.trim();
-const formatActiveWebSession = (
-	session: ReturnType<typeof getActiveWebSessionInfo>,
-): string => {
+const formatActiveWebSession = (session: ActiveWebSessionInfo): string => {
 	if (!session.isOpen) {
 		return "";
 	}
@@ -121,14 +117,17 @@ const definition = defineStep<
 	WebFeatureConfig
 >({
 	name: STEP_NAME,
-	execute: async ({ input, runLifecycle }) => {
+	execute: async ({ input, services, runLifecycle }) => {
 		try {
 			runLifecycle?.onFinish("web-session-cleanup", async () => {
 				// KEEP WEB SESSIOn
-				// await disposeActiveWebSession("flow_finished");
+				// await services?.webBrowser?.disposeActiveSession("flow_finished");
 			});
 			const tools = GraphBase.chat.addTool(input.tools, ...WEB_FEATURE_TOOLS);
-			const activeSession = getActiveWebSessionInfo();
+			const activeSession =
+				(await services?.webBrowser?.getActiveSessionInfo()) ?? {
+					isOpen: false,
+				};
 			const messages = GraphBase.chat.systemMessage(
 				input.messages,
 				`${WEB_FEATURE_SYSTEM_PROMPT}\n\n${formatActiveWebSession(activeSession)}`,

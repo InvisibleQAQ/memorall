@@ -10,7 +10,7 @@ import {
 	type WebBrowserSurface,
 	type WebContentCommandRequest,
 	type WebContentCommandResponse,
-} from "@/services/flows/tools/web/web-browser-protocol";
+} from "@/services/web-browser";
 
 interface StoredWebBrowserSurface extends WebBrowserSurface {
 	sessionId: string;

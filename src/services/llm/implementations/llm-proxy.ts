@@ -20,6 +20,13 @@ import type {
 	ItemHandlerResult,
 	JobProgressEvent,
 } from "@/services/background-jobs/handlers/types";
+import {
+	chunkHasFinishReason,
+	extractChunkOutputText,
+	extractResponseOutputText,
+	normalizeTokenUsage,
+	resolveTokenUsage,
+} from "../utils/token-usage";
 
 // Proxy class for LLMs that exist in background jobs
 export class LLMProxy implements BaseLLM {
@@ -135,6 +142,9 @@ export class LLMProxy implements BaseLLM {
 			// Use execute with stream: true to get real-time streaming
 			const self = this;
 			return (async function* () {
+				let completionOutput = "";
+				let finalUsage = normalizeTokenUsage(undefined);
+
 				try {
 					const { stream } = await backgroundJob.execute(
 						"chat-completion",
@@ -149,7 +159,30 @@ export class LLMProxy implements BaseLLM {
 					for await (const progressEvent of stream) {
 						// If progress contains a chunk in metadata, yield it immediately
 						if (progressEvent.metadata?.chunk) {
-							yield progressEvent.metadata.chunk as ChatCompletionChunk;
+							const incomingChunk = progressEvent.metadata
+								.chunk as ChatCompletionChunk;
+							const usage = normalizeTokenUsage(incomingChunk.usage);
+							if (usage) {
+								finalUsage = usage;
+							}
+
+							completionOutput += extractChunkOutputText(incomingChunk);
+
+							const chunk =
+								!usage && !finalUsage && chunkHasFinishReason(incomingChunk)
+									? {
+											...incomingChunk,
+											usage: resolveTokenUsage(
+												undefined,
+												request.messages,
+												completionOutput,
+											),
+										}
+									: usage
+										? { ...incomingChunk, usage }
+										: incomingChunk;
+
+							yield chunk;
 						}
 
 						if (progressEvent.status === "failed") {
@@ -188,7 +221,14 @@ export class LLMProxy implements BaseLLM {
 						const responseData = result.result as {
 							response: ChatCompletionResponse;
 						};
-						return responseData.response;
+						return {
+							...responseData.response,
+							usage: resolveTokenUsage(
+								responseData.response.usage,
+								request.messages,
+								extractResponseOutputText(responseData.response),
+							),
+						};
 					}
 					throw new Error(result.error || "Failed to process chat completion");
 				} catch (error) {

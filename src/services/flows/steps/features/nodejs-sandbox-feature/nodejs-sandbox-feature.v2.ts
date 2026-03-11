@@ -97,10 +97,11 @@ If user require to write code, execute code please use this actively to write an
 **RULES — read carefully:**
 1. "kind" controls HOW the server starts. ALWAYS set it explicitly or use "auto" to detect from config files.
 2. **If you cannot determine the correct "kind", you MUST use "auto". Do NOT guess or assume any other kind value.**
-3. "template" ONLY scaffolds an empty folder — it does NOT set the server type.
-4. **NEVER assume "template" implies a specific "kind".** They are independent.
-5. When a project already has files, NEVER pass "template" — it is for empty folders only.
-6. When you pass "template", you MUST also set "kind" explicitly (e.g. "express", "vite", "next") so the runtime knows how to start the server. Passing "kind" "auto" with "template" is allowed only if you want runtime detection from generated config files.
+3. **If you have NO information about what files exist inside the project folder (e.g. you haven't listed or read its contents), you MUST use "kind": "auto". NEVER assume a kind without confirmed file evidence.**
+4. "template" ONLY scaffolds an empty folder — it does NOT set the server type.
+5. **NEVER assume "template" implies a specific "kind".** They are independent.
+6. When a project already has files, NEVER pass "template" — it is for empty folders only.
+7. When you pass "template", you MUST also set "kind" explicitly (e.g. "express", "vite", "next") so the runtime knows how to start the server. Passing "kind" "auto" with "template" is allowed only if you want runtime detection from generated config files.
 
 **Correct usage:**
 - New Express project (empty folder): "template": "express", kind: "express"

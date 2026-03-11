@@ -1,13 +1,13 @@
 import z from "zod";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
+import type { WebDomElementInfo } from "@/services/web-browser";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import {
 	createDefaultWebErrorResult,
 	createWebResult,
-	getWebSession,
-	performDomAction,
-	queryDomElements,
-} from "./web-tool-registry";
+	requireWebBrowserService,
+	type WebToolServices,
+} from "./web-tool-utils";
 
 const TOOL_NAME = "web_dom_action" as const;
 
@@ -50,9 +50,7 @@ const isButtonLikeType = (value: string | null): boolean =>
 		(value || "").toLowerCase(),
 	);
 
-const getDomQueryPriority = (
-	record: Awaited<ReturnType<typeof queryDomElements>>[number],
-): number => {
+const getDomQueryPriority = (record: WebDomElementInfo): number => {
 	let score = 0;
 	if (record.visible) score += 1000;
 	if (!record.disabled) score += 400;
@@ -67,9 +65,7 @@ const getDomQueryPriority = (
 	return score;
 };
 
-const buildElementLabel = (
-	record: Awaited<ReturnType<typeof queryDomElements>>[number],
-): string => {
+const buildElementLabel = (record: WebDomElementInfo): string => {
 	const parts = [record.tagName];
 	if (record.type) {
 		parts.push(`[type=${record.type}]`);
@@ -89,27 +85,29 @@ const buildElementLabel = (
 	return parts.join("");
 };
 
-export const createWebDomActionTool: ToolFactory<
-	Input,
-	undefined
-> = (): Tool<Input> => ({
+export const createWebDomActionTool: ToolFactory<Input, WebToolServices> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Interact with or inspect DOM of an active web session via selectors (`click`, `input`, `read`, `query`, `focus`, `scroll*`).",
 	schema,
 	execute: async (input) => {
+		const webBrowser = requireWebBrowserService(services);
 		try {
-			const session = await getWebSession(input.sessionId);
+			const session = await webBrowser.refreshSession({
+				sessionId: input.sessionId,
+			});
 			if (!session.domAccessible) {
 				throw new Error("Current session cannot expose DOM actions.");
 			}
 
 			if (input.action === "query") {
-				const elements = await queryDomElements(
-					session,
-					input.selector,
-					input.maxResults ?? 20,
-				);
+				const elements = await webBrowser.queryDomElements({
+					sessionId: session.id,
+					selector: input.selector,
+					maxResults: input.maxResults ?? 20,
+				});
 				const actionResult = [...elements]
 					.sort(
 						(a, b) =>
@@ -146,7 +144,9 @@ export const createWebDomActionTool: ToolFactory<
 				});
 			}
 
-			const actionResult = await performDomAction(session, input.action, {
+			const actionResult = await webBrowser.performDomAction({
+				sessionId: session.id,
+				action: input.action,
 				selector: input.selector,
 				index: input.index ?? 0,
 				value: input.value,
@@ -173,7 +173,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: WebToolServices;
 		};
 	}
 }

@@ -1,13 +1,13 @@
 import z from "zod";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
+import type { WebSearchMatch } from "@/services/web-browser";
 import {
 	createDefaultWebErrorResult,
 	createWebResult,
-	getOrOpenWebSession,
-	closeWebSession,
-	searchInSessionHtml,
-} from "./web-tool-registry";
+	requireWebBrowserService,
+	type WebToolServices,
+} from "./web-tool-utils";
 
 const TOOL_NAME = "web_find_in_page" as const;
 
@@ -77,21 +77,21 @@ const schema = z
 	});
 
 type Input = z.infer<typeof schema>;
-type SearchResult = Awaited<ReturnType<typeof searchInSessionHtml>>;
+type SearchResult = WebSearchMatch[];
 
-export const createWebSearchTool: ToolFactory<
-	Input,
-	undefined
-> = (): Tool<Input> => ({
+export const createWebSearchTool: ToolFactory<Input, WebToolServices> = (
+	services,
+): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
 		"Find text or regex matches within the currently opened rendered page. This does not search the web or a search engine.",
 	schema,
 	execute: async (input) => {
+		const webBrowser = requireWebBrowserService(services);
 		let shouldCloseSession = false;
 		let sessionId: string | undefined;
 		try {
-			const { session, disposable } = await getOrOpenWebSession({
+			const { session, disposable } = await webBrowser.getOrOpenSession({
 				sessionId: input.sessionId,
 				url: input.url,
 				timeoutMs: input.timeoutMs ?? 15_000,
@@ -102,8 +102,8 @@ export const createWebSearchTool: ToolFactory<
 			const pattern = input.pattern ?? input.query;
 			const selector = input.selector?.trim() || undefined;
 
-			const matches: SearchResult = await searchInSessionHtml({
-				session,
+			const matches: SearchResult = await webBrowser.searchInSessionHtml({
+				sessionId: session.id,
 				pattern: pattern!,
 				selector,
 				isRegex: input.isRegex ?? false,
@@ -122,15 +122,12 @@ export const createWebSearchTool: ToolFactory<
 				matches,
 				count: matches.length,
 			});
-			if (shouldCloseSession) {
-				await closeWebSession(session.id);
-			}
 			return result;
 		} catch (error) {
 			return createDefaultWebErrorResult(error);
 		} finally {
 			if (shouldCloseSession && sessionId) {
-				await closeWebSession(sessionId);
+				await webBrowser.closeSession(sessionId);
 			}
 		}
 	},
@@ -142,7 +139,7 @@ declare global {
 	interface ToolTypeRegistry {
 		[TOOL_NAME]: {
 			input: Input;
-			services: undefined;
+			services: WebToolServices;
 		};
 	}
 }

@@ -67,7 +67,7 @@ export interface SandboxContainerInitOptions {
 }
 
 const SANDBOX_CHANNEL = "memorall-sandbox-container" as const;
-const DEFAULT_FRAME_URL = "sandbox/sandbox-container-runtime.html";
+const DEFAULT_FRAME_URL = "sandbox/pages/sandbox-container-runtime.html";
 const DEFAULT_LOAD_TIMEOUT_MS = 20_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 const WORKSPACES_ROOT = "/workspaces";
@@ -230,7 +230,7 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 	 * and set up a relay channel so the SW can route /__virtual__/<port>/ requests
 	 * through the sandbox iframe's AlmostNode bridge.
 	 *
-	 * Manifest sandbox pages (sandbox-container-runtime.html) have a sandboxed
+	 * Manifest sandbox pages (pages/sandbox-container-runtime.html) have a sandboxed
 	 * browsing context and can never register service workers themselves, so
 	 * registration must happen here in the extension popup context.
 	 */
@@ -1188,7 +1188,7 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		const virtualUrl = this.buildVirtualServerUrl(port, path);
 		const importMap = await this.buildRendererImportMap(port);
 		const rendererUrl =
-			chrome.runtime.getURL("sandbox/renderer.html") +
+			chrome.runtime.getURL("sandbox/pages/renderer.html") +
 			`?port=${port}&path=${encodeURIComponent(path)}&importMap=${encodeURIComponent(JSON.stringify(importMap))}`;
 
 		return {
@@ -1283,7 +1283,7 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 	/**
 	 * Render a virtual server page and return the fully rendered HTML.
 	 *
-	 * We load /sandbox/renderer.html (a normal extension page within the SW's
+	 * We load /sandbox/pages/renderer.html (a normal extension page within the SW's
 	 * /sandbox/ scope). The renderer fetches /__virtual__/<port>/* — the SW
 	 * intercepts those fetches and relays them to the sandbox via
 	 * server.handleSwRequest → handleRequest. Once React mounts, the renderer

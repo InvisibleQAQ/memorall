@@ -18,6 +18,13 @@ import {
 	injectToolsIntoSystemPrompt,
 	extractToolCallsFromResponse,
 } from "../tools/tool-adapter";
+import {
+	chunkHasFinishReason,
+	extractChunkOutputText,
+	extractResponseOutputText,
+	normalizeTokenUsage,
+	resolveTokenUsage,
+} from "../utils/token-usage";
 import { LLM_RUNNER_URLS } from "@/config/llm-runner";
 import { waitForDOMReady } from "@/utils/dom";
 
@@ -219,6 +226,15 @@ export class WllamaLLM implements BaseLLM {
 				signalId,
 			})) as ChatCompletionResponse;
 
+			response = {
+				...response,
+				usage: resolveTokenUsage(
+					response.usage,
+					processedRequest.messages,
+					extractResponseOutputText(response),
+				),
+			};
+
 			// Extract tool calls from text if using prompt injection
 			if (usePromptInjection) {
 				response = extractToolCallsFromResponse(response);
@@ -264,8 +280,31 @@ export class WllamaLLM implements BaseLLM {
 			const chunks: ChatCompletionChunk[] = [];
 			let streamEnded = false;
 			let streamError: Error | null = null;
+			let completionOutput = "";
+			let finalUsage = normalizeTokenUsage(undefined);
 
-			const chunkHandler = (chunk: ChatCompletionChunk) => {
+			const chunkHandler = (incomingChunk: ChatCompletionChunk) => {
+				const usage = normalizeTokenUsage(incomingChunk.usage);
+				if (usage) {
+					finalUsage = usage;
+				}
+
+				completionOutput += extractChunkOutputText(incomingChunk);
+
+				const chunk =
+					!usage && !finalUsage && chunkHasFinishReason(incomingChunk)
+						? {
+								...incomingChunk,
+								usage: resolveTokenUsage(
+									undefined,
+									processedRequest.messages,
+									completionOutput,
+								),
+							}
+						: usage
+							? { ...incomingChunk, usage }
+							: incomingChunk;
+
 				chunks.push(chunk);
 			};
 

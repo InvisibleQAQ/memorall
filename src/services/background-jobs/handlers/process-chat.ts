@@ -57,6 +57,11 @@ export type ChatResult =
 					description: string;
 					metadata: Record<string, unknown>;
 				}>;
+				usage?: {
+					prompt_tokens: number;
+					completion_tokens: number;
+					total_tokens: number;
+				};
 			};
 	  }
 	| {
@@ -127,6 +132,12 @@ class StreamBuffer {
 	}
 }
 
+type TokenUsage = {
+	prompt_tokens: number;
+	completion_tokens: number;
+	total_tokens: number;
+};
+
 type KnowledgeStreamDeps = {
 	jobId: string;
 	model: string;
@@ -134,6 +145,7 @@ type KnowledgeStreamDeps = {
 	dependencies: ProcessDependencies;
 	streamBuffer: StreamBuffer;
 	getProgress: () => number;
+	onUsage?: (usage: TokenUsage) => void;
 };
 
 type StreamBufferDeps = {
@@ -184,6 +196,10 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 	private static createHandleChunk(deps: KnowledgeStreamDeps) {
 		return async (chunk: ChatCompletionChunk) => {
+			if (chunk.usage) {
+				deps.onUsage?.(chunk.usage);
+			}
+
 			const choice = chunk.choices?.[0];
 			if (!choice) {
 				return;
@@ -302,6 +318,16 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 		let currentContent = "";
 		const actions: FlowAction[] = [];
+		const accumulatedUsage: TokenUsage = {
+			prompt_tokens: 0,
+			completion_tokens: 0,
+			total_tokens: 0,
+		};
+		const addUsage = (usage: TokenUsage) => {
+			accumulatedUsage.prompt_tokens += usage.prompt_tokens;
+			accumulatedUsage.completion_tokens += usage.completion_tokens;
+			accumulatedUsage.total_tokens += usage.total_tokens;
+		};
 
 		// Create stream buffer for content
 		const streamBuffer = ChatHandler.createStreamBuffer({
@@ -369,6 +395,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					embedding: serviceManager.embeddingService,
 					database: serviceManager.databaseService,
 					sandboxContainer: serviceManager.getSandboxContainerService(),
+					webBrowser: serviceManager.getWebBrowserService(),
 					documentFileSystem: documentFileSystemService,
 				};
 				const { graph, getInitialState } = chatFlowRegistry.create(
@@ -434,6 +461,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					dependencies,
 					streamBuffer,
 					getProgress: responseProgress,
+					onUsage: addUsage,
 				});
 				const handleActions = ChatHandler.createKnowledgeHandleActions(
 					dependencies,
@@ -529,6 +557,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 							dependencies,
 							streamBuffer,
 							getProgress: () => Math.min(80, 20 + currentContent.length / 10),
+							onUsage: addUsage,
 						});
 						await ChatHandler.streamChatCompletions(stream, handleChunk);
 					}
@@ -543,7 +572,11 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			return {
 				type: "final",
 				content: currentContent,
-				metadata: { actions },
+				metadata: {
+					actions,
+					usage:
+						accumulatedUsage.total_tokens > 0 ? accumulatedUsage : undefined,
+				},
 			};
 		} catch (error) {
 			const errorMessage =

@@ -3,6 +3,7 @@ import type { ILLMService } from "@/services/llm/interfaces/llm-service.interfac
 import type { IEmbeddingService } from "@/services/embedding/interfaces/embedding-service.interface";
 import type { IDatabaseService } from "@/services/database";
 import type { ISandboxContainerService } from "@/services/sandbox-container";
+import type { IWebBrowserService } from "@/services/web-browser";
 import type { DocumentFileSystem } from "@/services/filesystem/document-filesystem";
 
 // All available services
@@ -11,6 +12,7 @@ export interface AllServices {
 	embedding: IEmbeddingService;
 	database: IDatabaseService;
 	sandboxContainer?: ISandboxContainerService;
+	webBrowser?: IWebBrowserService;
 	documentFileSystem?: DocumentFileSystem;
 }
 

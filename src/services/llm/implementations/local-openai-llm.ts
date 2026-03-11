@@ -23,6 +23,12 @@ import {
 	injectToolsIntoSystemPrompt,
 	extractToolCallsFromResponse,
 } from "../tools/tool-adapter";
+import {
+	extractChunkOutputText,
+	extractResponseOutputText,
+	normalizeTokenUsage,
+	resolveTokenUsage,
+} from "../utils/token-usage";
 
 // Model patterns for local servers
 const MODEL_TOOL_PATTERNS: Array<{
@@ -231,11 +237,16 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 				finish_reason: (choice.finish_reason ||
 					"stop") as ChatCompletionFinishReason,
 			})),
-			usage: {
-				prompt_tokens: Number(data?.usage?.prompt_tokens ?? 0),
-				completion_tokens: Number(data?.usage?.completion_tokens ?? 0),
-				total_tokens: Number(data?.usage?.total_tokens ?? 0),
-			},
+			usage: undefined,
+		};
+
+		response = {
+			...response,
+			usage: resolveTokenUsage(
+				data?.usage,
+				processedRequest.messages,
+				extractResponseOutputText(response),
+			),
 		};
 
 		// Extract tool calls from text if using prompt injection
@@ -267,6 +278,7 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 			top_p: processedRequest.top_p,
 			stop: processedRequest.stop,
 			stream: true,
+			stream_options: { include_usage: true },
 		};
 
 		// Add tools if native support and tools provided
@@ -298,6 +310,8 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 		let buffer = "";
 		const model = String(body.model);
 		let sentFirst = false;
+		let completionOutput = "";
+		let finalUsage = normalizeTokenUsage(undefined);
 
 		while (true) {
 			const { value, done } = await reader.read();
@@ -319,6 +333,13 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 						model,
 						choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
 					};
+					if (!finalUsage) {
+						finalChunk.usage = resolveTokenUsage(
+							undefined,
+							processedRequest.messages,
+							completionOutput,
+						);
+					}
 					yield finalChunk;
 					return;
 				}
@@ -327,11 +348,33 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 					const choice = Array.isArray(json.choices)
 						? json.choices[0]
 						: undefined;
+
+					// Usage-only chunk (some servers send this as the last chunk with stream_options.include_usage)
+					if (!choice && json.usage) {
+						const usage = normalizeTokenUsage(json.usage);
+						if (usage) {
+							finalUsage = usage;
+						}
+						yield {
+							id: String(json.id || `chatcmpl_${Date.now()}`),
+							object: "chat.completion.chunk",
+							created: Number(json.created || Math.floor(Date.now() / 1000)),
+							model: String(json.model || model),
+							choices: [],
+							usage,
+						};
+						continue;
+					}
+
 					if (!choice) continue;
 
 					// Handle tool_calls in streaming
 					const toolCalls: ChatCompletionChunkToolCall[] | undefined =
 						choice?.delta?.tool_calls;
+					const usage = normalizeTokenUsage(json.usage);
+					if (usage) {
+						finalUsage = usage;
+					}
 
 					const chunk: ChatCompletionChunk = {
 						id: String(json.id || `chatcmpl_${Date.now()}`),
@@ -350,7 +393,9 @@ export class LocalOpenAICompatibleLLM implements BaseLLM {
 									null) as ChatCompletionFinishReason,
 							},
 						],
+						usage,
 					};
+					completionOutput += extractChunkOutputText(chunk);
 					sentFirst = true;
 					yield chunk;
 				} catch {

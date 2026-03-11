@@ -1,6 +1,7 @@
 import { logError, logInfo, logWarn } from "@/utils/logger";
 import type { IEmbeddingService } from "@/services/embedding";
 import type { ISandboxContainerService } from "@/services/sandbox-container";
+import type { IWebBrowserService } from "@/services/web-browser";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
 import { FlowsService } from "./flows";
 import { FlowBuilderService } from "./flows/flow-builder-service";
@@ -28,6 +29,7 @@ export class ServiceManager {
 		embedding: false,
 		llm: false,
 		sandbox: false,
+		webBrowser: false,
 		flows: false,
 		flowBuilder: false,
 		topic: false,
@@ -37,6 +39,7 @@ export class ServiceManager {
 	public embeddingService!: IEmbeddingService;
 	public llmService!: ILLMService;
 	public sandboxContainerService!: ISandboxContainerService;
+	public webBrowserService!: IWebBrowserService;
 	public databaseService!: IDatabaseService;
 	public flowsService!: FlowsService;
 	public flowBuilderService!: FlowBuilderService;
@@ -138,6 +141,9 @@ export class ServiceManager {
 				const { sandboxContainerServiceProxy } = await import(
 					"@/services/sandbox-container/sandbox-container-service-proxy"
 				);
+				const { webBrowserServiceProxy } = await import(
+					"@/services/web-browser/web-browser-service-proxy"
+				);
 				const { LLMServiceProxy } = await import(
 					"@/services/llm/llm-service-proxy"
 				);
@@ -148,6 +154,7 @@ export class ServiceManager {
 
 				this.embeddingService = new EmbeddingServiceProxy();
 				this.sandboxContainerService = sandboxContainerServiceProxy;
+				this.webBrowserService = webBrowserServiceProxy;
 				this.llmService = new LLMServiceProxy();
 				this.flowsService = new FlowsService();
 			} else {
@@ -166,6 +173,9 @@ export class ServiceManager {
 				const { sandboxContainerMainService } = await import(
 					"@/services/sandbox-container/sandbox-container-service-main"
 				);
+				const { webBrowserMainService } = await import(
+					"@/services/web-browser/web-browser-service-main"
+				);
 				const { LLMServiceMain } = await import(
 					"@/services/llm/llm-service-main"
 				);
@@ -176,11 +186,13 @@ export class ServiceManager {
 
 				this.embeddingService = new EmbeddingServiceMain();
 				this.sandboxContainerService = sandboxContainerMainService;
+				this.webBrowserService = webBrowserMainService;
 				this.llmService = new LLMServiceMain();
 				this.flowsService = new FlowsService();
 			}
 
 			this.serviceStatus.sandbox = true;
+			this.serviceStatus.webBrowser = true;
 
 			options.callback?.("database", 0);
 			// Initialize services sequentially for better progress tracking
@@ -412,6 +424,10 @@ export class ServiceManager {
 		return this.sandboxContainerService;
 	}
 
+	getWebBrowserService() {
+		return this.webBrowserService;
+	}
+
 	getFlowsService() {
 		return this.flowsService;
 	}
@@ -433,6 +449,8 @@ export class ServiceManager {
 				return this.llmService as ServiceRegistry[K];
 			case "sandbox":
 				return this.sandboxContainerService as ServiceRegistry[K];
+			case "webBrowser":
+				return this.webBrowserService as ServiceRegistry[K];
 			case "flows":
 				return this.flowsService as ServiceRegistry[K];
 			case "flowBuilder":
@@ -449,6 +467,7 @@ interface ServiceRegistry {
 	embedding: IEmbeddingService;
 	llm: ILLMService;
 	sandbox: ISandboxContainerService;
+	webBrowser: IWebBrowserService;
 	flows: FlowsService;
 	flowBuilder: FlowBuilderService;
 }

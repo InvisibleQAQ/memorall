@@ -87,7 +87,7 @@ const executeInSandboxPage = async (
 	const iframe = document.createElement("iframe");
 	iframe.style.display = "none";
 	iframe.sandbox.add("allow-scripts");
-	iframe.src = chrome.runtime.getURL("sandbox/js-execute.html");
+	iframe.src = chrome.runtime.getURL("sandbox/pages/js-execute.html");
 	document.body.appendChild(iframe);
 
 	const finalize = (result: WorkerResult) => {

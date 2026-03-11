@@ -153,6 +153,10 @@ export interface ChatCompletionRequest {
 	tools?: ChatCompletionTool[];
 	tool_choice?: ChatCompletionToolChoiceOption;
 	parallel_tool_calls?: boolean;
+	// Streaming options
+	stream_options?: {
+		include_usage?: boolean;
+	};
 }
 
 // ==================== RESPONSE (Non-streaming) ====================
