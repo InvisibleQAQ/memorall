@@ -4,31 +4,45 @@
 
 # Memorall
 
-### Local-first browser memory, knowledge graph, and AI workspace
+### Offline-first AI memory, agent workspace, and knowledge graph for the browser
 
-Turn pages, files, and ongoing research into a searchable memory system. Memorall combines an in-page assistant, a document/workspace library, topic-scoped knowledge graphs, and agentic chat powered by browser-hosted models or optional external providers.
+Turn pages, files, and ongoing research into a searchable memory system. Memorall combines an in-page assistant, a document/workspace library, topic-scoped knowledge graphs, and a highly customizable local-first agent powered by browser-hosted models or optional external providers.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Extension.js](https://img.shields.io/badge/Built%20with-Extension.js-0971fe)](https://extension.js.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB)](https://react.dev/)
 [![Local First](https://img.shields.io/badge/AI-Local--First-2f855a)](https://github.com/zrg-team/memorall)
+[![Offline First](https://img.shields.io/badge/Architecture-Offline--First-0f766e)](https://github.com/zrg-team/memorall)
+[![Agent Tools](https://img.shields.io/badge/Agent-Sandbox%20%2B%20Browser-c05621)](https://github.com/zrg-team/memorall)
+[![Custom Flows](https://img.shields.io/badge/Flows-Customizable-7c3aed)](https://github.com/zrg-team/memorall)
 
-[Quick Start](#quick-start) • [Product Surfaces](#product-surfaces) • [Architecture](#architecture-at-a-glance) • [Documentation](#documentation-map) • [GitHub](https://github.com/zrg-team/memorall)
+[Quick Start](#quick-start) • [Agent Power](#agent-power) • [Offline First](#offline-first) • [Architecture](#architecture-at-a-glance) • [Documentation](#documentation-map) • [GitHub](https://github.com/zrg-team/memorall)
 
 </div>
 
-## Why Memorall
+## 🧠 Why Memorall
 
 Memorall is built for people who do serious work in tabs. Instead of treating the browser as disposable context, it turns pages, selections, documents, and workspaces into durable memory that you can search, inspect, and chat with later.
 
 What makes the current app distinctive:
 
-- Local-first by default. The app can run with in-browser runtimes such as Wllama, WebLLM, and Transformers, while still supporting OpenAI, OpenRouter, LM Studio, and Ollama when you want external or local server-backed models.
-- More than a chat window. The shipped UI includes a document library, topic system, knowledge graph explorer, model manager, debug tools, and advanced flow/activity surfaces.
-- Embedded where work happens. The content script can open a page-aware assistant, capture selected text, visible content, page HTML, and screenshots, and route saved content into a topic.
-- Built for long-running work. Heavy operations are moved off the UI thread through background jobs, offscreen/runtime services, and proxy/main service pairs.
-- Privacy-aware. Supabase auth is optional, the core app can run local-only, and encrypted provider credentials are restored through the app's passkey flow.
+- 🏠 Local-first by default. The app can run with in-browser runtimes such as Wllama, WebLLM, and Transformers, while still supporting OpenAI, OpenRouter, LM Studio, and Ollama when you want external or local server-backed models.
+- 🤖 More than a chat window. The shipped UI includes a document library, topic system, knowledge graph explorer, model manager, debug tools, and advanced flow/activity surfaces.
+- 🌐 Embedded where work happens. The content script can open a page-aware assistant, capture selected text, visible content, page HTML, and screenshots, and route saved content into a topic.
+- ⚙️ Built for long-running work. Heavy operations are moved off the UI thread through background jobs, offscreen/runtime services, and proxy/main service pairs.
+- 🔐 Privacy-aware. Supabase auth is optional, the core app can run local-only, and encrypted provider credentials are restored through the app's passkey flow.
+
+<a id="agent-power"></a>
+## ⚡ Agent Power
+
+Memorall's agent is designed to be powerful on your machine, not just impressive in a demo.
+
+- 🧪 Sandbox container access. The agent can use the browser-hosted sandbox runtime to execute Node.js code, install npm packages, work with files, start backend servers, and render UI/server output for iterative workflows such as Vite-style app work.
+- 🌐 Browser access. The agent can open pages, keep an active browser session, inspect DOM state, search rendered HTML, wait for selectors, and perform DOM actions instead of working from raw text alone.
+- 🧩 Custom flows and agents. The flow layer is not fixed to one canned assistant. Memorall ships configurable graph-based flows, feature steps, and a visual flow builder for custom agent behavior.
+- 📁 Workspace access. The agent is not isolated from your knowledge base. It can work across the document library and writable workspace trees, giving it access to documents, notes, and workspace files.
+- 🛠️ MCP integration is WIP. The repository already includes MCP adapter groundwork, but this should be treated as in-progress rather than a stable, documented feature today.
 
 ## Demo
 
@@ -36,7 +50,7 @@ What makes the current app distinctive:
 
 ![Memorall screenshot](docs/assets/screenshot.jpg)
 
-## What Users Can Do
+## ✨ What Users Can Do
 
 | Area | Current capabilities |
 | --- | --- |
@@ -47,10 +61,32 @@ What makes the current app distinctive:
 | Knowledge conversion | Convert text, Markdown, PDF pages, and Excel sheets into topic-scoped knowledge graph data through the background job pipeline. |
 | Knowledge graph | Explore nodes and edges in a D3 graph, filter by topic, search nodes, and curate graph data directly from the graph view. |
 | Models and embeddings | Load local/browser models, connect remote providers, inspect current model status, and switch embedding sizes with live reload support. |
+| Agent tooling | Let the agent use browser tools, filesystem-style tools, and sandbox runtime tools instead of responding with plain text only. |
 | Diagnostics | Query the database, inspect vector similarity results, browse/export logs, and monitor long-running jobs from the UI. |
 | Power-user routes | Use a visual flow builder and an activity timeline that can feed captured activity sessions back into AI analysis. |
 
-## Product Surfaces
+## 🕸️ Memory And Knowledge Context
+
+Memorall is not just a retrieval cache. It is meant to build an evolving memory context that the agent can follow over time.
+
+- Topic-scoped knowledge graphs let the system keep relationships, facts, and sources grouped around what you are actually working on.
+- Document-to-knowledge conversion turns notes, Markdown files, PDF pages, and Excel sheets into graph-ready context instead of leaving them as disconnected files.
+- Hybrid retrieval combines structured storage, text matching, and embeddings so the agent can recall both exact facts and semantically related context.
+- The result is a stronger "knowledge context" for the agent: not only what you saved, but what it means, how it connects, and where it came from.
+- This makes the assistant better at staying aligned with your projects, vocabulary, past work, and long-running research threads.
+
+<a id="offline-first"></a>
+## 💾 Offline First
+
+Offline-first in Memorall is architectural, not decorative:
+
+- local/browser-hosted models are first-class citizens
+- PGlite keeps the core knowledge store in-browser
+- background jobs and offscreen services keep heavy work local to the extension runtime
+- Supabase is optional rather than required
+- external model providers are available when you want them, but they are not mandatory for the product to function
+
+## 🗂️ Product Surfaces
 
 ### Main app surfaces
 
@@ -86,7 +122,8 @@ The content script and embedded pages provide two user-facing overlays:
 - process monitoring and standalone launch from popup mode
 - optional account sign-in/sign-out
 
-## Architecture At A Glance
+<a id="architecture-at-a-glance"></a>
+## 🏗️ Architecture At A Glance
 
 ```mermaid
 graph TD
@@ -114,7 +151,7 @@ The runtime split in the current codebase is deliberate:
 - cross-context execution goes through [`src/services/background-jobs`](./src/services/background-jobs)
 - the MV3 background worker in [`src/background.ts`](./src/background.ts) stays thin: it registers listeners synchronously, manages context menus, relays browser work, and watches offscreen health
 
-## Core `src/` Layout
+## 📦 Core `src/` Layout
 
 ```text
 src/
@@ -144,7 +181,7 @@ If you want the shortest accurate mental model:
 - [`src/background`](./src/background) is the MV3 coordination layer
 - [`src/services`](./src/services) is the real engine room
 
-## Flow And Tooling Layer
+## 🔧 Flow And Tooling Layer
 
 The current source tree under [`src/services/flows`](./src/services/flows) exposes more than a single chat pipeline:
 
@@ -152,10 +189,11 @@ The current source tree under [`src/services/flows`](./src/services/flows) expos
 - `knowledge` is the graph-growth pipeline that extracts entities/facts from saved content and persists them into the knowledge graph.
 - chat flows can be extended with feature steps for document tools, filesystem tools, browser automation, and a Node.js sandbox runtime.
 - the flow builder catalog already ships services/steps for LLM, embeddings, database, retrieval, feature injection, and completion stages.
+- the agent-facing tool layer already covers browser work, document/workspace access, and sandbox-container execution, which is what makes custom agents materially useful instead of prompt-only.
 
 This is why the app can move cleanly between simple chat, retrieval-heavy chat, browser-aware actions, and document/workspace operations without hardcoding everything into one screen.
 
-## Local-First AI Stack
+## 🤖 Local-First AI Stack
 
 Current model/provider support visible in the app and config:
 
@@ -166,7 +204,8 @@ Current model/provider support visible in the app and config:
 
 The app works without Supabase. If Supabase is configured, the auth page becomes available for sign-in/sign-up; otherwise users can continue in local-only mode.
 
-## Documentation Map
+<a id="documentation-map"></a>
+## 📚 Documentation Map
 
 These are the current docs that match the codebase today:
 
@@ -200,7 +239,8 @@ Notes about stale docs from older README versions:
 - `knowledge-pipeline.md` has been replaced by [`docs/knowledge-graph-service.md`](./docs/knowledge-graph-service.md)
 - `remember-service.md` no longer exists as a standalone current doc
 
-## Quick Start
+<a id="quick-start"></a>
+## 🚀 Quick Start
 
 ```bash
 git clone https://github.com/zrg-team/memorall.git
@@ -229,7 +269,7 @@ If you want live development:
 npm run dev
 ```
 
-## Development Commands
+## 🛠️ Development Commands
 
 | Command | Purpose |
 | --- | --- |
@@ -244,7 +284,7 @@ npm run dev
 | `npm run format` | Format `src` and `scripts` with Biome. |
 | `npm run package` | Build the publish/package output. |
 
-## Contributing
+## 🤝 Contributing
 
 Issues and pull requests are welcome at [github.com/zrg-team/memorall](https://github.com/zrg-team/memorall).
 
@@ -254,7 +294,7 @@ When contributing, it helps to understand the runtime split first:
 - extension wiring lives in [`src/background`](./src/background), [`src/background.ts`](./src/background.ts), and [`src/content.ts`](./src/content.ts)
 - anything stateful or heavy likely belongs in [`src/services`](./src/services)
 
-## License
+## 📄 License
 
 Memorall is licensed under the [MIT License](LICENSE).
 
