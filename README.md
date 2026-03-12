@@ -1,272 +1,265 @@
 <div align="center">
 
-<img src="images/origin.png" alt="Memorall Icon" width="128"/>
+<img src="images/origin.png" alt="Memorall icon" width="128" />
 
-# Memorall 🧠
+# Memorall
 
-### AI-Powered Personal Knowledge Assistant
+### Local-first browser memory, knowledge graph, and AI workspace
 
-*Build your digital memory with AI that runs entirely in your browser*
+Turn pages, files, and ongoing research into a searchable memory system. Memorall combines an in-page assistant, a document/workspace library, topic-scoped knowledge graphs, and agentic chat powered by browser-hosted models or optional external providers.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Extension.js](https://img.shields.io/badge/Powered%20by%20Extension.js-0971fe)](https://extension.js.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
-[![Privacy Focused](https://img.shields.io/badge/Privacy-First-green)](https://github.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Extension.js](https://img.shields.io/badge/Built%20with-Extension.js-0971fe)](https://extension.js.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Local First](https://img.shields.io/badge/AI-Local--First-2f855a)](https://github.com/zrg-team/memorall)
+
+[Quick Start](#quick-start) • [Product Surfaces](#product-surfaces) • [Architecture](#architecture-at-a-glance) • [Documentation](#documentation-map) • [GitHub](https://github.com/zrg-team/memorall)
 
 </div>
 
----
+## Why Memorall
 
-Memorall is an AI-powered browser extension that transforms how you manage digital knowledge. It seamlessly captures, organizes, and recalls information from your browsing experience while maintaining complete privacy through local AI processing.
+Memorall is built for people who do serious work in tabs. Instead of treating the browser as disposable context, it turns pages, selections, documents, and workspaces into durable memory that you can search, inspect, and chat with later.
 
-## 📋 Table of Contents
+What makes the current app distinctive:
 
-- [✨ Key Features](#-key-features)
-- [🚀 Quick Start](#-quick-start)
-- [📸 Demo](#-demo)
-- [🎯 Use Cases](#-use-cases)
-- [🛠️ Technical Architecture](#️-technical-architecture)
-- [🕸️ Knowledge Graph Engine](#️-knowledge-graph-engine)
-- [🏗️ Architecture Details](#️-architecture-details)
-- [🔀 Extension Flow](#-extension-flow)
-- [📋 Installation & Development](#-installation--development)
-- [🎮 Usage](#-usage)
-- [🤝 Contributing](#-contributing)
-- [📚 Documentation](#-documentation)
-- [📄 License](#-license)
+- Local-first by default. The app can run with in-browser runtimes such as Wllama, WebLLM, and Transformers, while still supporting OpenAI, OpenRouter, LM Studio, and Ollama when you want external or local server-backed models.
+- More than a chat window. The shipped UI includes a document library, topic system, knowledge graph explorer, model manager, debug tools, and advanced flow/activity surfaces.
+- Embedded where work happens. The content script can open a page-aware assistant, capture selected text, visible content, page HTML, and screenshots, and route saved content into a topic.
+- Built for long-running work. Heavy operations are moved off the UI thread through background jobs, offscreen/runtime services, and proxy/main service pairs.
+- Privacy-aware. Supabase auth is optional, the core app can run local-only, and encrypted provider credentials are restored through the app's passkey flow.
 
-## 📸 Demo
+## Demo
 
-See Memorall in action! The extension seamlessly integrates with your browsing experience to build a personal knowledge base.
+![Memorall demo](docs/assets/demo.gif)
 
-### 🎬 Quick Demo
-![Memorall Demo](docs/assets/demo.gif)
+![Memorall screenshot](docs/assets/screenshot.jpg)
 
-### 📷 Screenshots
+## What Users Can Do
 
-<table>
-<tr>
-<td><img src="docs/assets/1.png" alt="Main Interface" width="200"/></td>
-<td><img src="docs/assets/2.png" alt="Knowledge Graph" width="200"/></td>
-<td><img src="docs/assets/3.png" alt="Memory Recall" width="200"/></td>
-</tr>
-<tr>
-<td><img src="docs/assets/4.png" alt="Page Summary" width="200"/></td>
-<td><img src="docs/assets/5.png" alt="Entity Recognition" width="200"/></td>
-<td><img src="docs/assets/6.png" alt="Knowledge Building" width="200"/></td>
-</tr>
-<tr>
-<td><img src="docs/assets/7.png" alt="Context Awareness" width="200"/></td>
-<td></td>
-<td></td>
-</tr>
-</table>
+| Area | Current capabilities |
+| --- | --- |
+| Chat workspace | Stream conversations, switch between chat and knowledge-aware flows, choose topics, manage agent settings, and inspect active runtime sessions for sandbox/browser tooling. |
+| In-page assistant | Open an embedded chat overlay on any page, send selected text or extracted page context into chat, capture screenshots, and jump to the full app when needed. |
+| Topic capture | Save selected content or full-page context into a topic from the page itself using the embedded topic selector. |
+| Document library | Manage two trees: stored documents and writable workspace files. Upload/create/rename/move/delete/download files, preview PDFs/images/Excel, edit text/Markdown, and tag files with topics. |
+| Knowledge conversion | Convert text, Markdown, PDF pages, and Excel sheets into topic-scoped knowledge graph data through the background job pipeline. |
+| Knowledge graph | Explore nodes and edges in a D3 graph, filter by topic, search nodes, and curate graph data directly from the graph view. |
+| Models and embeddings | Load local/browser models, connect remote providers, inspect current model status, and switch embedding sizes with live reload support. |
+| Diagnostics | Query the database, inspect vector similarity results, browse/export logs, and monitor long-running jobs from the UI. |
+| Power-user routes | Use a visual flow builder and an activity timeline that can feed captured activity sessions back into AI analysis. |
 
-## 🎯 Use Cases
+## Product Surfaces
 
-- **📚 Research & Learning**: Summarize articles, papers, and documentation while browsing
-- **📝 Note Taking**: Ask AI to remember key points from meetings, videos, or conversations
-- **🏗️ Knowledge Building**: Build a personal knowledge base that grows with your browsing
-- **🔄 Context Switching**: Quickly recall what you were working on across different projects
-- **🔗 Information Synthesis**: Let AI help connect related memories and insights
+### Main app surfaces
 
-## 🛠️ Technical Architecture
+Routes currently wired in [`src/main/App.tsx`](./src/main/App.tsx):
 
-- **⚛️ Frontend**: React with TypeScript
-- **🧠 AI Engine**: WebAssembly-based language models (Wllama) + HuggingFace Transformers
-- **🗄️ Database**: PGlite (PostgreSQL in the browser) with vector embeddings
-- **🔧 Extension Framework**: Extension.js
-- **🎨 Styling**: Tailwind CSS with Radix UI components
+- `/` - chat workspace
+- `/documents` - document and workspace library
+- `/knowledge-graph` - graph explorer
+- `/llm` - model and provider management
+- `/embeddings` - vector search/debug view
+- `/database` - database inspector/query builder
+- `/logs` - log viewer/export surface
+- `/auth` - optional Supabase auth flow
+- `/activities` - activity timeline and AI session analysis
+- `/flow-builder` - visual flow authoring surface
 
-## 🕸️ Knowledge Graph Engine
+### Embedded page surfaces
 
-The **Knowledge Graph Flow** is Memorall's core intelligence module that transforms unstructured content into interconnected knowledge:
+The content script and embedded pages provide two user-facing overlays:
 
-### 🧠 How It Works
-1. **📄 Content Processing**: Analyzes web pages, documents, and conversations
-2. **🔍 Entity Extraction**: Identifies people, organizations, concepts, and locations
-3. **💡 Relationship Discovery**: Finds connections between entities
-4. **⏰ Temporal Understanding**: Captures when relationships were established
-5. **🕸️ Knowledge Building**: Creates a persistent, searchable knowledge graph
+- [`src/embedded/pages/EmbeddedChat.tsx`](./src/embedded/pages/EmbeddedChat.tsx) - a page-aware chat panel that can include selected text, visible content, full-page content, HTML structure, and captured images as context
+- [`src/embedded/pages/TopicSelector.tsx`](./src/embedded/pages/TopicSelector.tsx) - a lightweight topic picker for saving page content into the knowledge system
 
-### ✨ Key Capabilities
-- **🎯 Smart Deduplication**: Prevents duplicate entities (e.g., "Dr. Smith" = "John Smith")
-- **🔄 Incremental Learning**: Continuously builds knowledge from new content
-- **🕐 Temporal Awareness**: Tracks how relationships change over time
-- **🔍 Hybrid Search System**: Three-tier search using SQL, trigram matching, and vector similarity
-- **🎯 Intelligent Fallback**: Automatic failover to vector search when needed for optimal recall
-- **📈 Context Building**: Connects new information to existing knowledge
+### App shell
 
-### 💼 Real-World Examples
-- **Research**: *"Alice published a paper on AI safety in 2023"* → Creates entities for Alice (Person), AI Safety (Concept), and their relationship with publication date
-- **Professional**: *"Google acquired DeepMind"* → Links companies and captures acquisition relationship
-- **Personal**: *"Met Sarah at the conference last week"* → Records social connection with temporal context
+[`src/main/components/Layout.tsx`](./src/main/components/Layout.tsx) shows what the shared shell actually supports today:
 
-### 🔍 Advanced Search Technology
+- primary navigation for chat, documents, knowledge graph, and models
+- a debug dropdown for embeddings, database, and logs
+- theme switching
+- English and Vietnamese UI switching
+- embedding-size management
+- process monitoring and standalone launch from popup mode
+- optional account sign-in/sign-out
 
-Memorall uses a **sophisticated three-tier hybrid search system** for optimal knowledge retrieval:
-
-1. **SQL Search (60%)**: Lightning-fast exact pattern matching using database indexes
-2. **Trigram Search (40%)**: Fuzzy text matching with PostgreSQL's `pg_trgm` extension for typo tolerance
-3. **Vector Fallback**: Intelligent semantic similarity using embeddings when primary methods yield insufficient results
-
-This approach ensures both **high performance** and **comprehensive recall**, making knowledge discovery both fast and thorough.
-
-The Knowledge Graph enables Memorall to provide contextual, intelligent responses by understanding not just what you've encountered, but how everything connects together.
-
-📚 **[Detailed Documentation](docs/knowledge-pipeline.md)** - Learn more about the architecture and implementation
-
-## 🏗️ Architecture Details
-
-### 🧠 AI Components
-- **🤖 Language Model**: Wllama (WebAssembly-based LLM)
-- **📊 Embeddings**: HuggingFace Transformers for text embeddings
-- **🔍 Hybrid Search Engine**:
-  - **SQL Search (60%)**: Fast exact pattern matching using database indexes
-  - **Trigram Search (40%)**: Fuzzy text matching with PostgreSQL's `pg_trgm` extension
-  - **Vector Fallback**: Semantic similarity using embeddings when primary methods insufficient
-
-### 🗄️ Data Storage
-- **💬 Conversations**: Chat history and context
-- **🕸️ Knowledge Graph**: Nodes, edges, and relationships between concepts
-- **📊 Embeddings**: Vector representations for semantic search
-- **📜 Sources**: Webpage content and metadata
-
-## 📚 Documentation
-
-### 🏗️ Core Services
-- **Services Overview**: [`docs/services.md`](docs/services.md)
-- **LLM Service**: [`docs/llm-service.md`](docs/llm-service.md)
-- **Embedding Service**: [`docs/embedding-service.md`](docs/embedding-service.md)
-- **Database Service**: [`docs/database-service.md`](docs/database-service.md)
-- **Flows Service**: [`docs/flows-service.md`](docs/flows-service.md)
-- **Shared Storage Service**: [`docs/shared-storage.md`](docs/shared-storage.md)
-- **Background Jobs**: [`docs/background-jobs.md`](docs/background-jobs.md)
-- **Remember Service**: [`docs/remember-service.md`](docs/remember-service.md)
-
-### 🧠 Knowledge Graph & AI
-- **Knowledge Graph Service**: [`docs/knowledge-graph-service.md`](docs/knowledge-graph-service.md) - Service for building knowledge graphs
-- **Knowledge Pipeline**: [`docs/knowledge-pipeline.md`](docs/knowledge-pipeline.md) - Complete pipeline architecture and flow
-- **Knowledge RAG System**: [`docs/knowledge-rag-service.md`](docs/knowledge-rag-service.md) - Retrieval-Augmented Generation for Q&A
-
-## 🔀 Extension Flow
-
-High-level flow showing clear separation between UI, background coordination, content script injection, and offscreen processing.
+## Architecture At A Glance
 
 ```mermaid
 graph TD
-  %% UI Layer - Direct to Offscreen via Background Jobs
-  UI[UI Surfaces] -.->|background-jobs| JQ[Job Queue]
+  PAGE["Web pages"] -->|content extraction, overlays, activity tracking| CONTENT["content.ts + src/embedded/*"]
+  CONTENT -->|messages, extracted payloads, web DOM actions| BG["src/background.ts"]
 
-  %% Background Script - Context Menus & Content Script Communication Only
-  BG[Background Script] -->|inject & extract| CS[Content Scripts]
-  CS -->|page data| BG
-  BG -->|enqueue extracted data| JQ
+  UI["Popup + standalone app<br/>src/popup.tsx / src/standalone.tsx"] -->|proxy services + jobs| JOBS["Background jobs"]
+  BG -->|relay, context menus, watchdog| JOBS
 
-  %% Offscreen Processing
-  JQ --> OFF[Offscreen Document]
-  OFF --> SVC[Core Services\nLLM/Embedding/DB/Remember/KG]
-  OFF -->|claim & process| JQ
+  JOBS --> OFF["Offscreen/runtime processing"]
+  OFF --> SM["ServiceManager"]
 
-  %% Content Scripts - Page Injection Only
-  CS -.->|page context| WEB[Web Pages]
+  SM --> DB["Database service<br/>PGlite + Drizzle"]
+  SM --> EMB["Embedding service"]
+  SM --> LLM["LLM service"]
+  SM --> FLOWS["Flows + Flow Builder"]
+
+  FLOWS --> TOOLS["Documents FS, workspace FS,<br/>web browser tools, Node sandbox"]
 ```
 
-### 🔄 Communication Patterns
+The runtime split in the current codebase is deliberate:
 
-- **UI Surfaces → Offscreen Document**: Direct communication via Job Queue (no background script involvement)
-- **Background Script → Content Scripts**: Context menu actions trigger content script data extraction
-- **Content Scripts → Background Script**: Return extracted page data (HTML, selections, metadata)
-- **Background Script → Offscreen Document**: Enqueue extracted data for processing via Job Queue
-- **Offscreen Document ↔ Job Queue**: Claim jobs, process data, update status
+- UI surfaces use lightweight proxy services so popup and standalone stay responsive.
+- heavy database, embedding, and LLM work runs in the runtime/offscreen side managed through [`src/services/service-manager.ts`](./src/services/service-manager.ts)
+- cross-context execution goes through [`src/services/background-jobs`](./src/services/background-jobs)
+- the MV3 background worker in [`src/background.ts`](./src/background.ts) stays thin: it registers listeners synchronously, manages context menus, relays browser work, and watches offscreen health
 
-### 📦 Component Responsibilities
+## Core `src/` Layout
 
-- **Background Script**: Context menu registration, content script communication, and job enqueueing only
-- **Job Queue**: Cross-context job queue with progress tracking and offscreen processing
-- **UI Surfaces**: Directly use job queue service for user actions
-- **Content Scripts**: Page data extraction and injection (communicate only with background script)
-- **Offscreen Document**: Heavy processing, AI operations, and database work to keep UI responsive
+```text
+src/
+  background.ts
+  content.ts
+  popup.tsx
+  standalone.tsx
+  background/          MV3 worker helpers, messaging, menus, watchdogs
+  embedded/            in-page assistant, topic selector, extractors, trackers
+  main/                React pages, modules, layout, auth, documents, chat UI
+  services/            shared runtime services and infrastructure
+    background-jobs/   cross-context job queue and handlers
+    database/          PGlite, Drizzle schema, entities, migrations, RPC bridge
+    embedding/         local and remote embedding implementations
+    filesystem/        document/workspace virtual filesystem
+    flows/             graph runtime, step/tool registry, flow builder catalog
+    llm/               local/browser/API-backed model adapters
+    sandbox-container/ browser-hosted execution runtime
+    shared-storage/    cross-context shared state
+    web-browser/       browser session and DOM automation service
+```
 
-### 🏷️ Component Aliases
+If you want the shortest accurate mental model:
 
-- **UI Surfaces**: `popup.html` & `standalone.html` - Extension popup and full-page interfaces
-- **Background Script**: `src/background.ts` - Chrome extension service worker
-- **Job Queue**: `src/services/background-jobs/*` - Cross-context job management system
-- **Content Scripts**: Injected scripts in web pages for data extraction
-- **Offscreen Document**: `public/offscreen.html` - Dedicated processing environment
-- **Core Services**: Database, LLM, Embedding, Remember, and Knowledge Graph services
+- [`src/main`](./src/main) is the user application
+- [`src/embedded`](./src/embedded) is the page-integrated assistant/capture layer
+- [`src/background`](./src/background) is the MV3 coordination layer
+- [`src/services`](./src/services) is the real engine room
 
+## Flow And Tooling Layer
 
-## 📋 Installation & Development
+The current source tree under [`src/services/flows`](./src/services/flows) exposes more than a single chat pipeline:
 
-### 🚀 Quick Start
+- `knowledge-rag` is the main chat-oriented graph. It can retrieve context, add feature steps, run in agent mode, and optionally add citations.
+- `knowledge` is the graph-growth pipeline that extracts entities/facts from saved content and persists them into the knowledge graph.
+- chat flows can be extended with feature steps for document tools, filesystem tools, browser automation, and a Node.js sandbox runtime.
+- the flow builder catalog already ships services/steps for LLM, embeddings, database, retrieval, feature injection, and completion stages.
+
+This is why the app can move cleanly between simple chat, retrieval-heavy chat, browser-aware actions, and document/workspace operations without hardcoding everything into one screen.
+
+## Local-First AI Stack
+
+Current model/provider support visible in the app and config:
+
+- Browser-hosted/local runtimes: Wllama, WebLLM, Transformers
+- Remote or server-backed providers: OpenAI, OpenRouter, LM Studio, Ollama
+- Embedding sizes: small `384d`, medium `768d`, and large `1536d` (remote-backed)
+- Storage: PGlite + Drizzle with vectors, migrations, topics, conversations, sources, nodes/edges, activities, and flow-builder state
+
+The app works without Supabase. If Supabase is configured, the auth page becomes available for sign-in/sign-up; otherwise users can continue in local-only mode.
+
+## Documentation Map
+
+These are the current docs that match the codebase today:
+
+### Architecture and services
+
+- [Services overview](./docs/services.md)
+- [Background jobs](./docs/background-jobs.md)
+- [Shared storage](./docs/shared-storage.md)
+- [Database service](./docs/database-service.md)
+- [Embedding service](./docs/embedding-service.md)
+- [LLM service](./docs/llm-service.md)
+- [Flows service](./docs/flows-service.md)
+
+### Knowledge system
+
+- [Knowledge graph service and flow](./docs/knowledge-graph-service.md)
+- [Knowledge RAG flow](./docs/knowledge-rag-service.md)
+- [Smart retrieval notes](./docs/graph/smart_retrieval.md)
+- [MMR usage notes](./docs/graph/mmr_usage.md)
+
+### Auth, storage, and migration
+
+- [Supabase docs index](./docs/supabase/index.md)
+- [Supabase quickstart](./docs/supabase/quickstart.md)
+- [Supabase setup](./docs/supabase/setup.md)
+- [Supabase implementation](./docs/supabase/implementation.md)
+- [Migration notes](./docs/migration.md)
+
+Notes about stale docs from older README versions:
+
+- `knowledge-pipeline.md` has been replaced by [`docs/knowledge-graph-service.md`](./docs/knowledge-graph-service.md)
+- `remember-service.md` no longer exists as a standalone current doc
+
+## Quick Start
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/zrg-team/memorall.git
 cd memorall
 npm install
-npm run build
-# Load the 'dist' folder in your browser's extension manager
 ```
 
-### 🔧 Available Commands
+Then:
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | 🚀 Development mode with hot reloading |
-| `npm run build` | 📦 Production build |
-| `npm run preview` | 👀 Preview built extension |
-| `npm run type-check` | 🔍 TypeScript type checking |
+1. Create `.env` from `.env.example`.
+2. Set `CHROME_PATH` if you want to use `npm run dev`.
+3. Optionally add Supabase keys, or configure Supabase later through the app.
+4. Build or run the extension.
 
-### 🌐 Load Extension in Browser
+Recommended Chrome build flow:
 
-1. Open your browser's extension management page
-2. Enable "Developer mode"
-3. Click "Load unpacked" and select the `dist` folder
-4. First launch will download and initialize AI models (one-time setup)
+```bash
+npm run build:chrome
+```
 
-## 🤝 Contributing
+Load the unpacked extension from `dist/chrome`.
 
-### 🐛 Bug Reports
-- Use GitHub Issues to report bugs
-- Include steps to reproduce and expected behavior
-- Provide browser and extension version information
+If you want live development:
 
-### 💡 Feature Requests
-- Open a GitHub Issue with "enhancement" label
-- Describe the feature and its benefits
-- Consider submitting a pull request
+```bash
+npm run dev
+```
 
-### 🔧 Development Workflow
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Make changes following existing code style
-4. Test thoroughly
-5. Submit pull request with clear description
+## Development Commands
 
-### 📝 Documentation
-- Improve documentation and examples
-- Fix typos and clarify instructions
-- Add tutorials or guides
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Hot-reload development build for Chromium (`CHROME_PATH` required). |
+| `npm run build` | Default production build. |
+| `npm run build:chrome` | Build Chrome MV3 output in `dist/chrome`. |
+| `npm run build:edge` | Build Edge MV3 output. |
+| `npm run build:firefox` | Build Firefox MV3 output. |
+| `npm run build:all` | Build Chrome, Edge, and Firefox outputs. |
+| `npm run type-check` | Run TypeScript without emitting files. |
+| `npm run lint` | Run the Extension.js lint step. |
+| `npm run format` | Format `src` and `scripts` with Biome. |
+| `npm run package` | Build the publish/package output. |
 
-## 💬 Support
+## Contributing
 
-- 📖 **Documentation**: Check out our [comprehensive docs](docs/)
-- 🐛 **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/your-repo/issues)
-- 💡 **Discussions**: Join conversations in [GitHub Discussions](https://github.com/your-repo/discussions)
+Issues and pull requests are welcome at [github.com/zrg-team/memorall](https://github.com/zrg-team/memorall).
 
-## 📄 License
+When contributing, it helps to understand the runtime split first:
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- UI and interaction work usually lives in [`src/main`](./src/main) or [`src/embedded`](./src/embedded)
+- extension wiring lives in [`src/background`](./src/background), [`src/background.ts`](./src/background.ts), and [`src/content.ts`](./src/content.ts)
+- anything stateful or heavy likely belongs in [`src/services`](./src/services)
 
----
+## License
+
+Memorall is licensed under the [MIT License](LICENSE).
 
 <div align="center">
 
-**Built with ❤️ using Extension.js • Made for privacy-conscious knowledge workers**
-
-[⭐ Star this repo](https://github.com/your-repo) • [🐛 Report Issue](https://github.com/your-repo/issues) • [💡 Request Feature](https://github.com/your-repo/issues/new)
+Built on Extension.js, React, TypeScript, PGlite, and browser-native AI runtimes.
 
 </div>
