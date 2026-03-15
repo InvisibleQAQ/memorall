@@ -87,6 +87,16 @@ export class SandboxOperationsHandler implements ProcessHandler<BaseJob> {
 				return sandboxContainerService.executeCode(payload.payload);
 			case "runtime.runFile":
 				return sandboxContainerService.runFile(payload.payload);
+			case "runtime.executeCommand":
+				return sandboxContainerService.executeCommand(payload.payload);
+			case "runtime.listenCommand":
+				return sandboxContainerService.listenCommand(payload.payload);
+			case "runtime.sendCommandInput":
+				return sandboxContainerService.sendCommandInput(payload.payload);
+			case "runtime.stopCommand":
+				return sandboxContainerService.stopCommand(payload.payload);
+			case "runtime.listCommands":
+				return sandboxContainerService.listCommands();
 			case "runtime.createRepl":
 				return sandboxContainerService.createRepl();
 			case "runtime.replEval":

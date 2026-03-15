@@ -12,6 +12,11 @@ import "./documents/doc-remove";
 import "./documents/doc-move";
 
 import "./sandbox-container/container-run-code";
+import "./sandbox-container/container-execute-command";
+import "./sandbox-container/container-listen-command";
+import "./sandbox-container/container-send-command-input";
+import "./sandbox-container/container-stop-command";
+import "./sandbox-container/container-list-commands";
 import "./sandbox-container/container-install-package";
 import "./sandbox-container/container-start-server";
 import "./sandbox-container/container-restart-server";

@@ -7,6 +7,7 @@ import {
 	hasSwTransformErrorHeader,
 } from "./sw-response-utils";
 import type {
+	SandboxCommandResult,
 	SandboxExecutionRequest,
 	SandboxExecutionResult,
 	SandboxFsExistsRequest,
@@ -22,7 +23,9 @@ import type {
 	SandboxGetLogsRequest,
 	SandboxGetLogsResult,
 	SandboxHealthResult,
+	SandboxListCommandsResult,
 	SandboxListServersResult,
+	SandboxListenCommandRequest,
 	SandboxNetworkFetchRequest,
 	SandboxNetworkFetchResult,
 	SandboxNpmInstallFromPackageJsonRequest,
@@ -35,6 +38,7 @@ import type {
 	SandboxRestoreSnapshotRequest,
 	SandboxRunFileRequest,
 	SandboxRunFileResult,
+	SandboxSendCommandInputRequest,
 	SandboxServerRequest,
 	SandboxServerRequestResult,
 	SandboxServerRenderUrlRequest,
@@ -42,6 +46,8 @@ import type {
 	SandboxSnapshotResult,
 	SandboxStartServerRequest,
 	SandboxStartServerResult,
+	SandboxExecuteCommandRequest,
+	SandboxStopCommandRequest,
 	SandboxStopServerRequest,
 	SandboxHandleSwRequestPayload,
 	SandboxHandleSwRequestResult,
@@ -148,6 +154,34 @@ export class SandboxContainerServiceProxy implements ISandboxContainerService {
 
 	async runFile(request: SandboxRunFileRequest): Promise<SandboxRunFileResult> {
 		return this.request("runtime.runFile", request);
+	}
+
+	async executeCommand(
+		request: SandboxExecuteCommandRequest,
+	): Promise<SandboxCommandResult> {
+		return this.request("runtime.executeCommand", request);
+	}
+
+	async listenCommand(
+		request: SandboxListenCommandRequest,
+	): Promise<SandboxCommandResult> {
+		return this.request("runtime.listenCommand", request);
+	}
+
+	async sendCommandInput(
+		request: SandboxSendCommandInputRequest,
+	): Promise<{ commandId: string; sent: true }> {
+		return this.request("runtime.sendCommandInput", request);
+	}
+
+	async stopCommand(
+		request: SandboxStopCommandRequest,
+	): Promise<{ commandId: string; stopped: true }> {
+		return this.request("runtime.stopCommand", request);
+	}
+
+	async listCommands(): Promise<SandboxListCommandsResult> {
+		return this.request("runtime.listCommands", undefined);
 	}
 
 	async createRepl(): Promise<{ replId: string }> {

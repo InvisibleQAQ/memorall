@@ -9,6 +9,7 @@ import {
 	hasSwTransformErrorHeader,
 } from "./sw-response-utils";
 import type {
+	SandboxCommandResult,
 	SandboxErrorEnvelope,
 	SandboxExecutionRequest,
 	SandboxExecutionResult,
@@ -22,7 +23,9 @@ import type {
 	SandboxFsRenameRequest,
 	SandboxFsUnlinkRequest,
 	SandboxFsWriteFileRequest,
+	SandboxListCommandsResult,
 	SandboxListServersResult,
+	SandboxListenCommandRequest,
 	SandboxNpmInstallFromPackageJsonRequest,
 	SandboxNpmInstallRequest,
 	SandboxNpmInstallResult,
@@ -34,8 +37,11 @@ import type {
 	SandboxRestoreSnapshotRequest,
 	SandboxRunFileRequest,
 	SandboxRunFileResult,
+	SandboxSendCommandInputRequest,
 	SandboxStartServerRequest,
 	SandboxStartServerResult,
+	SandboxExecuteCommandRequest,
+	SandboxStopCommandRequest,
 	SandboxStopServerRequest,
 	SandboxGetLogsRequest,
 	SandboxGetLogsResult,
@@ -73,6 +79,8 @@ const SANDBOX_CHANNEL = "memorall-sandbox-container" as const;
 const DEFAULT_FRAME_URL = "sandbox/pages/sandbox-container-runtime.html";
 const DEFAULT_LOAD_TIMEOUT_MS = 20_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+const DEFAULT_COMMAND_WAIT_TIMEOUT_MS = 10_000;
+const COMMAND_REQUEST_TIMEOUT_BUFFER_MS = 5_000;
 const WORKSPACES_ROOT = "/workspaces";
 const WORKSPACE_LEGACY_ROOT = "/workspace";
 const SANDBOX_RUNTIME_WORKSPACE_SYNC = "memorall-sandbox-workspace-sync";
@@ -767,6 +775,29 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		});
 	}
 
+	private resolveCommandRequestTimeout(waitTimeoutMs?: number): number {
+		const normalizedWaitTimeout = Number.isFinite(waitTimeoutMs)
+			? Math.max(0, Math.floor(waitTimeoutMs!))
+			: DEFAULT_COMMAND_WAIT_TIMEOUT_MS;
+		return Math.max(
+			this.options.requestTimeoutMs,
+			normalizedWaitTimeout + COMMAND_REQUEST_TIMEOUT_BUFFER_MS,
+		);
+	}
+
+	private async prepareCommandExecution(
+		request: SandboxExecuteCommandRequest,
+	): Promise<SandboxExecuteCommandRequest> {
+		await Promise.all([this.syncDocumentsMount(), this.syncWorkspaceMount()]);
+
+		return {
+			...request,
+			cwd: request.cwd
+				? this.toWorkspaceCanonicalPath(this.normalizeVirtualPath(request.cwd))
+				: undefined,
+		};
+	}
+
 	async dispose(): Promise<void> {
 		for (const [, pending] of this.pending) {
 			window.clearTimeout(pending.timeoutId);
@@ -823,6 +854,61 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 			...request,
 			path: this.normalizeVirtualPath(request.path),
 		});
+	}
+
+	async executeCommand(
+		request: SandboxExecuteCommandRequest,
+	): Promise<SandboxCommandResult> {
+		const preparedRequest = await this.prepareCommandExecution(request);
+		const result = await this.request(
+			"runtime.executeCommand",
+			preparedRequest,
+			this.resolveCommandRequestTimeout(preparedRequest.waitTimeoutMs),
+		);
+		await this.flushWorkspaceWrites().catch((error) =>
+			logWarn("Failed to flush workspace writes after command execution", {
+				error,
+			}),
+		);
+		return result;
+	}
+
+	async listenCommand(
+		request: SandboxListenCommandRequest,
+	): Promise<SandboxCommandResult> {
+		const result = await this.request(
+			"runtime.listenCommand",
+			request,
+			this.resolveCommandRequestTimeout(request.waitTimeoutMs),
+		);
+		await this.flushWorkspaceWrites().catch((error) =>
+			logWarn("Failed to flush workspace writes after command listen", {
+				error,
+			}),
+		);
+		return result;
+	}
+
+	async sendCommandInput(
+		request: SandboxSendCommandInputRequest,
+	): Promise<{ commandId: string; sent: true }> {
+		return this.request("runtime.sendCommandInput", request);
+	}
+
+	async stopCommand(
+		request: SandboxStopCommandRequest,
+	): Promise<{ commandId: string; stopped: true }> {
+		const result = await this.request("runtime.stopCommand", request);
+		await this.flushWorkspaceWrites().catch((error) =>
+			logWarn("Failed to flush workspace writes after stopping command", {
+				error,
+			}),
+		);
+		return result;
+	}
+
+	async listCommands(): Promise<SandboxListCommandsResult> {
+		return this.request("runtime.listCommands", undefined);
 	}
 
 	async createRepl(): Promise<SandboxOperationResultMap["runtime.createRepl"]> {

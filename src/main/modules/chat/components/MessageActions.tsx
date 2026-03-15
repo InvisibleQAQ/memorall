@@ -11,6 +11,7 @@ import {
 	Brain,
 	Zap,
 	Globe,
+	TerminalSquare,
 	type LucideIcon,
 } from "lucide-react";
 
@@ -28,10 +29,12 @@ import { webReadRenderer } from "./tools/WebRead";
 import { webOpenRenderer } from "./tools/WebOpen";
 import { webDomRenderer } from "./tools/WebDom";
 import { fsActionRenderer } from "./tools/FileSystem";
+import { terminalToolRenderer } from "./tools/TerminalTool";
 
 const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["search", "query", "retrieval", "retrieve"], icon: Search },
 	{ keywords: ["web", "url", "browser", "html"], icon: Globe },
+	{ keywords: ["command", "terminal", "shell"], icon: TerminalSquare },
 	{ keywords: ["generat", "create"], icon: Sparkles },
 	{ keywords: ["write", "edit", "update"], icon: PenLine },
 	{ keywords: ["graph", "network"], icon: Network },
@@ -83,6 +86,9 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	"web search": defaultActionRenderer,
 	sandbox_api_result: apiResultRenderer,
 	container_request_server: apiResultRenderer,
+	container_execute_command: terminalToolRenderer,
+	container_listen_command: terminalToolRenderer,
+	container_list_commands: terminalToolRenderer,
 	fs_read: fsActionRenderer,
 	fs_write: fsActionRenderer,
 	fs_edit: fsActionRenderer,

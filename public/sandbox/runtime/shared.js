@@ -1,4 +1,3 @@
-import * as AlmostNodeLib from "../vendors/almostnode.bundle.js";
 import {
 	vfsBoolState,
 	mountedDocumentFiles,
@@ -17,7 +16,12 @@ export const SANDBOX_CHANNEL = "memorall-sandbox-container";
 export const DEFAULT_TIMEOUT_MS = 5000;
 export const DEFAULT_MAX_LOG_ENTRIES = 20;
 export const DEFAULT_FETCH_TIMEOUT_MS = 15000;
+export const DEFAULT_COMMAND_WAIT_TIMEOUT_MS = 10000;
 export const MAX_RUNTIME_LOG_ENTRIES = 500;
+
+const MAX_COMMAND_OUTPUT_TAIL_CHARS = 600;
+const COMMAND_STOP_WAIT_TIMEOUT_MS = 1000;
+const VALID_ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export const runtimeState = {
 	initializedAt: Date.now(),
@@ -25,8 +29,30 @@ export const runtimeState = {
 	repls: new Map(),
 	installedPackages: new Map(),
 	servers: new Map(),
+	commands: new Map(),
 	container: null,
 	currentExecutionContext: null,
+};
+
+let almostNodeLibPromise = null;
+let almostNodeLibModule = null;
+
+export const loadAlmostNodeLib = async () => {
+	if (almostNodeLibModule) {
+		return almostNodeLibModule;
+	}
+	if (!almostNodeLibPromise) {
+		almostNodeLibPromise = import("../vendors/almostnode.bundle.js")
+			.then((module) => {
+				almostNodeLibModule = module;
+				return module;
+			})
+			.catch((error) => {
+				almostNodeLibPromise = null;
+				throw error;
+			});
+	}
+	return almostNodeLibPromise;
 };
 
 export const safeSerialize = (value) => {
@@ -109,19 +135,20 @@ export const toServerInfo = (serverState) => ({
 	rootDir: serverState.rootDir,
 });
 
-export const getServerBridge = (containerInstance) => {
+export const getServerBridge = async (containerInstance) => {
 	const fromContainer = containerInstance?.serverBridge;
 	if (fromContainer && typeof fromContainer.getServerUrl === "function") {
 		return fromContainer;
 	}
-	if (typeof AlmostNodeLib.getServerBridge === "function") {
-		return AlmostNodeLib.getServerBridge();
+	const almostNodeLib = await loadAlmostNodeLib();
+	if (typeof almostNodeLib.getServerBridge === "function") {
+		return almostNodeLib.getServerBridge();
 	}
 	return null;
 };
 
 export const ensureServerBridgeReady = async (containerInstance) => {
-	const bridge = getServerBridge(containerInstance);
+	const bridge = await getServerBridge(containerInstance);
 	console.log(
 		`[bridge] getServerBridge result: ${bridge ? "present" : "null"}, keys=${bridge ? Object.keys(bridge).join(",") : "n/a"}`,
 	);
@@ -206,17 +233,16 @@ export const withTimeout = async (task, timeoutMs) => {
 };
 
 const ensureAlmostNodeReady = async () => {
-	if (AlmostNodeLib && typeof AlmostNodeLib.__tla?.then === "function") {
-		await AlmostNodeLib.__tla;
-	}
-	if (!AlmostNodeLib || typeof AlmostNodeLib.createContainer !== "function") {
+	const almostNodeLib = await loadAlmostNodeLib();
+	if (!almostNodeLib || typeof almostNodeLib.createContainer !== "function") {
 		throw new Error("almostnode runtime bundle not loaded or invalid");
 	}
+	return almostNodeLib;
 };
 
 export const createContainerInstance = async () => {
-	await ensureAlmostNodeReady();
-	const containerInstance = AlmostNodeLib.createContainer({
+	const almostNodeLib = await ensureAlmostNodeReady();
+	const containerInstance = almostNodeLib.createContainer({
 		cwd: "/",
 		onConsole: (level, args) => {
 			const message = Array.isArray(args)
@@ -366,7 +392,472 @@ export const resolveResponseType = (contentType, requestedType) => {
 	return "text";
 };
 
+const trimCommandOutputTail = (value) =>
+	value.length <= MAX_COMMAND_OUTPUT_TAIL_CHARS
+		? value
+		: value.slice(-MAX_COMMAND_OUTPUT_TAIL_CHARS);
+
+const notifyCommandWaiters = (commandSession) => {
+	if (commandSession.waiters.size === 0) {
+		return;
+	}
+
+	for (const waiter of Array.from(commandSession.waiters)) {
+		waiter();
+	}
+	commandSession.waiters.clear();
+};
+
+const appendCommandChunk = (commandSession, stream, data) => {
+	const text = String(data ?? "");
+	if (!text) {
+		return;
+	}
+
+	if (stream === "stderr") {
+		commandSession.stderrBuffer += text;
+	} else {
+		commandSession.stdoutBuffer += text;
+	}
+
+	commandSession.chunks.push({
+		stdout: stream === "stdout" ? text : "",
+		stderr: stream === "stderr" ? text : "",
+	});
+	commandSession.nextOffset = commandSession.chunks.length;
+	commandSession.outputTail = trimCommandOutputTail(
+		commandSession.outputTail + text,
+	);
+	commandSession.updatedAt = Date.now();
+	notifyCommandWaiters(commandSession);
+};
+
+const maybeAppendFinalCommandOutput = (commandSession, result) => {
+	if (result?.stdout?.startsWith(commandSession.stdoutBuffer)) {
+		appendCommandChunk(
+			commandSession,
+			"stdout",
+			result.stdout.slice(commandSession.stdoutBuffer.length),
+		);
+	}
+
+	if (result?.stderr?.startsWith(commandSession.stderrBuffer)) {
+		appendCommandChunk(
+			commandSession,
+			"stderr",
+			result.stderr.slice(commandSession.stderrBuffer.length),
+		);
+	}
+};
+
+const resolveCommandStatus = ({ exitCode, stopRequested, timedOut }) => {
+	if (stopRequested) {
+		return "stopped";
+	}
+	if (timedOut) {
+		return "failed";
+	}
+	return exitCode === 0 ? "completed" : "failed";
+};
+
+const completeCommandSession = (
+	commandSession,
+	{ exitCode, result, stopRequested = false, timedOut = false },
+) => {
+	if (commandSession.completed) {
+		return;
+	}
+
+	maybeAppendFinalCommandOutput(commandSession, result);
+	commandSession.completed = true;
+	commandSession.exitCode =
+		typeof exitCode === "number" ? exitCode : commandSession.exitCode;
+	commandSession.status = resolveCommandStatus({
+		exitCode: commandSession.exitCode ?? 1,
+		stopRequested,
+		timedOut,
+	});
+	commandSession.updatedAt = Date.now();
+
+	if (commandSession.timeoutId !== null) {
+		clearTimeout(commandSession.timeoutId);
+		commandSession.timeoutId = null;
+	}
+
+	pushRuntimeLog(
+		commandSession.status === "failed" ? "warn" : "info",
+		`Command ${commandSession.commandId} ${commandSession.status} (exit ${commandSession.exitCode ?? "n/a"}): ${commandSession.command}`,
+	);
+	commandSession.resolveCompletion(commandSession);
+	notifyCommandWaiters(commandSession);
+};
+
+const normalizeCommandWaitTimeout = (waitTimeoutMs) => {
+	if (!Number.isFinite(waitTimeoutMs)) {
+		return DEFAULT_COMMAND_WAIT_TIMEOUT_MS;
+	}
+	return Math.max(0, Math.floor(waitTimeoutMs));
+};
+
+const normalizeCommandOffset = (offset) => {
+	if (!Number.isFinite(offset)) {
+		return 0;
+	}
+	return Math.max(0, Math.floor(offset));
+};
+
+const normalizeCommandCwd = (cwd) => {
+	if (typeof cwd !== "string" || !cwd.trim()) {
+		return "/";
+	}
+	return toCanonicalMountedPath(cwd);
+};
+
+const quoteShellValue = (value) => `'${String(value).replace(/'/g, `'\"'\"'`)}'`;
+
+const applyCommandEnv = (command, env) => {
+	if (!env || typeof env !== "object") {
+		return command;
+	}
+
+	const assignments = [];
+	for (const [name, value] of Object.entries(env)) {
+		if (!VALID_ENV_NAME.test(name)) {
+			throw new Error(`Invalid environment variable name: ${name}`);
+		}
+		assignments.push(`${name}=${quoteShellValue(value)}`);
+	}
+
+	return assignments.length > 0
+		? `${assignments.join(" ")} ${command}`
+		: command;
+};
+
+const waitForCommandChange = (commandSession, offset, timeoutMs) => {
+	if (commandSession.completed || commandSession.nextOffset !== offset) {
+		return Promise.resolve(true);
+	}
+
+	if (timeoutMs <= 0) {
+		return Promise.resolve(false);
+	}
+
+	return new Promise((resolve) => {
+		let settled = false;
+		const timeoutId = setTimeout(() => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			commandSession.waiters.delete(waiter);
+			resolve(false);
+		}, timeoutMs);
+
+		const waiter = () => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			clearTimeout(timeoutId);
+			commandSession.waiters.delete(waiter);
+			resolve(true);
+		};
+
+		commandSession.waiters.add(waiter);
+
+		if (commandSession.completed || commandSession.nextOffset !== offset) {
+			waiter();
+		}
+	});
+};
+
+const waitForCommandWindow = async (commandSession, offset, waitTimeoutMs) => {
+	const normalizedWaitTimeoutMs =
+		normalizeCommandWaitTimeout(waitTimeoutMs);
+	if (normalizedWaitTimeoutMs === 0 || commandSession.completed) {
+		return;
+	}
+
+	let observedOffset = offset;
+	const deadline = Date.now() + normalizedWaitTimeoutMs;
+
+	while (!commandSession.completed) {
+		if (commandSession.nextOffset !== observedOffset) {
+			observedOffset = commandSession.nextOffset;
+		}
+
+		const remainingMs = deadline - Date.now();
+		if (remainingMs <= 0) {
+			return;
+		}
+
+		const changed = await waitForCommandChange(
+			commandSession,
+			observedOffset,
+			remainingMs,
+		);
+		if (!changed) {
+			return;
+		}
+	}
+};
+
+const getCommandSessionOrThrow = (commandId) => {
+	const commandSession = runtimeState.commands.get(commandId);
+	if (!commandSession) {
+		throw new Error(`Command not found: ${commandId}`);
+	}
+	return commandSession;
+};
+
+const getRunningCommandSession = () =>
+	Array.from(runtimeState.commands.values()).find(
+		(commandSession) => !commandSession.completed,
+	) ?? null;
+
+const buildCommandResult = (commandSession, offset = 0) => {
+	const normalizedOffset = normalizeCommandOffset(offset);
+	if (normalizedOffset > commandSession.nextOffset) {
+		throw new Error(
+			`Command offset ${normalizedOffset} is out of range for ${commandSession.commandId}`,
+		);
+	}
+
+	const chunks = commandSession.chunks.slice(normalizedOffset);
+	return {
+		commandId: commandSession.commandId,
+		command: commandSession.command,
+		cwd: commandSession.cwd,
+		status: commandSession.status,
+		completed: commandSession.completed,
+		stdout: chunks.map((chunk) => chunk.stdout).join(""),
+		stderr: chunks.map((chunk) => chunk.stderr).join(""),
+		nextOffset: commandSession.nextOffset,
+		exitCode: commandSession.exitCode,
+		startedAt: commandSession.startedAt,
+		updatedAt: commandSession.updatedAt,
+	};
+};
+
+const toCommandInfo = (commandSession) => ({
+	commandId: commandSession.commandId,
+	command: commandSession.command,
+	cwd: commandSession.cwd,
+	status: commandSession.status,
+	startedAt: commandSession.startedAt,
+	updatedAt: commandSession.updatedAt,
+	nextOffset: commandSession.nextOffset,
+	outputTail: commandSession.outputTail,
+});
+
+const createCommandSession = (command, cwd) => {
+	const startedAt = Date.now();
+	let resolveCompletion = () => {};
+	const completionPromise = new Promise((resolve) => {
+		resolveCompletion = resolve;
+	});
+
+	return {
+		commandId: crypto.randomUUID(),
+		command,
+		cwd,
+		status: "running",
+		completed: false,
+		startedAt,
+		updatedAt: startedAt,
+		stdoutBuffer: "",
+		stderrBuffer: "",
+		chunks: [],
+		nextOffset: 0,
+		outputTail: "",
+		exitCode: undefined,
+		waiters: new Set(),
+		abortController: new AbortController(),
+		timeoutId: null,
+		stopRequested: false,
+		timedOut: false,
+		completionPromise,
+		resolveCompletion,
+		runPromise: null,
+	};
+};
+
+export const executeCommandSession = async (payload = {}) => {
+	const command = String(payload.command ?? "");
+	if (!command.trim()) {
+		throw new Error("Command is required");
+	}
+
+	const runningCommand = getRunningCommandSession();
+	if (runningCommand) {
+		throw new Error(
+			`Sandbox runtime supports only one active command at a time. Stop or wait for ${runningCommand.commandId} first.`,
+		);
+	}
+
+	const containerInstance = await ensureContainer();
+	const commandSession = createCommandSession(
+		command,
+		normalizeCommandCwd(payload.cwd),
+	);
+	runtimeState.commands.set(commandSession.commandId, commandSession);
+
+	pushRuntimeLog(
+		"info",
+		`Started command ${commandSession.commandId}: ${commandSession.command}`,
+	);
+
+	const executedCommand = applyCommandEnv(command, payload.env);
+	if (
+		Number.isFinite(payload.commandTimeoutMs) &&
+		payload.commandTimeoutMs > 0
+	) {
+		commandSession.timeoutId = setTimeout(() => {
+			commandSession.timedOut = true;
+			appendCommandChunk(
+				commandSession,
+				"stderr",
+				`Command timed out after ${payload.commandTimeoutMs}ms\n`,
+			);
+			commandSession.abortController.abort();
+		}, Math.floor(payload.commandTimeoutMs));
+	}
+
+	commandSession.runPromise = containerInstance
+		.run(executedCommand, {
+			cwd: commandSession.cwd,
+			onStdout: (data) => appendCommandChunk(commandSession, "stdout", data),
+			onStderr: (data) => appendCommandChunk(commandSession, "stderr", data),
+			signal: commandSession.abortController.signal,
+		})
+		.then((result) => {
+			completeCommandSession(commandSession, {
+				exitCode: result?.exitCode ?? 0,
+				result,
+				stopRequested: commandSession.stopRequested,
+				timedOut: commandSession.timedOut,
+			});
+			return result;
+		})
+		.catch((error) => {
+			if (!commandSession.completed) {
+				const message =
+					error instanceof Error ? error.message : safeSerialize(error);
+				appendCommandChunk(commandSession, "stderr", `${message}\n`);
+				completeCommandSession(commandSession, {
+					exitCode: commandSession.stopRequested
+						? 130
+						: commandSession.timedOut
+							? 124
+							: 1,
+					stopRequested: commandSession.stopRequested,
+					timedOut: commandSession.timedOut,
+				});
+			}
+			return null;
+		});
+
+	await waitForCommandWindow(commandSession, 0, payload.waitTimeoutMs);
+	return buildCommandResult(commandSession, 0);
+};
+
+export const listenToCommandSession = async (payload = {}) => {
+	const commandSession = getCommandSessionOrThrow(payload.commandId);
+	const offset = normalizeCommandOffset(payload.offset);
+	await waitForCommandWindow(commandSession, offset, payload.waitTimeoutMs);
+	return buildCommandResult(commandSession, offset);
+};
+
+export const sendCommandSessionInput = async (payload = {}) => {
+	const commandSession = getCommandSessionOrThrow(payload.commandId);
+	if (commandSession.completed) {
+		throw new Error(`Command is not running: ${payload.commandId}`);
+	}
+
+	const activeCommandSession = getRunningCommandSession();
+	if (!activeCommandSession || activeCommandSession.commandId !== payload.commandId) {
+		throw new Error(
+			`Command ${payload.commandId} is not the active stdin target in the sandbox runtime`,
+		);
+	}
+
+	const containerInstance = await ensureContainer();
+	containerInstance.sendInput(
+		`${String(payload.input ?? "")}${payload.appendNewline ? "\n" : ""}`,
+	);
+	commandSession.updatedAt = Date.now();
+	return {
+		commandId: commandSession.commandId,
+		sent: true,
+	};
+};
+
+export const stopCommandSession = async (payload = {}) => {
+	const commandSession = getCommandSessionOrThrow(payload.commandId);
+	if (!commandSession.completed) {
+		commandSession.stopRequested = true;
+		commandSession.abortController.abort();
+		await Promise.race([
+			commandSession.completionPromise,
+			new Promise((resolve) =>
+				setTimeout(resolve, COMMAND_STOP_WAIT_TIMEOUT_MS),
+			),
+		]);
+
+		if (!commandSession.completed) {
+			completeCommandSession(commandSession, {
+				exitCode: 130,
+				stopRequested: true,
+			});
+		}
+	}
+
+	return {
+		commandId: commandSession.commandId,
+		stopped: true,
+	};
+};
+
+export const listCommandSessions = async () => ({
+	commands: Array.from(runtimeState.commands.values())
+		.filter((commandSession) => !commandSession.completed)
+		.sort((left, right) => right.startedAt - left.startedAt)
+		.map(toCommandInfo),
+});
+
+export const stopAllCommands = async () => {
+	const activeCommands = Array.from(runtimeState.commands.values()).filter(
+		(commandSession) => !commandSession.completed,
+	);
+
+	for (const commandSession of activeCommands) {
+		commandSession.stopRequested = true;
+		commandSession.abortController.abort();
+	}
+
+	await Promise.all(
+		activeCommands.map(async (commandSession) => {
+			await Promise.race([
+				commandSession.completionPromise,
+				new Promise((resolve) =>
+					setTimeout(resolve, COMMAND_STOP_WAIT_TIMEOUT_MS),
+				),
+			]);
+
+			if (!commandSession.completed) {
+				completeCommandSession(commandSession, {
+					exitCode: 130,
+					stopRequested: true,
+				});
+			}
+		}),
+	);
+
+	runtimeState.commands.clear();
+};
+
 export const resetRuntime = async () => {
+	await stopAllCommands();
 	await stopAllServers();
 	runtimeState.repls.clear();
 	runtimeState.container = await createContainerInstance();
@@ -381,6 +872,7 @@ export const resetRuntime = async () => {
 	vfsBoolState.workspaceMountLoaded = false;
 	runtimeState.installedPackages.clear();
 	runtimeState.servers.clear();
+	runtimeState.commands.clear();
 	runtimeState.runtimeLogs.length = 0;
 	pushRuntimeLog("info", "Sandbox runtime reset");
 };

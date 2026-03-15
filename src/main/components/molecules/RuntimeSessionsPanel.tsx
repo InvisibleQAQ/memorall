@@ -22,6 +22,7 @@ import {
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { serviceManager } from "@/services";
 import type {
+	SandboxCommandInfo,
 	SandboxServerInfo,
 	SandboxServerRequestResult,
 } from "@/services/sandbox-container";
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 type RuntimeSessionsVariant = "docked" | "compact";
 
 interface RuntimeSessionsSharedProps {
+	commands: SandboxCommandInfo[];
 	servers: SandboxServerInfo[];
 	activeWebSession?: ActiveWebSessionInfo;
 	onRefresh: () => void | Promise<void>;
@@ -105,6 +107,30 @@ const KindBadge: React.FC<{ kind: string }> = ({ kind }) => (
 	</span>
 );
 
+const COMMAND_STATUS_COLORS: Record<string, string> = {
+	running:
+		"bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+	completed:
+		"bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200",
+	failed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+	stopped:
+		"bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+};
+
+const CommandStatusBadge: React.FC<{ status: string; label: string }> = ({
+	status,
+	label,
+}) => (
+	<span
+		className={cn(
+			"text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0",
+			COMMAND_STATUS_COLORS[status] ?? "bg-muted text-muted-foreground",
+		)}
+	>
+		{label}
+	</span>
+);
+
 const formatSessionTime = (value?: number): string | null => {
 	if (!value) {
 		return null;
@@ -157,10 +183,15 @@ const ActionIconButton: React.FC<{
 
 const buildRuntimeSummaryLabel = (
 	t: ReturnType<typeof useTranslation>["t"],
+	commandCount: number,
 	serverCount: number,
 	hasWebSession: boolean,
 ): string => {
 	const parts: string[] = [];
+
+	if (commandCount > 0) {
+		parts.push(`${commandCount} ${t("sandboxPanel.commandsShort")}`);
+	}
 
 	if (serverCount > 0) {
 		parts.push(`${serverCount} ${t("sandboxPanel.serversShort")}`);
@@ -171,6 +202,22 @@ const buildRuntimeSummaryLabel = (
 	}
 
 	return parts.join(" · ") || t("sandboxPanel.title");
+};
+
+const getCommandStatusLabel = (
+	t: ReturnType<typeof useTranslation>["t"],
+	status: SandboxCommandInfo["status"],
+): string => {
+	switch (status) {
+		case "completed":
+			return t("sandboxPanel.commandCompleted");
+		case "failed":
+			return t("sandboxPanel.commandFailed");
+		case "stopped":
+			return t("sandboxPanel.commandStopped");
+		default:
+			return t("sandboxPanel.commandRunning");
+	}
 };
 
 // ---------------------------------------------------------------------------
@@ -557,6 +604,96 @@ const ServerCard: React.FC<{
 	);
 };
 
+const CommandCard: React.FC<{
+	command: SandboxCommandInfo;
+	onChanged: () => void | Promise<void>;
+}> = ({ command, onChanged }) => {
+	const { t } = useTranslation();
+	const [isStopping, setIsStopping] = useState(false);
+	const [actionError, setActionError] = useState<string | null>(null);
+
+	const handleStop = async () => {
+		setIsStopping(true);
+		setActionError(null);
+		try {
+			await serviceManager
+				.getSandboxContainerService()
+				.stopCommand({ commandId: command.commandId });
+			void onChanged();
+		} catch (error) {
+			setActionError(error instanceof Error ? error.message : String(error));
+		} finally {
+			setIsStopping(false);
+		}
+	};
+
+	const startedAt = formatSessionTime(command.startedAt);
+	const updatedAt = formatSessionTime(command.updatedAt);
+
+	return (
+		<div className="overflow-hidden rounded-md border border-border">
+			<div className="flex items-start gap-2 bg-muted/20 px-2 py-2">
+				<CommandStatusBadge
+					status={command.status}
+					label={getCommandStatusLabel(t, command.status)}
+				/>
+				<div className="min-w-0 flex-1">
+					<div
+						className="truncate font-mono text-xs text-foreground"
+						title={command.command}
+					>
+						{command.command}
+					</div>
+					<div
+						className="truncate text-[10px] text-muted-foreground"
+						title={command.cwd}
+					>
+						{`${t("sandboxPanel.commandCwd")}: ${command.cwd}`}
+					</div>
+				</div>
+				<ActionIconButton
+					title={t("sandboxPanel.stopCommand")}
+					onClick={() => void handleStop()}
+					disabled={isStopping}
+					variant="danger"
+					icon={
+						isStopping ? (
+							<Loader2 size={14} className="animate-spin" />
+						) : (
+							<Power size={14} />
+						)
+					}
+				/>
+			</div>
+			<div className="space-y-2 p-2">
+				<div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+					{startedAt ? (
+						<span>{`${t("sandboxPanel.commandStarted")}: ${startedAt}`}</span>
+					) : null}
+					{updatedAt ? (
+						<span>{`${t("sandboxPanel.commandLastActivity")}: ${updatedAt}`}</span>
+					) : null}
+				</div>
+				{command.outputTail ? (
+					<div className="space-y-1">
+						<div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+							{t("sandboxPanel.commandOutputPreview")}
+						</div>
+						<pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all rounded bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground">
+							{command.outputTail}
+						</pre>
+					</div>
+				) : null}
+				{actionError ? (
+					<div className="rounded border border-destructive/20 bg-destructive/5 px-2 py-1.5 text-[11px] text-destructive">
+						{actionError}
+					</div>
+				) : null}
+			</div>
+		</div>
+	);
+};
+
 const WebBrowserSessionCard: React.FC<{
 	session: ActiveWebSessionInfo;
 	onChanged: () => void | Promise<void>;
@@ -759,7 +896,7 @@ const RuntimeSessionsSectionList: React.FC<
 	RuntimeSessionsSharedProps & {
 		variant: RuntimeSessionsVariant;
 	}
-> = ({ servers, activeWebSession, onRefresh, variant }) => {
+> = ({ commands, servers, activeWebSession, onRefresh, variant }) => {
 	const { t } = useTranslation();
 	const hasWebSession = Boolean(activeWebSession?.isOpen);
 
@@ -774,6 +911,20 @@ const RuntimeSessionsSectionList: React.FC<
 						session={activeWebSession!}
 						onChanged={onRefresh}
 					/>
+				</div>
+			) : null}
+			{commands.length > 0 ? (
+				<div className="space-y-2">
+					<div className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+						{t("sandboxPanel.commandsTitle")}
+					</div>
+					{commands.map((command) => (
+						<CommandCard
+							key={command.commandId}
+							command={command}
+							onChanged={onRefresh}
+						/>
+					))}
 				</div>
 			) : null}
 			{servers.length > 0 ? (
@@ -796,6 +947,7 @@ const RuntimeSessionsSectionList: React.FC<
 };
 
 export const RuntimeSessionsPanel: React.FC = () => {
+	const commands = useRuntimeSessionsStore((state) => state.commands);
 	const servers = useRuntimeSessionsStore((state) => state.servers);
 	const activeWebSession = useRuntimeSessionsStore(
 		(state) => state.activeWebSession,
@@ -806,9 +958,7 @@ export const RuntimeSessionsPanel: React.FC = () => {
 	const { t } = useTranslation();
 	const [collapsed, setCollapsed] = useState(true);
 	const hasWebSession = Boolean(activeWebSession.isOpen);
-	const itemCount = servers.length + Number(hasWebSession);
-
-	if (itemCount === 0) return null;
+	const itemCount = commands.length + servers.length + Number(hasWebSession);
 
 	return (
 		<div
@@ -876,6 +1026,13 @@ export const RuntimeSessionsPanel: React.FC = () => {
 								label={t("sandboxPanel.webSessionShort")}
 							/>
 						) : null}
+						{commands.length > 0 ? (
+							<RuntimeSummaryTile
+								icon={<Terminal size={14} />}
+								value={commands.length}
+								label={t("sandboxPanel.commandsShort")}
+							/>
+						) : null}
 						{servers.length > 0 ? (
 							<RuntimeSummaryTile
 								icon={<Server size={14} />}
@@ -887,6 +1044,7 @@ export const RuntimeSessionsPanel: React.FC = () => {
 				) : (
 					<div className="flex-1 overflow-y-auto p-2">
 						<RuntimeSessionsSectionList
+							commands={commands}
 							servers={servers}
 							activeWebSession={activeWebSession}
 							onRefresh={refreshRuntimeSessions}
@@ -900,6 +1058,7 @@ export const RuntimeSessionsPanel: React.FC = () => {
 };
 
 export const RuntimeSessionsPopover: React.FC = () => {
+	const commands = useRuntimeSessionsStore((state) => state.commands);
 	const servers = useRuntimeSessionsStore((state) => state.servers);
 	const activeWebSession = useRuntimeSessionsStore(
 		(state) => state.activeWebSession,
@@ -909,9 +1068,10 @@ export const RuntimeSessionsPopover: React.FC = () => {
 	);
 	const { t } = useTranslation();
 	const hasWebSession = Boolean(activeWebSession.isOpen);
-	const itemCount = servers.length + Number(hasWebSession);
+	const itemCount = commands.length + servers.length + Number(hasWebSession);
 	const summaryLabel = buildRuntimeSummaryLabel(
 		t,
+		commands.length,
 		servers.length,
 		hasWebSession,
 	);
@@ -968,6 +1128,7 @@ export const RuntimeSessionsPopover: React.FC = () => {
 				</div>
 				<div className="max-h-[calc(100vh-8rem)] overflow-y-auto p-3">
 					<RuntimeSessionsSectionList
+						commands={commands}
 						servers={servers}
 						activeWebSession={activeWebSession}
 						onRefresh={refreshRuntimeSessions}

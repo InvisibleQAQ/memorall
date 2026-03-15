@@ -30,7 +30,7 @@ export type NodejsSandboxFeatureServices =
 
 const SYSTEM_PROMPT_INSTRUCTION = `
 # NODEJS SANDBOX FEATURE
-You have access to a lightweight browser-based sandbox container with virtual filesystem, npm package management (loaded from CDN), runtime execution, and HTTP resource access.
+You have access to a lightweight browser-based sandbox container with virtual filesystem, npm package management (loaded from CDN), runtime execution, shell-style command execution, and HTTP resource access.
 If user require to write code, execute code please use this actively to write and run code.
 
 ## IMPORTANT RUNTIME CONSTRAINTS
@@ -44,7 +44,7 @@ If user require to write code, execute code please use this actively to write an
   - \`/documents\`: read-only mirror from document storage.
   - \`/workspaces\`: read/write persistent workspace backed by document filesystem workspace storage.
   - \`/temp\`: in-memory temporary files only.
-- Always install packages with container_install_package BEFORE using require() in container_run_code.
+- Install dependencies with \`container_install_package\` or with \`npm install\` via \`container_execute_command\` before using them in \`container_run_code\`.
 - Use browser APIs (fetch, URL, TextEncoder, crypto, etc.) instead of Node.js built-ins.
 - Prefer container filesystem tools (container_write_file, container_read_file, etc.) for deterministic file operations and mutations.
 - Use \`/workspaces\` for files that should persist, and \`/temp\` for scratch artifacts.
@@ -53,6 +53,7 @@ If user require to write code, execute code please use this actively to write an
 ## WHEN TO USE THIS FEATURE
 - Use container tools when the user asks to:
   - run or test code in isolation
+  - run arbitrary CLI / shell commands inside the sandbox
   - install npm packages
   - create/update/read project files
   - fetch API/HTML resources from within the container runtime context
@@ -67,25 +68,36 @@ If user require to write code, execute code please use this actively to write an
 - Do not install packages unless required by the task.
 
 ## RECOMMENDED TOOL WORKFLOW
-1) Install dependencies only when needed:
+1) For arbitrary CLI / shell commands:
+- "container_execute_command"
+  - waits up to 10000ms by default
+  - if the result has completed=false, continue with "container_listen_command" using the returned commandId and nextOffset until completed=true
+2) Install dependencies only when needed:
 - "container_install_package"
-2) Execute and verify:
+- or \`npm install\` through "container_execute_command" when the task specifically needs command-based installation
+3) Execute and verify:
 - "container_run_code"
-3) Start a server:
+4) Start a server:
 - "container_start_server" with projectDir="/workspaces/<app-name>"
   - New project: add template="vite-react"|"next-pages"|"next-app"|"express" → scaffolds + installs + starts
   - Existing project: omit template → kind auto-detected from config files
-4) After modifying any file in a running server: **ALWAYS restart**:
+5) After modifying any file in a running server: **ALWAYS restart**:
 - "container_restart_server" with port + projectDir
   Call this immediately after every container_write_file / container_run_code that changes server files.
-5) Access a started server by URL:
+6) Access a started server by URL:
 - ALWAYS call "container_list_servers" first to get the actual server URL.
 - Pass the \`url\` field from the server list to "container_web_access_v2" — NEVER construct a URL manually.
 - NEVER use "localhost", "127.0.0.1", or any hardcoded hostname/port. The sandbox assigns its own URL; only the value from "container_list_servers" is correct.
 - "container_web_access_v2" with useIframe=true for web UI pages (Vite, Next.js, React SPA, Express HTML page)
 - "container_web_access_v2" with useIframe=false for API-style endpoints (JSON / plain text response)
-6) Diagnostics:
+7) Diagnostics:
 - "container_get_logs", then optionally "container_clear_logs"
+
+## COMMAND TOOL RULES
+- Only use command tools when you intentionally want to run commands inside the sandbox container.
+- Do NOT use raw command tools to host preview servers when the server lifecycle tools are available. Use "container_start_server", "container_restart_server", and related server tools for Vite, Next.js, Express, or any preview flow.
+- To continue a previously started command, use "container_listen_command".
+- If a command result returns completed=false, keep listening with "container_listen_command" instead of assuming the command is finished.
 
 ## SERVER SETUP GUIDE
 
@@ -140,6 +152,8 @@ export const NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT =
 	SYSTEM_PROMPT_INSTRUCTION.trim();
 export const NODEJS_SANDBOX_FEATURE_TOOLS = [
 	"container_run_code",
+	"container_execute_command",
+	"container_listen_command",
 	"container_install_package",
 	"container_start_server",
 	"container_restart_server",
@@ -150,7 +164,7 @@ export const NODEJS_SANDBOX_FEATURE_TOOLS = [
 	"container_web_access_v2",
 ] as const;
 export const NODEJS_SANDBOX_FEATURE_DESCRIPTION =
-	"Enable isolated Node.js container tools for runtime execution, npm, filesystem, server lifecycle, logs, and resource fetch.";
+	"Enable isolated Node.js container tools for runtime execution, command execution/listening, npm, filesystem, server lifecycle, logs, and resource fetch.";
 
 const buildRunningServersPrompt = async (
 	services: NodejsSandboxFeatureServices,
@@ -177,6 +191,31 @@ const buildRunningServersPrompt = async (
 	}
 };
 
+const buildRunningCommandsPrompt = async (
+	services: NodejsSandboxFeatureServices,
+): Promise<string> => {
+	const sandboxContainer = services?.sandboxContainer;
+	if (!sandboxContainer) {
+		return "";
+	}
+
+	try {
+		const result = await sandboxContainer.listCommands();
+		if (result.commands.length === 0) {
+			return "";
+		}
+
+		const lines = result.commands.map(
+			(command) =>
+				`- commandId=${command.commandId}, cwd=${command.cwd}, nextOffset=${command.nextOffset}, updatedAt=${new Date(command.updatedAt).toISOString()}, command=${command.command}`,
+		);
+
+		return `## CURRENT RUNNING SANDBOX COMMANDS\nIf you need more output from one of these commands, continue with container_listen_command using its commandId and the last nextOffset you have.\n${lines.join("\n")}\n`;
+	} catch {
+		return "";
+	}
+};
+
 const definition = defineStep<
 	NodejsSandboxFeatureInput,
 	NodejsSandboxFeatureOutput,
@@ -190,10 +229,11 @@ const definition = defineStep<
 				input.tools,
 				...NODEJS_SANDBOX_FEATURE_TOOLS,
 			);
+			const runningCommandsPrompt = await buildRunningCommandsPrompt(services);
 			const runningServersPrompt = await buildRunningServersPrompt(services);
 			const messages = GraphBase.chat.systemMessage(
 				input.messages,
-				`${NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT}\n\n${runningServersPrompt}`,
+				`${NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT}\n\n${runningCommandsPrompt}${runningServersPrompt}`,
 			);
 
 			return {

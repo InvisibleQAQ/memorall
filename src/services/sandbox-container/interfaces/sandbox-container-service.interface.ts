@@ -1,4 +1,5 @@
 import type {
+	SandboxCommandResult,
 	SandboxExecutionRequest,
 	SandboxExecutionResult,
 	SandboxFsExistsRequest,
@@ -14,7 +15,9 @@ import type {
 	SandboxGetLogsRequest,
 	SandboxGetLogsResult,
 	SandboxHealthResult,
+	SandboxListCommandsResult,
 	SandboxListServersResult,
+	SandboxListenCommandRequest,
 	SandboxNetworkFetchRequest,
 	SandboxNetworkFetchResult,
 	SandboxNpmInstallFromPackageJsonRequest,
@@ -24,6 +27,7 @@ import type {
 	SandboxRestoreSnapshotRequest,
 	SandboxRunFileRequest,
 	SandboxRunFileResult,
+	SandboxSendCommandInputRequest,
 	SandboxServerRequest,
 	SandboxServerRequestResult,
 	SandboxServerRenderUrlRequest,
@@ -31,6 +35,8 @@ import type {
 	SandboxSnapshotResult,
 	SandboxStartServerRequest,
 	SandboxStartServerResult,
+	SandboxExecuteCommandRequest,
+	SandboxStopCommandRequest,
 	SandboxStopServerRequest,
 	SandboxHandleSwRequestPayload,
 	SandboxHandleSwRequestResult,
@@ -56,6 +62,19 @@ export interface ISandboxContainerService {
 		request: SandboxExecutionRequest,
 	): Promise<SandboxExecutionResult>;
 	runFile(request: SandboxRunFileRequest): Promise<SandboxRunFileResult>;
+	executeCommand(
+		request: SandboxExecuteCommandRequest,
+	): Promise<SandboxCommandResult>;
+	listenCommand(
+		request: SandboxListenCommandRequest,
+	): Promise<SandboxCommandResult>;
+	sendCommandInput(
+		request: SandboxSendCommandInputRequest,
+	): Promise<{ commandId: string; sent: true }>;
+	stopCommand(
+		request: SandboxStopCommandRequest,
+	): Promise<{ commandId: string; stopped: true }>;
+	listCommands(): Promise<SandboxListCommandsResult>;
 	createRepl(): Promise<{ replId: string }>;
 	replEval(request: {
 		replId: string;

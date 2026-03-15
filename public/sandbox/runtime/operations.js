@@ -14,13 +14,17 @@ import {
 	vfsBoolState,
 } from "../core/sandbox-vfs.js";
 import {
+	DEFAULT_COMMAND_WAIT_TIMEOUT_MS,
 	DEFAULT_FETCH_TIMEOUT_MS,
 	DEFAULT_MAX_LOG_ENTRIES,
 	DEFAULT_TIMEOUT_MS,
 	MAX_RUNTIME_LOG_ENTRIES,
 	ensureContainer,
+	executeCommandSession,
 	executeCode,
 	fetchWithTimeout,
+	listCommandSessions,
+	listenToCommandSession,
 	normalizeClientUrl,
 	rememberInstalledPackages,
 	resetRuntime,
@@ -28,6 +32,8 @@ import {
 	runFile,
 	runtimeState,
 	safeSerialize,
+	sendCommandSessionInput,
+	stopCommandSession,
 	toServerInfo,
 	withTimeout,
 } from "./shared.js";
@@ -291,6 +297,24 @@ export const handleOperation = async (request) => {
 				payload.timeoutMs ?? DEFAULT_TIMEOUT_MS,
 				payload.maxLogEntries ?? DEFAULT_MAX_LOG_ENTRIES,
 			);
+		case "runtime.executeCommand":
+			return executeCommandSession({
+				...payload,
+				waitTimeoutMs:
+					payload.waitTimeoutMs ?? DEFAULT_COMMAND_WAIT_TIMEOUT_MS,
+			});
+		case "runtime.listenCommand":
+			return listenToCommandSession({
+				...payload,
+				waitTimeoutMs:
+					payload.waitTimeoutMs ?? DEFAULT_COMMAND_WAIT_TIMEOUT_MS,
+			});
+		case "runtime.sendCommandInput":
+			return sendCommandSessionInput(payload);
+		case "runtime.stopCommand":
+			return stopCommandSession(payload);
+		case "runtime.listCommands":
+			return listCommandSessions();
 		case "runtime.createRepl":
 			return handleCreateReplOperation(containerInstance);
 		case "runtime.replEval":

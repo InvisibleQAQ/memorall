@@ -33,6 +33,75 @@ export interface SandboxRunFileResult extends SandboxExecutionResult {
 	path: string;
 }
 
+export type SandboxCommandStatus =
+	| "running"
+	| "completed"
+	| "failed"
+	| "stopped";
+
+export interface SandboxExecuteCommandRequest {
+	command: string;
+	cwd?: string;
+	env?: Record<string, string>;
+	waitTimeoutMs?: number;
+	commandTimeoutMs?: number;
+}
+
+export interface SandboxListenCommandRequest {
+	commandId: string;
+	offset?: number;
+	waitTimeoutMs?: number;
+}
+
+export interface SandboxSendCommandInputRequest {
+	commandId: string;
+	input: string;
+	appendNewline?: boolean;
+}
+
+export interface SandboxStopCommandRequest {
+	commandId: string;
+}
+
+export interface SandboxCommandResult {
+	commandId: string;
+	command: string;
+	cwd: string;
+	status: SandboxCommandStatus;
+	completed: boolean;
+	stdout: string;
+	stderr: string;
+	nextOffset: number;
+	exitCode?: number;
+	startedAt: number;
+	updatedAt: number;
+}
+
+export interface SandboxCommandInfo {
+	commandId: string;
+	command: string;
+	cwd: string;
+	status: SandboxCommandStatus;
+	startedAt: number;
+	updatedAt: number;
+	nextOffset: number;
+	outputTail: string;
+}
+
+export interface SandboxListCommandsResult {
+	commands: SandboxCommandInfo[];
+}
+
+export interface SandboxSendCommandInputResult {
+	commandId: string;
+	sent: true;
+}
+
+export interface SandboxStopCommandResult {
+	commandId: string;
+	stopped: true;
+}
+
 export interface SandboxReplCreateResult {
 	replId: string;
 }
@@ -304,6 +373,11 @@ export type SandboxOperation =
 	| "health"
 	| "runtime.executeCode"
 	| "runtime.runFile"
+	| "runtime.executeCommand"
+	| "runtime.listenCommand"
+	| "runtime.sendCommandInput"
+	| "runtime.stopCommand"
+	| "runtime.listCommands"
 	| "runtime.createRepl"
 	| "runtime.replEval"
 	| "runtime.getLogs"
@@ -338,6 +412,11 @@ export type SandboxOperationPayloadMap = {
 	health: undefined;
 	"runtime.executeCode": SandboxExecutionRequest;
 	"runtime.runFile": SandboxRunFileRequest;
+	"runtime.executeCommand": SandboxExecuteCommandRequest;
+	"runtime.listenCommand": SandboxListenCommandRequest;
+	"runtime.sendCommandInput": SandboxSendCommandInputRequest;
+	"runtime.stopCommand": SandboxStopCommandRequest;
+	"runtime.listCommands": undefined;
 	"runtime.createRepl": undefined;
 	"runtime.replEval": SandboxReplEvalRequest;
 	"runtime.getLogs": SandboxGetLogsRequest;
@@ -373,6 +452,11 @@ export type SandboxOperationResultMap = {
 	health: SandboxHealthResult;
 	"runtime.executeCode": SandboxExecutionResult;
 	"runtime.runFile": SandboxRunFileResult;
+	"runtime.executeCommand": SandboxCommandResult;
+	"runtime.listenCommand": SandboxCommandResult;
+	"runtime.sendCommandInput": SandboxSendCommandInputResult;
+	"runtime.stopCommand": SandboxStopCommandResult;
+	"runtime.listCommands": SandboxListCommandsResult;
 	"runtime.createRepl": SandboxReplCreateResult;
 	"runtime.replEval": SandboxExecutionResult;
 	"runtime.getLogs": SandboxGetLogsResult;

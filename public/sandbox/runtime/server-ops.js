@@ -1,4 +1,3 @@
-import * as AlmostNodeLib from "../vendors/almostnode.bundle.js";
 import {
 	WORKSPACES_MOUNT_ROOT,
 	vfsBoolState,
@@ -14,6 +13,7 @@ import {
 import {
 	ensureContainer,
 	ensureServerBridgeReady,
+	loadAlmostNodeLib,
 	normalizeServerPath,
 	pushRuntimeLog,
 	rememberInstalledPackages,
@@ -152,10 +152,11 @@ const createViteServerState = async ({
 	hostname,
 	rootDir,
 }) => {
-	if (typeof AlmostNodeLib.ViteDevServer !== "function") {
+	const almostNodeLib = await loadAlmostNodeLib();
+	if (typeof almostNodeLib.ViteDevServer !== "function") {
 		throw new Error("ViteDevServer is not available in runtime bundle");
 	}
-	const viteServer = new AlmostNodeLib.ViteDevServer(containerInstance.vfs, {
+	const viteServer = new almostNodeLib.ViteDevServer(containerInstance.vfs, {
 		port,
 		hostname,
 		root: rootDir,
@@ -183,10 +184,11 @@ const createNextServerState = async ({
 	hostname,
 	rootDir,
 }) => {
-	if (typeof AlmostNodeLib.NextDevServer !== "function") {
+	const almostNodeLib = await loadAlmostNodeLib();
+	if (typeof almostNodeLib.NextDevServer !== "function") {
 		throw new Error("NextDevServer is not available in runtime bundle");
 	}
-	const nextServer = new AlmostNodeLib.NextDevServer(containerInstance.vfs, {
+	const nextServer = new almostNodeLib.NextDevServer(containerInstance.vfs, {
 		port,
 		hostname,
 		root: rootDir,
