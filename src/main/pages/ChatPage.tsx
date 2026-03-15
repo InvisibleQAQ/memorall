@@ -26,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { serviceManager } from "@/services";
 import { RuntimeSessionsPanel } from "@/main/components/molecules/RuntimeSessionsPanel";
-import { useRuntimeSessions } from "@/main/components/molecules/RuntimeSessionsContext";
+import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
@@ -40,13 +40,13 @@ export const ChatPage: React.FC = () => {
 		Array<{ id: string; name: string }>
 	>([]);
 	const { isOpen, open, close } = useAgentConfigStore();
-	const {
-		servers,
-		activeWebSession,
-		refresh: refreshRuntimeSessions,
-		hasRuntime,
-		isWideChatRuntimeRailVisible,
-	} = useRuntimeSessions();
+	const refreshRuntimeSessions = useRuntimeSessionsStore(
+		(state) => state.refresh,
+	);
+	const hasRuntime = useRuntimeSessionsStore((state) => state.hasRuntime());
+	const isWideViewport = useRuntimeSessionsStore(
+		(state) => state.isWideViewport,
+	);
 	const {
 		inputValue,
 		setInputValue,
@@ -174,6 +174,11 @@ export const ChatPage: React.FC = () => {
 		navigate("/llm");
 	};
 
+	const isPopupSurface =
+		typeof document !== "undefined" &&
+		document.documentElement.dataset.uiSurface === "popup";
+	const isWideChatRuntimeRailVisible = isWideViewport && !isPopupSurface;
+
 	if (!isInitialized) {
 		return <LoadingScreen />;
 	}
@@ -205,11 +210,7 @@ export const ChatPage: React.FC = () => {
 	return (
 		<div className="flex h-full bg-background">
 			{isWideChatRuntimeRailVisible && hasRuntime ? (
-				<RuntimeSessionsPanel
-					servers={servers}
-					activeWebSession={activeWebSession}
-					onRefresh={() => void refreshRuntimeSessions()}
-				/>
+				<RuntimeSessionsPanel />
 			) : null}
 			<div className="flex flex-col flex-1 min-w-0">
 				<Conversation className="flex-1 min-h-0">

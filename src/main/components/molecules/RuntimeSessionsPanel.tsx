@@ -19,6 +19,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/main/components/ui/popover";
+import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { serviceManager } from "@/services";
 import type {
 	SandboxServerInfo,
@@ -794,18 +795,17 @@ const RuntimeSessionsSectionList: React.FC<
 	);
 };
 
-// ---------------------------------------------------------------------------
-// RuntimeSessionsPanel (docked)
-// ---------------------------------------------------------------------------
-
-export const RuntimeSessionsPanel: React.FC<RuntimeSessionsSharedProps> = ({
-	servers,
-	activeWebSession,
-	onRefresh,
-}) => {
+export const RuntimeSessionsPanel: React.FC = () => {
+	const servers = useRuntimeSessionsStore((state) => state.servers);
+	const activeWebSession = useRuntimeSessionsStore(
+		(state) => state.activeWebSession,
+	);
+	const refreshRuntimeSessions = useRuntimeSessionsStore(
+		(state) => state.refresh,
+	);
 	const { t } = useTranslation();
 	const [collapsed, setCollapsed] = useState(true);
-	const hasWebSession = Boolean(activeWebSession?.isOpen);
+	const hasWebSession = Boolean(activeWebSession.isOpen);
 	const itemCount = servers.length + Number(hasWebSession);
 
 	if (itemCount === 0) return null;
@@ -848,7 +848,7 @@ export const RuntimeSessionsPanel: React.FC<RuntimeSessionsSharedProps> = ({
 								<button
 									type="button"
 									title={t("sandboxPanel.refresh")}
-									onClick={() => void onRefresh()}
+									onClick={() => void refreshRuntimeSessions()}
 									className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 								>
 									<RefreshCw size={14} />
@@ -889,7 +889,7 @@ export const RuntimeSessionsPanel: React.FC<RuntimeSessionsSharedProps> = ({
 						<RuntimeSessionsSectionList
 							servers={servers}
 							activeWebSession={activeWebSession}
-							onRefresh={onRefresh}
+							onRefresh={refreshRuntimeSessions}
 							variant="docked"
 						/>
 					</div>
@@ -899,17 +899,16 @@ export const RuntimeSessionsPanel: React.FC<RuntimeSessionsSharedProps> = ({
 	);
 };
 
-// ---------------------------------------------------------------------------
-// RuntimeSessionsPopover (compact)
-// ---------------------------------------------------------------------------
-
-export const RuntimeSessionsPopover: React.FC<
-	RuntimeSessionsSharedProps & {
-		onOpenChange?: (open: boolean) => void;
-	}
-> = ({ servers, activeWebSession, onRefresh, onOpenChange }) => {
+export const RuntimeSessionsPopover: React.FC = () => {
+	const servers = useRuntimeSessionsStore((state) => state.servers);
+	const activeWebSession = useRuntimeSessionsStore(
+		(state) => state.activeWebSession,
+	);
+	const refreshRuntimeSessions = useRuntimeSessionsStore(
+		(state) => state.refresh,
+	);
 	const { t } = useTranslation();
-	const hasWebSession = Boolean(activeWebSession?.isOpen);
+	const hasWebSession = Boolean(activeWebSession.isOpen);
 	const itemCount = servers.length + Number(hasWebSession);
 	const summaryLabel = buildRuntimeSummaryLabel(
 		t,
@@ -922,7 +921,13 @@ export const RuntimeSessionsPopover: React.FC<
 	}
 
 	return (
-		<Popover onOpenChange={onOpenChange}>
+		<Popover
+			onOpenChange={(open) => {
+				if (open) {
+					void refreshRuntimeSessions();
+				}
+			}}
+		>
 			<PopoverTrigger asChild>
 				<button
 					type="button"
@@ -955,7 +960,7 @@ export const RuntimeSessionsPopover: React.FC<
 					<button
 						type="button"
 						title={t("sandboxPanel.refresh")}
-						onClick={() => void onRefresh()}
+						onClick={() => void refreshRuntimeSessions()}
 						className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 					>
 						<RefreshCw size={14} />
@@ -965,7 +970,7 @@ export const RuntimeSessionsPopover: React.FC<
 					<RuntimeSessionsSectionList
 						servers={servers}
 						activeWebSession={activeWebSession}
-						onRefresh={onRefresh}
+						onRefresh={refreshRuntimeSessions}
 						variant="compact"
 					/>
 				</div>

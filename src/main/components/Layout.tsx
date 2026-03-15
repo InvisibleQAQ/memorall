@@ -29,11 +29,11 @@ import { useTranslation } from "react-i18next";
 import { ProcessMonitor } from "@/main/components/molecules/ProcessMonitor";
 import { openStandalonePage } from "@/utils/open-standalone";
 import { RuntimeSessionsPopover } from "@/main/components/molecules/RuntimeSessionsPanel";
-import {
-	RuntimeSessionsProvider,
-	useRuntimeSessions,
-} from "@/main/components/molecules/RuntimeSessionsContext";
 import { SettingPanel } from "@/main/components/molecules/SettingPanel";
+import {
+	RUNTIME_PANEL_BREAKPOINT,
+	useRuntimeSessionsStore,
+} from "@/main/stores/runtime-sessions";
 
 interface LayoutProps {
 	children: React.ReactNode;
@@ -64,23 +64,22 @@ const debugItems = [
 ];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-	return (
-		<RuntimeSessionsProvider>
-			<LayoutShell>{children}</LayoutShell>
-		</RuntimeSessionsProvider>
-	);
+	return <LayoutShell>{children}</LayoutShell>;
 };
 
 const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 	const location = useLocation();
 	const { t } = useTranslation();
-	const {
-		servers,
-		activeWebSession,
-		hasRuntime,
-		refresh: refreshRuntimeSessions,
-		isWideChatRuntimeRailVisible,
-	} = useRuntimeSessions();
+	const hasRuntime = useRuntimeSessionsStore((state) => state.hasRuntime());
+	const isWideViewport = useRuntimeSessionsStore(
+		(state) => state.isWideViewport,
+	);
+	const refreshRuntimeSessions = useRuntimeSessionsStore(
+		(state) => state.refresh,
+	);
+	const setIsWideViewport = useRuntimeSessionsStore(
+		(state) => state.setIsWideViewport,
+	);
 
 	// State for model reload progress
 	const [isReloadingModel, setIsReloadingModel] = React.useState(false);
@@ -97,14 +96,30 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 	const isDebugSelected = debugItems.some(
 		(item) => item.path === location.pathname,
 	);
-	const isPopupSurface = document.documentElement.dataset.uiSurface === "popup";
+	const isPopupSurface =
+		typeof document !== "undefined" &&
+		document.documentElement.dataset.uiSurface === "popup";
+	const isWideChatRuntimeRailVisible =
+		location.pathname === "/" && !isPopupSurface && isWideViewport;
 	const showRuntimeTrigger = hasRuntime && !isWideChatRuntimeRailVisible;
 
-	const handleRuntimePopoverOpen = (open: boolean) => {
-		if (open) {
-			void refreshRuntimeSessions();
+	React.useEffect(() => {
+		void refreshRuntimeSessions();
+	}, [refreshRuntimeSessions]);
+
+	React.useEffect(() => {
+		if (typeof window === "undefined") {
+			return;
 		}
-	};
+
+		const updateViewport = () => {
+			setIsWideViewport(window.innerWidth >= RUNTIME_PANEL_BREAKPOINT);
+		};
+
+		updateViewport();
+		window.addEventListener("resize", updateViewport);
+		return () => window.removeEventListener("resize", updateViewport);
+	}, [setIsWideViewport]);
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
@@ -213,14 +228,7 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 									</Tooltip>
 								</TooltipProvider>
 							)}
-							{showRuntimeTrigger ? (
-								<RuntimeSessionsPopover
-									servers={servers}
-									activeWebSession={activeWebSession}
-									onRefresh={() => void refreshRuntimeSessions()}
-									onOpenChange={handleRuntimePopoverOpen}
-								/>
-							) : null}
+							{showRuntimeTrigger ? <RuntimeSessionsPopover /> : null}
 							<ProcessMonitor />
 							<SettingPanel
 								setIsReloadingModel={setIsReloadingModel}
