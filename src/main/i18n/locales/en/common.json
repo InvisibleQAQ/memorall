@@ -1,6 +1,7 @@
 {
 	"navigation": {
 		"chat": "Chat",
+		"agents": "Agents",
 		"models": "Models",
 		"knowledgeGraph": "Knowledge Graph",
 		"flowBuilder": "Flow Builder",
@@ -290,6 +291,7 @@
 	},
 	"copilot": {
 		"error": "useCopilot must be used within a CopilotProvider",
+		"menuTitle": "Help & Tour",
 		"steps": {
 			"welcome": {
 				"title": "Welcome to Memorall! 🧠",

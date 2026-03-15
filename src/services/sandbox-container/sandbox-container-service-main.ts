@@ -120,7 +120,10 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 	private workspaceMountSynced = false;
 	private fsChangeUnsubscribe: (() => void) | null = null;
 	private workspaceHotReloadTimer: number | null = null;
-	private readonly pendingWorkspaceChanges = new Map<string, FilesystemChangeEvent>();
+	private readonly pendingWorkspaceChanges = new Map<
+		string,
+		FilesystemChangeEvent
+	>();
 	/** Relay channel: port1 stays here, port2 is transferred to the SW as mainPort. */
 	private swRelayChannel: MessageChannel | null = null;
 	/** Last known active service worker — used to re-init relay if SW restarts. */

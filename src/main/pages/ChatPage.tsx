@@ -1,11 +1,5 @@
 "use client";
-import React, {
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-	useMemo,
-} from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -31,25 +25,28 @@ import {
 } from "@/main/modules/llm/components";
 import { cn } from "@/lib/utils";
 import { serviceManager } from "@/services";
-import type { SandboxServerInfo } from "@/services/sandbox-container";
-import type { ActiveWebSessionInfo } from "@/services/web-browser";
 import { RuntimeSessionsPanel } from "@/main/components/molecules/RuntimeSessionsPanel";
+import { useRuntimeSessions } from "@/main/components/molecules/RuntimeSessionsContext";
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
 	const { model, isInitialized, handleModelLoaded } = useCurrentModel();
 	const { downloadProgress, quickDownloadModel } = useDownloadProgress();
-	const [sandboxServers, setSandboxServers] = useState<SandboxServerInfo[]>([]);
-	const [activeWebSession, setActiveWebSession] =
-		useState<ActiveWebSessionInfo>({
-			isOpen: false,
-		});
-	const [topics, setTopics] = useState<Array<{ id: string; name: string }>>([]);
-	const [isLoadingTopics, setIsLoadingTopics] = useState(false);
-	const [agentFlows, setAgentFlows] = useState<
+	const [topics, setTopics] = React.useState<
+		Array<{ id: string; name: string }>
+	>([]);
+	const [isLoadingTopics, setIsLoadingTopics] = React.useState(false);
+	const [agentFlows, setAgentFlows] = React.useState<
 		Array<{ id: string; name: string }>
 	>([]);
 	const { isOpen, open, close } = useAgentConfigStore();
+	const {
+		servers,
+		activeWebSession,
+		refresh: refreshRuntimeSessions,
+		hasRuntime,
+		isWideChatRuntimeRailVisible,
+	} = useRuntimeSessions();
 	const {
 		inputValue,
 		setInputValue,
@@ -69,34 +66,15 @@ export const ChatPage: React.FC = () => {
 		deleteMessages,
 	} = useChat(model);
 
-	// Sandbox servers panel
-	const fetchServers = useCallback(async () => {
-		try {
-			const [serversResult, webSessionInfo] = await Promise.all([
-				serviceManager.getSandboxContainerService().listServers(),
-				serviceManager.getWebBrowserService().getActiveSessionInfo(),
-			]);
-			setSandboxServers(serversResult.servers);
-			setActiveWebSession(webSessionInfo);
-		} catch {
-			// sandbox may not be ready yet — ignore
-		}
-	}, []);
-
-	// Fetch on mount
-	useEffect(() => {
-		void fetchServers();
-	}, [fetchServers]);
-
 	// Refresh after each assistant response finishes
 	const wasInProgressRef = useRef(false);
 	useEffect(() => {
 		const isNow = inProgressMessage != null;
 		if (!isNow && wasInProgressRef.current) {
-			void fetchServers();
+			void refreshRuntimeSessions();
 		}
 		wasInProgressRef.current = isNow;
-	}, [inProgressMessage, fetchServers]);
+	}, [inProgressMessage, refreshRuntimeSessions]);
 
 	// Memoized message groups - split into completed and latest
 	const { groups, inprogressGroup, completedGroupsIds } = useMemo(() => {
@@ -226,11 +204,13 @@ export const ChatPage: React.FC = () => {
 
 	return (
 		<div className="flex h-full bg-background">
-			<RuntimeSessionsPanel
-				servers={sandboxServers}
-				activeWebSession={activeWebSession}
-				onRefresh={() => void fetchServers()}
-			/>
+			{isWideChatRuntimeRailVisible && hasRuntime ? (
+				<RuntimeSessionsPanel
+					servers={servers}
+					activeWebSession={activeWebSession}
+					onRefresh={() => void refreshRuntimeSessions()}
+				/>
+			) : null}
 			<div className="flex flex-col flex-1 min-w-0">
 				<Conversation className="flex-1 min-h-0">
 					<ConversationContent className="max-w-3xl mx-auto space-y-6">

@@ -49,10 +49,7 @@ const isFilesystemChangeEvent = (
 		return false;
 	}
 	const event = value as Record<string, unknown>;
-	if (
-		event.scope !== "documents" &&
-		event.scope !== "workspace"
-	) {
+	if (event.scope !== "documents" && event.scope !== "workspace") {
 		return false;
 	}
 	if (typeof event.operation !== "string") {
@@ -64,9 +61,8 @@ const isFilesystemChangeEvent = (
 export class DocumentFileSystem {
 	private static instance: DocumentFileSystem;
 	private initialized = false;
-	private changeListeners: Set<
-		(change: FilesystemChangeEvent | null) => void
-	> = new Set();
+	private changeListeners: Set<(change: FilesystemChangeEvent | null) => void> =
+		new Set();
 	private messageListenerRegistered = false;
 	private readonly contextId =
 		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -150,7 +146,9 @@ export class DocumentFileSystem {
 	 *
 	 * No relay needed in MV3 - the message reaches all contexts directly!
 	 */
-	private notifyFilesystemChanged(change: FilesystemChangeEvent | null = null): void {
+	private notifyFilesystemChanged(
+		change: FilesystemChangeEvent | null = null,
+	): void {
 		// CRITICAL: Invalidate cache FIRST before notifying anyone
 		this.invalidateCache();
 

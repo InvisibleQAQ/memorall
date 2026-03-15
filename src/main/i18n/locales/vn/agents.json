@@ -1,0 +1,100 @@
+{
+	"title": "Tác nhân",
+	"subtitle": "Tùy chỉnh các preset tác nhân dựng sẵn trong một không gian làm việc riêng cho metadata, prompt, công cụ và tính năng.",
+	"actions": {
+		"create": "Tạo tác nhân",
+		"save": "Lưu thay đổi",
+		"saving": "Đang lưu...",
+		"revert": "Hoàn tác",
+		"resetConfig": "Đặt lại cấu hình",
+		"delete": "Xóa",
+		"cancel": "Hủy"
+	},
+	"workspace": {
+		"saved": "Mọi thay đổi đã được lưu",
+		"unsaved": "Có thay đổi chưa lưu",
+		"configSaved": "Cấu hình đã lưu",
+		"configUnsaved": "Bản nháp cấu hình"
+	},
+	"state": {
+		"loading": "Đang tải preset tác nhân..."
+	},
+	"list": {
+		"eyebrow": "Danh mục",
+		"title": "Preset tác nhân",
+		"subtitle": "Mở một preset để xem nhanh và tùy chỉnh hành vi của nó.",
+		"searchPlaceholder": "Tìm theo tên hoặc mô tả preset",
+		"count": "{{count}} preset",
+		"caption": "Thư viện preset",
+		"emptyTitle": "Chưa có preset tác nhân",
+		"emptyDescription": "Tạo preset đầu tiên để bắt đầu tùy chỉnh một tác nhân riêng.",
+		"noDescription": "Chưa có mô tả",
+		"updatedAt": "Cập nhật {{value}}",
+		"updatedAtUnknown": "Không có thời gian cập nhật",
+		"selected": "Đã chọn"
+	},
+	"overview": {
+		"eyebrow": "Tổng quan",
+		"subtitle": "Chỉnh metadata của preset ở đây, sau đó tinh chỉnh cấu hình đầy đủ ở panel bên phải.",
+		"saved": "Đã lưu",
+		"metadataDraft": "Nháp metadata",
+		"configDraft": "Nháp cấu hình",
+		"untitled": "Tác nhân chưa đặt tên",
+		"emptyTitle": "Hãy chọn một preset tác nhân",
+		"emptyDescription": "Chọn một preset trong danh mục để xem metadata và tóm tắt cấu hình.",
+		"metadataTitle": "Metadata preset",
+		"metadataDescription": "Các trường này mô tả và tổ chức preset mà không thay đổi cấu trúc workflow nền."
+	},
+	"fields": {
+		"name": "Tên preset",
+		"namePlaceholder": "Đặt tên rõ ràng, dễ quét cho preset này",
+		"description": "Mô tả",
+		"descriptionPlaceholder": "Mô tả vai trò, đối tượng hoặc ràng buộc vận hành của preset",
+		"status": "Trạng thái"
+	},
+	"status": {
+		"active": "Hoạt động",
+		"draft": "Nháp"
+	},
+	"summary": {
+		"graph": "Đồ thị cơ sở",
+		"features": "Tính năng đang bật",
+		"featuresValue": "{{count}} đang bật",
+		"tools": "Công cụ đang bật",
+		"toolsValue": "{{count}} công cụ",
+		"lastUpdated": "Cập nhật lần cuối",
+		"lastUpdatedUnknown": "Không rõ",
+		"promptsTitle": "Dấu chân prompt",
+		"promptsDescription": "Độ dài prompt giúp bạn nhận ra override nhanh mà không cần đọc toàn bộ nội dung.",
+		"systemPrompt": "System prompt",
+		"systemPromptValue": "{{count}} ký tự · {{mode}}",
+		"contextPrompt": "Context prompt",
+		"contextPromptValue": "{{count}} ký tự · {{mode}}",
+		"default": "Mặc định",
+		"custom": "Tùy chỉnh",
+		"unknownGraph": "Đồ thị không xác định"
+	},
+	"config": {
+		"eyebrow": "Cấu hình",
+		"title": "Cấu hình preset",
+		"subtitle": "Điều chỉnh prompt, loại graph, tính năng và quyền dùng công cụ."
+	},
+	"createDialog": {
+		"title": "Tạo preset tác nhân",
+		"description": "Đặt tên cho preset mới. Nó sẽ bắt đầu từ cấu hình dựng sẵn mặc định để bạn có thể tùy chỉnh ngay.",
+		"namePlaceholder": "Tên preset tác nhân"
+	},
+	"delete": {
+		"title": "Xóa preset tác nhân",
+		"description": "Xóa \"{{name}}\"? Thao tác này sẽ xóa preset cùng cấu hình đã lưu.",
+		"lastPresetHint": "Cần giữ lại ít nhất một preset."
+	},
+	"reset": {
+		"title": "Đặt lại cấu hình preset",
+		"description": "Thao tác này sẽ đặt prompt, graph, tính năng và công cụ về cấu hình mặc định của preset."
+	},
+	"confirm": {
+		"discardSelection": "Bạn có thay đổi chưa lưu. Bỏ chúng và chuyển preset?",
+		"leavePage": "Bạn có thay đổi chưa lưu trên preset này. Rời trang và bỏ các thay đổi đó?"
+	}
+}

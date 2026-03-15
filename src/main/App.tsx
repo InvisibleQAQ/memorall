@@ -46,6 +46,7 @@ import { AppLoadingScreen } from "./components/atoms/AppLoadingScreen";
 import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
 import { DocumentLibraryPage } from "./pages/DocumentLibraryPage";
 import { ActivityTimelinePage } from "./pages/ActivityTimelinePage";
+import { AgentsPage } from "./pages/AgentsPage";
 import { AuthPage } from "./pages/AuthPage";
 import { FlowBuilderPage } from "./pages/FlowBuilderPage/FlowBuilderPage";
 import { registerAllEditors } from "@/main/modules/documents/editors";
@@ -362,6 +363,7 @@ const App: React.FC = () => {
 												path="/documents"
 												element={<DocumentLibraryPage />}
 											/>
+											<Route path="/agents" element={<AgentsPage />} />
 											<Route
 												path="/activities"
 												element={<ActivityTimelinePage />}

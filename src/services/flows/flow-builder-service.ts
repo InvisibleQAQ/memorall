@@ -15,6 +15,7 @@ import type {
 	FlowDefinition,
 	FlowDraftInput,
 	FlowLayout,
+	FlowMetadataUpdateInput,
 	FlowStateInput,
 	FlowStepInput,
 } from "./interfaces/flow-builder";
@@ -435,6 +436,35 @@ export class FlowBuilderService {
 		});
 	}
 
+	async updateFlowMetadata(
+		flowId: string,
+		updates: FlowMetadataUpdateInput,
+	): Promise<Flow> {
+		const normalizedName = updates.name.trim();
+		if (!normalizedName) {
+			throw new Error("Flow name is required");
+		}
+
+		return this.databaseService.transaction(async ({ db, schema }) => {
+			const [updatedFlow] = await db
+				.update(schema.flows)
+				.set({
+					name: normalizedName,
+					description: updates.description?.trim() || null,
+					status: updates.status,
+					updatedAt: new Date(),
+				})
+				.where(eq(schema.flows.id, flowId))
+				.returning();
+
+			if (!updatedFlow) {
+				throw new Error(`Flow with ID ${flowId} not found`);
+			}
+
+			return updatedFlow;
+		});
+	}
+
 	async deleteFlowConnection(
 		flowId: string,
 		sourceStepId: string,
@@ -603,6 +633,11 @@ export class FlowBuilderService {
 						metadata: {},
 					});
 				}
+
+				await db
+					.update(schema.flows)
+					.set({ updatedAt: new Date() })
+					.where(eq(schema.flows.id, flow.id));
 				return;
 			}
 
@@ -638,6 +673,11 @@ export class FlowBuilderService {
 					metadata: {},
 				});
 			}
+
+			await db
+				.update(schema.flows)
+				.set({ updatedAt: new Date() })
+				.where(eq(schema.flows.id, flow.id));
 		});
 	}
 
@@ -749,6 +789,11 @@ export class FlowBuilderService {
 					metadata,
 				});
 			}
+
+			await db
+				.update(schema.flows)
+				.set({ updatedAt: new Date() })
+				.where(eq(schema.flows.id, flow.id));
 		});
 	}
 }

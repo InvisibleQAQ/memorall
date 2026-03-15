@@ -1,0 +1,100 @@
+{
+	"title": "Agents",
+	"subtitle": "Customize your predefined agent presets with a dedicated workspace for metadata, prompts, tools, and feature toggles.",
+	"actions": {
+		"create": "Create agent",
+		"save": "Save changes",
+		"saving": "Saving...",
+		"revert": "Revert",
+		"resetConfig": "Reset config",
+		"delete": "Delete",
+		"cancel": "Cancel"
+	},
+	"workspace": {
+		"saved": "All changes saved",
+		"unsaved": "Unsaved changes",
+		"configSaved": "Config saved",
+		"configUnsaved": "Config draft"
+	},
+	"state": {
+		"loading": "Loading agent presets..."
+	},
+	"list": {
+		"eyebrow": "Directory",
+		"title": "Agent presets",
+		"subtitle": "Browse and open a preset to inspect or customize its behavior.",
+		"searchPlaceholder": "Search by preset name or description",
+		"count": "{{count}} presets",
+		"caption": "Preset library",
+		"emptyTitle": "No agent presets found",
+		"emptyDescription": "Create your first preset to start customizing a dedicated agent.",
+		"noDescription": "No description yet",
+		"updatedAt": "Updated {{value}}",
+		"updatedAtUnknown": "Updated date unavailable",
+		"selected": "Selected"
+	},
+	"overview": {
+		"eyebrow": "Overview",
+		"subtitle": "Edit the preset identity here, then refine the full execution config in the panel on the right.",
+		"saved": "Saved",
+		"metadataDraft": "Metadata draft",
+		"configDraft": "Config draft",
+		"untitled": "Untitled agent",
+		"emptyTitle": "Select an agent preset",
+		"emptyDescription": "Choose a preset from the directory to review its metadata and configuration summary.",
+		"metadataTitle": "Preset metadata",
+		"metadataDescription": "These fields describe and organize the preset without changing the underlying workflow structure."
+	},
+	"fields": {
+		"name": "Preset name",
+		"namePlaceholder": "Give this preset a clear, scannable name",
+		"description": "Description",
+		"descriptionPlaceholder": "Describe the role, audience, or operating constraints for this preset",
+		"status": "Status"
+	},
+	"status": {
+		"active": "Active",
+		"draft": "Draft"
+	},
+	"summary": {
+		"graph": "Base graph",
+		"features": "Enabled features",
+		"featuresValue": "{{count}} enabled",
+		"tools": "Enabled tools",
+		"toolsValue": "{{count}} tools",
+		"lastUpdated": "Last updated",
+		"lastUpdatedUnknown": "Unknown",
+		"promptsTitle": "Prompt footprint",
+		"promptsDescription": "Prompt lengths help you spot overrides quickly without reading the full text.",
+		"systemPrompt": "System prompt",
+		"systemPromptValue": "{{count}} characters · {{mode}}",
+		"contextPrompt": "Context prompt",
+		"contextPromptValue": "{{count}} characters · {{mode}}",
+		"default": "Default",
+		"custom": "Custom",
+		"unknownGraph": "Unknown graph"
+	},
+	"config": {
+		"eyebrow": "Configuration",
+		"title": "Preset configuration",
+		"subtitle": "Adjust prompts, graph type, feature toggles, and tool availability."
+	},
+	"createDialog": {
+		"title": "Create agent preset",
+		"description": "Name the new preset. It will start from the default predefined configuration so you can customize it immediately.",
+		"namePlaceholder": "Agent preset name"
+	},
+	"delete": {
+		"title": "Delete agent preset",
+		"description": "Delete \"{{name}}\"? This removes the preset and its saved configuration.",
+		"lastPresetHint": "At least one preset must remain available."
+	},
+	"reset": {
+		"title": "Reset preset configuration",
+		"description": "This resets prompts, graph selection, features, and tools back to the default configuration for this preset."
+	},
+	"confirm": {
+		"discardSelection": "You have unsaved changes. Discard them and switch presets?",
+		"leavePage": "You have unsaved changes on this agent preset. Leave this page and discard them?"
+	}
+}

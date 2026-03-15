@@ -15,12 +15,20 @@ interface CreateFlowDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onCreateFlow: (name: string) => void;
+	title?: string;
+	description?: string;
+	namePlaceholder?: string;
+	submitLabel?: string;
 }
 
 export const CreateFlowDialog: React.FC<CreateFlowDialogProps> = ({
 	open,
 	onOpenChange,
 	onCreateFlow,
+	title,
+	description,
+	namePlaceholder,
+	submitLabel,
 }) => {
 	const { t } = useTranslation();
 	const [newFlowName, setNewFlowName] = React.useState("");
@@ -42,19 +50,26 @@ export const CreateFlowDialog: React.FC<CreateFlowDialogProps> = ({
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>
-						{t("flowBuilder.createFlow.title", { defaultValue: "Create Flow" })}
+						{title ??
+							t("flowBuilder.createFlow.title", {
+								defaultValue: "Create Flow",
+							})}
 					</DialogTitle>
 					<DialogDescription>
-						{t("flowBuilder.createFlow.description", {
-							defaultValue: "Name your flow to start building.",
-						})}
+						{description ??
+							t("flowBuilder.createFlow.description", {
+								defaultValue: "Name your flow to start building.",
+							})}
 					</DialogDescription>
 				</DialogHeader>
 				<Input
 					autoFocus
-					placeholder={t("flowBuilder.createFlow.namePlaceholder", {
-						defaultValue: "Flow name",
-					})}
+					placeholder={
+						namePlaceholder ??
+						t("flowBuilder.createFlow.namePlaceholder", {
+							defaultValue: "Flow name",
+						})
+					}
 					value={newFlowName}
 					onChange={(event) => setNewFlowName(event.target.value)}
 					onKeyDown={(event) => {
@@ -68,7 +83,7 @@ export const CreateFlowDialog: React.FC<CreateFlowDialogProps> = ({
 						{t("buttons.cancel", { defaultValue: "Cancel" })}
 					</Button>
 					<Button onClick={handleCreate}>
-						{t("buttons.save", { defaultValue: "Save" })}
+						{submitLabel ?? t("buttons.save", { defaultValue: "Save" })}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

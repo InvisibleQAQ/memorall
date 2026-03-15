@@ -20,6 +20,7 @@ import {
 	LogOut,
 	User as UserIcon,
 	ExternalLink,
+	HelpCircle,
 } from "lucide-react";
 import {
 	Tooltip,
@@ -50,7 +51,7 @@ import {
 } from "@/config/embedding-models";
 import { clearAllEmbeddings } from "@/services/database/utils/embedding-cleanup";
 import { serviceManager } from "@/services";
-import { CopilotTrigger } from "@/main/components/atoms/copilot";
+import { useCopilot } from "@/main/components/atoms/copilot";
 import { getCurrentEmbeddingSize } from "@/utils/embedding-size-config";
 import { ProcessMonitor } from "@/main/components/molecules/ProcessMonitor";
 import { VietnamFlag, USFlag } from "@/main/components/atoms/flags";
@@ -58,6 +59,11 @@ import { useAuth, useAuthActions } from "@/main/modules/supabase";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { logError, logInfo } from "@/utils/logger";
 import { openStandalonePage } from "@/utils/open-standalone";
+import { RuntimeSessionsPopover } from "@/main/components/molecules/RuntimeSessionsPanel";
+import {
+	RuntimeSessionsProvider,
+	useRuntimeSessions,
+} from "@/main/components/molecules/RuntimeSessionsContext";
 
 import manifest from "../../../manifest.json";
 
@@ -68,6 +74,7 @@ interface LayoutProps {
 const navigation = [
 	{ nameKey: "navigation.chat", path: "/", icon: MessageCircle },
 	{ nameKey: "navigation.documents", path: "/documents", icon: FileText },
+	{ nameKey: "navigation.agents", path: "/agents", icon: BrainCircuit },
 	{
 		nameKey: "navigation.knowledgeGraph",
 		path: "/knowledge-graph",
@@ -89,6 +96,14 @@ const debugItems = [
 ];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
+	return (
+		<RuntimeSessionsProvider>
+			<LayoutShell>{children}</LayoutShell>
+		</RuntimeSessionsProvider>
+	);
+};
+
+const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { theme, setTheme } = useTheme();
@@ -101,6 +116,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 	const { t } = useTranslation();
 	const { user } = useAuth();
 	const { signOut } = useAuthActions();
+	const { state: copilotState, startTour } = useCopilot();
+	const {
+		servers,
+		activeWebSession,
+		hasRuntime,
+		refresh: refreshRuntimeSessions,
+		isWideChatRuntimeRailVisible,
+	} = useRuntimeSessions();
 
 	// State for model reload progress
 	const [isReloadingModel, setIsReloadingModel] = React.useState(false);
@@ -117,6 +140,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 	const isDebugSelected = debugItems.some(
 		(item) => item.path === location.pathname,
 	);
+	const isPopupSurface = document.documentElement.dataset.uiSurface === "popup";
+	const showRuntimeTrigger = hasRuntime && !isWideChatRuntimeRailVisible;
 
 	const getThemeIcon = () => {
 		switch (theme) {
@@ -223,6 +248,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 		}
 	};
 
+	const handleRuntimePopoverOpen = (open: boolean) => {
+		if (open) {
+			void refreshRuntimeSessions();
+		}
+	};
+
 	return (
 		<div className="h-screen bg-background flex flex-col">
 			<nav className="border-b flex-shrink-0 bg-muted/20">
@@ -307,9 +338,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 							</TooltipProvider>
 						</div>
 
-						{/* Process Monitor, Settings and Copilot */}
+						{/* Process Monitor and Settings */}
 						<div className="flex items-center gap-2">
-							{document.documentElement.dataset.uiSurface === "popup" && (
+							{isPopupSurface && (
 								<TooltipProvider>
 									<Tooltip>
 										<TooltipTrigger asChild>
@@ -330,7 +361,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 									</Tooltip>
 								</TooltipProvider>
 							)}
-							<CopilotTrigger />
+							{showRuntimeTrigger ? (
+								<RuntimeSessionsPopover
+									servers={servers}
+									activeWebSession={activeWebSession}
+									onRefresh={() => void refreshRuntimeSessions()}
+									onOpenChange={handleRuntimePopoverOpen}
+								/>
+							) : null}
 							<ProcessMonitor />
 							<TooltipProvider>
 								{/* Settings Menu */}
@@ -369,6 +407,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 										)}
 
 										<DropdownMenuSeparator />
+
+										{!copilotState.isActive ? (
+											<>
+												<DropdownMenuItem
+													onClick={() => startTour()}
+													className="flex items-center gap-2 cursor-pointer"
+												>
+													<HelpCircle size={14} />
+													<span>{t("copilot.menuTitle")}</span>
+												</DropdownMenuItem>
+												<DropdownMenuSeparator />
+											</>
+										) : null}
 
 										{/* Language Section */}
 										<DropdownMenuLabel className="flex items-center gap-2">

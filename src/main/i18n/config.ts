@@ -9,6 +9,7 @@ import LanguageDetector from "i18next-browser-languagedetector";
 
 // Import translation files
 import enCommon from "./locales/en/common.json";
+import enAgents from "./locales/en/agents.json";
 import enChat from "./locales/en/chat.json";
 import enDocuments from "./locales/en/documents.json";
 import enKnowledge from "./locales/en/knowledge.json";
@@ -22,6 +23,7 @@ import enActivity from "./locales/en/activity.json";
 import enAuth from "./locales/en/auth.json";
 
 import vnCommon from "./locales/vn/common.json";
+import vnAgents from "./locales/vn/agents.json";
 import vnChat from "./locales/vn/chat.json";
 import vnDocuments from "./locales/vn/documents.json";
 import vnKnowledge from "./locales/vn/knowledge.json";
@@ -38,6 +40,7 @@ import vnAuth from "./locales/vn/auth.json";
 const resources = {
 	en: {
 		common: enCommon,
+		agents: enAgents,
 		chat: enChat,
 		documents: enDocuments,
 		knowledge: enKnowledge,
@@ -52,6 +55,7 @@ const resources = {
 	},
 	vn: {
 		common: vnCommon,
+		agents: vnAgents,
 		chat: vnChat,
 		documents: vnDocuments,
 		knowledge: vnKnowledge,

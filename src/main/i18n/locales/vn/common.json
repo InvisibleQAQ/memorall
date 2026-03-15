@@ -1,6 +1,7 @@
 {
 	"navigation": {
 		"chat": "Trò chuyện",
+		"agents": "Tác nhân",
 		"models": "Mô hình",
 		"knowledgeGraph": "Đồ thị tri thức",
 		"flowBuilder": "Trình xây dựng luồng",
@@ -289,6 +290,7 @@
 	},
 	"copilot": {
 		"error": "useCopilot phải được sử dụng trong CopilotProvider",
+		"menuTitle": "Trợ giúp & hướng dẫn",
 		"steps": {
 			"welcome": {
 				"title": "Chào mừng đến với Memorall! 🧠",

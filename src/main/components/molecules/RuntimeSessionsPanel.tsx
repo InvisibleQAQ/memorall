@@ -2,18 +2,23 @@ import React, { useEffect, useRef, useState } from "react";
 import {
 	ChevronLeft,
 	ChevronRight,
-	Loader2,
 	ExternalLink,
 	Globe,
+	Loader2,
 	Power,
 	RefreshCw,
+	RotateCw,
 	Send,
 	Server,
 	Terminal,
-	RotateCw,
 	X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/main/components/ui/popover";
 import { serviceManager } from "@/services";
 import type {
 	SandboxServerInfo,
@@ -21,6 +26,14 @@ import type {
 } from "@/services/sandbox-container";
 import type { ActiveWebSessionInfo } from "@/services/web-browser";
 import { cn } from "@/lib/utils";
+
+type RuntimeSessionsVariant = "docked" | "compact";
+
+interface RuntimeSessionsSharedProps {
+	servers: SandboxServerInfo[];
+	activeWebSession?: ActiveWebSessionInfo;
+	onRefresh: () => void | Promise<void>;
+}
 
 // ---------------------------------------------------------------------------
 // SW relay types (mirrors WebAccess.tsx)
@@ -141,11 +154,32 @@ const ActionIconButton: React.FC<{
 	</button>
 );
 
+const buildRuntimeSummaryLabel = (
+	t: ReturnType<typeof useTranslation>["t"],
+	serverCount: number,
+	hasWebSession: boolean,
+): string => {
+	const parts: string[] = [];
+
+	if (serverCount > 0) {
+		parts.push(`${serverCount} ${t("sandboxPanel.serversShort")}`);
+	}
+
+	if (hasWebSession) {
+		parts.push(`1 ${t("sandboxPanel.webSessionShort")}`);
+	}
+
+	return parts.join(" · ") || t("sandboxPanel.title");
+};
+
 // ---------------------------------------------------------------------------
 // BrowserViewer
 // ---------------------------------------------------------------------------
 
-const BrowserViewer: React.FC<{ server: SandboxServerInfo }> = ({ server }) => {
+const BrowserViewer: React.FC<{
+	server: SandboxServerInfo;
+	variant: RuntimeSessionsVariant;
+}> = ({ server, variant }) => {
 	const { t } = useTranslation();
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const [renderUrl, setRenderUrl] = useState<string | null>(null);
@@ -221,15 +255,15 @@ const BrowserViewer: React.FC<{ server: SandboxServerInfo }> = ({ server }) => {
 
 	return (
 		<div>
-			<div className="flex items-center gap-1 px-2 py-1 border-t border-border/60 bg-muted/20">
-				<span className="flex-1 text-[10px] font-mono text-muted-foreground truncate">
+			<div className="flex items-center gap-1 border-t border-border/60 bg-muted/20 px-2 py-1">
+				<span className="flex-1 truncate text-[10px] font-mono text-muted-foreground">
 					{renderUrl}
 				</span>
 				<button
 					type="button"
 					title={t("sandboxPanel.openInTab")}
 					onClick={openInTab}
-					className="p-1 text-muted-foreground hover:text-foreground shrink-0"
+					className="shrink-0 p-1 text-muted-foreground hover:text-foreground"
 				>
 					<ExternalLink size={11} />
 				</button>
@@ -238,7 +272,10 @@ const BrowserViewer: React.FC<{ server: SandboxServerInfo }> = ({ server }) => {
 				ref={iframeRef}
 				src={renderUrl}
 				title={`Sandbox server :${server.port}`}
-				className="w-full h-[360px] bg-white"
+				className={cn(
+					"w-full bg-white",
+					variant === "compact" ? "h-[220px]" : "h-[360px]",
+				)}
 				sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts"
 				referrerPolicy="no-referrer"
 			/>
@@ -301,13 +338,12 @@ const PostmanTool: React.FC<{ server: SandboxServerInfo }> = ({ server }) => {
 	})();
 
 	return (
-		<div className="p-2 space-y-2">
-			{/* Method + path + send */}
+		<div className="space-y-2 p-2">
 			<div className="flex gap-1">
 				<select
 					value={method}
 					onChange={(e) => setMethod(e.target.value as HttpMethod)}
-					className="text-xs bg-background border border-border rounded px-1 py-1 focus:outline-none shrink-0"
+					className="shrink-0 rounded border border-border bg-background px-1 py-1 text-xs focus:outline-none"
 				>
 					{HTTP_METHODS.map((m) => (
 						<option key={m} value={m}>
@@ -321,60 +357,57 @@ const PostmanTool: React.FC<{ server: SandboxServerInfo }> = ({ server }) => {
 					onChange={(e) => setPath(e.target.value)}
 					onKeyDown={(e) => e.key === "Enter" && void handleSend()}
 					placeholder={t("sandboxPanel.pathPlaceholder")}
-					className="flex-1 text-xs bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring font-mono min-w-0"
+					className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-ring"
 				/>
 				<button
 					type="button"
 					onClick={() => void handleSend()}
 					disabled={loading}
 					title={t("sandboxPanel.send")}
-					className="p-1.5 bg-primary text-primary-foreground rounded disabled:opacity-50 shrink-0"
+					className="shrink-0 rounded bg-primary p-1.5 text-primary-foreground disabled:opacity-50"
 				>
 					<Send size={11} />
 				</button>
 			</div>
 
-			{/* Body */}
 			{hasBody && (
 				<textarea
 					value={body}
 					onChange={(e) => setBody(e.target.value)}
 					placeholder={t("sandboxPanel.bodyPlaceholder")}
 					rows={3}
-					className="w-full text-xs font-mono bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+					className="w-full resize-none rounded border border-border bg-background px-2 py-1 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-ring"
 				/>
 			)}
 
-			{/* Error */}
-			{error && (
-				<div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded p-2 break-words">
+			{error ? (
+				<div className="break-words rounded border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
 					{error}
 				</div>
-			)}
+			) : null}
 
-			{/* Response */}
-			{response && (
+			{response ? (
 				<div className="space-y-1">
 					<div className="flex items-center gap-2">
 						<span
 							className={cn(
-								"text-[10px] font-semibold px-1.5 py-0.5 rounded border",
+								"rounded border px-1.5 py-0.5 text-[10px] font-semibold",
 								response.ok
-									? "text-green-700 bg-green-50 border-green-300 dark:text-green-300 dark:bg-green-900/20 dark:border-green-800"
-									: "text-red-700 bg-red-50 border-red-300 dark:text-red-300 dark:bg-red-900/20 dark:border-red-800",
+									? "border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300"
+									: "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300",
 							)}
 						>
 							{response.status}
 						</span>
-						<span className="text-[10px] text-muted-foreground font-mono truncate">
+						<span className="truncate font-mono text-[10px] text-muted-foreground">
 							{response.contentType}
 						</span>
 					</div>
-					<pre className="text-[10px] font-mono bg-muted rounded p-2 max-h-48 overflow-auto whitespace-pre-wrap break-all">
+					<pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-muted p-2 font-mono text-[10px]">
 						{formattedBody}
 					</pre>
 				</div>
-			)}
+			) : null}
 		</div>
 	);
 };
@@ -387,8 +420,9 @@ type ActiveView = "browser" | "postman" | null;
 
 const ServerCard: React.FC<{
 	server: SandboxServerInfo;
-	onChanged: () => void;
-}> = ({ server, onChanged }) => {
+	onChanged: () => void | Promise<void>;
+	variant: RuntimeSessionsVariant;
+}> = ({ server, onChanged, variant }) => {
 	const { t } = useTranslation();
 	const [activeView, setActiveView] = useState<ActiveView>(null);
 	const [isRestarting, setIsRestarting] = useState(false);
@@ -412,7 +446,7 @@ const ServerCard: React.FC<{
 				rootDir: server.rootDir,
 				autoInstall: false,
 			});
-			onChanged();
+			void onChanged();
 		} catch (error) {
 			setActionError(error instanceof Error ? error.message : String(error));
 		} finally {
@@ -427,7 +461,7 @@ const ServerCard: React.FC<{
 			await serviceManager
 				.getSandboxContainerService()
 				.stopServer({ port: server.port });
-			onChanged();
+			void onChanged();
 		} catch (error) {
 			setActionError(error instanceof Error ? error.message : String(error));
 		} finally {
@@ -436,20 +470,20 @@ const ServerCard: React.FC<{
 	};
 
 	return (
-		<div className="border border-border rounded-md overflow-hidden">
-			<div className="flex items-center gap-1.5 px-2 py-1.5 bg-muted/20">
+		<div className="overflow-hidden rounded-md border border-border">
+			<div className="flex items-center gap-1.5 bg-muted/20 px-2 py-1.5">
 				<KindBadge kind={server.kind} />
 				<span className="text-xs font-mono text-muted-foreground">
 					:{server.port}
 				</span>
-				{server.rootDir && (
+				{server.rootDir ? (
 					<span
-						className="text-[10px] text-muted-foreground truncate flex-1"
+						className="flex-1 truncate text-[10px] text-muted-foreground"
 						title={server.rootDir}
 					>
 						{server.rootDir}
 					</span>
-				)}
+				) : null}
 				<div className="ml-auto flex gap-1">
 					<ActionIconButton
 						title={t("sandboxPanel.openInTab")}
@@ -489,7 +523,7 @@ const ServerCard: React.FC<{
 							"inline-flex min-h-8 min-w-8 items-center justify-center rounded-md border border-transparent transition-colors",
 							activeView === "browser"
 								? "bg-primary text-primary-foreground shadow-sm"
-								: "text-muted-foreground hover:text-foreground hover:bg-muted/80 hover:border-border",
+								: "text-muted-foreground hover:border-border hover:bg-muted/80 hover:text-foreground",
 						)}
 					>
 						<Globe size={14} />
@@ -502,7 +536,7 @@ const ServerCard: React.FC<{
 							"inline-flex min-h-8 min-w-8 items-center justify-center rounded-md border border-transparent transition-colors",
 							activeView === "postman"
 								? "bg-primary text-primary-foreground shadow-sm"
-								: "text-muted-foreground hover:text-foreground hover:bg-muted/80 hover:border-border",
+								: "text-muted-foreground hover:border-border hover:bg-muted/80 hover:text-foreground",
 						)}
 					>
 						<Terminal size={14} />
@@ -514,15 +548,17 @@ const ServerCard: React.FC<{
 					{actionError}
 				</div>
 			) : null}
-			{activeView === "browser" && <BrowserViewer server={server} />}
-			{activeView === "postman" && <PostmanTool server={server} />}
+			{activeView === "browser" ? (
+				<BrowserViewer server={server} variant={variant} />
+			) : null}
+			{activeView === "postman" ? <PostmanTool server={server} /> : null}
 		</div>
 	);
 };
 
 const WebBrowserSessionCard: React.FC<{
 	session: ActiveWebSessionInfo;
-	onChanged: () => void;
+	onChanged: () => void | Promise<void>;
 }> = ({ session, onChanged }) => {
 	const { t } = useTranslation();
 	const [urlInput, setUrlInput] = useState(session.currentUrl ?? "");
@@ -531,13 +567,13 @@ const WebBrowserSessionCard: React.FC<{
 	const [isClosing, setIsClosing] = useState(false);
 	const [actionError, setActionError] = useState<string | null>(null);
 
-	if (!session.isOpen) {
-		return null;
-	}
-
 	useEffect(() => {
 		setUrlInput(session.currentUrl ?? "");
 	}, [session.currentUrl]);
+
+	if (!session.isOpen) {
+		return null;
+	}
 
 	const openInTab = () => {
 		if (!session.currentUrl) {
@@ -560,7 +596,7 @@ const WebBrowserSessionCard: React.FC<{
 			await serviceManager
 				.getWebBrowserService()
 				.refreshSession({ sessionId: session.sessionId });
-			onChanged();
+			void onChanged();
 		} catch (error) {
 			setActionError(error instanceof Error ? error.message : String(error));
 		} finally {
@@ -581,7 +617,7 @@ const WebBrowserSessionCard: React.FC<{
 				persist: true,
 				mode: session.mode,
 			});
-			onChanged();
+			void onChanged();
 		} catch (error) {
 			setActionError(error instanceof Error ? error.message : String(error));
 		} finally {
@@ -599,7 +635,7 @@ const WebBrowserSessionCard: React.FC<{
 			await serviceManager
 				.getWebBrowserService()
 				.closeSession(session.sessionId);
-			onChanged();
+			void onChanged();
 		} catch (error) {
 			setActionError(error instanceof Error ? error.message : String(error));
 		} finally {
@@ -608,13 +644,13 @@ const WebBrowserSessionCard: React.FC<{
 	};
 
 	return (
-		<div className="border border-border rounded-md overflow-hidden">
-			<div className="flex items-center gap-2 px-2 py-2 bg-muted/20">
+		<div className="overflow-hidden rounded-md border border-border">
+			<div className="flex items-center gap-2 bg-muted/20 px-2 py-2">
 				<span className="inline-flex items-center gap-1 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
 					<Globe size={11} />
 					{session.mode || "iframe"}
 				</span>
-				<span className="text-xs font-medium truncate flex-1">
+				<span className="flex-1 truncate text-xs font-medium">
 					{session.title || t("sandboxPanel.webSessionUntitled")}
 				</span>
 				<div className="flex items-center gap-1">
@@ -659,7 +695,7 @@ const WebBrowserSessionCard: React.FC<{
 						onChange={(e) => setUrlInput(e.target.value)}
 						onKeyDown={(e) => e.key === "Enter" && void handleNavigate()}
 						placeholder={t("sandboxPanel.urlPlaceholder")}
-						className="flex-1 min-w-0 rounded border border-border bg-background px-2 py-1 text-[11px] font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+						className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
 					/>
 					<button
 						type="button"
@@ -680,7 +716,7 @@ const WebBrowserSessionCard: React.FC<{
 						{t("sandboxPanel.webSessionCurrentUrl")}
 					</div>
 					<div
-						className="break-all rounded bg-muted px-2 py-1 text-[11px] font-mono text-muted-foreground"
+						className="break-all rounded bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground"
 						title={session.currentUrl}
 					>
 						{session.currentUrl}
@@ -692,7 +728,7 @@ const WebBrowserSessionCard: React.FC<{
 							{t("sandboxPanel.webSessionRequestedUrl")}
 						</div>
 						<div
-							className="break-all rounded bg-muted/60 px-2 py-1 text-[11px] font-mono text-muted-foreground"
+							className="break-all rounded bg-muted/60 px-2 py-1 font-mono text-[11px] text-muted-foreground"
 							title={session.requestedUrl}
 						>
 							{session.requestedUrl}
@@ -718,25 +754,59 @@ const WebBrowserSessionCard: React.FC<{
 	);
 };
 
+const RuntimeSessionsSectionList: React.FC<
+	RuntimeSessionsSharedProps & {
+		variant: RuntimeSessionsVariant;
+	}
+> = ({ servers, activeWebSession, onRefresh, variant }) => {
+	const { t } = useTranslation();
+	const hasWebSession = Boolean(activeWebSession?.isOpen);
+
+	return (
+		<div className="space-y-3">
+			{hasWebSession ? (
+				<div className="space-y-2">
+					<div className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+						{t("sandboxPanel.webSessionTitle")}
+					</div>
+					<WebBrowserSessionCard
+						session={activeWebSession!}
+						onChanged={onRefresh}
+					/>
+				</div>
+			) : null}
+			{servers.length > 0 ? (
+				<div className="space-y-2">
+					<div className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+						{t("sandboxPanel.serversTitle")}
+					</div>
+					{servers.map((server) => (
+						<ServerCard
+							key={server.port}
+							server={server}
+							onChanged={onRefresh}
+							variant={variant}
+						/>
+					))}
+				</div>
+			) : null}
+		</div>
+	);
+};
+
 // ---------------------------------------------------------------------------
-// RuntimeSessionsPanel (public)
+// RuntimeSessionsPanel (docked)
 // ---------------------------------------------------------------------------
 
-interface RuntimeSessionsPanelProps {
-	servers: SandboxServerInfo[];
-	activeWebSession?: ActiveWebSessionInfo;
-	onRefresh: () => void;
-}
-
-export const RuntimeSessionsPanel: React.FC<RuntimeSessionsPanelProps> = ({
+export const RuntimeSessionsPanel: React.FC<RuntimeSessionsSharedProps> = ({
 	servers,
 	activeWebSession,
 	onRefresh,
 }) => {
 	const { t } = useTranslation();
-	const [collapsed, setCollapsed] = useState(false);
+	const [collapsed, setCollapsed] = useState(true);
 	const hasWebSession = Boolean(activeWebSession?.isOpen);
-	const itemCount = servers.length + (hasWebSession ? 1 : 0);
+	const itemCount = servers.length + Number(hasWebSession);
 
 	if (itemCount === 0) return null;
 
@@ -748,10 +818,9 @@ export const RuntimeSessionsPanel: React.FC<RuntimeSessionsPanelProps> = ({
 			)}
 		>
 			<div className="flex h-full flex-col border-r bg-background">
-				{/* Header */}
 				<div
 					className={cn(
-						"border-b bg-muted/20 flex-shrink-0",
+						"flex-shrink-0 border-b bg-muted/20",
 						collapsed
 							? "flex items-center justify-center px-2 py-2"
 							: "flex items-center gap-2 px-2 py-2",
@@ -769,9 +838,9 @@ export const RuntimeSessionsPanel: React.FC<RuntimeSessionsPanelProps> = ({
 						</button>
 					) : (
 						<>
-							<div className="flex items-center gap-2 text-muted-foreground min-w-0">
+							<div className="min-w-0 flex items-center gap-2 text-muted-foreground">
 								<Server size={13} className="shrink-0" />
-								<span className="text-xs font-semibold text-foreground truncate">
+								<span className="truncate text-xs font-semibold text-foreground">
 									{t("sandboxPanel.title")}
 								</span>
 							</div>
@@ -779,7 +848,7 @@ export const RuntimeSessionsPanel: React.FC<RuntimeSessionsPanelProps> = ({
 								<button
 									type="button"
 									title={t("sandboxPanel.refresh")}
-									onClick={onRefresh}
+									onClick={() => void onRefresh()}
 									className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 								>
 									<RefreshCw size={14} />
@@ -815,39 +884,92 @@ export const RuntimeSessionsPanel: React.FC<RuntimeSessionsPanelProps> = ({
 							/>
 						) : null}
 					</div>
-				) : null}
-
-				{/* Server list */}
-				{!collapsed && (
-					<div className="flex-1 overflow-y-auto p-2 space-y-2">
-						{hasWebSession ? (
-							<div className="space-y-2">
-								<div className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-									{t("sandboxPanel.webSessionTitle")}
-								</div>
-								<WebBrowserSessionCard
-									session={activeWebSession!}
-									onChanged={onRefresh}
-								/>
-							</div>
-						) : null}
-						{servers.length > 0 ? (
-							<div className="space-y-2">
-								<div className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-									{t("sandboxPanel.serversTitle")}
-								</div>
-								{servers.map((server) => (
-									<ServerCard
-										key={server.port}
-										server={server}
-										onChanged={onRefresh}
-									/>
-								))}
-							</div>
-						) : null}
+				) : (
+					<div className="flex-1 overflow-y-auto p-2">
+						<RuntimeSessionsSectionList
+							servers={servers}
+							activeWebSession={activeWebSession}
+							onRefresh={onRefresh}
+							variant="docked"
+						/>
 					</div>
 				)}
 			</div>
 		</div>
+	);
+};
+
+// ---------------------------------------------------------------------------
+// RuntimeSessionsPopover (compact)
+// ---------------------------------------------------------------------------
+
+export const RuntimeSessionsPopover: React.FC<
+	RuntimeSessionsSharedProps & {
+		onOpenChange?: (open: boolean) => void;
+	}
+> = ({ servers, activeWebSession, onRefresh, onOpenChange }) => {
+	const { t } = useTranslation();
+	const hasWebSession = Boolean(activeWebSession?.isOpen);
+	const itemCount = servers.length + Number(hasWebSession);
+	const summaryLabel = buildRuntimeSummaryLabel(
+		t,
+		servers.length,
+		hasWebSession,
+	);
+
+	if (itemCount === 0) {
+		return null;
+	}
+
+	return (
+		<Popover onOpenChange={onOpenChange}>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					title={summaryLabel}
+					aria-label={summaryLabel}
+					className="relative inline-flex h-9 w-9 items-center justify-center rounded-md p-2 text-sm font-medium text-muted-foreground transition-all duration-200 ease-in-out hover:bg-muted/50 hover:text-foreground"
+				>
+					<Server size={16} />
+					<span className="absolute -right-1 -top-1 inline-flex p-1 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground min-w-4 h-4">
+						{itemCount > 9 ? "9+" : itemCount}
+					</span>
+				</button>
+			</PopoverTrigger>
+			<PopoverContent
+				align="end"
+				className="w-[min(92vw,420px)] max-h-[calc(100vh-4rem)] overflow-hidden rounded-xl border border-border/70 bg-background p-0 shadow-xl"
+			>
+				<div className="flex items-center gap-2 border-b bg-muted/20 px-3 py-2.5">
+					<div className="min-w-0 flex flex-1 items-center gap-2">
+						<Server size={14} className="shrink-0 text-muted-foreground" />
+						<div className="min-w-0">
+							<p className="truncate text-sm font-semibold text-foreground">
+								{t("sandboxPanel.title")}
+							</p>
+							<p className="truncate text-[11px] text-muted-foreground">
+								{summaryLabel}
+							</p>
+						</div>
+					</div>
+					<button
+						type="button"
+						title={t("sandboxPanel.refresh")}
+						onClick={() => void onRefresh()}
+						className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					>
+						<RefreshCw size={14} />
+					</button>
+				</div>
+				<div className="max-h-[calc(100vh-8rem)] overflow-y-auto p-3">
+					<RuntimeSessionsSectionList
+						servers={servers}
+						activeWebSession={activeWebSession}
+						onRefresh={onRefresh}
+						variant="compact"
+					/>
+				</div>
+			</PopoverContent>
+		</Popover>
 	);
 };
