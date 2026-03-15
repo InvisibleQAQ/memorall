@@ -4,9 +4,13 @@ import {
 	vfsBoolState,
 	mountedDocumentFiles,
 	mountedDocumentDirectories,
+	materializedMountedFiles,
 	mountedWorkspaceFiles,
 	mountedWorkspaceDirectories,
+	materializedWorkspaceFiles,
 	pendingWorkspaceOps,
+	materializeMountedDocumentFileContent,
+	materializeMountedWorkspaceFileContent,
 	normalizePath,
 	dirname,
 	toCanonicalMountedPath,
@@ -71,6 +75,7 @@ export const handleFsOperation = async (operation, payload, c) => {
 		case "fs.mountDocuments": {
 			mountedDocumentFiles.clear();
 			mountedDocumentDirectories.clear();
+			materializedMountedFiles.clear();
 			mountedDocumentDirectories.add(DOCUMENTS_MOUNT_ROOT);
 			vfsBoolState.documentsMountLoaded = true;
 
@@ -93,6 +98,7 @@ export const handleFsOperation = async (operation, payload, c) => {
 		case "fs.mountWorkspace": {
 			mountedWorkspaceFiles.clear();
 			mountedWorkspaceDirectories.clear();
+			materializedWorkspaceFiles.clear();
 			mountedWorkspaceDirectories.add(WORKSPACES_MOUNT_ROOT);
 			pendingWorkspaceOps.length = 0;
 			vfsBoolState.workspaceMountLoaded = true;
@@ -116,13 +122,13 @@ export const handleFsOperation = async (operation, payload, c) => {
 		case "fs.materializeDocumentFile": {
 			const p = normalizePath(payload.path);
 			if (!mountedDocumentFiles.has(p)) throw new Error(`Mounted file not found: ${p}`);
-			await c.vfs.writeFile(p, payload.content);
+			materializeMountedDocumentFileContent(p, payload.content);
 			return { path: p, materialized: true };
 		}
 		case "fs.materializeWorkspaceFile": {
 			const p = toCanonicalMountedPath(payload.path);
 			if (!mountedWorkspaceFiles.has(p)) throw new Error(`Mounted file not found: ${p}`);
-			await c.vfs.writeFile(p, payload.content);
+			materializeMountedWorkspaceFileContent(p, payload.content);
 			return { path: p, materialized: true };
 		}
 		case "fs.flushWorkspaceWrites": {

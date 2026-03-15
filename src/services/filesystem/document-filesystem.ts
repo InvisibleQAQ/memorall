@@ -24,10 +24,49 @@ export interface SandboxDocumentsMountSnapshot {
 	files: string[];
 }
 
+export type FilesystemChangeScope = "documents" | "workspace";
+
+export type FilesystemChangeOperation =
+	| "write"
+	| "delete"
+	| "rename"
+	| "mkdir"
+	| "create"
+	| "move";
+
+export interface FilesystemChangeEvent {
+	scope: FilesystemChangeScope;
+	operation: FilesystemChangeOperation;
+	path?: string;
+	oldPath?: string;
+	newPath?: string;
+}
+
+const isFilesystemChangeEvent = (
+	value: unknown,
+): value is FilesystemChangeEvent => {
+	if (!value || typeof value !== "object") {
+		return false;
+	}
+	const event = value as Record<string, unknown>;
+	if (
+		event.scope !== "documents" &&
+		event.scope !== "workspace"
+	) {
+		return false;
+	}
+	if (typeof event.operation !== "string") {
+		return false;
+	}
+	return true;
+};
+
 export class DocumentFileSystem {
 	private static instance: DocumentFileSystem;
 	private initialized = false;
-	private changeListeners: Set<() => void> = new Set();
+	private changeListeners: Set<
+		(change: FilesystemChangeEvent | null) => void
+	> = new Set();
 	private messageListenerRegistered = false;
 	private readonly contextId =
 		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -83,7 +122,9 @@ export class DocumentFileSystem {
 	 * Register a listener for filesystem changes from other contexts
 	 * This allows UI components to react to changes made in other contexts (offscreen, popup, etc.)
 	 */
-	onFilesystemChanged(callback: () => void): () => void {
+	onFilesystemChanged(
+		callback: (change: FilesystemChangeEvent | null) => void,
+	): () => void {
 		this.changeListeners.add(callback);
 		logInfo(
 			`📝 Registered filesystem change listener (total: ${this.changeListeners.size})`,
@@ -109,7 +150,7 @@ export class DocumentFileSystem {
 	 *
 	 * No relay needed in MV3 - the message reaches all contexts directly!
 	 */
-	private notifyFilesystemChanged(): void {
+	private notifyFilesystemChanged(change: FilesystemChangeEvent | null = null): void {
 		// CRITICAL: Invalidate cache FIRST before notifying anyone
 		this.invalidateCache();
 
@@ -121,7 +162,7 @@ export class DocumentFileSystem {
 			// Immediately notify local listeners
 			this.changeListeners.forEach((callback) => {
 				try {
-					callback();
+					callback(change);
 				} catch (error) {
 					logError("Error in local filesystem change listener:", error);
 				}
@@ -138,6 +179,7 @@ export class DocumentFileSystem {
 					typeof crypto.randomUUID === "function"
 						? crypto.randomUUID()
 						: `evt-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+				change,
 				relayedByBackground: false,
 			};
 
@@ -163,7 +205,7 @@ export class DocumentFileSystem {
 			// Still notify local listeners even if broadcasting fails
 			this.changeListeners.forEach((callback) => {
 				try {
-					callback();
+					callback(change);
 				} catch (callbackError) {
 					logError("Error in local filesystem change listener:", callbackError);
 				}
@@ -224,6 +266,10 @@ export class DocumentFileSystem {
 				"eventId" in message && typeof message.eventId === "string"
 					? message.eventId
 					: null;
+			const change =
+				"change" in message && isFilesystemChangeEvent(message.change)
+					? message.change
+					: null;
 
 			if (eventId && this.processedFilesystemEventIds.has(eventId)) {
 				logDebug(`Ignoring duplicate FILESYSTEM_CHANGED event: ${eventId}`);
@@ -261,7 +307,7 @@ export class DocumentFileSystem {
 			let notifiedCount = 0;
 			this.changeListeners.forEach((callback) => {
 				try {
-					callback();
+					callback(change);
 					notifiedCount++;
 				} catch (error) {
 					logError("Error in filesystem change listener:", error);
@@ -524,7 +570,11 @@ export class DocumentFileSystem {
 			logInfo(`📄 Uploaded file: ${docFile.path}`);
 
 			// Notify other contexts about the filesystem change
-			this.notifyFilesystemChanged();
+			this.notifyFilesystemChanged({
+				scope: "documents",
+				operation: "create",
+				path: docFile.path,
+			});
 
 			return docFile;
 		} catch (error) {
@@ -580,7 +630,11 @@ export class DocumentFileSystem {
 			logInfo(`📁 Created folder: ${folder.path}`);
 
 			// Notify other contexts about the filesystem change
-			this.notifyFilesystemChanged();
+			this.notifyFilesystemChanged({
+				scope: "documents",
+				operation: "mkdir",
+				path: folder.path,
+			});
 
 			return folder;
 		} catch (error) {
@@ -816,7 +870,11 @@ export class DocumentFileSystem {
 		logInfo(`🗑️ Deleted file: ${file.path}`);
 
 		// Notify other contexts about the filesystem change
-		this.notifyFilesystemChanged();
+		this.notifyFilesystemChanged({
+			scope: "documents",
+			operation: "delete",
+			path: file.path,
+		});
 	}
 
 	/**
@@ -830,7 +888,11 @@ export class DocumentFileSystem {
 			throw new Error(`Path is not a folder: ${folderId}`);
 		await this.deleteDirectoryRecursive(fullPath);
 		logInfo(`Deleted folder recursively: ${folderId}`);
-		this.notifyFilesystemChanged();
+		this.notifyFilesystemChanged({
+			scope: "documents",
+			operation: "delete",
+			path: folderId,
+		});
 	}
 
 	/**
@@ -888,7 +950,12 @@ export class DocumentFileSystem {
 			logInfo(`📝 Renamed file: ${file.path} -> ${newPath}`);
 
 			// Notify other contexts about the filesystem change
-			this.notifyFilesystemChanged();
+			this.notifyFilesystemChanged({
+				scope: "documents",
+				operation: "rename",
+				oldPath: file.path,
+				newPath,
+			});
 
 			return renamedFile;
 		} catch (error) {
@@ -953,7 +1020,12 @@ export class DocumentFileSystem {
 			logInfo(`📁 Renamed folder: ${folderId} -> ${newPath}`);
 
 			// Notify other contexts about the filesystem change
-			this.notifyFilesystemChanged();
+			this.notifyFilesystemChanged({
+				scope: "documents",
+				operation: "rename",
+				oldPath: folderId,
+				newPath,
+			});
 
 			return renamedFolder;
 		} catch (error) {
@@ -1170,21 +1242,33 @@ export class DocumentFileSystem {
 		const dirPath = fsPath.substring(0, fsPath.lastIndexOf("/"));
 		await this.ensureDirectory(dirPath);
 		await fs.promises.writeFile(fsPath, new TextEncoder().encode(content));
-		this.notifyFilesystemChanged();
+		this.notifyFilesystemChanged({
+			scope: "workspace",
+			operation: "write",
+			path: sandboxPath,
+		});
 	}
 
 	/** Create a workspace directory. */
 	async mkdirWorkspace(sandboxPath: string): Promise<void> {
 		const fsPath = this.toWorkspaceFsPath(sandboxPath);
 		await this.ensureDirectory(fsPath);
-		this.notifyFilesystemChanged();
+		this.notifyFilesystemChanged({
+			scope: "workspace",
+			operation: "mkdir",
+			path: sandboxPath,
+		});
 	}
 
 	/** Delete a workspace file. */
 	async deleteWorkspaceFile(sandboxPath: string): Promise<void> {
 		const fsPath = this.toWorkspaceFsPath(sandboxPath);
 		await fs.promises.unlink(fsPath);
-		this.notifyFilesystemChanged();
+		this.notifyFilesystemChanged({
+			scope: "workspace",
+			operation: "delete",
+			path: sandboxPath,
+		});
 	}
 
 	/** Recursively delete a workspace folder. */
@@ -1194,7 +1278,11 @@ export class DocumentFileSystem {
 		if (!stats.isDirectory())
 			throw new Error(`Not a directory: ${sandboxPath}`);
 		await this.deleteDirectoryRecursive(fsPath);
-		this.notifyFilesystemChanged();
+		this.notifyFilesystemChanged({
+			scope: "workspace",
+			operation: "delete",
+			path: sandboxPath,
+		});
 	}
 
 	/**
@@ -1209,12 +1297,18 @@ export class DocumentFileSystem {
 		const parentFsPath = oldFsPath.substring(0, oldFsPath.lastIndexOf("/"));
 		const newFsPath = `${parentFsPath}/${newName}`;
 		await fs.promises.rename(oldFsPath, newFsPath);
-		this.notifyFilesystemChanged();
 		const parentSandbox = sandboxPath.substring(
 			0,
 			sandboxPath.lastIndexOf("/"),
 		);
-		return `${parentSandbox}/${newName}`;
+		const newSandboxPath = `${parentSandbox}/${newName}`;
+		this.notifyFilesystemChanged({
+			scope: "workspace",
+			operation: "rename",
+			oldPath: sandboxPath,
+			newPath: newSandboxPath,
+		});
+		return newSandboxPath;
 	}
 
 	// ── End Workspace ─────────────────────────────────────────────────────────
@@ -1289,7 +1383,12 @@ export class DocumentFileSystem {
 			logInfo(`✅ Moved file from ${fileId} to ${newId}`);
 
 			// Notify other contexts about the filesystem change
-			this.notifyFilesystemChanged();
+			this.notifyFilesystemChanged({
+				scope: "documents",
+				operation: "move",
+				oldPath: fileId,
+				newPath: newId,
+			});
 
 			return {
 				id: newId,
@@ -1382,7 +1481,12 @@ export class DocumentFileSystem {
 			logInfo(`✅ Moved folder from ${folderId} to ${newId}`);
 
 			// Notify other contexts about the filesystem change
-			this.notifyFilesystemChanged();
+			this.notifyFilesystemChanged({
+				scope: "documents",
+				operation: "move",
+				oldPath: folderId,
+				newPath: newId,
+			});
 
 			return {
 				id: newId,

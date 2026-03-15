@@ -168,6 +168,11 @@ const createViteServerState = async ({
 		},
 		handleRequest: (method, path, headers, body) =>
 			viteServer.handleRequest(method, path, headers, body),
+		notifyFileChange: async (path) => {
+			if (typeof viteServer.handleFileChange === "function") {
+				await viteServer.handleFileChange(path);
+			}
+		},
 	};
 };
 
@@ -194,6 +199,11 @@ const createNextServerState = async ({
 		},
 		handleRequest: (method, path, headers, body) =>
 			nextServer.handleRequest(method, path, headers, body),
+		notifyFileChange: async (path) => {
+			if (typeof nextServer.handleFileChange === "function") {
+				await nextServer.handleFileChange(path);
+			}
+		},
 	};
 };
 
@@ -333,6 +343,48 @@ const encodeBodyBase64 = (rawBody) => {
 	return btoa(binary);
 };
 
+const isPathWithinRoot = (rootDir, path) => {
+	const normalizedRoot = normalizePath(rootDir || "/");
+	const normalizedPath = normalizePath(path);
+	return (
+		normalizedRoot === "/" ||
+		normalizedPath === normalizedRoot ||
+		normalizedPath.startsWith(`${normalizedRoot}/`)
+	);
+};
+
+export const notifyWorkspaceFileChanges = async (paths = []) => {
+	const uniquePaths = Array.from(
+		new Set(
+			paths
+				.filter((path) => typeof path === "string" && path.length > 0)
+				.map((path) => normalizePath(path)),
+		),
+	);
+	if (uniquePaths.length === 0) {
+		return;
+	}
+
+	for (const server of runtimeState.servers.values()) {
+		if (typeof server.notifyFileChange !== "function") {
+			continue;
+		}
+		for (const path of uniquePaths) {
+			if (!isPathWithinRoot(server.rootDir, path)) {
+				continue;
+			}
+			try {
+				await server.notifyFileChange(path);
+			} catch (error) {
+				pushRuntimeLog(
+					"warn",
+					`Hot reload notify failed for server :${server.port} (${path}): ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
+		}
+	}
+};
+
 export const startServerOperation = async (payload) => {
 	const containerInstance = await ensureContainer();
 	const port = payload.port;
@@ -375,6 +427,7 @@ export const startServerOperation = async (payload) => {
 		rootDir,
 		stop: serverImpl.stop,
 		handleRequest: serverImpl.handleRequest,
+		notifyFileChange: serverImpl.notifyFileChange,
 	};
 	runtimeState.servers.set(port, state);
 	return { ...toServerInfo(state), createdFiles };

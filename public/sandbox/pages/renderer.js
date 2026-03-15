@@ -6,6 +6,8 @@
 	const params = new URLSearchParams(location.search);
 	const port = params.get('port');
 	const path = decodeURIComponent(params.get('path') || '/');
+	const FILESYSTEM_CHANGED_EVENT = 'FILESYSTEM_CHANGED';
+	let reloadTimer = null;
 	const importMapParam = params.get('importMap');
 	let rendererImportMap = null;
 	if (importMapParam) {
@@ -22,6 +24,37 @@
 	console.log('[renderer] start port=' + port + ' path=' + path);
 
 	if (!port) return;
+
+	const scheduleReload = (change) => {
+		if (!change || change.scope !== 'workspace') {
+			return;
+		}
+		if (reloadTimer) {
+			clearTimeout(reloadTimer);
+		}
+		reloadTimer = setTimeout(() => {
+			console.log('[renderer] reloading after filesystem change', change);
+			location.reload();
+		}, 120);
+	};
+
+	const installFilesystemReloadListener = () => {
+		if (typeof chrome === 'undefined' || !chrome.runtime?.onMessage) {
+			return;
+		}
+		if (window._memorallFsReloadListener) {
+			chrome.runtime.onMessage.removeListener(window._memorallFsReloadListener);
+		}
+		window._memorallFsReloadListener = (message) => {
+			if (message?.type !== FILESYSTEM_CHANGED_EVENT) return;
+			scheduleReload(message.change ?? null);
+		};
+		chrome.runtime.onMessage.addListener(window._memorallFsReloadListener);
+	};
+
+	window._memorallScheduleFsReload = scheduleReload;
+	window._memorallInstallFsReloadListener = installFilesystemReloadListener;
+	installFilesystemReloadListener();
 
 	// ── SW relay init ──────────────────────────────────────────────────────────
 	const swController = navigator.serviceWorker?.controller;

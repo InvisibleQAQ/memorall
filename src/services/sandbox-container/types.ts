@@ -120,6 +120,7 @@ export type SandboxFsMaterializeWorkspaceFileResult =
 
 export type SandboxWorkspaceOp =
 	| { op: "write"; path: string; content: string }
+	| { op: "mkdir"; path: string }
 	| { op: "delete"; path: string }
 	| { op: "rename"; oldPath: string; newPath: string };
 

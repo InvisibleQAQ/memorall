@@ -26,6 +26,9 @@
 // outer page handleSwRequest → iframe.postMessage(sw-relay-response) →
 // window.message → port1.postMessage(response) → SW port2.
 console.log('[renderer-utils] loaded. _swRelayPort=', window._swRelayPort, '_swRelayFn=', window._swRelayFn, '_memorallRenderId=', window._memorallRenderId);
+if (typeof window._memorallInstallFsReloadListener === 'function') {
+	window._memorallInstallFsReloadListener();
+}
 if (window._swRelayPort && window._swRelayFn) {
 	// Restore port1 → parent relay (SW request path).
 	window._swRelayPort.onmessage = window._swRelayFn;

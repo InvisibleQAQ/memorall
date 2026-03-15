@@ -183,6 +183,7 @@ function handleFilesystemChanged(message: Record<string, unknown>): false {
 			: undefined;
 	const eventId =
 		typeof message.eventId === "string" ? message.eventId : undefined;
+	const change = "change" in message ? message.change : undefined;
 
 	logInfo("🔁 Relaying FILESYSTEM_CHANGED to all contexts");
 
@@ -191,6 +192,7 @@ function handleFilesystemChanged(message: Record<string, unknown>): false {
 			type: BACKGROUND_EVENTS.FILESYSTEM_CHANGED,
 			sourceContextId,
 			eventId,
+			change,
 			relayedByBackground: true,
 		})
 		.catch((err: Error) => {

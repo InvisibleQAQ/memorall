@@ -1,5 +1,8 @@
 import { logError, logInfo, logWarn } from "@/utils/logger";
-import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
+import {
+	documentFileSystemService,
+	type FilesystemChangeEvent,
+} from "@/services/filesystem/document-filesystem";
 import type { ISandboxContainerService } from "./interfaces/sandbox-container-service.interface";
 import {
 	decodeSwResponseBodyPreview,
@@ -72,6 +75,15 @@ const DEFAULT_LOAD_TIMEOUT_MS = 20_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 const WORKSPACES_ROOT = "/workspaces";
 const WORKSPACE_LEGACY_ROOT = "/workspace";
+const SANDBOX_RUNTIME_WORKSPACE_SYNC = "memorall-sandbox-workspace-sync";
+
+interface RuntimeWorkspaceChange {
+	operation: "write" | "delete" | "rename" | "mkdir";
+	path?: string;
+	oldPath?: string;
+	newPath?: string;
+	content?: string;
+}
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null;
@@ -105,6 +117,10 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 	private readonly options: Required<SandboxContainerInitOptions>;
 	private mountDocumentsSyncPromise: Promise<void> | null = null;
 	private mountWorkspaceSyncPromise: Promise<void> | null = null;
+	private workspaceMountSynced = false;
+	private fsChangeUnsubscribe: (() => void) | null = null;
+	private workspaceHotReloadTimer: number | null = null;
+	private readonly pendingWorkspaceChanges = new Map<string, FilesystemChangeEvent>();
 	/** Relay channel: port1 stays here, port2 is transferred to the SW as mainPort. */
 	private swRelayChannel: MessageChannel | null = null;
 	/** Last known active service worker — used to re-init relay if SW restarts. */
@@ -172,6 +188,11 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 
 		window.addEventListener("message", this.onMessage);
 		window.addEventListener("message", this.onFsMessage);
+		if (!this.fsChangeUnsubscribe) {
+			this.fsChangeUnsubscribe = documentFileSystemService.onFilesystemChanged(
+				(change) => this.queueWorkspaceHotReload(change),
+			);
+		}
 
 		const iframe = document.createElement("iframe");
 		iframe.style.display = "none";
@@ -515,7 +536,6 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 			}
 			case "fs.writeFile": {
 				if (this.isWorkspacePath(path)) {
-					await this.syncWorkspaceMount();
 					await documentFileSystemService.writeWorkspaceFile(
 						path,
 						String(payload["content"] ?? ""),
@@ -525,14 +545,12 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 			}
 			case "fs.mkdir": {
 				if (this.isWorkspacePath(path)) {
-					await this.syncWorkspaceMount();
 					await documentFileSystemService.mkdirWorkspace(path);
 				}
 				return { path };
 			}
 			case "fs.unlink": {
 				if (this.isWorkspacePath(path)) {
-					await this.syncWorkspaceMount();
 					await documentFileSystemService.deleteWorkspaceFile(path);
 				}
 				return { path };
@@ -542,7 +560,6 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 					this.normalizeVirtualPath(String(payload["newPath"] ?? "")),
 				);
 				if (this.isWorkspacePath(path)) {
-					await this.syncWorkspaceMount();
 					const newName = newPath.split("/").pop()!;
 					await documentFileSystemService.renameWorkspaceFile(path, newName);
 				}
@@ -586,6 +603,120 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 
 		pending.resolve(envelope.result);
 	};
+
+	private queueWorkspaceHotReload(change: FilesystemChangeEvent | null): void {
+		if (change?.scope !== "workspace") {
+			return;
+		}
+		const key =
+			change.operation === "rename"
+				? `${change.operation}:${change.oldPath ?? ""}->${change.newPath ?? ""}`
+				: `${change.operation}:${change.path ?? ""}`;
+		this.pendingWorkspaceChanges.set(key, change);
+		if (this.workspaceHotReloadTimer !== null) {
+			window.clearTimeout(this.workspaceHotReloadTimer);
+		}
+		this.workspaceHotReloadTimer = window.setTimeout(() => {
+			this.workspaceHotReloadTimer = null;
+			void this.flushWorkspaceHotReload();
+		}, 120);
+	}
+
+	private async flushWorkspaceHotReload(): Promise<void> {
+		if (!this.initialized || !this.iframe?.contentWindow) {
+			this.pendingWorkspaceChanges.clear();
+			return;
+		}
+
+		const changes = Array.from(this.pendingWorkspaceChanges.values());
+		this.pendingWorkspaceChanges.clear();
+		if (changes.length === 0) {
+			return;
+		}
+
+		try {
+			const snapshot =
+				await documentFileSystemService.getSandboxWorkspaceMountSnapshot();
+			const runtimeChanges = await this.buildRuntimeWorkspaceChanges(
+				changes,
+				new Set(snapshot.files),
+			);
+			this.iframe.contentWindow.postMessage(
+				{
+					type: SANDBOX_RUNTIME_WORKSPACE_SYNC,
+					mode: "incremental",
+					snapshot,
+					changes: runtimeChanges,
+				},
+				"*",
+			);
+			this.workspaceMountSynced = true;
+		} catch (error) {
+			logWarn("Failed to flush workspace hot reload update", error);
+		}
+	}
+
+	private async buildRuntimeWorkspaceChanges(
+		changes: FilesystemChangeEvent[],
+		knownFiles: Set<string>,
+	): Promise<RuntimeWorkspaceChange[]> {
+		const runtimeChanges: RuntimeWorkspaceChange[] = [];
+
+		for (const change of changes) {
+			if (change.operation === "rename" && change.newPath) {
+				const newPath = this.toWorkspaceCanonicalPath(
+					this.normalizeVirtualPath(change.newPath),
+				);
+				let content: string | undefined;
+				if (knownFiles.has(newPath)) {
+					try {
+						const bytes =
+							await documentFileSystemService.getWorkspaceFileContent(newPath);
+						content = new TextDecoder().decode(bytes);
+					} catch {
+						content = undefined;
+					}
+				}
+				runtimeChanges.push({
+					operation: "rename",
+					oldPath: change.oldPath
+						? this.toWorkspaceCanonicalPath(
+								this.normalizeVirtualPath(change.oldPath),
+							)
+						: undefined,
+					newPath,
+					content,
+				});
+				continue;
+			}
+
+			if (!change.path) {
+				continue;
+			}
+
+			const path = this.toWorkspaceCanonicalPath(
+				this.normalizeVirtualPath(change.path),
+			);
+			if (change.operation === "write") {
+				let content = "";
+				try {
+					const bytes =
+						await documentFileSystemService.getWorkspaceFileContent(path);
+					content = new TextDecoder().decode(bytes);
+				} catch {
+					continue;
+				}
+				runtimeChanges.push({ operation: "write", path, content });
+				continue;
+			}
+
+			if (change.operation === "delete" || change.operation === "mkdir") {
+				runtimeChanges.push({ operation: change.operation, path });
+			}
+		}
+
+		return runtimeChanges;
+	}
 
 	private buildRequest<T extends SandboxOperation>(
 		operation: T,
@@ -639,6 +770,16 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 			pending.reject(new Error("Sandbox service disposed."));
 		}
 		this.pending.clear();
+		this.pendingWorkspaceChanges.clear();
+		if (this.workspaceHotReloadTimer !== null) {
+			window.clearTimeout(this.workspaceHotReloadTimer);
+			this.workspaceHotReloadTimer = null;
+		}
+		this.workspaceMountSynced = false;
+		if (this.fsChangeUnsubscribe) {
+			this.fsChangeUnsubscribe();
+			this.fsChangeUnsubscribe = null;
+		}
 
 		if (typeof window !== "undefined") {
 			window.removeEventListener("message", this.onMessage);
@@ -656,6 +797,7 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 	}
 
 	async resetRuntime(): Promise<void> {
+		this.workspaceMountSynced = false;
 		try {
 			await this.request("runtime.reset", undefined);
 		} catch (error) {
@@ -713,10 +855,6 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		const workspacePath = this.toWorkspaceCanonicalPath(normalizedPath);
 		if (this.isWorkspacePath(normalizedPath)) {
 			await this.syncWorkspaceMount();
-			await documentFileSystemService.writeWorkspaceFile(
-				workspacePath,
-				request.content,
-			);
 		}
 		return this.request("fs.writeFile", {
 			...request,
@@ -762,7 +900,6 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		const workspacePath = this.toWorkspaceCanonicalPath(normalizedPath);
 		if (this.isWorkspacePath(normalizedPath)) {
 			await this.syncWorkspaceMount();
-			await documentFileSystemService.mkdirWorkspace(workspacePath);
 		}
 		return this.request("fs.mkdir", { ...request, path: workspacePath });
 	}
@@ -785,7 +922,6 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		const workspacePath = this.toWorkspaceCanonicalPath(normalizedPath);
 		if (this.isWorkspacePath(normalizedPath)) {
 			await this.syncWorkspaceMount();
-			await documentFileSystemService.deleteWorkspaceFile(workspacePath);
 		}
 		return this.request("fs.unlink", { ...request, path: workspacePath });
 	}
@@ -801,8 +937,6 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 		);
 		if (this.isWorkspacePath(oldPath)) {
 			await this.syncWorkspaceMount();
-			const newName = newPath.split("/").pop()!;
-			await documentFileSystemService.renameWorkspaceFile(oldPath, newName);
 		}
 		return this.request("fs.rename", { oldPath, newPath });
 	}
@@ -927,6 +1061,9 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 	}
 
 	private async syncWorkspaceMount(): Promise<void> {
+		if (this.workspaceMountSynced) {
+			return;
+		}
 		if (this.mountWorkspaceSyncPromise) {
 			return this.mountWorkspaceSyncPromise;
 		}
@@ -934,6 +1071,7 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 			const snapshot =
 				await documentFileSystemService.getSandboxWorkspaceMountSnapshot();
 			await this.request("fs.mountWorkspace", snapshot);
+			this.workspaceMountSynced = true;
 		})().finally(() => {
 			this.mountWorkspaceSyncPromise = null;
 		});
@@ -988,6 +1126,8 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 						op.path,
 						op.content,
 					);
+				} else if (op.op === "mkdir") {
+					await documentFileSystemService.mkdirWorkspace(op.path);
 				} else if (op.op === "delete") {
 					await documentFileSystemService.deleteWorkspaceFile(op.path);
 				} else if (op.op === "rename") {

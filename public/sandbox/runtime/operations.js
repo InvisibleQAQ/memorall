@@ -1,5 +1,19 @@
 import { handleFsOperation } from "../core/sandbox-fs-handlers.js";
 import {
+	WORKSPACES_MOUNT_ROOT,
+	addMountedWorkspaceDirectory,
+	isWorkspacePath,
+	materializedWorkspaceFiles,
+	materializeMountedWorkspaceFileContent,
+	moveMountedWorkspacePath,
+	mountedWorkspaceDirectories,
+	mountedWorkspaceFiles,
+	removeMountedWorkspacePath,
+	ensureMountedParentDirectories,
+	toCanonicalMountedPath,
+	vfsBoolState,
+} from "../core/sandbox-vfs.js";
+import {
 	DEFAULT_FETCH_TIMEOUT_MS,
 	DEFAULT_MAX_LOG_ENTRIES,
 	DEFAULT_TIMEOUT_MS,
@@ -20,6 +34,7 @@ import {
 import {
 	handleSwRequestOperation,
 	listServersOperation,
+	notifyWorkspaceFileChanges,
 	renderServerUrlOperation,
 	requestServerOperation,
 	startServerOperation,
@@ -148,6 +163,109 @@ const handleSnapshotGetOperation = (containerInstance) => {
 			servers: Array.from(runtimeState.servers.values()).map(toServerInfo),
 			installedPackages: Object.fromEntries(runtimeState.installedPackages),
 		},
+	};
+};
+
+const collectWorkspaceSnapshotState = (snapshot) => {
+	const nextDirectories = new Set([WORKSPACES_MOUNT_ROOT]);
+	const nextFiles = new Set();
+
+	for (const dirPath of snapshot?.directories ?? []) {
+		const path = toCanonicalMountedPath(dirPath);
+		if (isWorkspacePath(path)) {
+			nextDirectories.add(path);
+		}
+	}
+
+	for (const filePath of snapshot?.files ?? []) {
+		const path = toCanonicalMountedPath(filePath);
+		if (!isWorkspacePath(path)) {
+			continue;
+		}
+		nextFiles.add(path);
+		ensureMountedParentDirectories(path, nextDirectories);
+	}
+
+	return { nextDirectories, nextFiles };
+};
+
+const applyWorkspaceSnapshot = (snapshot, mode = "full") => {
+	const { nextDirectories, nextFiles } = collectWorkspaceSnapshotState(snapshot);
+
+	mountedWorkspaceFiles.clear();
+	for (const path of nextFiles) {
+		mountedWorkspaceFiles.add(path);
+	}
+
+	mountedWorkspaceDirectories.clear();
+	for (const path of nextDirectories) {
+		mountedWorkspaceDirectories.add(path);
+	}
+
+	if (mode === "full") {
+		materializedWorkspaceFiles.clear();
+	} else {
+		for (const path of Array.from(materializedWorkspaceFiles.keys())) {
+			if (!nextFiles.has(path)) {
+				materializedWorkspaceFiles.delete(path);
+			}
+		}
+	}
+
+	vfsBoolState.workspaceMountLoaded = true;
+};
+
+const applyWorkspaceMaterializedChange = (change) => {
+	if (change.operation === "write" && typeof change.path === "string") {
+		return materializeMountedWorkspaceFileContent(
+			change.path,
+			String(change.content ?? ""),
+		);
+	}
+
+	if (
+		change.operation === "rename" &&
+		typeof change.oldPath === "string" &&
+		typeof change.newPath === "string"
+	) {
+		const { newPath } = moveMountedWorkspacePath(change.oldPath, change.newPath);
+		if (typeof change.content === "string") {
+			materializeMountedWorkspaceFileContent(newPath, change.content);
+		}
+		return newPath;
+	}
+
+	if (change.operation === "mkdir" && typeof change.path === "string") {
+		return addMountedWorkspaceDirectory(change.path);
+	}
+
+	if (change.operation === "delete" && typeof change.path === "string") {
+		return removeMountedWorkspacePath(change.path);
+	}
+
+	return null;
+};
+
+export const applyWorkspaceHotReload = async (payload) => {
+	const changedPaths = [];
+	for (const change of payload?.changes ?? []) {
+		const changedPath = applyWorkspaceMaterializedChange(change);
+		if (changedPath) {
+			changedPaths.push(changedPath);
+		}
+	}
+
+	if (payload?.snapshot) {
+		applyWorkspaceSnapshot(
+			payload.snapshot,
+			payload.mode === "full" ? "full" : "incremental",
+		);
+	}
+
+	await notifyWorkspaceFileChanges(changedPaths);
+	return {
+		updated: true,
+		changeCount: changedPaths.length,
 	};
 };
 
