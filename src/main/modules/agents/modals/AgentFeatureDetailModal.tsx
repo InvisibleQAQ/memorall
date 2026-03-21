@@ -202,9 +202,7 @@ export const AgentFeatureDetailModal =
 											<p
 												className={cn(
 													"truncate font-mono text-[11px] font-medium leading-tight",
-													isEnabled
-														? "text-foreground"
-														: "text-foreground/70",
+													isEnabled ? "text-foreground" : "text-foreground/70",
 												)}
 											>
 												{toolName}
@@ -314,15 +312,22 @@ export const AgentFeatureDetailModal =
 									<DialogTitle className="text-sm font-semibold leading-none">
 										{title}
 									</DialogTitle>
-									<Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px] font-normal">
+									<Badge
+										variant="secondary"
+										className="rounded-full px-1.5 py-0 text-[10px] font-normal"
+									>
 										{feature.type === "catalog"
 											? t("agentSettings.toolCount", {
 													count: feature.tools.length,
 												})
 											: t("agentSettings.detail")}
 									</Badge>
-									{feature.type === "config" && feature.configKey === "tools" ? (
-										<Badge variant="outline" className="rounded-full px-1.5 py-0 text-[10px] font-normal">
+									{feature.type === "config" &&
+									feature.configKey === "tools" ? (
+										<Badge
+											variant="outline"
+											className="rounded-full px-1.5 py-0 text-[10px] font-normal"
+										>
 											{t("agentSettings.toolCount", {
 												count: draftConfig.tools.length,
 											})}

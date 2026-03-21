@@ -78,12 +78,9 @@ export class AgentGraph extends GraphBase<
 			this.systemPrompt = config.systemPrompt;
 		}
 
-		const tools = new Set(config.tools || [...DEFAULT_TOOL_NAMES])
+		const tools = new Set(config.tools || [...DEFAULT_TOOL_NAMES]);
 		// Create bound tools with services
-		this.combinedTools = this.chat.combineTools(
-			[...tools],
-			services,
-		);
+		this.combinedTools = this.chat.combineTools([...tools], services);
 		this.executorMap = new Map(
 			this.combinedTools.map((t) => [t.executor.name, t]),
 		);

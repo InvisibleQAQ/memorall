@@ -1,5 +1,12 @@
 import React, { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Globe, RefreshCw, Server, Terminal } from "lucide-react";
+import {
+	ChevronLeft,
+	ChevronRight,
+	Globe,
+	RefreshCw,
+	Server,
+	Terminal,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { cn } from "@/lib/utils";

@@ -263,7 +263,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 						</h2>
 						<Popover>
 							<PopoverTrigger asChild>
-								<Button variant="ghost" size="sm" className="h-7 w-7 flex-shrink-0 p-0">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 w-7 flex-shrink-0 p-0"
+								>
 									<MoreHorizontal className="h-4 w-4" />
 								</Button>
 							</PopoverTrigger>
@@ -287,7 +291,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 										className="w-full justify-start text-xs"
 									>
 										<Tags className="mr-2 h-3.5 w-3.5" />
-										{fileTopics.length > 0 ? t("viewer.manage") : t("viewer.addTopics")}
+										{fileTopics.length > 0
+											? t("viewer.manage")
+											: t("viewer.addTopics")}
 									</Button>
 								)}
 								{file.type === "pdf" && (
@@ -301,7 +307,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 										{t("viewer.convertToKnowledge")}
 									</Button>
 								)}
-								{(file.type === "text" || file.type === "markdown" || file.type === "other") &&
+								{(file.type === "text" ||
+									file.type === "markdown" ||
+									file.type === "other") &&
 									onConvertToKnowledge && (
 										<Button
 											variant="ghost"
@@ -338,7 +346,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 									{t("viewer.properties")}
 								</Button>
 								{onDownload && (
-									<Button variant="ghost" size="sm" onClick={onDownload} className="w-full justify-start text-xs">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={onDownload}
+										className="w-full justify-start text-xs"
+									>
 										<Download className="mr-2 h-3.5 w-3.5" />
 										{t("viewer.download")}
 									</Button>
@@ -355,7 +368,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 									</Button>
 								)}
 								{onClose && (
-									<Button variant="ghost" size="sm" onClick={onClose} className="w-full justify-start text-xs">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={onClose}
+										className="w-full justify-start text-xs"
+									>
 										<X className="mr-2 h-3.5 w-3.5" />
 										{t("viewer.close")}
 									</Button>
@@ -423,12 +441,20 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					</div>
 					<div className="flex flex-wrap items-center gap-1 sm:justify-end">
 						{file.type === "pdf" && (
-							<Button variant="default" size="sm" onClick={pdfPageSelector.openSelector}>
+							<Button
+								variant="default"
+								size="sm"
+								onClick={pdfPageSelector.openSelector}
+							>
 								<BookmarkPlus className="h-4 w-4 mr-2" />
-								<span className="hidden sm:inline">{t("viewer.convertToKnowledge")}</span>
+								<span className="hidden sm:inline">
+									{t("viewer.convertToKnowledge")}
+								</span>
 							</Button>
 						)}
-						{(file.type === "text" || file.type === "markdown" || file.type === "other") &&
+						{(file.type === "text" ||
+							file.type === "markdown" ||
+							file.type === "other") &&
 							onConvertToKnowledge && (
 								<Button
 									variant="default"
@@ -445,9 +471,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 								</Button>
 							)}
 						{file.type === "excel" && (
-							<Button variant="default" size="sm" onClick={excelSheetSelector.openSelector}>
+							<Button
+								variant="default"
+								size="sm"
+								onClick={excelSheetSelector.openSelector}
+							>
 								<BookmarkPlus className="h-4 w-4 mr-2" />
-								<span className="hidden sm:inline">{t("viewer.convertToKnowledge")}</span>
+								<span className="hidden sm:inline">
+									{t("viewer.convertToKnowledge")}
+								</span>
 							</Button>
 						)}
 						<Button

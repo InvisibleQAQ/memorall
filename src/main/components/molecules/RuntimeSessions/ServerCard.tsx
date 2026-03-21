@@ -1,10 +1,21 @@
 import React, { useState } from "react";
-import { ExternalLink, Globe, Loader2, Power, RotateCw, Terminal } from "lucide-react";
+import {
+	ExternalLink,
+	Globe,
+	Loader2,
+	Power,
+	RotateCw,
+	Terminal,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { serviceManager } from "@/services";
 import { cn } from "@/lib/utils";
 import type { SandboxServerInfo, RuntimeSessionsVariant } from "./types";
-import { ActionIconButton, KindBadge, VerticalResizeHandle } from "./SharedComponents";
+import {
+	ActionIconButton,
+	KindBadge,
+	VerticalResizeHandle,
+} from "./SharedComponents";
 import { useResizeHeight } from "./useResizeHeight";
 import { BrowserViewer } from "./BrowserViewer";
 import { PostmanTool } from "./PostmanTool";
@@ -21,8 +32,11 @@ export const ServerCard: React.FC<{
 	const [isRestarting, setIsRestarting] = useState(false);
 	const [isStopping, setIsStopping] = useState(false);
 	const [actionError, setActionError] = useState<string | null>(null);
-	const { height: cardBodyHeight, isDragging, handleMouseDown: handleCardResizeMouseDown } =
-		useResizeHeight(400, 120, 1200);
+	const {
+		height: cardBodyHeight,
+		isDragging,
+		handleMouseDown: handleCardResizeMouseDown,
+	} = useResizeHeight(400, 120, 1200);
 
 	const toggle = (view: "browser" | "postman") =>
 		setActiveView((prev) => (prev === view ? null : view));
@@ -144,13 +158,14 @@ export const ServerCard: React.FC<{
 				</div>
 			) : null}
 			{activeView !== null ? (
-				<div style={{ height: cardBodyHeight }} className="flex flex-col overflow-hidden">
+				<div
+					style={{ height: cardBodyHeight }}
+					className="flex flex-col overflow-hidden"
+				>
 					{activeView === "browser" ? (
 						<BrowserViewer server={server} showOverlay={isDragging} />
 					) : null}
-					{activeView === "postman" ? (
-						<PostmanTool server={server} />
-					) : null}
+					{activeView === "postman" ? <PostmanTool server={server} /> : null}
 				</div>
 			) : null}
 			{activeView !== null ? (

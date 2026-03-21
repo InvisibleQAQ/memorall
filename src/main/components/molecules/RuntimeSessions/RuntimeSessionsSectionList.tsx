@@ -1,6 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { RuntimeSessionsSharedProps, RuntimeSessionsVariant } from "./types";
+import type {
+	RuntimeSessionsSharedProps,
+	RuntimeSessionsVariant,
+} from "./types";
 import { CommandCard } from "./CommandCard";
 import { ServerCard } from "./ServerCard";
 import { WebBrowserSessionCard } from "./WebBrowserSessionCard";

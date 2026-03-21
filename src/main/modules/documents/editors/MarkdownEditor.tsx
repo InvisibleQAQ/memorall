@@ -260,11 +260,9 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 						count:
 							editor.storage.characterCount?.characters() ||
 							editor.getText().length,
-						})}
+					})}
 				</span>
-				<span className="text-xs">
-					{t("editor.saveHint")}
-				</span>
+				<span className="text-xs">{t("editor.saveHint")}</span>
 			</div>
 		</div>
 	);

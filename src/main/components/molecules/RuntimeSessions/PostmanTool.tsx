@@ -3,7 +3,10 @@ import { Send } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { serviceManager } from "@/services";
-import type { SandboxServerInfo, SandboxServerRequestResult } from "@/services/sandbox-container";
+import type {
+	SandboxServerInfo,
+	SandboxServerRequestResult,
+} from "@/services/sandbox-container";
 import { cn } from "@/lib/utils";
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
