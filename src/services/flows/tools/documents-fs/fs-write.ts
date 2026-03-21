@@ -7,7 +7,7 @@ import type {
 import { toolRegistry } from "@/services/flows/tool-registry";
 import { normalizeFsPath, flattenTree } from "./util";
 
-const TOOL_NAME = "fs_write" as const;
+const TOOL_NAME = "document_fs_write" as const;
 
 const schema = z.object({
 	file_path: z.string().describe("Path of the file to create or overwrite"),

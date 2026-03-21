@@ -7,7 +7,7 @@ import type {
 import { toolRegistry } from "@/services/flows/tool-registry";
 import { normalizeFsPath, flattenTree, globToRegex, isInScope } from "./util";
 
-const TOOL_NAME = "fs_glob" as const;
+const TOOL_NAME = "document_fs_glob" as const;
 
 const schema = z.object({
 	pattern: z

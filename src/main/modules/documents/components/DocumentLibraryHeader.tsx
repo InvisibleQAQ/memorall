@@ -97,7 +97,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 						<DropdownMenuContent align="end">
 							<DropdownMenuItem onClick={onCreateDocument}>
 								<FileText className="mr-2 h-4 w-4" />
-								{t("upload.createDocument", { defaultValue: "New Document" })}
+								{t("upload.createDocument")}
 							</DropdownMenuItem>
 							<DropdownMenuItem onClick={onTriggerUpload}>
 								<Upload className="mr-2 h-4 w-4" />
@@ -206,7 +206,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 						<DropdownMenuContent align="end">
 							<DropdownMenuItem onClick={onCreateDocument}>
 								<FileText className="mr-2 h-4 w-4" />
-								{t("upload.createDocument", { defaultValue: "New Document" })}
+								{t("upload.createDocument")}
 							</DropdownMenuItem>
 							<DropdownMenuItem onClick={onTriggerUpload}>
 								<Upload className="mr-2 h-4 w-4" />

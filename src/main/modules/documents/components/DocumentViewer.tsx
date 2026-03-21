@@ -17,6 +17,7 @@ import {
 	BookmarkPlus,
 	Tag,
 	Tags,
+	MoreHorizontal,
 } from "lucide-react";
 import { eq, inArray } from "drizzle-orm";
 
@@ -30,6 +31,11 @@ import { ScrollArea } from "@/main/components/ui/scroll-area";
 import { Button } from "@/main/components/ui/button";
 import { Badge } from "@/main/components/ui/badge";
 import { Separator } from "@/main/components/ui/separator";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/main/components/ui/popover";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
 import { PDFPageSelector } from "./PDFPageSelector";
@@ -43,6 +49,7 @@ import { CodeEditor } from "../editors/CodeEditor";
 interface DocumentViewerProps {
 	file: DocumentFile;
 	isWorkspaceFile?: boolean;
+	compact?: boolean;
 	onClose?: () => void;
 	onDelete?: () => void;
 	onDownload?: () => void;
@@ -56,6 +63,7 @@ interface DocumentViewerProps {
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	file,
 	isWorkspaceFile = false,
+	compact = false,
 	onClose,
 	onDelete,
 	onDownload,
@@ -246,135 +254,232 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	return (
 		<div className="flex h-full min-w-0 flex-1 flex-col bg-card">
 			{/* Header */}
-			<div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-start sm:justify-between sm:p-4">
-				<div className="mr-0 min-w-0 flex-1 sm:mr-4">
-					{/* File name + metadata on same line */}
-					<div className="flex items-center gap-2 flex-wrap mb-2">
-						<h2 className="text-lg font-semibold truncate">{file.name}</h2>
-						{file.metadata?.pageCount && (
-							<>
-								<span className="text-muted-foreground">•</span>
-								<span className="text-sm text-muted-foreground">
-									{t("viewer.pages", { count: file.metadata.pageCount })}
-								</span>
-							</>
-						)}
-						{file.metadata?.sheetCount && (
-							<>
-								<span className="text-muted-foreground">•</span>
-								<span className="text-sm text-muted-foreground">
-									{t("viewer.sheets", { count: file.metadata.sheetCount })}
-								</span>
-							</>
-						)}
-					</div>
-
-					{/* Topic Badges - Second line */}
-					{fileTopics.length > 0 ? (
-						<div className="flex items-center gap-2 flex-wrap">
-							<TopicBadgeList
-								topics={fileTopics}
-								maxVisible={3}
-								size="sm"
-								onTopicClick={(topic) => onTopicClick?.(topic.id)}
-								activeTopicIds={selectedTopicIds}
-							/>
-							{onManageTopics && (
+			{compact ? (
+				<div className="flex flex-col gap-1 border-b px-3 py-2">
+					{/* Line 1: filename + more popover */}
+					<div className="flex min-w-0 items-center gap-1">
+						<h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
+							{file.name}
+						</h2>
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button variant="ghost" size="sm" className="h-7 w-7 flex-shrink-0 p-0">
+									<MoreHorizontal className="h-4 w-4" />
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent align="end" className="w-56 p-2">
+								{fileTopics.length > 0 && (
+									<div className="mb-2 flex flex-wrap gap-1">
+										<TopicBadgeList
+											topics={fileTopics}
+											maxVisible={5}
+											size="sm"
+											onTopicClick={(topic) => onTopicClick?.(topic.id)}
+											activeTopicIds={selectedTopicIds}
+										/>
+									</div>
+								)}
+								{onManageTopics && (
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => onManageTopics(file)}
+										className="w-full justify-start text-xs"
+									>
+										<Tags className="mr-2 h-3.5 w-3.5" />
+										{fileTopics.length > 0 ? t("viewer.manage") : t("viewer.addTopics")}
+									</Button>
+								)}
+								{file.type === "pdf" && (
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={pdfPageSelector.openSelector}
+										className="w-full justify-start text-xs"
+									>
+										<BookmarkPlus className="mr-2 h-3.5 w-3.5" />
+										{t("viewer.convertToKnowledge")}
+									</Button>
+								)}
+								{(file.type === "text" || file.type === "markdown" || file.type === "other") &&
+									onConvertToKnowledge && (
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={() => onConvertToKnowledge(file)}
+											disabled={sourceStatus.isGenerating || isProcessing}
+											className="w-full justify-start text-xs"
+										>
+											<BookmarkPlus className="mr-2 h-3.5 w-3.5" />
+											{sourceStatus.isGenerating || isProcessing
+												? t("viewer.converting")
+												: t("viewer.convertToKnowledge")}
+										</Button>
+									)}
+								{file.type === "excel" && (
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={excelSheetSelector.openSelector}
+										className="w-full justify-start text-xs"
+									>
+										<BookmarkPlus className="mr-2 h-3.5 w-3.5" />
+										{t("viewer.convertToKnowledge")}
+									</Button>
+								)}
+								<Separator className="my-1" />
 								<Button
 									variant="ghost"
 									size="sm"
-									onClick={() => onManageTopics(file)}
-									className="h-6 px-2 text-xs"
+									onClick={() => setShowProperties(!showProperties)}
+									className="w-full justify-start text-xs"
 								>
-									<Tags className="h-3 w-3 mr-1" />
-									{t("viewer.manage")}
+									<Info className="mr-2 h-3.5 w-3.5" />
+									{t("viewer.properties")}
 								</Button>
+								{onDownload && (
+									<Button variant="ghost" size="sm" onClick={onDownload} className="w-full justify-start text-xs">
+										<Download className="mr-2 h-3.5 w-3.5" />
+										{t("viewer.download")}
+									</Button>
+								)}
+								{onDelete && (
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={onDelete}
+										className="w-full justify-start text-xs text-destructive hover:text-destructive"
+									>
+										<Trash2 className="mr-2 h-3.5 w-3.5" />
+										{t("viewer.delete")}
+									</Button>
+								)}
+								{onClose && (
+									<Button variant="ghost" size="sm" onClick={onClose} className="w-full justify-start text-xs">
+										<X className="mr-2 h-3.5 w-3.5" />
+										{t("viewer.close")}
+									</Button>
+								)}
+							</PopoverContent>
+						</Popover>
+					</div>
+				</div>
+			) : (
+				<div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-start sm:justify-between sm:p-4">
+					<div className="mr-0 min-w-0 flex-1 sm:mr-4">
+						{/* File name + metadata on same line */}
+						<div className="flex items-center gap-2 flex-wrap mb-2">
+							<h2 className="text-lg font-semibold truncate">{file.name}</h2>
+							{file.metadata?.pageCount && (
+								<>
+									<span className="text-muted-foreground">•</span>
+									<span className="text-sm text-muted-foreground">
+										{t("viewer.pages", { count: file.metadata.pageCount })}
+									</span>
+								</>
+							)}
+							{file.metadata?.sheetCount && (
+								<>
+									<span className="text-muted-foreground">•</span>
+									<span className="text-sm text-muted-foreground">
+										{t("viewer.sheets", { count: file.metadata.sheetCount })}
+									</span>
+								</>
 							)}
 						</div>
-					) : onManageTopics ? (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => onManageTopics(file)}
-							className="h-7 px-2 text-xs gap-1"
-						>
-							<Tags className="h-3 w-3" />
-							{t("viewer.addTopics")}
-						</Button>
-					) : null}
-				</div>
-				<div className="flex flex-wrap items-center gap-1 sm:justify-end">
-					{file.type === "pdf" && (
-						<Button
-							variant="default"
-							size="sm"
-							onClick={pdfPageSelector.openSelector}
-						>
-							<BookmarkPlus className="h-4 w-4 mr-2" />
-							<span className="hidden sm:inline">
-								{t("viewer.convertToKnowledge")}
-							</span>
-						</Button>
-					)}
-					{(file.type === "text" ||
-						file.type === "markdown" ||
-						file.type === "other") &&
-						onConvertToKnowledge && (
+						{/* Topic Badges - Second line */}
+						{fileTopics.length > 0 ? (
+							<div className="flex items-center gap-2 flex-wrap">
+								<TopicBadgeList
+									topics={fileTopics}
+									maxVisible={3}
+									size="sm"
+									onTopicClick={(topic) => onTopicClick?.(topic.id)}
+									activeTopicIds={selectedTopicIds}
+								/>
+								{onManageTopics && (
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => onManageTopics(file)}
+										className="h-6 px-2 text-xs"
+									>
+										<Tags className="h-3 w-3 mr-1" />
+										{t("viewer.manage")}
+									</Button>
+								)}
+							</div>
+						) : onManageTopics ? (
 							<Button
-								variant="default"
+								variant="outline"
 								size="sm"
-								onClick={() => onConvertToKnowledge(file)}
-								disabled={sourceStatus.isGenerating || isProcessing}
+								onClick={() => onManageTopics(file)}
+								className="h-7 px-2 text-xs gap-1"
 							>
+								<Tags className="h-3 w-3" />
+								{t("viewer.addTopics")}
+							</Button>
+						) : null}
+					</div>
+					<div className="flex flex-wrap items-center gap-1 sm:justify-end">
+						{file.type === "pdf" && (
+							<Button variant="default" size="sm" onClick={pdfPageSelector.openSelector}>
 								<BookmarkPlus className="h-4 w-4 mr-2" />
-								<span className="hidden sm:inline">
-									{sourceStatus.isGenerating || isProcessing
-										? t("viewer.converting")
-										: t("viewer.convertToKnowledge")}
-								</span>
+								<span className="hidden sm:inline">{t("viewer.convertToKnowledge")}</span>
 							</Button>
 						)}
-					{file.type === "excel" && (
+						{(file.type === "text" || file.type === "markdown" || file.type === "other") &&
+							onConvertToKnowledge && (
+								<Button
+									variant="default"
+									size="sm"
+									onClick={() => onConvertToKnowledge(file)}
+									disabled={sourceStatus.isGenerating || isProcessing}
+								>
+									<BookmarkPlus className="h-4 w-4 mr-2" />
+									<span className="hidden sm:inline">
+										{sourceStatus.isGenerating || isProcessing
+											? t("viewer.converting")
+											: t("viewer.convertToKnowledge")}
+									</span>
+								</Button>
+							)}
+						{file.type === "excel" && (
+							<Button variant="default" size="sm" onClick={excelSheetSelector.openSelector}>
+								<BookmarkPlus className="h-4 w-4 mr-2" />
+								<span className="hidden sm:inline">{t("viewer.convertToKnowledge")}</span>
+							</Button>
+						)}
 						<Button
-							variant="default"
+							variant={showProperties ? "secondary" : "ghost"}
 							size="sm"
-							onClick={excelSheetSelector.openSelector}
+							onClick={() => setShowProperties(!showProperties)}
 						>
-							<BookmarkPlus className="h-4 w-4 mr-2" />
-							<span className="hidden sm:inline">
-								{t("viewer.convertToKnowledge")}
-							</span>
+							<Info className="h-4 w-4" />
 						</Button>
-					)}
-					<Button
-						variant={showProperties ? "secondary" : "ghost"}
-						size="sm"
-						onClick={() => setShowProperties(!showProperties)}
-					>
-						<Info className="h-4 w-4" />
-					</Button>
-					{onDownload && (
-						<Button variant="ghost" size="sm" onClick={onDownload}>
-							<Download className="h-4 w-4" />
-						</Button>
-					)}
-					{onDelete && (
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onDelete}
-							className="text-destructive hover:text-destructive"
-						>
-							<Trash2 className="h-4 w-4" />
-						</Button>
-					)}
-					{onClose && (
-						<Button variant="ghost" size="sm" onClick={onClose}>
-							<X className="h-4 w-4" />
-						</Button>
-					)}
+						{onDownload && (
+							<Button variant="ghost" size="sm" onClick={onDownload}>
+								<Download className="h-4 w-4" />
+							</Button>
+						)}
+						{onDelete && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={onDelete}
+								className="text-destructive hover:text-destructive"
+							>
+								<Trash2 className="h-4 w-4" />
+							</Button>
+						)}
+						{onClose && (
+							<Button variant="ghost" size="sm" onClick={onClose}>
+								<X className="h-4 w-4" />
+							</Button>
+						)}
+					</div>
 				</div>
-			</div>
+			)}
 
 			{/* Content Area - Flex layout */}
 			<div className="flex-1 flex flex-col overflow-hidden">

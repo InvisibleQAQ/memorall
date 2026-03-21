@@ -70,10 +70,7 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 				},
 			}),
 			Placeholder.configure({
-				placeholder: t("editor.markdownPlaceholder", {
-					defaultValue:
-						"Start writing... (Type # for heading, * for list, etc.)",
-				}),
+				placeholder: t("editor.markdownPlaceholder"),
 			}),
 		],
 		content: initialHtmlContent,
@@ -160,16 +157,11 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 		<div className={cn("flex flex-col h-full", className)}>
 			{/* Toolbar */}
 			<div className="flex items-center justify-between gap-2 px-4 py-2 border-b bg-card">
-				<div className="flex items-center gap-2 flex-wrap">
-					<h3 className="text-sm font-medium truncate">{file.name}</h3>
-					{hasUnsavedChanges && (
-						<span className="text-xs text-muted-foreground">
-							{t("editor.unsavedChanges", {
-								defaultValue: "(Unsaved changes)",
-							})}
-						</span>
-					)}
-				</div>
+				{hasUnsavedChanges && (
+					<span className="text-xs text-muted-foreground">
+						{t("editor.unsavedChanges")}
+					</span>
+				)}
 
 				{/* Formatting toolbar */}
 				<div className="flex items-center gap-1">
@@ -244,12 +236,12 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 						{isSaving ? (
 							<>
 								<Loader2 className="h-4 w-4 animate-spin" />
-								{t("editor.saving", { defaultValue: "Saving..." })}
+								{t("editor.saving")}
 							</>
 						) : (
 							<>
 								<Save className="h-4 w-4" />
-								{t("editor.save", { defaultValue: "Save" })}
+								{t("editor.save")}
 							</>
 						)}
 					</Button>
@@ -268,14 +260,10 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 						count:
 							editor.storage.characterCount?.characters() ||
 							editor.getText().length,
-						defaultValue: `${editor.getText().length} characters`,
-					})}
+						})}
 				</span>
 				<span className="text-xs">
-					{t("editor.saveHint", {
-						defaultValue:
-							"Markdown shortcuts: ## for heading, * for list | Ctrl+S to save",
-					})}
+					{t("editor.saveHint")}
 				</span>
 			</div>
 		</div>

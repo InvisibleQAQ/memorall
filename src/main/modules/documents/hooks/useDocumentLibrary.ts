@@ -61,6 +61,28 @@ function makeWorkspaceRoot(items: DocumentTreeNode[]): DocumentTreeNode {
 	};
 }
 
+/** Build the virtual documents-root DocumentTreeNode that wraps top-level doc items. */
+function makeDocsRoot(items: DocumentTreeNode[]): DocumentTreeNode {
+	const folder: DocumentFolder = {
+		id: "__docs_root__",
+		name: "Documents",
+		path: "/",
+		parentPath: null,
+		createdAt: new Date(0),
+		modifiedAt: new Date(0),
+		childCount: items.length,
+	};
+	return {
+		id: "__docs_root__",
+		name: "Documents",
+		path: "/",
+		type: "folder",
+		isExpanded: true,
+		children: items,
+		folder,
+	};
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useDocumentLibrary() {
@@ -169,7 +191,7 @@ export function useDocumentLibrary() {
 			const treeData = await documentFileSystemService.getTree();
 			setTree(treeData);
 			setSelectedNode((prev) => {
-				if (!prev) return treeData.length > 0 ? treeData[0] : null;
+				if (!prev || prev.id === "__docs_root__") return makeDocsRoot(treeData);
 				return (
 					findNodeById(treeData, prev.id) ??
 					findNodeByPath(treeData, prev.path) ??
@@ -245,7 +267,7 @@ export function useDocumentLibrary() {
 				setSelectedNode(makeWorkspaceRoot(workspaceTreeRef.current));
 				return;
 			}
-			setSelectedNode(treeRef.current[0] ?? null);
+			setSelectedNode(makeDocsRoot(treeRef.current));
 			return;
 		}
 		setSelectedNode(node);
@@ -269,7 +291,7 @@ export function useDocumentLibrary() {
 				return;
 			}
 		}
-		setSelectedNode(treeRef.current[0] ?? null);
+		setSelectedNode(makeDocsRoot(treeRef.current));
 	}, []);
 
 	const handleSelectWorkspaceNode = useCallback((node: DocumentTreeNode) => {

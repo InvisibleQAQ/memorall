@@ -24,6 +24,7 @@ interface DocumentLibraryContentProps {
 	viewMode: "grid" | "list";
 	fileTopicMap: Map<string, Topic[]>;
 	selectedTopicIds: string[];
+	compact?: boolean;
 	/** Navigate to a node by id in the active tree */
 	onSelectNodeById: (id: string) => void;
 	/** Navigate to a folder by path in the active tree */
@@ -60,6 +61,7 @@ export const DocumentLibraryContent = memo(function DocumentLibraryContent({
 	onConvertToKnowledge,
 	onDeleteSelectedFile,
 	onToggleTopicFilter,
+	compact = false,
 }: DocumentLibraryContentProps) {
 	const { t } = useTranslation("documents");
 
@@ -130,6 +132,7 @@ export const DocumentLibraryContent = memo(function DocumentLibraryContent({
 			<DocumentViewer
 				file={selectedNode.file}
 				isWorkspaceFile={isWorkspaceSection}
+				compact={compact}
 				onClose={onCloseViewer}
 				onDelete={onDeleteSelectedFile}
 				onDownload={onDownloadSelectedFile}

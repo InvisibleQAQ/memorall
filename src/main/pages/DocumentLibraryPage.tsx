@@ -72,6 +72,7 @@ export const DocumentLibraryPage: React.FC = () => {
 							viewMode={lib.viewMode}
 							fileTopicMap={lib.fileTopicMap}
 							selectedTopicIds={lib.selectedTopicIds}
+							compact={isPopupSurface}
 							onSelectNodeById={lib.handleSelectNodeInActiveTree}
 							onOpenFolderByPath={lib.handleOpenFolderByPath}
 							onCloseViewer={lib.handleCloseViewer}

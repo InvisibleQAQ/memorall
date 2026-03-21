@@ -62,9 +62,15 @@ export async function createChromePortTransport(
 	let disposed = false;
 	let connecting: Promise<void> | null = null;
 	let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	let connectedAt: number | null = null;
 
 	const subscribers = new Set<(msg: RpcResponse) => void>();
 	const queue: RpcRequest[] = [];
+
+	// Minimum connection duration (ms) before the backoff is considered "used up"
+	// and can be reset. Prevents backoff reset when the port immediately disconnects
+	// (e.g. offscreen document not ready yet).
+	const STABLE_CONNECTION_THRESHOLD_MS = 1000;
 
 	let backoff = backoffInit;
 
@@ -118,6 +124,18 @@ export async function createChromePortTransport(
 			port.onDisconnect.removeListener(handleDisconnect);
 			port = null;
 		}
+
+		// Only reset backoff if the connection was stable long enough.
+		// If the port immediately disconnected (offscreen not ready yet), keep
+		// accumulating backoff so we don't spin at 100 ms forever.
+		if (connectedAt !== null) {
+			const duration = Date.now() - connectedAt;
+			if (duration >= STABLE_CONNECTION_THRESHOLD_MS) {
+				backoff = backoffInit;
+			}
+			connectedAt = null;
+		}
+
 		if (!reconnectEnabled || disposed) return;
 
 		const delay = backoff;
@@ -147,6 +165,7 @@ export async function createChromePortTransport(
 				p.onMessage.addListener(handleMessage);
 				p.onDisconnect.addListener(handleDisconnect);
 				port = p;
+				connectedAt = Date.now();
 
 				// Flush queued messages
 				while (queue.length > 0 && port) {
@@ -164,8 +183,6 @@ export async function createChromePortTransport(
 						break;
 					}
 				}
-
-				backoff = backoffInit;
 
 				// Start heartbeat to monitor connection health
 				startHeartbeat();

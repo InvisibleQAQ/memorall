@@ -32,7 +32,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import type { DocumentTreeNode, DocumentType } from "@/types/document-library";
-import { ScrollArea } from "@/main/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 interface DocumentTreeProps {
@@ -365,12 +364,12 @@ export const DocumentTreeDraggable: React.FC<DocumentTreeProps> = ({
 			onDragStart={handleDragStart}
 			onDragEnd={handleDragEnd}
 		>
-			<ScrollArea className="h-full">
+			<div className="h-full overflow-y-auto">
 				<div className="py-2 px-1">
 					<RootDropZone />
 					{tree.map((node) => renderNode(node))}
 				</div>
-			</ScrollArea>
+			</div>
 
 			<DragOverlay>
 				{activeNode ? (

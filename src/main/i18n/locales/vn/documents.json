@@ -44,6 +44,10 @@
 		"addTopics": "Thêm chủ đề",
 		"convertToKnowledge": "Chuyển đổi thành kiến thức",
 		"converting": "Đang chuyển đổi...",
+		"properties": "Thuộc tính",
+		"download": "Tải xuống",
+		"delete": "Xóa",
+		"close": "Đóng",
 		"loadingPreview": "Đang tải xem trước...",
 		"documentInformation": "Thông tin tài liệu",
 		"title": "Tiêu đề",
@@ -123,7 +127,15 @@
 	},
 	"editor": {
 		"unsaved": "Chưa lưu",
+		"unsavedChanges": "(Chưa lưu thay đổi)",
 		"saving": "Đang lưu…",
-		"save": "Lưu"
+		"save": "Lưu",
+		"markdownPlaceholder": "Bắt đầu viết... (Nhập # cho tiêu đề, * cho danh sách, v.v.)",
+		"characterCount": "{{count}} ký tự",
+		"saveHint": "Phím tắt Markdown: ## cho tiêu đề, * cho danh sách | Ctrl+S để lưu"
+	},
+	"navigator": {
+		"expand": "Mở rộng",
+		"collapse": "Thu gọn"
 	}
 }

@@ -44,6 +44,10 @@
 		"addTopics": "Add Topics",
 		"convertToKnowledge": "Convert to Knowledge",
 		"converting": "Converting...",
+		"properties": "Properties",
+		"download": "Download",
+		"delete": "Delete",
+		"close": "Close",
 		"loadingPreview": "Loading preview...",
 		"documentInformation": "Document Information",
 		"title": "Title",
@@ -123,7 +127,15 @@
 	},
 	"editor": {
 		"unsaved": "Unsaved",
+		"unsavedChanges": "(Unsaved changes)",
 		"saving": "Saving…",
-		"save": "Save"
+		"save": "Save",
+		"markdownPlaceholder": "Start writing... (Type # for heading, * for list, etc.)",
+		"characterCount": "{{count}} characters",
+		"saveHint": "Markdown shortcuts: ## for heading, * for list | Ctrl+S to save"
+	},
+	"navigator": {
+		"expand": "Expand",
+		"collapse": "Collapse"
 	}
 }

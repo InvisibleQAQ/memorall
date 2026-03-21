@@ -2,6 +2,7 @@ import React from "react";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { useTranslation } from "react-i18next";
 import { Sparkles, Wrench } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
 	useAgentConfigStore,
 	type AgentFeatureDefinition,
@@ -122,26 +123,30 @@ export const AgentFeatureDetailModal =
 						? availableTools
 						: availableTools.filter((tool) => !claimedToolSet.has(tool));
 
+				const enabledCount = draftConfig.tools.filter((tool) =>
+					toolsToShow.includes(tool),
+				).length;
+
 				return (
-					<div className="space-y-4">
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<div className="space-y-1">
-								<p className="text-sm font-semibold">
+					<div className="space-y-3">
+						<div className="flex items-center justify-between gap-2">
+							<div className="flex items-center gap-2">
+								<p className="text-xs font-semibold text-foreground/80">
 									{t("agentSettings.featureTools")}
 								</p>
-								<p className="text-xs text-muted-foreground">
-									{t("agentSettings.toolCount", {
-										count: draftConfig.tools.filter((tool) =>
-											toolsToShow.includes(tool),
-										).length,
-									})}
-								</p>
+								<Badge
+									variant="secondary"
+									className="rounded-full px-1.5 py-0 text-[10px] font-normal"
+								>
+									{enabledCount}/{toolsToShow.length}
+								</Badge>
 							</div>
-							<div className="flex flex-wrap gap-2">
+							<div className="flex gap-0.5">
 								<Button
 									type="button"
-									variant="outline"
+									variant="ghost"
 									size="sm"
+									className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
 									onClick={() =>
 										updateField(
 											"tools",
@@ -156,10 +161,12 @@ export const AgentFeatureDetailModal =
 								>
 									{t("agentSettings.enableAll")}
 								</Button>
+								<span className="my-auto text-[10px] text-border">·</span>
 								<Button
 									type="button"
-									variant="outline"
+									variant="ghost"
 									size="sm"
+									className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
 									onClick={() =>
 										updateField(
 											"tools",
@@ -176,27 +183,43 @@ export const AgentFeatureDetailModal =
 								</Button>
 							</div>
 						</div>
-						<div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
+						<div className="grid grid-cols-1 gap-1.5 min-[520px]:grid-cols-2">
 							{toolsToShow.map((toolName) => {
 								const info = TOOL_DISPLAY_INFO[toolName];
+								const isEnabled = draftConfig.tools.includes(toolName);
 								return (
 									<div
 										key={toolName}
-										className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background/80 px-3 py-3"
+										onClick={() => toggleTool(toolName)}
+										className={cn(
+											"group flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 transition-colors",
+											isEnabled
+												? "border-primary/25 bg-primary/5 hover:bg-primary/8"
+												: "border-border/50 bg-background/50 hover:bg-muted/40",
+										)}
 									>
-										<div className="space-y-0.5">
-											<p className="font-mono text-xs font-medium">
+										<div className="min-w-0 flex-1">
+											<p
+												className={cn(
+													"truncate font-mono text-[11px] font-medium leading-tight",
+													isEnabled
+														? "text-foreground"
+														: "text-foreground/70",
+												)}
+											>
 												{toolName}
 											</p>
 											{info?.description ? (
-												<p className="text-[10px] leading-tight text-muted-foreground">
+												<p className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground">
 													{info.description}
 												</p>
 											) : null}
 										</div>
 										<Switch
-											checked={draftConfig.tools.includes(toolName)}
+											checked={isEnabled}
 											onCheckedChange={() => toggleTool(toolName)}
+											onClick={(e) => e.stopPropagation()}
+											className="pointer-events-none shrink-0 scale-[0.8]"
 										/>
 									</div>
 								);
@@ -276,47 +299,51 @@ export const AgentFeatureDetailModal =
 				open={modal.visible}
 				onOpenChange={(open) => !open && modal.hide()}
 			>
-				<DialogContent className="flex max-h-[min(90dvh,640px)] w-[calc(100vw-1rem)] max-w-[920px] flex-col overflow-hidden gap-0 rounded-2xl border-border/70 p-0 shadow-2xl sm:w-[min(94vw,920px)]">
-					<DialogHeader className="border-b bg-gradient-to-r from-background via-background to-muted/30 px-6 pt-6 pb-4">
-						<DialogTitle className="flex items-center gap-2">
-							<span className="rounded-xl bg-muted p-2 text-muted-foreground">
+				<DialogContent className="flex max-h-[min(90dvh,580px)] w-[calc(100vw-1rem)] max-w-[800px] flex-col overflow-hidden gap-0 rounded-2xl border-border/60 p-0 shadow-2xl sm:w-[min(94vw,800px)]">
+					<DialogHeader className="border-b px-5 pt-5 pb-4">
+						<div className="flex items-start gap-3">
+							<span className="mt-0.5 shrink-0 rounded-lg bg-muted p-1.5 text-muted-foreground">
 								{feature.type === "config" && feature.configKey === "tools" ? (
-									<Wrench size={16} />
+									<Wrench size={14} />
 								) : (
-									<Sparkles size={16} />
+									<Sparkles size={14} />
 								)}
 							</span>
-							{title}
-						</DialogTitle>
-						<div className="flex flex-wrap items-center gap-2">
-							<Badge variant="secondary" className="rounded-full px-2.5 py-0.5">
-								{feature.type === "catalog"
-									? t("agentSettings.toolCount", {
-											count: feature.tools.length,
-										})
-									: t("agentSettings.detail")}
-							</Badge>
-							{feature.type === "config" && feature.configKey === "tools" ? (
-								<Badge variant="outline" className="rounded-full px-2.5 py-0.5">
-									{t("agentSettings.toolCount", {
-										count: draftConfig.tools.length,
-									})}
-								</Badge>
-							) : null}
+							<div className="min-w-0 flex-1 space-y-1">
+								<div className="flex flex-wrap items-center gap-1.5">
+									<DialogTitle className="text-sm font-semibold leading-none">
+										{title}
+									</DialogTitle>
+									<Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px] font-normal">
+										{feature.type === "catalog"
+											? t("agentSettings.toolCount", {
+													count: feature.tools.length,
+												})
+											: t("agentSettings.detail")}
+									</Badge>
+									{feature.type === "config" && feature.configKey === "tools" ? (
+										<Badge variant="outline" className="rounded-full px-1.5 py-0 text-[10px] font-normal">
+											{t("agentSettings.toolCount", {
+												count: draftConfig.tools.length,
+											})}
+										</Badge>
+									) : null}
+								</div>
+								<DialogDescription className="text-xs text-muted-foreground">
+									{description}
+								</DialogDescription>
+							</div>
 						</div>
-						<DialogDescription className="max-w-3xl">
-							{description}
-						</DialogDescription>
 					</DialogHeader>
 
 					<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-						<div className="space-y-5 px-6 py-5">{renderTools()}</div>
-						<DialogFooter className="sticky bottom-0 mt-4 flex-row justify-end gap-2 border-t bg-background/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+						<div className="space-y-4 px-5 py-4">{renderTools()}</div>
+						<DialogFooter className="sticky bottom-0 border-t bg-background/95 px-5 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/85">
 							<Button
 								type="button"
 								variant="outline"
 								size="sm"
-								className="min-w-[104px]"
+								className="h-7 min-w-[80px] text-xs"
 								onClick={() => modal.hide()}
 							>
 								{t("agentSettings.cancel")}

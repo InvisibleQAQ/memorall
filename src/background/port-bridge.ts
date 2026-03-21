@@ -115,49 +115,112 @@ class PortBridge {
 	}
 
 	/**
-	 * Set up bidirectional message relay between popup and offscreen ports
+	 * Set up bidirectional message relay between popup and offscreen ports.
+	 *
+	 * When the offscreen port disconnects (e.g. the RPC handler isn't registered
+	 * yet because the offscreen document is still initialising) we retry the
+	 * offscreen connection with exponential backoff instead of closing the popup
+	 * port.  This prevents the client-side reconnect loop that arises when the
+	 * popup keeps reconnecting because we keep kicking it out.
 	 */
 	private setupRelay(
 		bridgeId: string,
 		popupPort: chrome.runtime.Port,
 		offscreenPort: chrome.runtime.Port,
 	): void {
-		// Relay messages from popup to offscreen
-		popupPort.onMessage.addListener((message) => {
+		const OFFSCREEN_BACKOFF_INIT_MS = 200;
+		const OFFSCREEN_BACKOFF_MAX_MS = 5000;
+		const OFFSCREEN_MAX_RETRIES = 20;
+
+		let currentOffscreenPort = offscreenPort;
+		let popupDisconnected = false;
+
+		// Relay messages from popup → current offscreen port
+		const relayToOffscreen = (message: unknown) => {
 			try {
-				offscreenPort.postMessage(message);
+				currentOffscreenPort.postMessage(message);
 			} catch (error) {
 				logWarn("Failed to relay message from popup to offscreen:", error);
 			}
-		});
+		};
+		popupPort.onMessage.addListener(relayToOffscreen);
 
-		// Relay messages from offscreen to popup
-		offscreenPort.onMessage.addListener((message) => {
+		// Relay messages from offscreen → popup
+		const relayToPopup = (message: unknown) => {
 			try {
 				popupPort.postMessage(message);
 			} catch (error) {
 				logWarn("Failed to relay message from offscreen to popup:", error);
 			}
-		});
-
-		// Handle disconnection - clean up when either side disconnects
-		const cleanup = () => {
-			logInfo("🌉 Port bridge disconnected", { bridgeId });
-
-			// Remove listeners and disconnect both ports
-			try {
-				popupPort.disconnect();
-			} catch {}
-			try {
-				offscreenPort.disconnect();
-			} catch {}
-
-			// Remove from active bridges
-			this.activeBridges.delete(bridgeId);
 		};
 
-		popupPort.onDisconnect.addListener(cleanup);
-		offscreenPort.onDisconnect.addListener(cleanup);
+		// Tear down everything when the popup side goes away
+		popupPort.onDisconnect.addListener(() => {
+			logInfo("🌉 Port bridge: popup disconnected", { bridgeId });
+			popupDisconnected = true;
+			try {
+				currentOffscreenPort.disconnect();
+			} catch {}
+			this.activeBridges.delete(bridgeId);
+		});
+
+		// Attach listeners to an offscreen port and handle its disconnect with retry
+		const attachOffscreen = (oPort: chrome.runtime.Port, attempt: number) => {
+			oPort.onMessage.addListener(relayToPopup);
+
+			oPort.onDisconnect.addListener(() => {
+				if (popupDisconnected) return; // popup already gone, nothing to do
+
+				const err = chrome.runtime.lastError;
+				logInfo("🌉 Port bridge: offscreen disconnected, will retry", {
+					bridgeId,
+					attempt,
+					error: err?.message,
+				});
+
+				if (attempt >= OFFSCREEN_MAX_RETRIES) {
+					logError(
+						"❌ Port bridge: max offscreen retries reached, closing popup port",
+						{ bridgeId },
+					);
+					try {
+						popupPort.disconnect();
+					} catch {}
+					this.activeBridges.delete(bridgeId);
+					return;
+				}
+
+				// Exponential backoff retry — popup stays connected
+				const delay = Math.min(
+					OFFSCREEN_BACKOFF_INIT_MS * Math.pow(2, attempt),
+					OFFSCREEN_BACKOFF_MAX_MS,
+				);
+				logInfo(`🔄 Port bridge: retrying offscreen in ${delay}ms`, {
+					bridgeId,
+					attempt: attempt + 1,
+				});
+
+				setTimeout(() => {
+					if (popupDisconnected) return;
+					try {
+						const newPort = chrome.runtime.connect({ name: popupPort.name });
+						currentOffscreenPort = newPort;
+						attachOffscreen(newPort, attempt + 1);
+					} catch (connectErr) {
+						logError(
+							"❌ Port bridge: failed to reconnect to offscreen:",
+							connectErr,
+						);
+						try {
+							popupPort.disconnect();
+						} catch {}
+						this.activeBridges.delete(bridgeId);
+					}
+				}, delay);
+			});
+		};
+
+		attachOffscreen(offscreenPort, 0);
 	}
 
 	/**

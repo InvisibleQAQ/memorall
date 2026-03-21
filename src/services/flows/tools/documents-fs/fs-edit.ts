@@ -7,7 +7,7 @@ import type {
 import { toolRegistry } from "@/services/flows/tool-registry";
 import { normalizeFsPath, flattenTree } from "./util";
 
-const TOOL_NAME = "fs_edit" as const;
+const TOOL_NAME = "document_fs_edit" as const;
 
 const schema = z.object({
 	file_path: z.string().describe("Path to the file to edit"),

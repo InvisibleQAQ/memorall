@@ -12,7 +12,7 @@ import {
 	formatFileSize,
 } from "./util";
 
-const TOOL_NAME = "fs_ls" as const;
+const TOOL_NAME = "document_fs_ls" as const;
 
 const schema = z.object({
 	path: z.string().optional().describe('Directory path to list (default: "/")'),

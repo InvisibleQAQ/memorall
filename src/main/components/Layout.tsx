@@ -30,7 +30,7 @@ import { ProcessMonitor } from "@/main/components/molecules/ProcessMonitor";
 import { openStandalonePage } from "@/utils/open-standalone";
 import { isPopupSurface } from "@/utils/dom";
 import { useIsWideViewport } from "@/main/hooks/use-viewport";
-import { RuntimeSessionsPopover } from "@/main/components/molecules/RuntimeSessionsPanel";
+import { RuntimeSessionsPopover } from "@/main/components/molecules/RuntimeSessions";
 import { SettingPanel } from "@/main/components/molecules/SettingPanel";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 

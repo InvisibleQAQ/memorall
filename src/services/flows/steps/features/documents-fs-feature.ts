@@ -42,54 +42,54 @@ The workspace root is "/" — all paths are absolute virtual paths (e.g. "/notes
 
 | Tool | Purpose |
 |---|---|
-| \`fs_ls\` | List files and directories at a path |
-| \`fs_glob\` | Find files matching a glob pattern |
-| \`fs_grep\` | Search file content by regex pattern |
-| \`fs_read\` | Read a file with line numbers |
-| \`fs_write\` | Create or overwrite a file |
-| \`fs_edit\` | Replace exact text inside a file |
-| \`fs_mkdir\` | Create a directory |
-| \`fs_remove\` | Delete a file or directory |
+| \`document_fs_ls\` | List files and directories at a path |
+| \`document_fs_glob\` | Find files matching a glob pattern |
+| \`document_fs_grep\` | Search file content by regex pattern |
+| \`document_fs_read\` | Read a file with line numbers |
+| \`document_fs_write\` | Create or overwrite a file |
+| \`document_fs_edit\` | Replace exact text inside a file |
+| \`document_fs_mkdir\` | Create a directory |
+| \`document_fs_remove\` | Delete a file or directory |
 
 ## RECOMMENDED WORKFLOWS
 
 ### Exploring the workspace
-1. Start with \`fs_ls\` (path: "/") to get an overview of the top-level structure.
-2. Use \`fs_glob\` with a pattern like \`**/*.md\` to find all files of a type.
-3. Use \`fs_grep\` to locate files containing specific content before reading them.
+1. Start with \`document_fs_ls\` (path: "/") to get an overview of the top-level structure.
+2. Use \`document_fs_glob\` with a pattern like \`**/*.md\` to find all files of a type.
+3. Use \`document_fs_grep\` to locate files containing specific content before reading them.
 
 ### Reading files
-- Use \`fs_read\` to read a file. It returns content with line numbers (cat -n style).
+- Use \`document_fs_read\` to read a file. It returns content with line numbers (cat -n style).
 - For large files, use \`offset\` and \`limit\` to read in chunks (e.g. offset: 1, limit: 100).
 - Always read a file before editing it — you need to see the current content.
 
 ### Creating or updating files
-- \`fs_write\` creates a new file or **fully overwrites** an existing one. Use this for new files or complete rewrites.
-- \`fs_edit\` replaces an exact string within an existing file. Use this for targeted edits to avoid rewriting the whole file.
+- \`document_fs_write\` creates a new file or **fully overwrites** an existing one. Use this for new files or complete rewrites.
+- \`document_fs_edit\` replaces an exact string within an existing file. Use this for targeted edits to avoid rewriting the whole file.
   - \`old_string\` must match exactly (including whitespace and newlines).
   - Set \`replace_all: true\` to replace every occurrence; default replaces only the first.
 
 ### Searching content
-- \`fs_grep\` accepts a regex \`pattern\` and returns results in \`file:line:content\` format.
+- \`document_fs_grep\` accepts a regex \`pattern\` and returns results in \`file:line:content\` format.
 - Use \`glob\` to restrict the search to specific file types (e.g. \`"*.ts"\`, \`"**/*.md"\`).
 - Use \`context\` (number of surrounding lines) to get more context around each match.
 - Use \`output_mode: "files_with_matches"\` to get only file paths, or \`"count"\` for match counts per file.
 
 ### Finding files by name/pattern
-- \`fs_glob\` accepts glob syntax:
+- \`document_fs_glob\` accepts glob syntax:
   - \`*\` matches anything in a single directory segment.
   - \`**\` matches across any number of directory levels.
   - \`?\` matches any single character.
 - Example patterns: \`"**/*.pdf"\`, \`"reports/**"\`, \`"notes/2024-*.md"\`.
 
 ### Organizing files
-- \`fs_mkdir\` creates a directory (recursive by default — parent dirs are created automatically).
-- \`fs_remove\` deletes a file. To delete a non-empty directory, pass \`recursive: true\`.
+- \`document_fs_mkdir\` creates a directory (recursive by default — parent dirs are created automatically).
+- \`document_fs_remove\` deletes a file. To delete a non-empty directory, pass \`recursive: true\`.
 
 ## IMPORTANT RULES
-- Always use \`fs_read\` before \`fs_edit\` — verify the exact text to replace.
-- Prefer \`fs_edit\` over \`fs_write\` when modifying a small portion of a large file.
-- Use \`fs_grep\` before reading large files to confirm they contain what you need.
+- Always use \`document_fs_read\` before \`document_fs_edit\` — verify the exact text to replace.
+- Prefer \`document_fs_edit\` over \`document_fs_write\` when modifying a small portion of a large file.
+- Use \`document_fs_grep\` before reading large files to confirm they contain what you need.
 - Paths that do not start with "/" are treated as relative to "/" automatically.
 - The workspace is shared and persistent — changes are saved immediately.
 `;
@@ -98,14 +98,14 @@ export const DOCUMENTS_FS_FEATURE_SYSTEM_PROMPT =
 	SYSTEM_PROMPT_INSTRUCTION.trim();
 
 export const DOCUMENTS_FS_FEATURE_TOOLS = [
-	"fs_ls",
-	"fs_glob",
-	"fs_grep",
-	"fs_read",
-	"fs_write",
-	"fs_edit",
-	"fs_mkdir",
-	"fs_remove",
+	"document_fs_ls",
+	"document_fs_glob",
+	"document_fs_grep",
+	"document_fs_read",
+	"document_fs_write",
+	"document_fs_edit",
+	"document_fs_mkdir",
+	"document_fs_remove",
 ] as const;
 
 export const DOCUMENTS_FS_FEATURE_DESCRIPTION =

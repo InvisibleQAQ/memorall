@@ -25,7 +25,7 @@ import {
 } from "@/main/modules/llm/components";
 import { cn } from "@/lib/utils";
 import { serviceManager } from "@/services";
-import { RuntimeSessionsPanel } from "@/main/components/molecules/RuntimeSessionsPanel";
+import { RuntimeSessionsPanel } from "@/main/components/molecules/RuntimeSessions";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { isPopupSurface } from "@/utils/dom";
 import { useIsWideViewport } from "@/main/hooks/use-viewport";

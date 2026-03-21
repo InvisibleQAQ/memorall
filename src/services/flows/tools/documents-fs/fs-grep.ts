@@ -7,7 +7,7 @@ import type {
 import { toolRegistry } from "@/services/flows/tool-registry";
 import { normalizeFsPath, flattenTree, globToRegex, isInScope } from "./util";
 
-const TOOL_NAME = "fs_grep" as const;
+const TOOL_NAME = "document_fs_grep" as const;
 
 const schema = z.object({
 	pattern: z.string().describe("Regex pattern to search for in file content"),

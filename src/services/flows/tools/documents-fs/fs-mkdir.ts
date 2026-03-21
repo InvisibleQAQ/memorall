@@ -7,7 +7,7 @@ import type {
 import { toolRegistry } from "@/services/flows/tool-registry";
 import { normalizeFsPath, flattenTree } from "./util";
 
-const TOOL_NAME = "fs_mkdir" as const;
+const TOOL_NAME = "document_fs_mkdir" as const;
 
 const schema = z.object({
 	path: z.string().describe("Directory path to create"),
