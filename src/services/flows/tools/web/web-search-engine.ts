@@ -163,26 +163,26 @@ const universalFallback = (
 	return results;
 };
 
-const resolveEngines = (engines: string[] | undefined): SupportedEngine[] => {
-	if (!engines || engines.length === 0) return ["google"];
-	if (engines.includes("all")) return [...SUPPORTED_ENGINES];
-	return engines.filter((e): e is SupportedEngine =>
+const resolveEngines = (engines: string | undefined): SupportedEngine[] => {
+	if (!engines || engines.trim().length === 0) return ["google"];
+	const parts = engines
+		.split(",")
+		.map((e) => e.trim().toLowerCase())
+		.filter((e) => e.length > 0);
+	if (parts.includes("all")) return [...SUPPORTED_ENGINES];
+	const valid = parts.filter((e): e is SupportedEngine =>
 		(SUPPORTED_ENGINES as readonly string[]).includes(e),
 	);
+	return valid.length > 0 ? valid : ["google"];
 };
 
 const schema = z.object({
 	query: z.string().min(1).describe("The search query."),
 	engines: z
-		.preprocess(
-			(val) =>
-				Array.isArray(val)
-					? val.filter((e) => typeof e === "string" && e.length > 0)
-					: val,
-			z.array(z.string()).optional(),
-		)
+		.string()
+		.optional()
 		.describe(
-			`Engines to search. Use ["all"] for all engines, or any combination of: ${SUPPORTED_ENGINES.join(", ")}. Default: ["google"].`,
+			`Comma-separated engines to search. Use "all" for all engines, or any combination of: ${SUPPORTED_ENGINES.join(", ")}. Default: "google". Example: "google,bing".`,
 		),
 	maxResultsPerEngine: z
 		.number()

@@ -7,10 +7,12 @@ import type {
 	MessageActionItem,
 } from "@/main/modules/chat/components/types";
 import type { SandboxHandleSwRequestResult } from "@/services/sandbox-container";
+import { defaultActionRenderer } from "./DefaultActionRenderer";
 import {
 	ApiResultPreview,
 	type ApiResultPayload,
 } from "@/main/modules/chat/components/tools/APIResult";
+import { ToolItemRawIO } from "./ToolCommon";
 
 interface WebAccessPayload {
 	url: string;
@@ -437,11 +439,7 @@ export const webAccessRenderer: ActionRenderer = (item, isOpen) => {
 	if (!isOpen) return null;
 	const payload = extractWebAccessPayload(item);
 	if (!payload) {
-		return (
-			<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
-				{item.description}
-			</div>
-		);
+		return defaultActionRenderer(item, isOpen);
 	}
 
 	if (isApiPayload(payload)) {
@@ -456,8 +454,18 @@ export const webAccessRenderer: ActionRenderer = (item, isOpen) => {
 			body: payload.body,
 		};
 
-		return <ApiResultPreview payload={apiPayload} />;
+		return (
+			<div className="space-y-3">
+				<ApiResultPreview payload={apiPayload} />
+				<ToolItemRawIO item={item} output={payload} />
+			</div>
+		);
 	}
 
-	return <WebAccessPreview payload={payload} />;
+	return (
+		<div className="space-y-3">
+			<WebAccessPreview payload={payload} />
+			<ToolItemRawIO item={item} output={payload} />
+		</div>
+	);
 };

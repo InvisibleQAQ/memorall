@@ -14,7 +14,7 @@ import {
 	ToolCodeBlock,
 	ToolDetail,
 	ToolDetailsGrid,
-	ToolRawPayload,
+	ToolItemRawIO,
 	ToolSection,
 	ToolStateBadge,
 } from "./ToolCommon";
@@ -217,7 +217,7 @@ export const webDomRenderer: ActionRenderer = (item, isOpen) => {
 				</ToolSection>
 			) : null}
 
-			<ToolRawPayload payload={payload} />
+			<ToolItemRawIO item={item} output={payload} />
 		</div>
 	);
 };

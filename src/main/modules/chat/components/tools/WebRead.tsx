@@ -1,8 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Globe, FileText, ExternalLink } from "lucide-react";
+import { Globe, ExternalLink } from "lucide-react";
 import type { ActionRenderer } from "@/main/modules/chat/components/types";
 import type { MessageActionItem } from "@/main/modules/chat/components/types";
+import { defaultActionRenderer } from "./DefaultActionRenderer";
+import { ToolItemRawIO } from "./ToolCommon";
 
 interface WebReadPayload {
 	url?: string;
@@ -95,11 +97,7 @@ export const webReadRenderer: ActionRenderer = (item, isOpen) => {
 	const payload = extractWebReadPayload(item);
 	const { t } = useTranslation("chat");
 	if (!payload) {
-		return (
-			<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
-				{item.description}
-			</div>
-		);
+		return defaultActionRenderer(item, isOpen);
 	}
 
 	const displayUrl = payload.url || payload.requestedUrl || "";
@@ -155,6 +153,9 @@ export const webReadRenderer: ActionRenderer = (item, isOpen) => {
 					<span className="font-mono">{metadataBits.join(" | ")}</span>
 				</div>
 			)}
+			<div className="border-t border-border/60 p-3">
+				<ToolItemRawIO item={item} output={payload} />
+			</div>
 		</div>
 	);
 };

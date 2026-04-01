@@ -1,5 +1,6 @@
 import type { ActionRenderer } from "@/main/modules/chat/components/types";
 import { MessageKnowledgeGraph } from "@/main/modules/chat/components/MessageKnowledgeGraph";
+import { ToolItemRawIO } from "./ToolCommon";
 
 interface KnowledgeGraphMetadata extends Record<string, unknown> {
 	nodes: Array<{
@@ -74,9 +75,12 @@ export function isKnowledgeGraphMetadata(
 export const messageKnowledgeGraphRenderer: ActionRenderer = (item, isOpen) => {
 	if (!isOpen || !isKnowledgeGraphMetadata(item.metadata)) return null;
 	return (
-		<MessageKnowledgeGraph
-			nodes={item.metadata.nodes}
-			edges={item.metadata.edges}
-		/>
+		<div className="space-y-3">
+			<MessageKnowledgeGraph
+				nodes={item.metadata.nodes}
+				edges={item.metadata.edges}
+			/>
+			<ToolItemRawIO item={item} output={item.metadata} />
+		</div>
 	);
 };

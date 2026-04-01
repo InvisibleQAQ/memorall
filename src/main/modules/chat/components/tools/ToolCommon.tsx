@@ -21,6 +21,9 @@ export const getStructuredToolPayload = (
 	}
 };
 
+const hasOwnKeys = (value: Record<string, unknown>): boolean =>
+	Object.keys(value).length > 0;
+
 export const getToolCallArguments = (
 	item: MessageActionItem,
 ): Record<string, unknown> | null => {
@@ -171,16 +174,97 @@ export const ToolCodeBlock: React.FC<{
 	</pre>
 );
 
-export const ToolRawPayload: React.FC<{ payload: unknown }> = ({ payload }) => (
-	<details className="rounded-lg border border-border/60 bg-muted/10">
-		<summary className="cursor-pointer select-none px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
-			Raw payload
-		</summary>
-		<div className="border-t border-border/60 p-3">
-			<ToolCodeBlock>{stringifyToolPayload(payload)}</ToolCodeBlock>
+export const ToolRawIO: React.FC<{
+	input?: unknown;
+	output?: unknown;
+}> = ({ input, output }) => {
+	const [open, setOpen] = React.useState(false);
+	const [tab, setTab] = React.useState<"input" | "output">("output");
+
+	const activeValue = tab === "input" ? input : output;
+	const fallbackText =
+		tab === "input" ? "No raw input available." : "No raw output available.";
+
+	const switchTo = (t: "input" | "output") => {
+		setTab(t);
+		setOpen(true);
+	};
+
+	return (
+		<div className="rounded-lg border border-border/60 bg-muted/10 overflow-hidden text-xs">
+			<div className="flex items-center gap-2 px-3 py-2">
+				<button
+					type="button"
+					className="flex-1 text-left text-muted-foreground hover:text-foreground transition-colors select-none"
+					onClick={() => setOpen((p) => !p)}
+				>
+					Raw
+				</button>
+				<div className="flex items-center gap-0.5 rounded-md border border-border/40 p-0.5">
+					<button
+						type="button"
+						onClick={() => switchTo("input")}
+						className={cn(
+							"rounded px-2 py-0.5 text-[10px] transition-colors",
+							tab === "input" && open
+								? "bg-muted text-foreground"
+								: "text-muted-foreground hover:text-foreground",
+						)}
+					>
+						Input
+					</button>
+					<button
+						type="button"
+						onClick={() => switchTo("output")}
+						className={cn(
+							"rounded px-2 py-0.5 text-[10px] transition-colors",
+							tab === "output" && open
+								? "bg-muted text-foreground"
+								: "text-muted-foreground hover:text-foreground",
+						)}
+					>
+						Output
+					</button>
+				</div>
+			</div>
+			{open && (
+				<div className="border-t border-border/60 p-3">
+					<ToolCodeBlock>
+						{activeValue === undefined
+							? fallbackText
+							: stringifyToolPayload(activeValue)}
+					</ToolCodeBlock>
+				</div>
+			)}
 		</div>
-	</details>
-);
+	);
+};
+
+const getDefaultToolRawOutput = (item: MessageActionItem): unknown => {
+	const structuredPayload = getStructuredToolPayload(item);
+	if (structuredPayload) {
+		return structuredPayload;
+	}
+
+	if (isRecord(item.metadata) && hasOwnKeys(item.metadata)) {
+		return item.metadata;
+	}
+
+	return item.description;
+};
+
+export const ToolItemRawIO: React.FC<{
+	item: MessageActionItem;
+	input?: unknown;
+	output?: unknown;
+}> = ({ item, input, output }) => {
+	const resolvedInput =
+		input === undefined ? getToolCallArguments(item) : input;
+	const resolvedOutput =
+		output === undefined ? getDefaultToolRawOutput(item) : output;
+
+	return <ToolRawIO input={resolvedInput} output={resolvedOutput} />;
+};
 
 export const ToolStateBadge: React.FC<{
 	ok?: boolean;

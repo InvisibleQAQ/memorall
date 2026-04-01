@@ -10,11 +10,10 @@ import {
 	getBoolean,
 	getString,
 	getToolCallArguments,
-	isRecord,
 	ToolCodeBlock,
 	ToolDetail,
 	ToolDetailsGrid,
-	ToolRawPayload,
+	ToolItemRawIO,
 	ToolSection,
 	ToolStateBadge,
 } from "./ToolCommon";
@@ -450,7 +449,12 @@ const parseFsMutationOutput = (
 	return null;
 };
 
-const renderFsRead = (view: FsReadView, raw: unknown): React.ReactNode => (
+const renderFsRead = (
+	view: FsReadView,
+	item: MessageActionItem,
+	rawInput: unknown,
+	rawOutput: unknown,
+): React.ReactNode => (
 	<>
 		<ToolSection title="Read Result">
 			<ToolDetailsGrid>
@@ -484,11 +488,16 @@ const renderFsRead = (view: FsReadView, raw: unknown): React.ReactNode => (
 				</ToolCodeBlock>
 			</div>
 		</ToolSection>
-		<ToolRawPayload payload={raw} />
+		<ToolItemRawIO item={item} input={rawInput} output={rawOutput} />
 	</>
 );
 
-const renderFsList = (view: FsListView, raw: unknown): React.ReactNode => (
+const renderFsList = (
+	view: FsListView,
+	item: MessageActionItem,
+	rawInput: unknown,
+	rawOutput: unknown,
+): React.ReactNode => (
 	<>
 		<ToolSection title="Directory Listing">
 			<ToolDetailsGrid>
@@ -525,11 +534,16 @@ const renderFsList = (view: FsListView, raw: unknown): React.ReactNode => (
 				)}
 			</div>
 		</ToolSection>
-		<ToolRawPayload payload={raw} />
+		<ToolItemRawIO item={item} input={rawInput} output={rawOutput} />
 	</>
 );
 
-const renderFsGlob = (view: FsGlobView, raw: unknown): React.ReactNode => (
+const renderFsGlob = (
+	view: FsGlobView,
+	item: MessageActionItem,
+	rawInput: unknown,
+	rawOutput: unknown,
+): React.ReactNode => (
 	<>
 		<ToolSection title="Glob Matches">
 			<ToolDetailsGrid>
@@ -558,11 +572,16 @@ const renderFsGlob = (view: FsGlobView, raw: unknown): React.ReactNode => (
 				)}
 			</div>
 		</ToolSection>
-		<ToolRawPayload payload={raw} />
+		<ToolItemRawIO item={item} input={rawInput} output={rawOutput} />
 	</>
 );
 
-const renderFsGrep = (view: FsGrepView, raw: unknown): React.ReactNode => (
+const renderFsGrep = (
+	view: FsGrepView,
+	item: MessageActionItem,
+	rawInput: unknown,
+	rawOutput: unknown,
+): React.ReactNode => (
 	<>
 		<ToolSection title="Search Results">
 			<ToolDetailsGrid>
@@ -645,13 +664,15 @@ const renderFsGrep = (view: FsGrepView, raw: unknown): React.ReactNode => (
 				)}
 			</div>
 		</ToolSection>
-		<ToolRawPayload payload={raw} />
+		<ToolItemRawIO item={item} input={rawInput} output={rawOutput} />
 	</>
 );
 
 const renderFsMutation = (
 	view: FsMutationView,
-	raw: unknown,
+	item: MessageActionItem,
+	rawInput: unknown,
+	rawOutput: unknown,
 ): React.ReactNode => (
 	<>
 		<ToolSection title={view.title}>
@@ -703,7 +724,7 @@ const renderFsMutation = (
 				</div>
 			) : null}
 		</ToolSection>
-		<ToolRawPayload payload={raw} />
+		<ToolItemRawIO item={item} input={rawInput} output={rawOutput} />
 	</>
 );
 
@@ -713,12 +734,8 @@ export const fsActionRenderer: ActionRenderer = (item, isOpen) => {
 	const args = getToolCallArguments(item);
 	const descriptionParts = splitActionDescription(item.description);
 	const outputText = descriptionParts.outputText;
-	const raw = {
-		args,
-		input: descriptionParts.inputText,
-		output: outputText,
-		description: item.description,
-	};
+	const rawInput = args ?? descriptionParts.inputText;
+	const rawOutput = outputText;
 
 	if (outputText.startsWith("Error:")) {
 		return (
@@ -734,7 +751,7 @@ export const fsActionRenderer: ActionRenderer = (item, isOpen) => {
 						{outputText.replace(/^Error:\s*/, "")}
 					</div>
 				</ToolSection>
-				<ToolRawPayload payload={raw} />
+				<ToolItemRawIO item={item} input={rawInput} output={rawOutput} />
 			</div>
 		);
 	}
@@ -743,26 +760,36 @@ export const fsActionRenderer: ActionRenderer = (item, isOpen) => {
 		case "fs_read": {
 			const view = parseFsReadOutput(outputText);
 			return view
-				? renderFsRead(view, raw)
+				? renderFsRead(view, item, rawInput, rawOutput)
 				: defaultActionRenderer(item, isOpen);
 		}
 		case "fs_ls": {
 			const view = parseFsLsOutput(outputText);
 			return view
-				? renderFsList(view, raw)
+				? renderFsList(view, item, rawInput, rawOutput)
 				: defaultActionRenderer(item, isOpen);
 		}
 		case "fs_glob":
-			return renderFsGlob(parseFsGlobOutput(outputText, args), raw);
+			return renderFsGlob(
+				parseFsGlobOutput(outputText, args),
+				item,
+				rawInput,
+				rawOutput,
+			);
 		case "fs_grep":
-			return renderFsGrep(parseFsGrepOutput(outputText, args), raw);
+			return renderFsGrep(
+				parseFsGrepOutput(outputText, args),
+				item,
+				rawInput,
+				rawOutput,
+			);
 		case "fs_write":
 		case "fs_edit":
 		case "fs_mkdir":
 		case "fs_remove": {
 			const view = parseFsMutationOutput(item.name, outputText, args);
 			return view
-				? renderFsMutation(view, raw)
+				? renderFsMutation(view, item, rawInput, rawOutput)
 				: defaultActionRenderer(item, isOpen);
 		}
 		default:

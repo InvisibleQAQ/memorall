@@ -11,7 +11,8 @@ import type {
 	ActionRenderer,
 	MessageActionItem,
 } from "@/main/modules/chat/components/types";
-import { getToolCallArguments } from "./ToolCommon";
+import { defaultActionRenderer } from "./DefaultActionRenderer";
+import { getToolCallArguments, ToolItemRawIO } from "./ToolCommon";
 
 type CommandStatus = "running" | "completed" | "failed" | "stopped";
 
@@ -500,11 +501,15 @@ const TerminalListPreview: React.FC<{ entries: CommandListEntry[] }> = ({
 	);
 };
 
-const TerminalFallback: React.FC<{ description: string }> = ({
-	description,
-}) => (
-	<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
-		{description}
+const TerminalFallback: React.FC<{
+	item: MessageActionItem;
+	output: string;
+}> = ({ item, output }) => (
+	<div className="space-y-3">
+		<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
+			{item.description}
+		</div>
+		<ToolItemRawIO item={item} output={output} />
 	</div>
 );
 
@@ -517,9 +522,14 @@ export const terminalToolRenderer: ActionRenderer = (item, isOpen) => {
 	if (item.name === "container_list_commands") {
 		const listEntries = parseCommandListOutput(output);
 		if (listEntries) {
-			return <TerminalListPreview entries={listEntries} />;
+			return (
+				<div className="space-y-3">
+					<TerminalListPreview entries={listEntries} />
+					<ToolItemRawIO item={item} output={output} />
+				</div>
+			);
 		}
-		return <TerminalFallback description={item.description} />;
+		return <TerminalFallback item={item} output={output} />;
 	}
 
 	if (
@@ -529,13 +539,20 @@ export const terminalToolRenderer: ActionRenderer = (item, isOpen) => {
 		const executionPayload = parseCommandExecutionOutput(output, args);
 		if (executionPayload) {
 			return (
-				<TerminalExecutionPreview
-					payload={executionPayload}
-					toolName={item.name}
-				/>
+				<div className="space-y-3">
+					<TerminalExecutionPreview
+						payload={executionPayload}
+						toolName={item.name}
+					/>
+					<ToolItemRawIO item={item} output={output} />
+				</div>
 			);
 		}
 	}
 
-	return <TerminalFallback description={item.description} />;
+	if (!output || output === item.description) {
+		return defaultActionRenderer(item, isOpen);
+	}
+
+	return <TerminalFallback item={item} output={output} />;
 };

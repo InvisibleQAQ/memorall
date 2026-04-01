@@ -2,6 +2,8 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Database } from "lucide-react";
 import type { ActionRenderer } from "@/main/modules/chat/components/types";
+import { defaultActionRenderer } from "./DefaultActionRenderer";
+import { ToolItemRawIO } from "./ToolCommon";
 
 export interface MessageActionItem {
 	name: string;
@@ -134,11 +136,12 @@ export const apiResultRenderer: ActionRenderer = (item, isOpen) => {
 	if (!isOpen) return null;
 	const payload = extractApiResultPayload(item);
 	if (!payload) {
-		return (
-			<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
-				{item.description}
-			</div>
-		);
+		return defaultActionRenderer(item, isOpen);
 	}
-	return <ApiResultPreview payload={payload} />;
+	return (
+		<div className="space-y-3">
+			<ApiResultPreview payload={payload} />
+			<ToolItemRawIO item={item} output={payload} />
+		</div>
+	);
 };

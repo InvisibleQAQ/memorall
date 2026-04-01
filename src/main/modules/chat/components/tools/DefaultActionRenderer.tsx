@@ -4,6 +4,7 @@ import {
 	isMermaidOnly,
 	TaskMermaidDiagram,
 } from "./TaskMermaidDiagram";
+import { ToolItemRawIO } from "./ToolCommon";
 
 export const defaultActionRenderer: ActionRenderer = (item, isOpen) => {
 	if (!isOpen) return null;
@@ -11,16 +12,22 @@ export const defaultActionRenderer: ActionRenderer = (item, isOpen) => {
 	const trimmedDesc = item.description?.trim() || "";
 	if (isMermaidOnly(trimmedDesc)) {
 		return (
-			<TaskMermaidDiagram
-				chart={extractMermaidContent(trimmedDesc)}
-				isOpen={isOpen}
-			/>
+			<div className="space-y-3">
+				<TaskMermaidDiagram
+					chart={extractMermaidContent(trimmedDesc)}
+					isOpen={isOpen}
+				/>
+				<ToolItemRawIO item={item} />
+			</div>
 		);
 	}
 
 	return (
-		<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
-			{item.description}
+		<div className="space-y-3">
+			<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
+				{item.description}
+			</div>
+			<ToolItemRawIO item={item} />
 		</div>
 	);
 };

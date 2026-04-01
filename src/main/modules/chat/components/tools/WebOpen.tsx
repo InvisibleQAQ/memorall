@@ -10,7 +10,7 @@ import {
 	openToolUrl,
 	ToolDetail,
 	ToolDetailsGrid,
-	ToolRawPayload,
+	ToolItemRawIO,
 	ToolSection,
 	ToolStateBadge,
 } from "./ToolCommon";
@@ -113,7 +113,7 @@ export const webOpenRenderer: ActionRenderer = (item, isOpen) => {
 					</ToolDetailsGrid>
 				</div>
 			</ToolSection>
-			<ToolRawPayload payload={payload} />
+			<ToolItemRawIO item={item} output={payload} />
 		</div>
 	);
 };

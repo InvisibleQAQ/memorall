@@ -9,10 +9,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { ActionRenderer } from "@/main/modules/chat/components/types";
 import type { MessageActionItem } from "@/main/modules/chat/components/types";
+import { defaultActionRenderer } from "./DefaultActionRenderer";
 import {
 	getStructuredToolPayload,
 	openToolUrl,
-	ToolRawPayload,
+	ToolItemRawIO,
 } from "./ToolCommon";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -31,7 +32,7 @@ interface EngineResult {
 
 interface WebSearchPayload {
 	query?: string;
-	engines?: string[];
+	engines?: string;
 	results?: EngineResult[];
 	errors?: { engine: string; error: string }[];
 	success?: boolean;
@@ -98,7 +99,7 @@ const extractPayload = (item: MessageActionItem): WebSearchPayload | null => {
 
 	return {
 		query: typeof raw.query === "string" ? raw.query : undefined,
-		engines: Array.isArray(raw.engines) ? (raw.engines as string[]) : undefined,
+		engines: typeof raw.engines === "string" ? raw.engines : undefined,
 		success: typeof raw.success === "boolean" ? raw.success : undefined,
 		results,
 		errors,
@@ -247,11 +248,7 @@ export const webSearchRenderer: ActionRenderer = (
 
 	const payload = extractPayload(item);
 	if (!payload) {
-		return (
-			<pre className="text-xs whitespace-pre-wrap break-words text-muted-foreground">
-				{item.description}
-			</pre>
-		);
+		return defaultActionRenderer(item, isOpen);
 	}
 
 	const { query, results = [], errors = [] } = payload;
@@ -300,7 +297,7 @@ export const webSearchRenderer: ActionRenderer = (
 				</div>
 			)}
 
-			<ToolRawPayload payload={payload} />
+			<ToolItemRawIO item={item} output={payload} />
 		</div>
 	);
 };
