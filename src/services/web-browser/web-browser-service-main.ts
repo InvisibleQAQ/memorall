@@ -23,10 +23,12 @@ import type {
 	WebElementRecord,
 } from "./web-browser-protocol";
 import {
+	closeAllWebSessionsExceptLatest,
 	closeWebSession,
 	disposeActiveWebSession,
 	fetchRenderedFallback,
 	getActiveWebSessionInfo,
+	getAllWebSessionsInfo,
 	getOrOpenWebSession,
 	getWebSession,
 	openWebSession,
@@ -115,6 +117,16 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 	async getActiveSessionInfo(): Promise<ActiveWebSessionInfo> {
 		await this.initialize();
 		return getActiveWebSessionInfo();
+	}
+
+	async getAllSessionsInfo(): Promise<ActiveWebSessionInfo[]> {
+		await this.initialize();
+		return getAllWebSessionsInfo();
+	}
+
+	async trimToLatestSession(): Promise<void> {
+		await this.initialize();
+		await closeAllWebSessionsExceptLatest();
 	}
 
 	async fetchRenderedFallback(

@@ -74,8 +74,7 @@ const SESSION_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_MAX_HTML_CHARS = 160_000;
 const DEFAULT_POLL_INTERVAL_MS = 250;
-let activeSessionId: string | undefined;
-let activeSessionTimeout: number | null = null;
+const sessionTimeouts = new Map<string, number>();
 
 const buildIframe = (url: string): HTMLIFrameElement => {
 	const iframe = document.createElement("iframe");
@@ -93,12 +92,6 @@ const normalizeInputUrl = (rawUrl: string): string => {
 	}
 };
 
-const truncate = (value: string, max: number): string => {
-	if (value.length <= max) {
-		return value;
-	}
-	return `${value.slice(0, max)}\n...truncated`;
-};
 
 const normalizeReadableText = (value: string): string =>
 	value.replace(/\s+/g, " ").trim();
@@ -133,21 +126,19 @@ const ensureBrowserEnvironment = (): void => {
 const waitForFrameLoad = async (
 	iframe: HTMLIFrameElement,
 	timeoutMs: number,
-): Promise<void> => {
-	await new Promise<void>((resolve, reject) => {
+): Promise<{ timedOut: boolean }> => {
+	return new Promise<{ timedOut: boolean }>((resolve) => {
 		const timeout = window.setTimeout(() => {
-			reject(
-				new Error(`Timeout while waiting page load (timeout=${timeoutMs}ms).`),
-			);
+			resolve({ timedOut: true });
 		}, timeoutMs);
 
 		const onLoad = (): void => {
 			window.clearTimeout(timeout);
-			resolve();
+			resolve({ timedOut: false });
 		};
 		const onError = (): void => {
 			window.clearTimeout(timeout);
-			reject(new Error("Failed to load web page in iframe."));
+			resolve({ timedOut: true });
 		};
 
 		iframe.addEventListener("load", onLoad, { once: true });
@@ -205,12 +196,15 @@ const extractTextFromDocument = (doc: Document): string =>
 	doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
 
 const scheduleInactivityClose = (sessionId: string): void => {
-	if (activeSessionTimeout) {
-		window.clearTimeout(activeSessionTimeout);
+	const existing = sessionTimeouts.get(sessionId);
+	if (existing !== undefined) {
+		window.clearTimeout(existing);
 	}
-	activeSessionTimeout = window.setTimeout(() => {
+	const timerId = window.setTimeout(() => {
+		sessionTimeouts.delete(sessionId);
 		void closeWebSession(sessionId);
 	}, SESSION_TTL_MS);
+	sessionTimeouts.set(sessionId, timerId);
 };
 
 const applySnapshotToSession = (
@@ -308,13 +302,11 @@ const closeAllWebSessions = async (): Promise<void> => {
 export const disposeActiveWebSession = async (
 	_reason?: string,
 ): Promise<void> => {
-	if (activeSessionTimeout) {
-		window.clearTimeout(activeSessionTimeout);
-		activeSessionTimeout = null;
+	for (const timerId of sessionTimeouts.values()) {
+		window.clearTimeout(timerId);
 	}
-
+	sessionTimeouts.clear();
 	await closeAllWebSessions();
-	activeSessionId = undefined;
 };
 
 const touchSession = async (
@@ -349,22 +341,61 @@ export const openWebSession = async ({
 		throw new Error("Document body is not available for web sessions.");
 	}
 
-	await closeAllWebSessions();
-
 	const safeUrl = normalizeInputUrl(url);
 	const id = crypto.randomUUID();
 	const now = Date.now();
 
 	if (isWideWebMode(mode)) {
-		const response = await sendWebBrowserCommand({
-			source: WEB_BROWSER_COMMAND_SOURCE,
-			command: "open",
-			sessionId: id,
-			url: safeUrl,
-			mode,
-			timeoutMs,
-			maxHtmlChars,
-		});
+		let response: SuccessfulWebBrowserCommandResponse;
+		try {
+			response = await sendWebBrowserCommand({
+				source: WEB_BROWSER_COMMAND_SOURCE,
+				command: "open",
+				sessionId: id,
+				url: safeUrl,
+				mode,
+				timeoutMs,
+				maxHtmlChars,
+			});
+		} catch (openError) {
+			// The tab may have been created but timed out before finishing load.
+			// Parse the tab ID from the error message so we can still capture
+			// whatever partial HTML loaded in the tab.
+			const tabIdMatch =
+				openError instanceof Error
+					? openError.message.match(/browser tab (\d+)/)
+					: null;
+			if (!tabIdMatch) {
+				throw openError;
+			}
+			const tabId = parseInt(tabIdMatch[1], 10);
+			const session: WebSessionState = {
+				id,
+				requestedUrl: safeUrl,
+				currentUrl: safeUrl,
+				title: "",
+				html: "",
+				text: "",
+				domAccessible: false,
+				lastAccessedAt: now,
+				createdAt: now,
+				mode,
+				tabId,
+			};
+			WEB_SESSIONS.set(id, session);
+			try {
+				await captureBrowserSnapshot(session, maxHtmlChars, 5_000);
+			} catch {
+				// Snapshot failed — session keeps empty html, still usable
+			}
+			scheduleInactivityClose(id);
+			return {
+				session,
+				disposable: !persist,
+				renderReady: false,
+			};
+		}
+
 		if (response.command !== "open") {
 			throw new Error("Invalid browser open response.");
 		}
@@ -385,7 +416,6 @@ export const openWebSession = async ({
 		};
 		applySnapshotToSession(session, response.snapshot);
 		WEB_SESSIONS.set(id, session);
-		activeSessionId = id;
 		const renderState = await waitForPageRender({
 			session,
 			timeoutMs,
@@ -400,43 +430,45 @@ export const openWebSession = async ({
 	}
 
 	const iframe = buildIframe(safeUrl);
-	try {
-		document.body.appendChild(iframe);
-		const loadPromise = waitForFrameLoad(iframe, timeoutMs);
-		iframe.src = safeUrl;
-		await loadPromise;
+	document.body.appendChild(iframe);
+	const { timedOut } = await waitForFrameLoad(iframe, timeoutMs);
 
-		const session: WebSessionState = {
-			id,
-			requestedUrl: safeUrl,
-			currentUrl: safeUrl,
-			title: "",
-			html: "",
-			text: "",
-			domAccessible: false,
-			lastAccessedAt: now,
-			createdAt: now,
-			mode: "iframe",
-			iframe,
-		};
-		captureIframeSnapshot(session);
-		WEB_SESSIONS.set(id, session);
-		activeSessionId = id;
-		const renderState = await waitForPageRender({
-			session,
-			timeoutMs,
-			maxHtmlChars,
-		});
+	const session: WebSessionState = {
+		id,
+		requestedUrl: safeUrl,
+		currentUrl: safeUrl,
+		title: "",
+		html: "",
+		text: "",
+		domAccessible: false,
+		lastAccessedAt: now,
+		createdAt: now,
+		mode: "iframe",
+		iframe,
+	};
+	captureIframeSnapshot(session);
+	WEB_SESSIONS.set(id, session);
+
+	if (timedOut) {
 		scheduleInactivityClose(id);
 		return {
 			session,
 			disposable: !persist,
-			renderReady: renderState.matched,
+			renderReady: false,
 		};
-	} catch (error) {
-		iframe.remove();
-		throw error instanceof Error ? error : new Error(String(error));
 	}
+
+	const renderState = await waitForPageRender({
+		session,
+		timeoutMs,
+		maxHtmlChars,
+	});
+	scheduleInactivityClose(id);
+	return {
+		session,
+		disposable: !persist,
+		renderReady: renderState.matched,
+	};
 };
 
 export const refreshWebSession = async (
@@ -444,18 +476,7 @@ export const refreshWebSession = async (
 	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
 	timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<WebSessionState> => {
-	if (sessionId !== activeSessionId) {
-		throw new Error(
-			`Invalid web session scope. Only one web session is supported. ${
-				activeSessionId
-					? `Current sessionId=${activeSessionId}`
-					: "No active session"
-			}`,
-		);
-	}
-
-	const session = WEB_SESSIONS.get(sessionId);
-	if (!session) {
+	if (!WEB_SESSIONS.has(sessionId)) {
 		throw new Error(`No active web session: ${sessionId}`);
 	}
 
@@ -521,11 +542,6 @@ export const getOrOpenWebSession = async ({
 	}
 
 	if (sessionId) {
-		if (sessionId !== activeSessionId) {
-			throw new Error(
-				`This web feature supports only one active session. Use the current session instead of sessionId=${sessionId}.`,
-			);
-		}
 		return {
 			session: await getWebSession(sessionId, maxHtmlChars, timeoutMs),
 			disposable: false,
@@ -543,50 +559,70 @@ export const getOrOpenWebSession = async ({
 };
 
 export const closeWebSession = async (sessionId: string): Promise<void> => {
+	const timerId = sessionTimeouts.get(sessionId);
+	if (timerId !== undefined) {
+		window.clearTimeout(timerId);
+		sessionTimeouts.delete(sessionId);
+	}
+
 	const session = WEB_SESSIONS.get(sessionId);
 	if (!session) {
-		if (activeSessionId === sessionId) {
-			activeSessionId = undefined;
-			if (activeSessionTimeout) {
-				window.clearTimeout(activeSessionTimeout);
-				activeSessionTimeout = null;
-			}
-		}
 		return;
 	}
 
 	await disposeSessionArtifacts(session);
 	WEB_SESSIONS.delete(sessionId);
-	if (activeSessionId === sessionId) {
-		activeSessionId = undefined;
-		if (activeSessionTimeout) {
-			window.clearTimeout(activeSessionTimeout);
-			activeSessionTimeout = null;
-		}
-	}
 };
 
 export const getActiveWebSessionInfo = (): ActiveWebSessionInfo => {
-	if (!activeSessionId) {
+	let latest: WebSessionState | undefined;
+	for (const session of WEB_SESSIONS.values()) {
+		if (!latest || session.lastAccessedAt > latest.lastAccessedAt) {
+			latest = session;
+		}
+	}
+	if (!latest) {
 		return { isOpen: false };
 	}
-
-	const activeSession = WEB_SESSIONS.get(activeSessionId);
-	if (!activeSession) {
-		activeSessionId = undefined;
-		return { isOpen: false };
-	}
-
 	return {
 		isOpen: true,
-		sessionId: activeSession.id,
-		requestedUrl: activeSession.requestedUrl,
-		currentUrl: activeSession.currentUrl,
-		title: activeSession.title,
-		lastAccessedAt: activeSession.lastAccessedAt,
-		createdAt: activeSession.createdAt,
-		mode: activeSession.mode,
+		sessionId: latest.id,
+		requestedUrl: latest.requestedUrl,
+		currentUrl: latest.currentUrl,
+		title: latest.title,
+		lastAccessedAt: latest.lastAccessedAt,
+		createdAt: latest.createdAt,
+		mode: latest.mode,
 	};
+};
+
+export const getAllWebSessionsInfo = (): ActiveWebSessionInfo[] =>
+	Array.from(WEB_SESSIONS.values()).map((session) => ({
+		isOpen: true,
+		sessionId: session.id,
+		requestedUrl: session.requestedUrl,
+		currentUrl: session.currentUrl,
+		title: session.title,
+		lastAccessedAt: session.lastAccessedAt,
+		createdAt: session.createdAt,
+		mode: session.mode,
+	}));
+
+export const closeAllWebSessionsExceptLatest = async (): Promise<void> => {
+	if (WEB_SESSIONS.size <= 1) return;
+	let latestId: string | undefined;
+	let latestTime = 0;
+	for (const [id, session] of WEB_SESSIONS) {
+		if (session.lastAccessedAt > latestTime) {
+			latestTime = session.lastAccessedAt;
+			latestId = id;
+		}
+	}
+	for (const sessionId of Array.from(WEB_SESSIONS.keys())) {
+		if (sessionId !== latestId) {
+			await closeWebSession(sessionId);
+		}
+	}
 };
 
 const elementInfo = (element: Element, index: number): WebDomElementInfo => ({

@@ -142,6 +142,8 @@ export type WebBrowserOperation =
 	| "session.close"
 	| "session.disposeActive"
 	| "session.getActiveInfo"
+	| "session.getAllInfo"
+	| "session.trimToLatest"
 	| "content.fetchRenderedFallback"
 	| "dom.query"
 	| "dom.action"
@@ -156,6 +158,8 @@ export interface WebBrowserOperationPayloadMap {
 	"session.close": { sessionId: string };
 	"session.disposeActive": { reason?: string } | undefined;
 	"session.getActiveInfo": undefined;
+	"session.getAllInfo": undefined;
+	"session.trimToLatest": undefined;
 	"content.fetchRenderedFallback": WebFetchRenderedFallbackArgs;
 	"dom.query": WebQueryDomElementsArgs;
 	"dom.action": WebPerformDomActionArgs;
@@ -171,6 +175,8 @@ export interface WebBrowserOperationResultMap {
 	"session.close": { closed: true };
 	"session.disposeActive": { disposed: true };
 	"session.getActiveInfo": ActiveWebSessionInfo;
+	"session.getAllInfo": ActiveWebSessionInfo[];
+	"session.trimToLatest": { trimmed: true };
 	"content.fetchRenderedFallback": WebFetchRenderedFallbackResult;
 	"dom.query": WebDomElementInfo[];
 	"dom.action": WebElementRecord;

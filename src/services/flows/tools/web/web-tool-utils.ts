@@ -1,3 +1,4 @@
+import sanitizeHtml from "sanitize-html";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { IWebBrowserService } from "@/services/web-browser";
 
@@ -25,3 +26,25 @@ export const createDefaultWebErrorResult = (error: unknown): string =>
 
 export const createWebResult = (payload: Record<string, unknown>): string =>
 	JSON.stringify(payload, null, 2);
+
+export const createCleanHtml = (html: string): string =>
+	sanitizeHtml(html, {
+		allowedTags: false,
+		allowedAttributes: {
+			a: ["href"],
+			img: ["src", "alt"],
+		},
+		disallowedTagsMode: "discard",
+		exclusiveFilter: (frame) =>
+			frame.tag === "script" ||
+			frame.tag === "style" ||
+			frame.tag === "noscript" ||
+			frame.tag === "link",
+	});
+
+export const truncateContent = (value: string, maxChars: number): string => {
+	if (value.length <= maxChars) {
+		return value;
+	}
+	return `${value.slice(0, maxChars)}\n...truncated`;
+};

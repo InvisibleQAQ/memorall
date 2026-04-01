@@ -4,6 +4,7 @@ import { toolRegistry } from "@/services/flows/tool-registry";
 import {
 	createDefaultWebErrorResult,
 	createWebResult,
+	truncateContent,
 	requireWebBrowserService,
 	type WebToolServices,
 } from "./web-tool-utils";
@@ -65,12 +66,6 @@ type Input = z.infer<typeof schema>;
 const waitFixedDelay = async (delayMs: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, delayMs));
 
-const truncateContent = (value: string, maxChars: number): string => {
-	if (value.length <= maxChars) {
-		return value;
-	}
-	return `${value.slice(0, maxChars)}\n...truncated`;
-};
 
 export const createWebWaitTool: ToolFactory<Input, WebToolServices> = (
 	services,

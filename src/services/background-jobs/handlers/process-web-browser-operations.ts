@@ -81,6 +81,11 @@ export class WebBrowserOperationsHandler implements ProcessHandler<BaseJob> {
 				return { disposed: true };
 			case "session.getActiveInfo":
 				return webBrowserService.getActiveSessionInfo();
+			case "session.getAllInfo":
+				return webBrowserService.getAllSessionsInfo();
+			case "session.trimToLatest":
+				await webBrowserService.trimToLatestSession();
+				return { trimmed: true };
 			case "content.fetchRenderedFallback":
 				return webBrowserService.fetchRenderedFallback(payload.payload);
 			case "dom.query":

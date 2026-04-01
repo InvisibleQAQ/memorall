@@ -28,6 +28,7 @@ import { defaultActionRenderer } from "./tools/DefaultActionRenderer";
 import { webReadRenderer } from "./tools/WebRead";
 import { webOpenRenderer } from "./tools/WebOpen";
 import { webDomRenderer } from "./tools/WebDom";
+import { webSearchRenderer } from "./tools/WebSearch";
 import { fsActionRenderer } from "./tools/FileSystem";
 import { terminalToolRenderer } from "./tools/TerminalTool";
 
@@ -82,8 +83,8 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	web_dom_action: webDomRenderer,
 	web_find_in_page: defaultActionRenderer,
 	"web find in page": defaultActionRenderer,
-	web_search: defaultActionRenderer,
-	"web search": defaultActionRenderer,
+	web_search: webSearchRenderer,
+	"web search": webSearchRenderer,
 	sandbox_api_result: apiResultRenderer,
 	container_request_server: apiResultRenderer,
 	container_execute_command: terminalToolRenderer,

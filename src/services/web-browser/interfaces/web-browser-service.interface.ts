@@ -34,6 +34,8 @@ export interface IWebBrowserService {
 	closeSession(sessionId: string): Promise<void>;
 	disposeActiveSession(reason?: string): Promise<void>;
 	getActiveSessionInfo(): Promise<ActiveWebSessionInfo>;
+	getAllSessionsInfo(): Promise<ActiveWebSessionInfo[]>;
+	trimToLatestSession(): Promise<void>;
 	fetchRenderedFallback(
 		args: WebFetchRenderedFallbackArgs,
 	): Promise<WebFetchRenderedFallbackResult>;

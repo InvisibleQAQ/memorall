@@ -2,8 +2,10 @@ import z from "zod";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import {
+	createCleanHtml,
 	createDefaultWebErrorResult,
 	createWebResult,
+	truncateContent,
 	requireWebBrowserService,
 	type WebToolServices,
 } from "./web-tool-utils";
@@ -45,23 +47,44 @@ export const createWebOpenTool: ToolFactory<Input, WebToolServices> = (
 ): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Open a web URL in `iframe` or browser-backed `tab`/`window` mode, wait for the initial navigation load, and expose `sessionId` for follow-up actions. Use `web_wait` for SPA/render waits and `web_read` to retrieve page content.",
+		"Open a web URL in `iframe` or browser-backed `tab`/`window` mode, wait for the initial navigation load, and expose `sessionId` for follow-up actions. When `renderReady` is false the page timed out but partial content is included — inspect `partialContent` to decide whether to call `web_wait` then `web_read`, or skip this page.",
 	schema,
 	execute: async (input) => {
 		const webBrowser = requireWebBrowserService(services);
+		const maxHtmlChars = input.maxHtmlChars ?? 160_000;
 		let disposableSessionId: string | undefined;
 		try {
 			const { session, disposable, renderReady } = await webBrowser.openSession(
 				{
 					url: input.url,
 					timeoutMs: input.timeoutMs ?? 15_000,
-					maxHtmlChars: input.maxHtmlChars ?? 160_000,
+					maxHtmlChars,
 					persist: input.keepSession ?? true,
 					mode: input.browserMode,
 				},
 			);
 			if (disposable) {
 				disposableSessionId = session.id;
+			}
+
+			if (!renderReady) {
+				const cleanHtml = truncateContent(
+					createCleanHtml(session.html),
+					maxHtmlChars,
+				);
+				return createWebResult({
+					actionType: "web_open",
+					success: true,
+					sessionId: session.id,
+					requestedUrl: input.url,
+					url: session.currentUrl,
+					title: session.title,
+					domAccessible: session.domAccessible,
+					browserMode: session.mode,
+					renderReady: false,
+					partialContent: cleanHtml || null,
+					hint: "Page load timed out. partialContent shows what loaded so far. Call web_wait (waitMode=\"render\") then web_read to get more content, or skip this page if partialContent is empty.",
+				});
 			}
 
 			return createWebResult({
@@ -73,7 +96,7 @@ export const createWebOpenTool: ToolFactory<Input, WebToolServices> = (
 				title: session.title,
 				domAccessible: session.domAccessible,
 				browserMode: session.mode,
-				renderReady,
+				renderReady: true,
 			});
 		} catch (error) {
 			return createDefaultWebErrorResult(error);

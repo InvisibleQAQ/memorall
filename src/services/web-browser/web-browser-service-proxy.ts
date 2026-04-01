@@ -131,6 +131,16 @@ export class WebBrowserServiceProxy implements IWebBrowserService {
 		return this.executeOperation("session.getActiveInfo", undefined);
 	}
 
+	async getAllSessionsInfo(): Promise<ActiveWebSessionInfo[]> {
+		await this.initialize();
+		return this.executeOperation("session.getAllInfo", undefined);
+	}
+
+	async trimToLatestSession(): Promise<void> {
+		await this.initialize();
+		await this.executeOperation("session.trimToLatest", undefined);
+	}
+
 	async fetchRenderedFallback(
 		args: WebFetchRenderedFallbackArgs,
 	): Promise<WebFetchRenderedFallbackResult> {

@@ -30,6 +30,7 @@ import "./sandbox-container/container-request-server";
 import "./sandbox-container/container-render-server";
 // container-setup-server merged into container-start-server
 
+import "./web/web-search-engine";
 import "./web/web-open";
 import "./web/web-read";
 import "./web/web-search";

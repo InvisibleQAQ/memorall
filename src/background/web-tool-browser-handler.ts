@@ -21,7 +21,7 @@ type SuccessfulWebContentCommandResponse = Extract<
 	{ success: true }
 >;
 
-let cachedSurface: StoredWebBrowserSurface | null = null;
+let cachedSurfaces: Map<string, StoredWebBrowserSurface> | null = null;
 
 const RETRY_INTERVAL_MS = 250;
 const FULL_WEB_SNAPSHOT_MAX_HTML_CHARS = Number.MAX_SAFE_INTEGER;
@@ -78,37 +78,53 @@ const parseStoredSurface = (value: unknown): StoredWebBrowserSurface | null => {
 	};
 };
 
-const loadStoredSurface = async (): Promise<StoredWebBrowserSurface | null> => {
-	if (cachedSurface) {
-		return cachedSurface;
+const loadStoredSurfaces = async (): Promise<
+	Map<string, StoredWebBrowserSurface>
+> => {
+	if (cachedSurfaces) {
+		return cachedSurfaces;
 	}
 
 	const storage = getSessionStorage();
 	if (!storage) {
-		return null;
+		cachedSurfaces = new Map();
+		return cachedSurfaces;
 	}
 
 	const value = await storage.get(WEB_BROWSER_SURFACE_STORAGE_KEY);
-	const parsed = parseStoredSurface(value[WEB_BROWSER_SURFACE_STORAGE_KEY]);
-	cachedSurface = parsed;
-	return parsed;
+	const raw = value[WEB_BROWSER_SURFACE_STORAGE_KEY];
+	const entries: StoredWebBrowserSurface[] = Array.isArray(raw)
+		? raw.map((item: unknown) => parseStoredSurface(item)).filter(Boolean)
+		: [];
+	cachedSurfaces = new Map(entries.map((s) => [s.sessionId, s]));
+	return cachedSurfaces;
 };
 
-const saveStoredSurface = async (
-	surface: StoredWebBrowserSurface | null,
-): Promise<void> => {
-	cachedSurface = surface;
+const persistStoredSurfaces = async (): Promise<void> => {
 	const storage = getSessionStorage();
-	if (!storage) {
+	if (!storage || !cachedSurfaces) {
 		return;
 	}
-
-	if (surface) {
-		await storage.set({ [WEB_BROWSER_SURFACE_STORAGE_KEY]: surface });
-		return;
+	const arr = Array.from(cachedSurfaces.values());
+	if (arr.length === 0) {
+		await storage.remove(WEB_BROWSER_SURFACE_STORAGE_KEY);
+	} else {
+		await storage.set({ [WEB_BROWSER_SURFACE_STORAGE_KEY]: arr });
 	}
+};
 
-	await storage.remove(WEB_BROWSER_SURFACE_STORAGE_KEY);
+const addStoredSurface = async (
+	surface: StoredWebBrowserSurface,
+): Promise<void> => {
+	const surfaces = await loadStoredSurfaces();
+	surfaces.set(surface.sessionId, surface);
+	await persistStoredSurfaces();
+};
+
+const removeStoredSurface = async (sessionId: string): Promise<void> => {
+	const surfaces = await loadStoredSurfaces();
+	surfaces.delete(sessionId);
+	await persistStoredSurfaces();
 };
 
 const closeSurfaceArtifacts = async ({
@@ -126,16 +142,6 @@ const closeSurfaceArtifacts = async ({
 	if (typeof tabId === "number") {
 		await chrome.tabs.remove(tabId).catch(() => {});
 	}
-};
-
-const clearStoredSurface = async (): Promise<void> => {
-	const storedSurface = await loadStoredSurface();
-	if (!storedSurface) {
-		return;
-	}
-
-	await closeSurfaceArtifacts(storedSurface);
-	await saveStoredSurface(null);
 };
 
 const openBrowserTab = async (url: string): Promise<WebBrowserSurface> => {
@@ -324,8 +330,6 @@ const openSurfaceForMode = async (
 const handleOpenCommand = async (
 	request: Extract<WebBrowserCommandRequest, { command: "open" }>,
 ): Promise<WebBrowserCommandResponse> => {
-	await clearStoredSurface();
-
 	let surface: WebBrowserSurface | null = null;
 	try {
 		surface = await openSurfaceForMode(request.mode, request.url);
@@ -339,7 +343,7 @@ const handleOpenCommand = async (
 			throw new Error("Invalid browser snapshot response.");
 		}
 
-		await saveStoredSurface({
+		await addStoredSurface({
 			sessionId: request.sessionId,
 			tabId: surface.tabId,
 			windowId: surface.windowId,
@@ -358,7 +362,6 @@ const handleOpenCommand = async (
 		if (surface) {
 			await closeSurfaceArtifacts(surface);
 		}
-		await saveStoredSurface(null);
 		return createErrorResponse(request, error);
 	}
 };
@@ -491,21 +494,16 @@ const handleCloseCommand = async (
 	request: Extract<WebBrowserCommandRequest, { command: "close" }>,
 ): Promise<WebBrowserCommandResponse> => {
 	try {
-		const storedSurface = await loadStoredSurface();
-		const target =
-			storedSurface &&
-			(storedSurface.sessionId === request.sessionId ||
-				storedSurface.tabId === request.tabId ||
-				storedSurface.windowId === request.windowId)
-				? storedSurface
-				: {
-						tabId: request.tabId,
-						windowId: request.windowId,
-					};
+		const surfaces = await loadStoredSurfaces();
+		const stored = surfaces.get(request.sessionId);
+		const target = stored ?? {
+			tabId: request.tabId,
+			windowId: request.windowId,
+		};
 
 		await closeSurfaceArtifacts(target);
-		if (storedSurface && target === storedSurface) {
-			await saveStoredSurface(null);
+		if (stored) {
+			await removeStoredSurface(request.sessionId);
 		}
 
 		return {

@@ -112,7 +112,7 @@ export const RuntimeSessionsPanel: React.FC = () => {
 				</div>
 
 				{collapsed ? (
-					<div className="flex-1 space-y-3 px-2 py-3">
+					<div className="flex-1 space-y-2 px-1.5 py-2">
 						{hasWebSession ? (
 							<RuntimeSummaryTile
 								icon={<Globe size={14} />}

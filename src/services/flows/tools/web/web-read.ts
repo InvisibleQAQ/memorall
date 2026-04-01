@@ -1,11 +1,12 @@
 import z from "zod";
-import sanitizeHtml from "sanitize-html";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import type { WebSession } from "@/services/web-browser";
 import {
+	createCleanHtml,
 	createDefaultWebErrorResult,
 	createWebResult,
+	truncateContent,
 	requireWebBrowserService,
 	type WebToolServices,
 } from "./web-tool-utils";
@@ -65,30 +66,10 @@ const parseHtml = (html: string): Document =>
 		"text/html",
 	);
 
-const truncateContent = (value: string, maxChars: number): string => {
-	if (value.length <= maxChars) {
-		return value;
-	}
-	return `${value.slice(0, maxChars)}\n...truncated`;
-};
-
 const normalizeContentMode = (
 	contentMode: ContentMode,
 ): NormalizedContentMode =>
 	contentMode === "structure_text" ? "text" : contentMode;
-
-const createCleanHtml = (html: string): string => {
-	return sanitizeHtml(html, {
-		allowedTags: false,
-		allowedAttributes: {},
-		disallowedTagsMode: "discard",
-		exclusiveFilter: (frame) =>
-			frame.tag === "script" ||
-			frame.tag === "style" ||
-			frame.tag === "noscript" ||
-			frame.tag === "link",
-	});
-};
 
 const extractSelectorHtml = (
 	html: string,

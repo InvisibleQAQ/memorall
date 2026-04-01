@@ -27,7 +27,13 @@ import {
 	WEB_FEATURE_NAME,
 	WEB_FEATURE_SYSTEM_PROMPT,
 	WEB_FEATURE_TOOLS,
-} from "./steps/features/web-feature/web-feature.v2";
+} from "./steps/features/web-feature/web-feature.v3";
+import {
+	NEWS_COLLECTION_FEATURE_DESCRIPTION,
+	NEWS_COLLECTION_FEATURE_NAME,
+	NEWS_COLLECTION_FEATURE_SYSTEM_PROMPT,
+	NEWS_COLLECTION_FEATURE_TOOLS,
+} from "./steps/features/news-collection-feature";
 
 /**
  * Flow Builder Catalog
@@ -440,6 +446,45 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			description: WEB_FEATURE_DESCRIPTION,
 			tools: [...WEB_FEATURE_TOOLS],
 			systemPrompt: WEB_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-news-collection-feature",
+		name: NEWS_COLLECTION_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description:
+					"Messages with news research instructions and open sessions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description: "Tools extended with web toolset for news browsing.",
+			},
+		],
+		metadata: {
+			description: NEWS_COLLECTION_FEATURE_DESCRIPTION,
+			tools: [...NEWS_COLLECTION_FEATURE_TOOLS],
+			systemPrompt: NEWS_COLLECTION_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
 		} satisfies FeatureCatalogMetadata,
 	},
