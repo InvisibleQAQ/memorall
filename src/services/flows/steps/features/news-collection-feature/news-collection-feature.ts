@@ -223,11 +223,12 @@ const definition = defineStep<
 });
 
 type NewsCollectionFeatureSpec = StepSpecFromDefinition<typeof definition>;
-export const createNewsCollectionFeatureStep: StepFactoryFromSpec<NewsCollectionFeatureSpec> =
-	(
-		services: NewsCollectionFeatureServices,
-		config?: NewsCollectionFeatureConfig,
-	) => bindStep(definition, services, config);
+export const createNewsCollectionFeatureStep: StepFactoryFromSpec<
+	NewsCollectionFeatureSpec
+> = (
+	services: NewsCollectionFeatureServices,
+	config?: NewsCollectionFeatureConfig,
+) => bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createNewsCollectionFeatureStep);
 

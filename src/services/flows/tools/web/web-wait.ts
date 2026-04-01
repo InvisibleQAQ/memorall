@@ -66,7 +66,6 @@ type Input = z.infer<typeof schema>;
 const waitFixedDelay = async (delayMs: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, delayMs));
 
-
 export const createWebWaitTool: ToolFactory<Input, WebToolServices> = (
 	services,
 ): Tool<Input> => ({

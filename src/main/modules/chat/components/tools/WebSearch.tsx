@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { Search, ExternalLink, Globe, AlertCircle, ChevronDown } from "lucide-react";
+import {
+	Search,
+	ExternalLink,
+	Globe,
+	AlertCircle,
+	ChevronDown,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ActionRenderer } from "@/main/modules/chat/components/types";
 import type { MessageActionItem } from "@/main/modules/chat/components/types";
@@ -52,40 +58,29 @@ const extractPayload = (item: MessageActionItem): WebSearchPayload | null => {
 	if (!raw || raw.actionType !== "web_search") return null;
 
 	const results = Array.isArray(raw.results)
-		? (raw.results as unknown[]).map((r): EngineResult | null => {
-				if (typeof r !== "object" || r === null) return null;
-				const rec = r as Record<string, unknown>;
-				return {
-					engine:
-						typeof rec.engine === "string" ? rec.engine : "unknown",
-					searchUrl:
-						typeof rec.searchUrl === "string" ? rec.searchUrl : "",
-					results: Array.isArray(rec.results)
-						? (rec.results as unknown[])
-								.map((item): SearchResultItem | null => {
-									if (typeof item !== "object" || item === null)
-										return null;
-									const it = item as Record<string, unknown>;
-									return {
-										title:
-											typeof it.title === "string"
-												? it.title
-												: "",
-										url:
-											typeof it.url === "string"
-												? it.url
-												: "",
-										snippet:
-											typeof it.snippet === "string"
-												? it.snippet
-												: "",
-									};
-								})
-								.filter((x): x is SearchResultItem => x !== null)
-						: [],
-				};
-			})
-			.filter((x): x is EngineResult => x !== null)
+		? (raw.results as unknown[])
+				.map((r): EngineResult | null => {
+					if (typeof r !== "object" || r === null) return null;
+					const rec = r as Record<string, unknown>;
+					return {
+						engine: typeof rec.engine === "string" ? rec.engine : "unknown",
+						searchUrl: typeof rec.searchUrl === "string" ? rec.searchUrl : "",
+						results: Array.isArray(rec.results)
+							? (rec.results as unknown[])
+									.map((item): SearchResultItem | null => {
+										if (typeof item !== "object" || item === null) return null;
+										const it = item as Record<string, unknown>;
+										return {
+											title: typeof it.title === "string" ? it.title : "",
+											url: typeof it.url === "string" ? it.url : "",
+											snippet: typeof it.snippet === "string" ? it.snippet : "",
+										};
+									})
+									.filter((x): x is SearchResultItem => x !== null)
+							: [],
+					};
+				})
+				.filter((x): x is EngineResult => x !== null)
 		: [];
 
 	const errors = Array.isArray(raw.errors)
@@ -94,25 +89,17 @@ const extractPayload = (item: MessageActionItem): WebSearchPayload | null => {
 					if (typeof e !== "object" || e === null) return null;
 					const rec = e as Record<string, unknown>;
 					return {
-						engine:
-							typeof rec.engine === "string" ? rec.engine : "?",
-						error:
-							typeof rec.error === "string" ? rec.error : String(e),
+						engine: typeof rec.engine === "string" ? rec.engine : "?",
+						error: typeof rec.error === "string" ? rec.error : String(e),
 					};
 				})
-				.filter(
-					(x): x is { engine: string; error: string } => x !== null,
-				)
+				.filter((x): x is { engine: string; error: string } => x !== null)
 		: [];
 
 	return {
-		query:
-			typeof raw.query === "string" ? raw.query : undefined,
-		engines: Array.isArray(raw.engines)
-			? (raw.engines as string[])
-			: undefined,
-		success:
-			typeof raw.success === "boolean" ? raw.success : undefined,
+		query: typeof raw.query === "string" ? raw.query : undefined,
+		engines: Array.isArray(raw.engines) ? (raw.engines as string[]) : undefined,
+		success: typeof raw.success === "boolean" ? raw.success : undefined,
 		results,
 		errors,
 	};
@@ -127,9 +114,7 @@ const Favicon: React.FC<{ url: string }> = ({ url }) => {
 	const faviconUrl = getFaviconUrl(url);
 
 	if (!faviconUrl || failed) {
-		return (
-			<Globe className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
-		);
+		return <Globe className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />;
 	}
 
 	return (
@@ -187,7 +172,9 @@ const EngineSection: React.FC<{ engineResult: EngineResult }> = ({
 	const [expanded, setExpanded] = useState(false);
 	const { engine, results, searchUrl } = engineResult;
 	const total = results.length;
-	const visible = expanded ? results : results.slice(0, RESULTS_COLLAPSED_COUNT);
+	const visible = expanded
+		? results
+		: results.slice(0, RESULTS_COLLAPSED_COUNT);
 	const hasMore = total > RESULTS_COLLAPSED_COUNT;
 
 	return (
@@ -306,8 +293,7 @@ export const webSearchRenderer: ActionRenderer = (
 						>
 							<AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
 							<span>
-								<span className="font-semibold">{err.engine}:</span>{" "}
-								{err.error}
+								<span className="font-semibold">{err.engine}:</span> {err.error}
 							</span>
 						</div>
 					))}

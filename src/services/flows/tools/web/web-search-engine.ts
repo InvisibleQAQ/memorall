@@ -26,8 +26,7 @@ const ENGINE_URLS: Record<SupportedEngine, (q: string) => string> = {
 	duckduckgo: (q) =>
 		`https://duckduckgo.com/?q=${encodeURIComponent(q)}&ia=web`,
 	yahoo: (q) => `https://search.yahoo.com/search?p=${encodeURIComponent(q)}`,
-	brave: (q) =>
-		`https://search.brave.com/search?q=${encodeURIComponent(q)}`,
+	brave: (q) => `https://search.brave.com/search?q=${encodeURIComponent(q)}`,
 };
 
 const ENGINE_DOMAINS: Record<SupportedEngine, string> = {
@@ -61,9 +60,7 @@ type EngineParser = (doc: Document, max: number) => SearchResult[];
 const ENGINE_PARSERS: Record<SupportedEngine, EngineParser> = {
 	google: (doc, max) => {
 		const results: SearchResult[] = [];
-		const containers = doc.querySelectorAll(
-			"#search [data-hveid], #rso .g",
-		);
+		const containers = doc.querySelectorAll("#search [data-hveid], #rso .g");
 		for (const container of Array.from(containers)) {
 			const titleEl = container.querySelector("h3");
 			const linkEl = container.querySelector("a[href]");
@@ -72,12 +69,7 @@ const ENGINE_PARSERS: Record<SupportedEngine, EngineParser> = {
 			);
 			const url = extractHref(linkEl);
 			const title = extractText(titleEl);
-			if (
-				!title ||
-				!url ||
-				url.startsWith("#") ||
-				url.startsWith("/search")
-			)
+			if (!title || !url || url.startsWith("#") || url.startsWith("/search"))
 				continue;
 			results.push({ title, url, snippet: extractText(snippetEl) });
 			if (results.length >= max) break;
@@ -86,13 +78,12 @@ const ENGINE_PARSERS: Record<SupportedEngine, EngineParser> = {
 	},
 	bing: (doc, max) => {
 		const results: SearchResult[] = [];
-		for (const container of Array.from(
-			doc.querySelectorAll(".b_algo"),
-		).slice(0, max)) {
+		for (const container of Array.from(doc.querySelectorAll(".b_algo")).slice(
+			0,
+			max,
+		)) {
 			const titleEl = container.querySelector("h2 a");
-			const snippetEl = container.querySelector(
-				".b_caption p, .b_algoSlug",
-			);
+			const snippetEl = container.querySelector(".b_caption p, .b_algoSlug");
 			const url = extractHref(titleEl);
 			const title = extractText(titleEl);
 			if (!title || !url) continue;
@@ -141,9 +132,7 @@ const ENGINE_PARSERS: Record<SupportedEngine, EngineParser> = {
 		).slice(0, max)) {
 			const titleEl = container.querySelector(".title, h3 a");
 			const linkEl = container.querySelector("a.result-header, a[href]");
-			const snippetEl = container.querySelector(
-				".snippet-description, p",
-			);
+			const snippetEl = container.querySelector(".snippet-description, p");
 			const url = extractHref(linkEl);
 			const title = extractText(titleEl);
 			if (!title || !url || url.startsWith("#")) continue;
@@ -208,9 +197,7 @@ const schema = z.object({
 		.min(500)
 		.max(60_000)
 		.optional()
-		.describe(
-			"Per-engine page load timeout in milliseconds (default 15000).",
-		),
+		.describe("Per-engine page load timeout in milliseconds (default 15000)."),
 });
 
 type Input = z.infer<typeof schema>;
@@ -258,8 +245,7 @@ export const createWebSearchEngineTool: ToolFactory<Input, WebToolServices> = (
 			} catch (error) {
 				errors.push({
 					engine,
-					error:
-						error instanceof Error ? error.message : String(error),
+					error: error instanceof Error ? error.message : String(error),
 				});
 			} finally {
 				if (sessionId) {

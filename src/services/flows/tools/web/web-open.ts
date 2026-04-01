@@ -83,7 +83,7 @@ export const createWebOpenTool: ToolFactory<Input, WebToolServices> = (
 					browserMode: session.mode,
 					renderReady: false,
 					partialContent: cleanHtml || null,
-					hint: "Page load timed out. partialContent shows what loaded so far. Call web_wait (waitMode=\"render\") then web_read to get more content, or skip this page if partialContent is empty.",
+					hint: 'Page load timed out. partialContent shows what loaded so far. Call web_wait (waitMode="render") then web_read to get more content, or skip this page if partialContent is empty.',
 				});
 			}
 

@@ -92,7 +92,6 @@ const normalizeInputUrl = (rawUrl: string): string => {
 	}
 };
 
-
 const normalizeReadableText = (value: string): string =>
 	value.replace(/\s+/g, " ").trim();
 

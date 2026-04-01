@@ -165,9 +165,7 @@ const definition = defineStep<
 					tools: input.tools,
 					messages: input.messages,
 					errors: [
-						error instanceof Error
-							? error.message
-							: "Web feature step failed",
+						error instanceof Error ? error.message : "Web feature step failed",
 					],
 				},
 			};
