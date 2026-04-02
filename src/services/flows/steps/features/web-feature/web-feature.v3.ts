@@ -179,7 +179,11 @@ export const createWebFeatureStep: StepFactoryFromSpec<WebFeatureSpec> = (
 	config?: WebFeatureConfig,
 ) => bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createWebFeatureStep);
+stepRegistry.register(STEP_NAME, createWebFeatureStep, {
+	description: WEB_FEATURE_DESCRIPTION,
+	defaultStateMapping: { messages: "messages", tools: "tools" },
+	enabledByDefault: false,
+});
 
 declare global {
 	interface StepTypeRegistry {

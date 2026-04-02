@@ -210,7 +210,16 @@ export const createEntitiesFactsCitationStep: StepFactoryFromSpec<
 	EntitiesFactsCitationSpec
 > = (services, config) => bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createEntitiesFactsCitationStep);
+stepRegistry.register(STEP_NAME, createEntitiesFactsCitationStep, {
+	description: "Append knowledge-graph citations to the final response",
+	defaultStateMapping: {
+		messages: "messages",
+		relevantNodes: "relevantNodes",
+		relevantEdges: "relevantEdges",
+		response: "response",
+	},
+	enabledByDefault: true,
+});
 
 declare global {
 	interface StepTypeRegistry {

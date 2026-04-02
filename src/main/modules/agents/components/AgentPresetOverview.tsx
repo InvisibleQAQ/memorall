@@ -32,6 +32,11 @@ import {
 import { Input } from "@/main/components/ui/input";
 import { Label } from "@/main/components/ui/label";
 import {
+	HoverCard,
+	HoverCardContent,
+	HoverCardTrigger,
+} from "@/main/components/ui/hover-card";
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -42,6 +47,7 @@ import { Textarea } from "@/main/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Flow } from "@/services/database/types";
 import type { AgentConfigSummary, AgentPresetDraft } from "../types";
+import { HoverBadgeList, TruncatedHoverText } from "./AgentHoverInfo";
 
 interface AgentPresetOverviewProps {
 	selectedPreset: Flow | null;
@@ -64,25 +70,95 @@ const SummaryCard: React.FC<{
 	label: string;
 	value: string;
 	highlight?: boolean;
-}> = ({ icon, label, value, highlight = false }) => (
-	<Card
-		className={cn(
-			"border-border/70 bg-gradient-to-br from-background via-background to-muted/20 shadow-sm",
-			highlight ? "border-foreground/10" : "",
-		)}
-	>
-		<CardContent className="flex items-start gap-3 p-4">
-			<div className="mt-0.5 rounded-lg bg-muted p-2 text-muted-foreground">
-				{icon}
+	hoverItems?: string[];
+	hoverEmptyLabel?: string;
+	hoverBadgeClassName?: string;
+	hoverBadgeVariant?: "outline" | "secondary";
+}> = ({
+	icon,
+	label,
+	value,
+	highlight = false,
+	hoverItems,
+	hoverEmptyLabel,
+	hoverBadgeClassName,
+	hoverBadgeVariant,
+}) => {
+	const card = (
+		<Card
+			className={cn(
+				"h-full border-border/70 bg-gradient-to-br from-background via-background to-muted/20 shadow-sm",
+				highlight ? "border-foreground/10" : "",
+			)}
+		>
+			<CardContent className="flex min-h-[84px] items-start gap-3 p-4">
+				<div className="mt-0.5 rounded-lg bg-muted p-2 text-muted-foreground">
+					{icon}
+				</div>
+				<div className="min-w-0 space-y-1">
+					<p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+						{label}
+					</p>
+					<p
+						title={value}
+						className="truncate text-sm font-semibold leading-snug"
+					>
+						{value}
+					</p>
+				</div>
+			</CardContent>
+		</Card>
+	);
+
+	if (!hoverItems || !hoverEmptyLabel) {
+		return card;
+	}
+
+	return (
+		<HoverBadgeList
+			title={label}
+			items={hoverItems}
+			emptyLabel={hoverEmptyLabel}
+			badgeClassName={hoverBadgeClassName}
+			badgeVariant={hoverBadgeVariant}
+		>
+			<div className="h-full cursor-help">{card}</div>
+		</HoverBadgeList>
+	);
+};
+
+const PromptPreviewItem: React.FC<{
+	icon: React.ReactNode;
+	label: string;
+	value: string;
+	preview: string;
+}> = ({ icon, label, value, preview }) => (
+	<HoverCard openDelay={120} closeDelay={60}>
+		<HoverCardTrigger asChild>
+			<div className="flex cursor-help items-start gap-3 rounded-lg border bg-muted/20 px-3 py-3">
+				<div className="rounded-lg bg-background p-2 text-muted-foreground">
+					{icon}
+				</div>
+				<div className="min-w-0 space-y-1">
+					<p className="text-sm font-medium">{label}</p>
+					<p className="truncate text-sm text-muted-foreground">{value}</p>
+				</div>
 			</div>
-			<div className="space-y-1">
-				<p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+		</HoverCardTrigger>
+		<HoverCardContent
+			align="start"
+			className="w-[min(42rem,calc(100vw-2rem))] p-3"
+		>
+			<div className="space-y-2">
+				<p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
 					{label}
 				</p>
-				<p className="text-sm font-semibold leading-snug">{value}</p>
+				<pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg border bg-muted/20 p-3 font-mono text-xs leading-relaxed text-foreground">
+					{preview}
+				</pre>
 			</div>
-		</CardContent>
-	</Card>
+		</HoverCardContent>
+	</HoverCard>
 );
 
 export const AgentPresetOverview: React.FC<AgentPresetOverviewProps> = ({
@@ -129,20 +205,22 @@ export const AgentPresetOverview: React.FC<AgentPresetOverviewProps> = ({
 				scrollMode === "contained" ? "h-full min-h-0" : "",
 			)}
 		>
-			<div className="border-b bg-gradient-to-r from-background via-background to-muted/30 px-5 py-5">
-				<div className="flex items-start justify-between gap-4">
-					<div className="space-y-2">
+			<div className="border-b bg-gradient-to-r from-background via-background to-muted/30 px-4 py-4 sm:px-5">
+				<div className="grid min-h-[76px] grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+					<div className="min-w-0 space-y-1.5">
 						<p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
 							{t("overview.eyebrow")}
 						</p>
-						<div className="flex flex-wrap items-center gap-2">
-							<h2 className="text-xl font-semibold">
-								{metadataDraft.name.trim() || t("overview.untitled")}
-							</h2>
+						<div className="flex min-w-0 items-center gap-2">
+							<TruncatedHoverText
+								as="h2"
+								text={metadataDraft.name.trim() || t("overview.untitled")}
+								className="flex-1 text-lg font-semibold"
+							/>
 							<Badge
 								variant="outline"
 								className={cn(
-									"text-[10px] uppercase",
+									"shrink-0 text-[10px] uppercase",
 									metadataDraft.status === "active"
 										? "border-emerald-200 bg-emerald-50 text-emerald-700"
 										: "border-amber-200 bg-amber-50 text-amber-700",
@@ -155,20 +233,22 @@ export const AgentPresetOverview: React.FC<AgentPresetOverviewProps> = ({
 									<Badge
 										key={badge}
 										variant="secondary"
-										className="text-[10px]"
+										className="shrink-0 text-[10px]"
 									>
 										{badge}
 									</Badge>
 								))
 							) : (
-								<Badge variant="secondary" className="text-[10px]">
+								<Badge variant="secondary" className="shrink-0 text-[10px]">
 									{t("overview.saved")}
 								</Badge>
 							)}
 						</div>
-						<p className="max-w-xl text-sm text-muted-foreground">
-							{t("overview.subtitle")}
-						</p>
+						<TruncatedHoverText
+							as="p"
+							text={t("overview.subtitle")}
+							className="max-w-xl text-sm text-muted-foreground"
+						/>
 					</div>
 
 					<AlertDialog>
@@ -290,6 +370,8 @@ export const AgentPresetOverview: React.FC<AgentPresetOverviewProps> = ({
 							value={t("summary.featuresValue", {
 								count: configSummary?.enabledFeatureCount ?? 0,
 							})}
+							hoverItems={configSummary?.enabledFeatureLabels}
+							hoverEmptyLabel={t("summary.noFeaturesEnabled")}
 						/>
 						<SummaryCard
 							icon={<Wrench size={16} />}
@@ -297,6 +379,10 @@ export const AgentPresetOverview: React.FC<AgentPresetOverviewProps> = ({
 							value={t("summary.toolsValue", {
 								count: configSummary?.enabledToolCount ?? 0,
 							})}
+							hoverItems={configSummary?.enabledToolNames}
+							hoverEmptyLabel={t("summary.noToolsEnabled")}
+							hoverBadgeClassName="font-mono"
+							hoverBadgeVariant="outline"
 						/>
 						<SummaryCard
 							icon={<CalendarClock size={16} />}
@@ -317,47 +403,41 @@ export const AgentPresetOverview: React.FC<AgentPresetOverviewProps> = ({
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-3">
-							<div className="flex items-start gap-3 rounded-lg border bg-muted/20 px-3 py-3">
-								<div className="rounded-lg bg-background p-2 text-muted-foreground">
-									<FileText size={16} />
-								</div>
-								<div className="space-y-1">
-									<p className="text-sm font-medium">
-										{t("summary.systemPrompt")}
-									</p>
-									<p className="text-sm text-muted-foreground">
-										{configSummary
-											? t("summary.systemPromptValue", {
-													count: configSummary.systemPromptLength,
-													mode: configSummary.hasCustomSystemPrompt
-														? t("summary.custom")
-														: t("summary.default"),
-												})
-											: t("state.loading")}
-									</p>
-								</div>
-							</div>
+							<PromptPreviewItem
+								icon={<FileText size={16} />}
+								label={t("summary.systemPrompt")}
+								value={
+									configSummary
+										? t("summary.systemPromptValue", {
+												count: configSummary.systemPromptLength,
+												mode: configSummary.hasCustomSystemPrompt
+													? t("summary.custom")
+													: t("summary.default"),
+											})
+										: t("state.loading")
+								}
+								preview={
+									configSummary?.systemPromptPreview ?? t("state.loading")
+								}
+							/>
 
-							<div className="flex items-start gap-3 rounded-lg border bg-muted/20 px-3 py-3">
-								<div className="rounded-lg bg-background p-2 text-muted-foreground">
-									<FileText size={16} />
-								</div>
-								<div className="space-y-1">
-									<p className="text-sm font-medium">
-										{t("summary.contextPrompt")}
-									</p>
-									<p className="text-sm text-muted-foreground">
-										{configSummary
-											? t("summary.contextPromptValue", {
-													count: configSummary.contextPromptLength,
-													mode: configSummary.hasCustomContextPrompt
-														? t("summary.custom")
-														: t("summary.default"),
-												})
-											: t("state.loading")}
-									</p>
-								</div>
-							</div>
+							<PromptPreviewItem
+								icon={<FileText size={16} />}
+								label={t("summary.contextPrompt")}
+								value={
+									configSummary
+										? t("summary.contextPromptValue", {
+												count: configSummary.contextPromptLength,
+												mode: configSummary.hasCustomContextPrompt
+													? t("summary.custom")
+													: t("summary.default"),
+											})
+										: t("state.loading")
+								}
+								preview={
+									configSummary?.contextPromptPreview ?? t("state.loading")
+								}
+							/>
 						</CardContent>
 					</Card>
 				</div>

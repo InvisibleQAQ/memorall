@@ -28,15 +28,19 @@ import {
 } from "@/main/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { KnowledgeRAGPredefinedConfig } from "@/services/flows/graph/knowledge-rag/state";
+import type { AgentConfigSummary } from "../types";
+import { HoverBadgeList } from "./AgentHoverInfo";
 
 interface AgentConfigFormProps {
 	className?: string;
+	summary?: AgentConfigSummary | null;
 }
 
 export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 	className,
+	summary,
 }) => {
-	const { t } = useTranslation("chat");
+	const { t } = useTranslation(["chat", "agents"]);
 	const {
 		draftConfig,
 		draftFeatures,
@@ -174,18 +178,41 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 							</div>
 							<div className="space-y-1">
 								<Label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-									{t("agentSettings.features")}
+									{t("summary.features", { ns: "agents" })}
 								</Label>
-								<p className="text-sm font-semibold">
-									{featureDefinitions.length}
-								</p>
+								<HoverBadgeList
+									title={t("summary.features", { ns: "agents" })}
+									items={summary?.enabledFeatureLabels ?? []}
+									emptyLabel={t("summary.noFeaturesEnabled", {
+										ns: "agents",
+									})}
+								>
+									<div className="cursor-help">
+										<p className="text-sm font-semibold">
+											{t("summary.featuresValue", {
+												ns: "agents",
+												count: summary?.enabledFeatureCount ?? 0,
+											})}
+										</p>
+									</div>
+								</HoverBadgeList>
 							</div>
 						</div>
-						<Badge variant="outline" className="bg-background/80">
-							{t("agentSettings.toolCount", {
-								count: draftConfig.tools.length,
-							})}
-						</Badge>
+						<HoverBadgeList
+							title={t("summary.tools", { ns: "agents" })}
+							items={summary?.enabledToolNames ?? []}
+							emptyLabel={t("summary.noToolsEnabled", { ns: "agents" })}
+							badgeClassName="font-mono"
+							badgeVariant="outline"
+							align="end"
+						>
+							<Badge variant="outline" className="cursor-help bg-background/80">
+								{t("summary.toolsValue", {
+									ns: "agents",
+									count: summary?.enabledToolCount ?? 0,
+								})}
+							</Badge>
+						</HoverBadgeList>
 					</div>
 				</div>
 

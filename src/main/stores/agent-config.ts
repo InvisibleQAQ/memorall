@@ -62,13 +62,13 @@ export type AgentFeatureDefinition =
 export const GRAPH_REGISTRY = [
 	{
 		id: "knowledge-rag" as const,
-		nameKey: "agentSettings.graphKnowledgeRAG",
-		descKey: "agentSettings.graphKnowledgeRAGDesc",
+		nameKey: "agentSettings.graphAgent",
+		descKey: "agentSettings.graphAgentDesc",
 	},
 	{
 		id: "agent" as const,
-		nameKey: "agentSettings.graphAgent",
-		descKey: "agentSettings.graphAgentDesc",
+		nameKey: "agentSettings.graphSimpleAgent",
+		descKey: "agentSettings.graphSimpleAgentDesc",
 	},
 ] as const;
 

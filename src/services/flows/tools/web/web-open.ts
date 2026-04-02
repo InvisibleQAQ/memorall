@@ -2,6 +2,11 @@ import z from "zod";
 import type { Tool, ToolFactory } from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import {
+	MAX_WEB_MAX_HTML_CHARS,
+	MIN_WEB_MAX_HTML_CHARS,
+	normalizeWebMaxHtmlChars,
+} from "@/services/web-browser/max-html-chars";
+import {
 	createCleanHtml,
 	createDefaultWebErrorResult,
 	createWebResult,
@@ -30,10 +35,10 @@ const schema = z.object({
 	maxHtmlChars: z
 		.number()
 		.int()
-		.min(1024)
-		.max(500_000)
 		.optional()
-		.describe("Limit HTML length returned to the agent."),
+		.describe(
+			`Limit HTML length returned to the agent. Values are clamped to ${MIN_WEB_MAX_HTML_CHARS}-${MAX_WEB_MAX_HTML_CHARS}.`,
+		),
 	keepSession: z
 		.boolean()
 		.optional()
@@ -51,7 +56,7 @@ export const createWebOpenTool: ToolFactory<Input, WebToolServices> = (
 	schema,
 	execute: async (input) => {
 		const webBrowser = requireWebBrowserService(services);
-		const maxHtmlChars = input.maxHtmlChars ?? 160_000;
+		const maxHtmlChars = normalizeWebMaxHtmlChars(input.maxHtmlChars);
 		let disposableSessionId: string | undefined;
 		try {
 			const { session, disposable, renderReady } = await webBrowser.openSession(

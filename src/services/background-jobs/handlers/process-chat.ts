@@ -12,12 +12,10 @@ import {
 	type FlowAction,
 } from "@/services/flows/utils/langgraph-stream";
 import { handlerRegistry } from "./handler-registry";
-import type {
-	KnowledgeRAGState,
-	KnowledgeRAGPredefinedConfig,
-} from "@/services/flows/graph/knowledge-rag/state";
-import { DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG as DEFAULT_AGENT_CONFIG } from "@/services/flows/graph/knowledge-rag/state";
+import type { KnowledgeRAGState } from "@/services/flows/graph/knowledge-rag/state";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
+import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
+import { buildDefaultFlowConfig } from "@/services/flows/build-flow-config";
 import { sql } from "drizzle-orm";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
@@ -349,47 +347,31 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			});
 
 			if (mode === "knowledge") {
-				// Load agent config from predefined flow (fall back to defaults on failure)
-				let agentConfig: KnowledgeRAGPredefinedConfig | null = null;
+				// Load unified flow config — steps carry both their settings and enabled state.
+				// Falls back to the canonical default on failure so the graph always runs.
+				let flowConfig: UnifiedFlowConfig | null = null;
 				try {
-					const config = agentFlowId
-						? await serviceManager.flowBuilderService.getFlowConfig({
+					flowConfig = agentFlowId
+						? await serviceManager.flowBuilderService.getUnifiedFlowConfig({
 								flowId: agentFlowId,
 							})
-						: await serviceManager.flowBuilderService.getFlowConfig({
+						: await serviceManager.flowBuilderService.getUnifiedFlowConfig({
 								predefinedFlow: "knowledge-rag",
 							});
-					agentConfig = config as KnowledgeRAGPredefinedConfig;
 				} catch (err) {
 					await dependencies.logger.warn(
-						"Failed to load agent config, using defaults",
+						"Failed to load flow config, using defaults",
 						`${err}`,
 						"offscreen",
 					);
 				}
 
-				// Load feature flags to pass to graph (features add tools + system prompts)
-				let featureFlags: Record<string, boolean> = {};
-				try {
-					featureFlags = agentFlowId
-						? await serviceManager.flowBuilderService.getFlowFeatureFlags({
-								flowId: agentFlowId,
-							})
-						: await serviceManager.flowBuilderService.getFlowFeatureFlags({
-								predefinedFlow: "knowledge-rag",
-							});
-				} catch (err) {
-					await dependencies.logger.warn(
-						"Failed to load feature flags, using defaults",
-						`${err}`,
-						"offscreen",
-					);
-				}
+				const resolvedConfig =
+					flowConfig ?? buildDefaultFlowConfig("knowledge-rag");
+				const graphType = resolvedConfig.graphType ?? "knowledge-rag";
 
 				// Resolve the chat flow via registry — no graph-type branching here.
 				// Each graph module self-registers its adapter in chat-flow-registry.ts.
-				const resolvedConfig = agentConfig ?? DEFAULT_AGENT_CONFIG;
-				const graphType = resolvedConfig.graphType ?? "knowledge-rag";
 				const allServices = {
 					llm: serviceManager.llmService,
 					embedding: serviceManager.embeddingService,
@@ -402,7 +384,6 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					graphType,
 					allServices,
 					resolvedConfig,
-					featureFlags,
 				);
 
 				await dependencies.updateJobProgress(jobId, {

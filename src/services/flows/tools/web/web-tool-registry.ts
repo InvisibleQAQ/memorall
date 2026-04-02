@@ -10,6 +10,7 @@ import {
 	type WebSnapshotPayload,
 	type WebWaitSelectorState,
 } from "./web-browser-protocol";
+import { DEFAULT_WEB_MAX_HTML_CHARS } from "@/services/web-browser/max-html-chars";
 
 interface WebSessionState {
 	id: string;
@@ -72,7 +73,7 @@ type SuccessfulWebBrowserCommandResponse = Extract<
 const WEB_SESSIONS = new Map<string, WebSessionState>();
 const SESSION_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_TIMEOUT_MS = 15_000;
-const DEFAULT_MAX_HTML_CHARS = 160_000;
+const DEFAULT_MAX_HTML_CHARS = DEFAULT_WEB_MAX_HTML_CHARS;
 const DEFAULT_POLL_INTERVAL_MS = 250;
 const sessionTimeouts = new Map<string, number>();
 

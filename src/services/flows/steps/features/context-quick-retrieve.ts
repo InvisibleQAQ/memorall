@@ -198,7 +198,28 @@ export const createContextQuickRetrieveStep: StepFactoryFromSpec<
 	config?: ContextQuickRetrieveConfig,
 ) => bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createContextQuickRetrieveStep);
+stepRegistry.register(STEP_NAME, createContextQuickRetrieveStep, {
+	description: "Fast semantic-search + graph-growth retrieval",
+	configParams: [
+		{
+			key: "maxGrowthLevels",
+			type: "number",
+			default: 2,
+			description: "Graph expansion depth from seed nodes",
+		},
+		{
+			key: "searchLimit",
+			type: "number",
+			default: 10,
+			description: "Maximum number of seed nodes returned by semantic search",
+		},
+	],
+	defaultStateMapping: {
+		messages: "messages",
+		graphId: "graphId",
+	},
+	enabledByDefault: false,
+});
 
 declare global {
 	interface StepTypeRegistry {

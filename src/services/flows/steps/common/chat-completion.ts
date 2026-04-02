@@ -90,7 +90,25 @@ export const createChatCompletionStep: StepFactoryFromSpec<
 > = (services: ChatCompletionServices, config?: ChatCompletionConfig) =>
 	bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createChatCompletionStep);
+stepRegistry.register(STEP_NAME, createChatCompletionStep, {
+	description: "Single-turn LLM chat completion (no tool-calling loop)",
+	configParams: [
+		{
+			key: "temperature",
+			type: "number",
+			default: 0.2,
+			description: "Sampling temperature",
+		},
+		{
+			key: "stream",
+			type: "boolean",
+			default: true,
+			description: "Stream tokens as they are generated",
+		},
+	],
+	defaultStateMapping: { messages: "messages" },
+	enabledByDefault: false,
+});
 
 declare global {
 	interface StepTypeRegistry {

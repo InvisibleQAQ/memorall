@@ -78,6 +78,10 @@ const parseStoredSurface = (value: unknown): StoredWebBrowserSurface | null => {
 	};
 };
 
+const isStoredSurface = (
+	surface: StoredWebBrowserSurface | null,
+): surface is StoredWebBrowserSurface => surface !== null;
+
 const loadStoredSurfaces = async (): Promise<
 	Map<string, StoredWebBrowserSurface>
 > => {
@@ -94,7 +98,9 @@ const loadStoredSurfaces = async (): Promise<
 	const value = await storage.get(WEB_BROWSER_SURFACE_STORAGE_KEY);
 	const raw = value[WEB_BROWSER_SURFACE_STORAGE_KEY];
 	const entries: StoredWebBrowserSurface[] = Array.isArray(raw)
-		? raw.map((item: unknown) => parseStoredSurface(item)).filter(Boolean)
+		? raw
+				.map((item: unknown) => parseStoredSurface(item))
+				.filter(isStoredSurface)
 		: [];
 	cachedSurfaces = new Map(entries.map((s) => [s.sessionId, s]));
 	return cachedSurfaces;

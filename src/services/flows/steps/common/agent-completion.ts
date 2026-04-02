@@ -14,7 +14,7 @@ import {
 } from "@/services/flows/utils/langgraph-stream";
 import type { ToolName } from "../../graph/graph.base";
 
-const STEP_NAME = "agent-completion" as const;
+export const AGENT_COMPLETION_STEP_NAME = "agent-completion" as const;
 
 // ============================================================================
 // STEP-SPECIFIC TYPES
@@ -23,6 +23,10 @@ const STEP_NAME = "agent-completion" as const;
 export interface AgentCompletionStepInput {
 	messages: ChatMessage[];
 	maxIterations?: number;
+	/**
+	 * Tools accumulated in graph state by feature steps (e.g. fs-feature).
+	 * These are merged with config.tools so both base tools and feature tools run.
+	 */
 	tools?: `${ToolName}`[];
 }
 
@@ -31,9 +35,14 @@ export interface AgentCompletionStepOutput {
 }
 
 export type AgentCompletionStepServices = AllServices;
-export type AgentCompletionStepConfig = {
+
+export interface AgentCompletionStepConfig {
+	/**
+	 * Base tools always available to the agent regardless of feature steps.
+	 * Merged (union) with input.tools at runtime.
+	 */
 	tools?: `${ToolName}`[];
-};
+}
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -45,12 +54,18 @@ const definition = defineStep<
 	AgentCompletionStepServices,
 	AgentCompletionStepConfig
 >({
-	name: STEP_NAME,
+	name: AGENT_COMPLETION_STEP_NAME,
 	execute: async ({ input, services, runConfig, config }) => {
 		logInfo("[AGENT_COMPLETION] Running agent completion");
 
+		// Merge config base tools with state-accumulated feature tools.
+		// Deduplicate so the same tool isn't registered twice in AgentGraph.
+		const mergedTools: `${ToolName}`[] = [
+			...new Set([...(config?.tools ?? []), ...(input.tools ?? [])]),
+		];
+
 		const agentGraph = new AgentGraph(services, {
-			tools: input.tools || config.tools,
+			tools: mergedTools.length > 0 ? mergedTools : undefined,
 		});
 
 		const stream = await agentGraph.stream(
@@ -81,11 +96,7 @@ const definition = defineStep<
 			}
 		}
 
-		return {
-			output: {
-				response,
-			},
-		};
+		return { output: { response } };
 	},
 });
 
@@ -98,10 +109,26 @@ export const createAgentCompletionStep: StepFactoryFromSpec<
 	config?: AgentCompletionStepConfig,
 ) => bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createAgentCompletionStep);
+stepRegistry.register(AGENT_COMPLETION_STEP_NAME, createAgentCompletionStep, {
+	description: "Run an agentic tool-calling loop and produce a final response",
+	configParams: [
+		{
+			key: "tools",
+			type: "array",
+			default: [],
+			description: "Base tool names always available to the agent",
+		},
+	],
+	defaultStateMapping: {
+		messages: "messages",
+		tools: "tools",
+		maxIterations: "maxIterations",
+	},
+	enabledByDefault: true,
+});
 
 declare global {
 	interface StepTypeRegistry {
-		[STEP_NAME]: AgentCompletionSpec;
+		[AGENT_COMPLETION_STEP_NAME]: AgentCompletionSpec;
 	}
 }

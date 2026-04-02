@@ -100,7 +100,11 @@ export const createStep: StepFactoryFromSpec<DocumentsFeatureSpec> = (
 	config?: DocumentsFeatureConfig,
 ) => bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createStep);
+stepRegistry.register(STEP_NAME, createStep, {
+	description: `[Legacy] ${DOCUMENTS_FEATURE_DESCRIPTION} Prefer documents-fs-feature.`,
+	defaultStateMapping: { messages: "messages", tools: "tools" },
+	enabledByDefault: false,
+});
 
 declare global {
 	interface StepTypeRegistry {

@@ -164,7 +164,11 @@ export const createDocumentsFsFeatureStep: StepFactoryFromSpec<
 > = (services: DocumentsFsFeatureServices, config?: DocumentsFsFeatureConfig) =>
 	bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createDocumentsFsFeatureStep);
+stepRegistry.register(STEP_NAME, createDocumentsFsFeatureStep, {
+	description: DOCUMENTS_FS_FEATURE_DESCRIPTION,
+	defaultStateMapping: { messages: "messages", tools: "tools" },
+	enabledByDefault: false,
+});
 
 declare global {
 	interface StepTypeRegistry {

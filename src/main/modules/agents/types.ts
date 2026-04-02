@@ -11,7 +11,11 @@ export interface AgentPresetDraft {
 export interface AgentConfigSummary {
 	graphLabel: string;
 	enabledFeatureCount: number;
+	enabledFeatureLabels: string[];
 	enabledToolCount: number;
+	enabledToolNames: string[];
+	systemPromptPreview: string;
+	contextPromptPreview: string;
 	systemPromptLength: number;
 	contextPromptLength: number;
 	hasCustomSystemPrompt: boolean;

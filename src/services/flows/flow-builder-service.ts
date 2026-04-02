@@ -26,12 +26,23 @@ import {
 } from "./graph/knowledge-rag/state";
 import { logError, logInfo } from "@/utils/logger";
 import { getFeatureCatalogSteps, getFlowCatalog } from "./flow-builder-catalog";
+import type { UnifiedFlowConfig } from "./interfaces/flow-config";
+import {
+	buildDefaultFlowConfig,
+	mergeWithDefaultConfig,
+	convertLegacyKnowledgeRAGConfig,
+} from "./build-flow-config";
 
 type PredefinedFlowConfigMap = {
 	"knowledge-rag": KnowledgeRAGPredefinedConfig;
 };
 
 type FlowConfigRef = { flowId: string } | { predefinedFlow: PredefinedFlowKey };
+type FlowConfigRow = {
+	name: string;
+	value: unknown;
+	type: string;
+};
 
 const getFlowConfigMetaForPredefined = (flowKey: PredefinedFlowKey) => {
 	switch (flowKey) {
@@ -491,6 +502,83 @@ export class FlowBuilderService {
 		return getFlowCatalog();
 	}
 
+	private async getFlowConfigRows(flowId: string): Promise<FlowConfigRow[]> {
+		return this.databaseService.use(async ({ db, schema }) =>
+			db
+				.select({
+					name: schema.flowConfigs.name,
+					value: schema.flowConfigs.value,
+					type: schema.flowConfigs.type,
+				})
+				.from(schema.flowConfigs)
+				.where(eq(schema.flowConfigs.flowId, flowId)),
+		);
+	}
+
+	private parsePredefinedConfigRows<K extends PredefinedFlowKey>(
+		rows: FlowConfigRow[],
+		predefinedFlow: K,
+	): PredefinedFlowConfigMap[K] {
+		const { keys, defaults } = getFlowConfigMetaForPredefined(predefinedFlow);
+		const rowMap = new Map(rows.map((row) => [row.name, row]));
+		const config: Record<string, unknown> = {};
+
+		for (const key of keys) {
+			const row = rowMap.get(key.name);
+			if (
+				row &&
+				row.type === key.type &&
+				isValidConfigValue(key.type, row.value)
+			) {
+				config[key.name] = row.value;
+			} else {
+				config[key.name] = defaults[key.name as keyof typeof defaults];
+			}
+		}
+
+		return config as PredefinedFlowConfigMap[K];
+	}
+
+	private async getStoredFeatureFlags(flowId: string): Promise<{
+		flags: Record<string, boolean>;
+		hasStoredRows: boolean;
+	}> {
+		const featureNames = this.getFeatureNamesFromCatalog();
+		const featureNameSet = new Set(featureNames);
+		const flags = Object.fromEntries(
+			featureNames.map((name) => [name, false]),
+		) as Record<string, boolean>;
+
+		const rows = await this.databaseService.use(async ({ db, schema }) =>
+			db
+				.select({
+					name: schema.flowSteps.name,
+					metadata: schema.flowSteps.metadata,
+				})
+				.from(schema.flowSteps)
+				.where(
+					and(
+						eq(schema.flowSteps.flowId, flowId),
+						eq(schema.flowSteps.type, this.FEATURE_STEP_TYPE),
+					),
+				),
+		);
+
+		for (const row of rows) {
+			if (!featureNameSet.has(row.name)) {
+				continue;
+			}
+			flags[row.name] = Boolean(
+				(row.metadata as { enabled?: unknown } | null | undefined)?.enabled,
+			);
+		}
+
+		return {
+			flags,
+			hasStoredRows: rows.length > 0,
+		};
+	}
+
 	private async resolveFlow(ref: FlowConfigRef): Promise<Flow> {
 		return this.databaseService.use(async ({ db, schema }) => {
 			if ("flowId" in ref) {
@@ -540,35 +628,10 @@ export class FlowBuilderService {
 		const predefinedFlow = flow.predefinedFlow as PredefinedFlowKey | null;
 
 		try {
-			const rows = await this.databaseService.use(async ({ db, schema }) =>
-				db
-					.select({
-						name: schema.flowConfigs.name,
-						value: schema.flowConfigs.value,
-						type: schema.flowConfigs.type,
-					})
-					.from(schema.flowConfigs)
-					.where(eq(schema.flowConfigs.flowId, flow.id)),
-			);
+			const rows = await this.getFlowConfigRows(flow.id);
 
 			if (predefinedFlow) {
-				const { keys, defaults } =
-					getFlowConfigMetaForPredefined(predefinedFlow);
-				const rowMap = new Map(rows.map((row) => [row.name, row]));
-				const config: Record<string, unknown> = {};
-				for (const key of keys) {
-					const row = rowMap.get(key.name);
-					if (
-						row &&
-						row.type === key.type &&
-						isValidConfigValue(key.type, row.value)
-					) {
-						config[key.name] = row.value;
-					} else {
-						config[key.name] = defaults[key.name as keyof typeof defaults];
-					}
-				}
-				return config;
+				return this.parsePredefinedConfigRows(rows, predefinedFlow);
 			}
 
 			return Object.fromEntries(rows.map((row) => [row.name, row.value]));
@@ -701,41 +764,72 @@ export class FlowBuilderService {
 		});
 	}
 
+	/**
+	 * Load the flow configuration as a UnifiedFlowConfig.
+	 *
+	 * Storage strategy (backward-compatible, no DB migration required):
+	 *   - If the flow has a "unified_config" row, parse and merge with defaults.
+	 *   - Otherwise load the legacy key-value rows (systemPrompt, tools, …) plus
+	 *     the feature-flags from flowSteps, then convert via
+	 *     convertLegacyKnowledgeRAGConfig().
+	 *   - Falls back to buildDefaultFlowConfig() on any error.
+	 */
+	async getUnifiedFlowConfig(ref: FlowConfigRef): Promise<UnifiedFlowConfig> {
+		const graphType = "knowledge-rag"; // only supported predefined type for now
+
+		try {
+			const flow = await this.resolveFlow(ref);
+			const rows = await this.getFlowConfigRows(flow.id);
+
+			const rowMap = new Map(rows.map((r) => [r.name, r]));
+
+			// New format: a single "unified_config" JSON blob
+			const unifiedRow = rowMap.get("unified_config");
+			if (
+				unifiedRow &&
+				typeof unifiedRow.value === "object" &&
+				unifiedRow.value !== null
+			) {
+				const stored = unifiedRow.value as Partial<UnifiedFlowConfig>;
+				return mergeWithDefaultConfig(
+					stored,
+					(stored.graphType as string | undefined) ?? graphType,
+				);
+			}
+
+			const { flags: featureFlags, hasStoredRows: hasStoredFeatureRows } =
+				await this.getStoredFeatureFlags(flow.id);
+			const legacyConfig = this.parsePredefinedConfigRows(
+				rows,
+				"knowledge-rag",
+			);
+			const hasLegacyConfigRows = KNOWLEDGE_RAG_CONFIG_KEYS.some((key) =>
+				rowMap.has(key.name),
+			);
+
+			// Legacy format: individual key-value rows + feature flags in flowSteps.
+			// Support both predefined flows and custom flowId-based flows saved by the
+			// existing agent settings UI.
+			if (hasLegacyConfigRows || hasStoredFeatureRows || flow.predefinedFlow) {
+				return convertLegacyKnowledgeRAGConfig({
+					...legacyConfig,
+					featureFlags,
+				} as Parameters<typeof convertLegacyKnowledgeRAGConfig>[0]);
+			}
+
+			// Flow has no stored config yet → use canonical defaults.
+			return buildDefaultFlowConfig(graphType);
+		} catch (error) {
+			logError("[FLOW_BUILDER] Failed to load unified flow config:", error);
+			return buildDefaultFlowConfig(graphType);
+		}
+	}
+
 	async getFlowFeatureFlags(
 		ref: FlowConfigRef,
 	): Promise<Record<string, boolean>> {
 		const flow = await this.resolveFlow(ref);
-		const featureNames = this.getFeatureNamesFromCatalog();
-		const defaultFlags = Object.fromEntries(
-			featureNames.map((name) => [name, false]),
-		) as Record<string, boolean>;
-
-		const rows = await this.databaseService.use(async ({ db, schema }) =>
-			db
-				.select({
-					name: schema.flowSteps.name,
-					metadata: schema.flowSteps.metadata,
-				})
-				.from(schema.flowSteps)
-				.where(
-					and(
-						eq(schema.flowSteps.flowId, flow.id),
-						eq(schema.flowSteps.type, this.FEATURE_STEP_TYPE),
-					),
-				),
-		);
-
-		for (const row of rows) {
-			if (!featureNames.includes(row.name)) {
-				continue;
-			}
-			const enabled = Boolean(
-				(row.metadata as { enabled?: unknown } | null | undefined)?.enabled,
-			);
-			defaultFlags[row.name] = enabled;
-		}
-
-		return defaultFlags;
+		return (await this.getStoredFeatureFlags(flow.id)).flags;
 	}
 
 	async saveFlowFeatureFlags(

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { RotateCcw, Save, Undo2 } from "lucide-react";
 import { CreateFlowDialog } from "@/main/modules/flow-builder/components";
 import { Button } from "@/main/components/ui/button";
+import { TruncatedHoverText } from "./AgentHoverInfo";
 import { AgentPresetList } from "./AgentPresetList";
 import { AgentPresetOverview } from "./AgentPresetOverview";
 import { AgentConfigForm } from "./AgentConfigForm";
@@ -109,6 +110,7 @@ export const AgentsWorkspace: React.FC = () => {
 		draftConfig,
 		draftFeatures,
 		featureDefinitions,
+		availableTools,
 		currentGraphType,
 		initialize,
 		isDirty: hasConfigChanges,
@@ -294,36 +296,68 @@ export const AgentsWorkspace: React.FC = () => {
 		const graphMeta = GRAPH_REGISTRY.find(
 			(graph) => graph.id === currentGraphType,
 		);
-		const enabledFeatureCount = featureDefinitions.reduce((count, feature) => {
+		const enabledFeatureLabels = featureDefinitions.flatMap((feature) => {
 			if (feature.type === "config") {
 				if (feature.configKey === "tools") {
-					return count;
+					return [];
 				}
-				return count + Number(Boolean(draftConfig[feature.configKey]));
+				return draftConfig[feature.configKey]
+					? [t(feature.nameKey, { ns: "chat" })]
+					: [];
 			}
 
-			return count + Number(Boolean(draftFeatures[feature.name]));
-		}, 0);
+			return draftFeatures[feature.name] ? [feature.name] : [];
+		});
+		const enabledToolSet = new Set(draftConfig.tools);
+
+		for (const feature of featureDefinitions) {
+			if (feature.type === "config") {
+				if (feature.configKey === "tools" || !draftConfig[feature.configKey]) {
+					continue;
+				}
+			} else if (!draftFeatures[feature.name]) {
+				continue;
+			}
+
+			for (const tool of feature.tools) {
+				enabledToolSet.add(tool);
+			}
+		}
+
+		const availableToolSet = new Set(availableTools);
+		const enabledToolNames = [
+			...availableTools.filter((tool) => enabledToolSet.has(tool)),
+			...Array.from(enabledToolSet).filter(
+				(tool) => !availableToolSet.has(tool),
+			),
+		];
+		const systemPromptPreview =
+			draftConfig.systemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT;
+		const contextPromptPreview =
+			draftConfig.contextPrompt || DEFAULT_CONTEXT_SYSTEM_PROMPT;
 
 		return {
 			graphLabel: graphMeta
 				? t(graphMeta.nameKey, { ns: "chat" })
 				: t("agents:summary.unknownGraph"),
-			enabledFeatureCount,
-			enabledToolCount: draftConfig.tools.length,
-			systemPromptLength: (
-				draftConfig.systemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT
-			).length,
-			contextPromptLength: (
-				draftConfig.contextPrompt || DEFAULT_CONTEXT_SYSTEM_PROMPT
-			).length,
+			enabledFeatureCount: enabledFeatureLabels.length,
+			enabledFeatureLabels,
+			enabledToolCount: enabledToolNames.length,
+			enabledToolNames,
+			systemPromptPreview,
+			contextPromptPreview,
+			systemPromptLength: systemPromptPreview.length,
+			contextPromptLength: contextPromptPreview.length,
 			hasCustomSystemPrompt: draftConfig.systemPrompt.trim().length > 0,
 			hasCustomContextPrompt: draftConfig.contextPrompt.trim().length > 0,
 			lastUpdatedAt: coerceDate(selectedPreset.updatedAt),
 		};
 	}, [
+		availableTools,
 		currentGraphType,
 		draftConfig.contextPrompt,
+		draftConfig.enableCitations,
+		draftConfig.enableContextRetrieval,
 		draftConfig.systemPrompt,
 		draftConfig.tools,
 		draftFeatures,
@@ -477,17 +511,23 @@ export const AgentsWorkspace: React.FC = () => {
 		>
 			<div className={cn("flex flex-col", isDesktop ? "h-full min-h-0" : "")}>
 				<div className="border-b bg-gradient-to-r from-background via-background to-muted/30 px-4 py-4 sm:px-5">
-					<p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-						{t("config.eyebrow")}
-					</p>
-					<div className="mt-1 flex items-center justify-between gap-3">
-						<div>
-							<h2 className="text-lg font-semibold">{t("config.title")}</h2>
-							<p className="text-sm text-muted-foreground">
-								{t("config.subtitle")}
+					<div className="grid min-h-[76px] grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+						<div className="min-w-0 space-y-1.5">
+							<p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
+								{t("config.eyebrow")}
 							</p>
+							<TruncatedHoverText
+								as="h2"
+								text={t("config.title")}
+								className="text-lg font-semibold"
+							/>
+							<TruncatedHoverText
+								as="p"
+								text={t("config.subtitle")}
+								className="text-sm text-muted-foreground"
+							/>
 						</div>
-						<Badge variant="outline">
+						<Badge variant="outline" className="shrink-0">
 							{hasConfigChanges
 								? t("workspace.configUnsaved")
 								: t("workspace.configSaved")}
@@ -498,7 +538,7 @@ export const AgentsWorkspace: React.FC = () => {
 					<div
 						className={cn(isDesktop ? "flex-1 min-h-0 overflow-y-auto" : "")}
 					>
-						<AgentConfigForm className="p-4 sm:p-5" />
+						<AgentConfigForm className="p-4 sm:p-5" summary={configSummary} />
 					</div>
 				) : (
 					<div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-sm text-muted-foreground">

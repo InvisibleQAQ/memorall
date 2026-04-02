@@ -7,7 +7,7 @@ import { stepRegistry } from "@/services/flows/step-registry";
 import type { ChatMessage } from "@/types/openai";
 import { GraphBase } from "@/services/flows/graph/graph.base";
 
-const STEP_NAME = "add-system" as const;
+export const ADD_SYSTEM_STEP_NAME = "add-system" as const;
 
 // ============================================================================
 // STEP-SPECIFIC TYPES
@@ -15,39 +15,48 @@ const STEP_NAME = "add-system" as const;
 
 interface Input {
 	messages: ChatMessage[];
-	content: string;
+	/**
+	 * Optional inline content — takes precedence over config.content.
+	 * Prefer putting the prompt in config so it persists in the flow config;
+	 * use input only when the content must be computed at runtime.
+	 */
+	content?: string;
 }
 
 interface Output {
 	messages?: ChatMessage[];
 }
 
-type Services = {};
-type Config = {};
+type Services = Record<string, never>;
+
+export interface AddSystemConfig {
+	/**
+	 * System prompt content to prepend.
+	 * Set via StepInstanceConfig.config.content in the flow config.
+	 */
+	content?: string;
+}
 
 // ============================================================================
 // STEP IMPLEMENTATION
 // ============================================================================
 
-const definition = defineStep<Input, Output, Services, Config>({
-	name: STEP_NAME,
-	execute: async ({ input }) => {
-		if (!input?.content) {
-			return {
-				output: {},
-			};
+const definition = defineStep<Input, Output, Services, AddSystemConfig>({
+	name: ADD_SYSTEM_STEP_NAME,
+	execute: async ({ input, config }) => {
+		// input.content takes precedence; config.content is the persisted default.
+		const content = input.content ?? config?.content;
+
+		if (!content?.trim()) {
+			return { output: {} };
 		}
 
 		const updatedMessages = GraphBase.chat.systemMessage(
-			input.messages || [],
-			input.content,
+			input.messages ?? [],
+			content,
 		);
 
-		return {
-			output: {
-				messages: updatedMessages,
-			},
-		};
+		return { output: { messages: updatedMessages } };
 	},
 });
 
@@ -55,13 +64,25 @@ type Spec = StepSpecFromDefinition<typeof definition>;
 
 const createStep: StepFactoryFromSpec<Spec> = (
 	services: Services,
-	config?: Config,
+	config?: AddSystemConfig,
 ) => bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createStep);
+stepRegistry.register(ADD_SYSTEM_STEP_NAME, createStep, {
+	description: "Prepend a system message to the conversation",
+	configParams: [
+		{
+			key: "content",
+			type: "string",
+			default: "",
+			description: "System prompt text to prepend",
+		},
+	],
+	defaultStateMapping: { messages: "messages" },
+	enabledByDefault: true,
+});
 
 declare global {
 	interface StepTypeRegistry {
-		[STEP_NAME]: Spec;
+		[ADD_SYSTEM_STEP_NAME]: Spec;
 	}
 }

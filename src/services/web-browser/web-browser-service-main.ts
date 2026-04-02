@@ -1,4 +1,5 @@
 import { logInfo } from "@/utils/logger";
+import { normalizeWebMaxHtmlChars } from "./max-html-chars";
 import type { IWebBrowserService } from "./interfaces/web-browser-service.interface";
 import type {
 	ActiveWebSessionInfo,
@@ -82,7 +83,7 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 		return openWebSession({
 			url: args.url,
 			timeoutMs: args.timeoutMs ?? 15_000,
-			maxHtmlChars: args.maxHtmlChars ?? 160_000,
+			maxHtmlChars: normalizeWebMaxHtmlChars(args.maxHtmlChars),
 			persist: args.persist ?? true,
 			mode: args.mode,
 		});
@@ -90,9 +91,10 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 
 	async refreshSession(args: WebRefreshSessionArgs): Promise<WebSession> {
 		await this.initialize();
+		const maxHtmlChars = normalizeWebMaxHtmlChars(args.maxHtmlChars);
 		return refreshWebSession(
 			args.sessionId,
-			args.maxHtmlChars,
+			maxHtmlChars,
 			args.timeoutMs,
 		) as Promise<WebSession>;
 	}
@@ -101,7 +103,10 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 		args: WebGetOrOpenSessionArgs,
 	): Promise<WebGetOrOpenSessionResult> {
 		await this.initialize();
-		return getOrOpenWebSession(args);
+		return getOrOpenWebSession({
+			...args,
+			maxHtmlChars: normalizeWebMaxHtmlChars(args.maxHtmlChars),
+		});
 	}
 
 	async closeSession(sessionId: string): Promise<void> {
@@ -133,23 +138,27 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 		args: WebFetchRenderedFallbackArgs,
 	): Promise<WebFetchRenderedFallbackResult> {
 		await this.initialize();
-		return fetchRenderedFallback(args);
+		return fetchRenderedFallback({
+			...args,
+			maxHtmlChars: normalizeWebMaxHtmlChars(args.maxHtmlChars),
+		});
 	}
 
 	async queryDomElements(
 		args: WebQueryDomElementsArgs,
 	): Promise<WebDomElementInfo[]> {
 		await this.initialize();
+		const maxHtmlChars = normalizeWebMaxHtmlChars(args.maxHtmlChars);
 		const session = await getWebSession(
 			args.sessionId,
-			args.maxHtmlChars,
+			maxHtmlChars,
 			args.timeoutMs,
 		);
 		return queryDomElements(
 			session,
 			args.selector,
 			args.maxResults,
-			args.maxHtmlChars,
+			maxHtmlChars,
 			args.timeoutMs,
 		);
 	}
@@ -174,9 +183,10 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 		args: WebWaitForSelectorArgs,
 	): Promise<WebWaitResult> {
 		await this.initialize();
+		const maxHtmlChars = normalizeWebMaxHtmlChars(args.maxHtmlChars);
 		const session = await getWebSession(
 			args.sessionId,
-			args.maxHtmlChars,
+			maxHtmlChars,
 			args.timeoutMs,
 		);
 		return waitForDomSelector({
@@ -185,15 +195,16 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 			state: args.state,
 			timeoutMs: args.timeoutMs,
 			intervalMs: args.intervalMs,
-			maxHtmlChars: args.maxHtmlChars,
+			maxHtmlChars,
 		});
 	}
 
 	async waitForPageRender(args: WebWaitForRenderArgs): Promise<WebWaitResult> {
 		await this.initialize();
+		const maxHtmlChars = normalizeWebMaxHtmlChars(args.maxHtmlChars);
 		const session = await getWebSession(
 			args.sessionId,
-			args.maxHtmlChars,
+			maxHtmlChars,
 			args.timeoutMs,
 		);
 		return waitForPageRender({
@@ -201,7 +212,7 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 			timeoutMs: args.timeoutMs,
 			intervalMs: args.intervalMs,
 			stabilityMs: args.stabilityMs,
-			maxHtmlChars: args.maxHtmlChars,
+			maxHtmlChars,
 		});
 	}
 
@@ -209,9 +220,10 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 		args: WebPerformDomActionArgs,
 	): Promise<WebElementRecord> {
 		await this.initialize();
+		const maxHtmlChars = normalizeWebMaxHtmlChars(args.maxHtmlChars);
 		const session = await getWebSession(
 			args.sessionId,
-			args.maxHtmlChars,
+			maxHtmlChars,
 			args.timeoutMs,
 		);
 		return performDomAction(
@@ -222,7 +234,7 @@ export class WebBrowserServiceMain implements IWebBrowserService {
 				index: args.index,
 				value: args.value,
 			},
-			args.maxHtmlChars,
+			maxHtmlChars,
 			args.timeoutMs,
 		);
 	}

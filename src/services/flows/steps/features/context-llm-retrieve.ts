@@ -214,7 +214,15 @@ export const createContextLLMRetrieveStep: StepFactoryFromSpec<
 > = (services: ContextLLMRetrieveServices, config?: ContextLLMRetrieveConfig) =>
 	bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createContextLLMRetrieveStep);
+stepRegistry.register(STEP_NAME, createContextLLMRetrieveStep, {
+	description:
+		"LLM-guided entity extraction + graph traversal retrieval (high accuracy, slower)",
+	defaultStateMapping: {
+		messages: "messages",
+		graphId: "graphId",
+	},
+	enabledByDefault: false,
+});
 
 declare global {
 	interface StepTypeRegistry {

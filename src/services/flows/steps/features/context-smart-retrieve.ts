@@ -178,7 +178,16 @@ export const createContextSmartRetrieveStep: StepFactoryFromSpec<
 	config?: ContextSmartRetrieveConfig,
 ) => bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createContextSmartRetrieveStep);
+stepRegistry.register(STEP_NAME, createContextSmartRetrieveStep, {
+	description:
+		"Hybrid semantic-search + graph-expansion retrieval (recommended default)",
+	defaultStateMapping: {
+		messages: "messages",
+		graphId: "graphId",
+		contextQueries: "contextQueries",
+	},
+	enabledByDefault: true,
+});
 
 declare global {
 	interface StepTypeRegistry {

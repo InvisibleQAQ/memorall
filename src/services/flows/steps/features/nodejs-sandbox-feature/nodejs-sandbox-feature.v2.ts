@@ -269,7 +269,11 @@ export const createNodejsSandboxFeatureStep: StepFactoryFromSpec<
 	config?: NodejsSandboxFeatureConfig,
 ) => bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createNodejsSandboxFeatureStep);
+stepRegistry.register(STEP_NAME, createNodejsSandboxFeatureStep, {
+	description: NODEJS_SANDBOX_FEATURE_DESCRIPTION,
+	defaultStateMapping: { messages: "messages", tools: "tools" },
+	enabledByDefault: false,
+});
 
 declare global {
 	interface StepTypeRegistry {

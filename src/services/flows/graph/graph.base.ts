@@ -23,6 +23,8 @@ import {
 	type FlowRunFinishCallback,
 	type FlowRunLifecycle,
 } from "@/services/flows/runtime/run-lifecycle";
+import { stepRegistry } from "@/services/flows/step-registry";
+import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 
 export type ToolName = `${keyof ToolTypeRegistry & string}`;
 
@@ -227,6 +229,23 @@ const wrapStreamWithLifecycle = <TStream extends AsyncIterable<unknown>>(
 	}) as TStream;
 };
 
+/**
+ * Build a step input object by picking state fields according to the declared mapping.
+ * e.g. mapping = { messages: "messages", graphId: "graphId" }
+ *   → { messages: state.messages, graphId: state.graphId }
+ */
+function buildMappedInput(
+	state: Record<string, unknown>,
+	mapping: Record<string, string>,
+): Record<string, unknown> {
+	return Object.fromEntries(
+		Object.entries(mapping).map(([inputKey, stateKey]) => [
+			inputKey,
+			state[stateKey],
+		]),
+	);
+}
+
 export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 	protected workflow!: StateGraph<T, T, unknown, N | typeof START | typeof END>;
 	protected app!: CompiledGraph<T>;
@@ -304,6 +323,80 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 	};
 
 	protected chat = GraphBase.chat;
+
+	// ---------------------------------------------------------------------------
+	// Config-driven node builder
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Add a LangGraph node for each enabled step in config.steps, in order.
+	 *
+	 * Node names use the step instance `id` (not `name`) so that duplicate
+	 * step names (e.g., two "add-system" steps) produce distinct node names.
+	 *
+	 * The step's declared defaultStateMapping is used to auto-build mapInput.
+	 * Fields absent from the mapping are expected to come from step config.
+	 *
+	 * @returns The ordered list of node names that were added.
+	 */
+	protected addStepNodes(
+		workflow: StateGraph<T, T, unknown, string | typeof START | typeof END>,
+		config: UnifiedFlowConfig,
+		services: S,
+	): string[] {
+		const nodeNames: string[] = [];
+
+		for (const stepInstance of config.steps.filter((s) => s.enabled)) {
+			if (!stepRegistry.hasStep(stepInstance.name)) {
+				logWarn(
+					`[GraphBase] Step "${stepInstance.name}" not found in registry, skipping`,
+				);
+				continue;
+			}
+
+			const meta = stepRegistry.getMeta(stepInstance.name);
+			const step = stepRegistry.getStepByName(
+				stepInstance.name,
+				services,
+				stepInstance.config,
+			);
+
+			// Use id as node name — safe for duplicate step names
+			const nodeName = `step__${stepInstance.id}`;
+
+			const node = step.toNode<T>({
+				mapInput: meta?.defaultStateMapping
+					? (state) =>
+							buildMappedInput(
+								state as Record<string, unknown>,
+								meta.defaultStateMapping!,
+							)
+					: undefined,
+			});
+
+			workflow.addNode(nodeName, node);
+			nodeNames.push(nodeName);
+		}
+
+		return nodeNames;
+	}
+
+	/**
+	 * Add edges to chain the given node names in sequence.
+	 * Accepts START and END sentinels at either end of the array.
+	 *
+	 * Example:
+	 *   chainNodes(workflow, [START, "nodeA", "nodeB", END])
+	 *   // produces: START→nodeA, nodeA→nodeB, nodeB→END
+	 */
+	protected chainNodes(
+		workflow: StateGraph<T, T, unknown, string | typeof START | typeof END>,
+		nodes: (string | typeof START | typeof END)[],
+	): void {
+		for (let i = 0; i < nodes.length - 1; i++) {
+			workflow.addEdge(nodes[i] as string, nodes[i + 1] as string);
+		}
+	}
 
 	protected getRunLifecycle(
 		runConfig?: LangGraphRunnableConfig,

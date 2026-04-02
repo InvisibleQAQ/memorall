@@ -1,56 +1,34 @@
 import { Annotation } from "@langchain/langgraph/web";
 import {
 	type BaseStateBase,
-	type ToolName,
 	BaseAnnotation,
 } from "@/services/flows/graph/graph.base";
 
-export interface KnowledgeRAGConfig {
-	/** Retrieval mode: standard (LLM-based), quick (fast semantic), smart (hybrid - default) */
-	mode?: "standard" | "quick" | "smart";
-	/** Response mode: simple (single LLM call) or agent (tool calling loop) */
-	responseMode?: "simple" | "agent";
-	/** Tools available for agent mode */
-	tools?: `${ToolName}`[];
-	/** Max iterations for agent mode (default: 10) */
-	maxIterations?: number;
-	maxGrowthLevels?: number;
-	searchLimit?: number;
-	/** Custom system prompt (overrides default). Use {context} placeholder for knowledge context. */
-	systemPrompt?: string;
-	/** Custom context prompt (overrides default RESPONSE_GENERATION_PROMPT). */
-	contextPrompt?: string;
-	/** Whether to retrieve knowledge context before responding (default: true) */
-	enableContextRetrieval?: boolean;
-	/** Whether to add citations to responses (default: true) */
-	enableCitations?: boolean;
-	/** Enabled feature flags (feature step name -> enabled) */
-	featureFlags?: Record<string, boolean>;
-}
+// Re-export so existing UI importers don't need to change their import path.
+export { DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT } from "@/services/flows/build-flow-config";
 
-export const DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT = `
-You are a knowledgeable assistant.
-Use the provided system context and answer clearly, accurately, and with structured sections when useful.
-If tools or feature-enabled capabilities are available, use them repeatedly when needed to fully solve the user's requirement.
-Do not stop after a single attempt if the result is incomplete, ambiguous, or failed. Continue with follow-up tool use, retries, and verification until the task is actually resolved or you have a concrete blocking reason.
-`.trim();
+// ---------------------------------------------------------------------------
+// Legacy predefined config — kept for backward compatibility
+// The UI layer and the service's legacy getFlowConfig/saveFlowConfig paths
+// still consume these types.  New code should use UnifiedFlowConfig from
+// src/services/flows/interfaces/flow-config.ts instead.
+// ---------------------------------------------------------------------------
 
-/** Default predefined config values (used by service for defaults + UI for reset) */
+/** @deprecated Use UnifiedFlowConfig from interfaces/flow-config instead. */
 export const DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG = {
 	systemPrompt: "",
 	contextPrompt: "",
 	tools: ["current_time", "js_execute"] as string[],
 	enableContextRetrieval: true,
 	enableCitations: true,
-	/** Which base graph runs this agent — "knowledge-rag" (RAG + agent) or "agent" (pure agent) */
 	graphType: "knowledge-rag" as "knowledge-rag" | "agent",
 };
 
-/** Type for the subset of KnowledgeRAGConfig that is user-configurable */
+/** @deprecated Use UnifiedFlowConfig from interfaces/flow-config instead. */
 export type KnowledgeRAGPredefinedConfig =
 	typeof DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG;
 
-/** Canonical config keys that map to flow_configs rows */
+/** @deprecated Canonical config keys used by the service's legacy DB path. */
 export const KNOWLEDGE_RAG_CONFIG_KEYS = [
 	{ name: "systemPrompt", type: "string" },
 	{ name: "contextPrompt", type: "string" },
@@ -60,17 +38,14 @@ export const KNOWLEDGE_RAG_CONFIG_KEYS = [
 	{ name: "graphType", type: "string" },
 ] as const;
 
-// Graph growth configuration
-export interface GraphGrowthConfig {
-	maxLevels: number;
-	nodesPerLevel: number;
-	edgesPerLevel: number;
-}
+// ---------------------------------------------------------------------------
+// Runtime graph state
+// ---------------------------------------------------------------------------
 
 export interface KnowledgeRAGState extends BaseStateBase {
 	// Input
 	graphId?: string;
-	// Additional search contexts (for example selected topic metadata)
+	/** Additional search context hints (e.g. topic name/description) */
 	contextQueries: string[];
 
 	maxIterations: number;

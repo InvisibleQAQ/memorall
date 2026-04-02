@@ -13,6 +13,7 @@ import { formatYAML } from "@/utils/yaml";
 import { flowRegistry } from "@/services/flows/flow-registry";
 import type { BaseFlow } from "@/services/flows/flow-registry";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
+import { findEnabledStepByName } from "@/services/flows/interfaces/flow-config";
 
 // Tool names available to the agent
 const DEFAULT_TOOL_NAMES = ["current_time"] as const;
@@ -384,21 +385,33 @@ flowRegistry.register({
 });
 
 // Register as a chat-capable flow — pure agent with no RAG retrieval.
-// The agent graph uses tools configured at construction time (from config.tools).
+//
+// The agent graph has its own internal topology (initial → agent ⇄ tool_executor)
+// and does not use the step-registry node builder.  We extract the relevant
+// values from UnifiedFlowConfig by inspecting the known step slots.
 //
 // The `as unknown as BaseFlow` cast is required because TypeScript's invariant
 // generic checks on the compiled workflow's internal types are incompatible with
 // the BaseFlow alias (which uses `string` nodes and `AllServices`), even though
 // the runtime behaviour is fully correct.
 chatFlowRegistry.register("agent", (services, config) => {
+	const addSystemStep = findEnabledStepByName(config, "add-system");
+	const agentCompletionStep = findEnabledStepByName(config, "agent-completion");
+
+	const systemPrompt =
+		(addSystemStep?.config?.content as string | undefined) || undefined;
+	const tools =
+		(agentCompletionStep?.config?.tools as `${ToolName}`[] | undefined) ?? [];
+
 	const graph = new AgentGraph(services, {
-		systemPrompt: config.systemPrompt || undefined,
-		tools: (config.tools ?? []) as `${ToolName}`[],
+		systemPrompt,
+		tools: tools.length > 0 ? tools : undefined,
 	});
+
 	return {
 		graph: graph as unknown as BaseFlow,
 		// Agent state only needs messages; extra fields (graphId, contextQueries)
-		// are part of KnowledgeRAGState and are simply absent from AgentAnnotation.
+		// are part of KnowledgeRAGState and are absent from AgentAnnotation.
 		getInitialState: (ctx) => ({
 			messages: ctx.messages,
 		}),

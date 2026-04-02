@@ -13,21 +13,10 @@
 import type { AllServices } from "./interfaces/tool";
 import type { BaseFlow } from "./flow-registry";
 import type { ChatCompletionMessageParam } from "@/types/openai";
+import type { UnifiedFlowConfig } from "./interfaces/flow-config";
 
-// ---------------------------------------------------------------------------
-// Common agent config shape (union of all graph config fields that the
-// settings panel can persist).  Each adapter casts / picks the fields it needs.
-// ---------------------------------------------------------------------------
-export interface AgentFlowConfig {
-	systemPrompt?: string;
-	contextPrompt?: string;
-	tools?: string[];
-	enableContextRetrieval?: boolean;
-	enableCitations?: boolean;
-	/** Which graph handles this chat flow. */
-	graphType?: string;
-	[key: string]: unknown;
-}
+// Re-export so callers that already import from here don't need to change
+export type { UnifiedFlowConfig };
 
 // ---------------------------------------------------------------------------
 // Context passed to getInitialState so each adapter can build its own state.
@@ -55,8 +44,7 @@ export interface ChatGraphResult {
 // ---------------------------------------------------------------------------
 export type ChatFlowFactory = (
 	services: AllServices,
-	config: AgentFlowConfig,
-	featureFlags: Record<string, boolean>,
+	config: UnifiedFlowConfig,
 ) => ChatGraphResult;
 
 // ---------------------------------------------------------------------------
@@ -80,8 +68,7 @@ class ChatFlowRegistry {
 	create(
 		graphType: string,
 		services: AllServices,
-		config: AgentFlowConfig,
-		featureFlags: Record<string, boolean>,
+		config: UnifiedFlowConfig,
 	): ChatGraphResult {
 		const factory =
 			this.factories.get(graphType) ?? this.factories.get("knowledge-rag");
@@ -90,7 +77,7 @@ class ChatFlowRegistry {
 				`[ChatFlowRegistry] No chat flow registered for type "${graphType}" and no "knowledge-rag" fallback.`,
 			);
 		}
-		return factory(services, config, featureFlags);
+		return factory(services, config);
 	}
 
 	getRegisteredTypes(): string[] {

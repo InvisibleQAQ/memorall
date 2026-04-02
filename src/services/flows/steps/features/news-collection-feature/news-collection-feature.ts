@@ -230,7 +230,11 @@ export const createNewsCollectionFeatureStep: StepFactoryFromSpec<
 	config?: NewsCollectionFeatureConfig,
 ) => bindStep(definition, services, config);
 
-stepRegistry.register(STEP_NAME, createNewsCollectionFeatureStep);
+stepRegistry.register(STEP_NAME, createNewsCollectionFeatureStep, {
+	description: NEWS_COLLECTION_FEATURE_DESCRIPTION,
+	defaultStateMapping: { messages: "messages", tools: "tools" },
+	enabledByDefault: false,
+});
 
 declare global {
 	interface StepTypeRegistry {
