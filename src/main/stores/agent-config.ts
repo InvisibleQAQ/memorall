@@ -45,7 +45,13 @@ export interface ConfigFeatureDefinition {
 export interface CatalogFeatureDefinition {
 	type: "catalog";
 	name: string;
+	/** Human-readable display name (English fallback). */
+	displayName: string;
+	/** i18n key for the display name. */
+	nameKey?: string;
 	description: string;
+	/** i18n key for the description. */
+	descriptionKey?: string;
 	tools: string[];
 	systemPrompt: string;
 	customizable: boolean;
@@ -170,7 +176,14 @@ function buildFeatureDefinitions(graphType: string): AgentFeatureDefinition[] {
 			return {
 				type: "catalog" as const,
 				name: step.name,
+				displayName:
+					typeof meta.displayName === "string" ? meta.displayName : step.name,
+				nameKey: typeof meta.nameKey === "string" ? meta.nameKey : undefined,
 				description: meta.description ?? step.name,
+				descriptionKey:
+					typeof meta.descriptionKey === "string"
+						? meta.descriptionKey
+						: undefined,
 				tools: Array.isArray(meta.tools) ? meta.tools.map(String) : [],
 				systemPrompt:
 					typeof meta.systemPrompt === "string" ? meta.systemPrompt : "",

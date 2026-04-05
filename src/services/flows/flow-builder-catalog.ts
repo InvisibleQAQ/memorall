@@ -34,6 +34,30 @@ import {
 	NEWS_COLLECTION_FEATURE_SYSTEM_PROMPT,
 	NEWS_COLLECTION_FEATURE_TOOLS,
 } from "./steps/features/news-collection-feature";
+import {
+	TRAVEL_PLANNER_FEATURE_DESCRIPTION,
+	TRAVEL_PLANNER_FEATURE_NAME,
+	TRAVEL_PLANNER_FEATURE_SYSTEM_PROMPT,
+	TRAVEL_PLANNER_FEATURE_TOOLS,
+} from "./steps/features/travel-planner-feature";
+import {
+	MEAL_PLANNER_FEATURE_DESCRIPTION,
+	MEAL_PLANNER_FEATURE_NAME,
+	MEAL_PLANNER_FEATURE_SYSTEM_PROMPT,
+	MEAL_PLANNER_FEATURE_TOOLS,
+} from "./steps/features/meal-planner-feature";
+import {
+	DAILY_BRIEFING_FEATURE_DESCRIPTION,
+	DAILY_BRIEFING_FEATURE_NAME,
+	DAILY_BRIEFING_FEATURE_SYSTEM_PROMPT,
+	DAILY_BRIEFING_FEATURE_TOOLS,
+} from "./steps/features/daily-briefing-feature";
+import {
+	JOB_APPLICATION_FEATURE_DESCRIPTION,
+	JOB_APPLICATION_FEATURE_NAME,
+	JOB_APPLICATION_FEATURE_SYSTEM_PROMPT,
+	JOB_APPLICATION_FEATURE_TOOLS,
+} from "./steps/features/job-application-feature";
 
 /**
  * Flow Builder Catalog
@@ -77,6 +101,12 @@ export interface CatalogStep {
 
 export interface FeatureCatalogMetadata extends Record<string, unknown> {
 	description: string;
+	/** i18n key for the description. UI prefers this over `description`. */
+	descriptionKey?: string;
+	/** Human-readable display name (English). */
+	displayName?: string;
+	/** i18n key for the display name. UI prefers this over `displayName`. */
+	nameKey?: string;
 	tools: string[];
 	systemPrompt: string;
 	customizable: boolean;
@@ -288,6 +318,9 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		],
 		metadata: {
 			description: FS_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.fsFeature.description",
+			displayName: "File System",
+			nameKey: "flowBuilder.features.fsFeature.name",
 			tools: [...FS_FEATURE_TOOLS],
 			systemPrompt: FS_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
@@ -327,6 +360,9 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		],
 		metadata: {
 			description: DOCUMENTS_FS_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.documentsFsFeature.description",
+			displayName: "Documents File System",
+			nameKey: "flowBuilder.features.documentsFsFeature.name",
 			tools: [...DOCUMENTS_FS_FEATURE_TOOLS],
 			systemPrompt: DOCUMENTS_FS_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
@@ -366,6 +402,9 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		],
 		metadata: {
 			description: `[LEGACY] ${DOCUMENTS_FEATURE_DESCRIPTION} Use "documents-fs-feature" instead.`,
+			descriptionKey: "flowBuilder.features.documentsFeature.description",
+			displayName: "Documents (Legacy)",
+			nameKey: "flowBuilder.features.documentsFeature.name",
 			tools: [...DOCUMENTS_FEATURE_TOOLS],
 			systemPrompt: DOCUMENTS_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
@@ -406,6 +445,9 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		],
 		metadata: {
 			description: NODEJS_SANDBOX_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.nodejsSandboxFeature.description",
+			displayName: "Node.js Sandbox",
+			nameKey: "flowBuilder.features.nodejsSandboxFeature.name",
 			tools: [...NODEJS_SANDBOX_FEATURE_TOOLS],
 			systemPrompt: NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
@@ -444,6 +486,9 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		],
 		metadata: {
 			description: WEB_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.webFeature.description",
+			displayName: "Web Browser",
+			nameKey: "flowBuilder.features.webFeature.name",
 			tools: [...WEB_FEATURE_TOOLS],
 			systemPrompt: WEB_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
@@ -483,8 +528,183 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 		],
 		metadata: {
 			description: NEWS_COLLECTION_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.newsCollectionFeature.description",
+			displayName: "News Collection",
+			nameKey: "flowBuilder.features.newsCollectionFeature.name",
 			tools: [...NEWS_COLLECTION_FEATURE_TOOLS],
 			systemPrompt: NEWS_COLLECTION_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-travel-planner-feature",
+		name: TRAVEL_PLANNER_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description:
+					"Messages with travel planning instructions and open sessions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description:
+					"Tools extended with web + doc toolset for travel research.",
+			},
+		],
+		metadata: {
+			description: TRAVEL_PLANNER_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.travelPlannerFeature.description",
+			displayName: "Travel Planner",
+			nameKey: "flowBuilder.features.travelPlannerFeature.name",
+			tools: [...TRAVEL_PLANNER_FEATURE_TOOLS],
+			systemPrompt: TRAVEL_PLANNER_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-meal-planner-feature",
+		name: MEAL_PLANNER_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description:
+					"Messages with meal planning instructions and open sessions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description:
+					"Tools extended with web + doc toolset for recipe research.",
+			},
+		],
+		metadata: {
+			description: MEAL_PLANNER_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.mealPlannerFeature.description",
+			displayName: "Meal Planner",
+			nameKey: "flowBuilder.features.mealPlannerFeature.name",
+			tools: [...MEAL_PLANNER_FEATURE_TOOLS],
+			systemPrompt: MEAL_PLANNER_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-daily-briefing-feature",
+		name: DAILY_BRIEFING_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description:
+					"Messages with daily briefing instructions and open sessions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description:
+					"Tools extended with web + knowledge_graph toolset for news research.",
+			},
+		],
+		metadata: {
+			description: DAILY_BRIEFING_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.dailyBriefingFeature.description",
+			displayName: "Daily Briefing",
+			nameKey: "flowBuilder.features.dailyBriefingFeature.name",
+			tools: [...DAILY_BRIEFING_FEATURE_TOOLS],
+			systemPrompt: DAILY_BRIEFING_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-job-application-feature",
+		name: JOB_APPLICATION_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description:
+					"Messages with job application instructions and open sessions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description:
+					"Tools extended with doc + web toolset for resume and job research.",
+			},
+		],
+		metadata: {
+			description: JOB_APPLICATION_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.jobApplicationFeature.description",
+			displayName: "Job Application Assistant",
+			nameKey: "flowBuilder.features.jobApplicationFeature.name",
+			tools: [...JOB_APPLICATION_FEATURE_TOOLS],
+			systemPrompt: JOB_APPLICATION_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
 		} satisfies FeatureCatalogMetadata,
 	},

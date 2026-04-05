@@ -558,6 +558,59 @@ const handleWaitSelectorCommand = async (
 	}
 };
 
+const parsePngDimensions = (
+	bytes: Uint8Array,
+): { width: number; height: number } => {
+	// PNG IHDR chunk starts at byte 16: 4 bytes width + 4 bytes height (big-endian)
+	if (bytes.length < 24) {
+		return { width: 0, height: 0 };
+	}
+	const view = new DataView(bytes.buffer, bytes.byteOffset);
+	return {
+		width: view.getUint32(16, false),
+		height: view.getUint32(20, false),
+	};
+};
+
+const handleScreenshotCommand = async (
+	request: Extract<WebBrowserCommandRequest, { command: "screenshot" }>,
+): Promise<WebBrowserCommandResponse> => {
+	try {
+		const tab = await getTabOrThrow(request.tabId);
+		const windowId = request.windowId ?? tab.windowId;
+		if (typeof windowId !== "number") {
+			throw new Error("Cannot determine window for screenshot capture.");
+		}
+
+		await chrome.tabs.update(request.tabId, { active: true });
+		await delay(150);
+
+		const dataUrl = await chrome.tabs.captureVisibleTab(windowId, {
+			format: "png",
+		});
+
+		const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+		const binaryStr = atob(base64);
+		const bytes = new Uint8Array(binaryStr.length);
+		for (let i = 0; i < binaryStr.length; i++) {
+			bytes[i] = binaryStr.charCodeAt(i);
+		}
+		const { width, height } = parsePngDimensions(bytes);
+
+		return {
+			source: WEB_BROWSER_COMMAND_SOURCE,
+			command: "screenshot",
+			success: true,
+			sessionId: request.sessionId,
+			dataUrl,
+			width,
+			height,
+		};
+	} catch (error) {
+		return createErrorResponse(request, error);
+	}
+};
+
 const handleCloseCommand = async (
 	request: Extract<WebBrowserCommandRequest, { command: "close" }>,
 ): Promise<WebBrowserCommandResponse> => {
@@ -601,6 +654,8 @@ const handleCommand = async (
 			return handleWaitSelectorCommand(request);
 		case "close":
 			return handleCloseCommand(request);
+		case "screenshot":
+			return handleScreenshotCommand(request);
 	}
 };
 

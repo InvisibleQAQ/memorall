@@ -258,7 +258,49 @@
 		"noStateFields": "Chưa có trường trạng thái nào.",
 		"selectNodeForProperties": "Chọn một node để xem thuộc tính bước.",
 		"testingPlaceholder": "Bộ kiểm thử sẽ xuất hiện ở đây.",
-		"ready": "Sẵn sàng"
+		"ready": "Sẵn sàng",
+		"features": {
+			"fsFeature": {
+				"name": "Hệ thống tệp",
+				"description": "Truy cập tệp trong /documents và /workspaces với đầy đủ tính năng đọc, ghi và tìm kiếm."
+			},
+			"documentsFsFeature": {
+				"name": "Hệ thống tệp tài liệu",
+				"description": "Truy cập và quản lý tệp trong /documents với các thao tác đọc, ghi, tìm kiếm và thư mục."
+			},
+			"documentsFeature": {
+				"name": "Tài liệu (Cũ)",
+				"description": "[Cũ] Công cụ tài liệu cơ bản. Nên dùng documents-fs-feature thay thế."
+			},
+			"nodejsSandboxFeature": {
+				"name": "Môi trường Node.js",
+				"description": "Chạy JavaScript/TypeScript, lệnh shell, cài gói npm và khởi động máy chủ trong môi trường cách ly."
+			},
+			"webFeature": {
+				"name": "Trình duyệt web",
+				"description": "Duyệt web, mở URL, đọc trang, tương tác DOM và tìm kiếm nội dung trang qua phiên trình duyệt."
+			},
+			"newsCollectionFeature": {
+				"name": "Thu thập tin tức",
+				"description": "Tìm kiếm và tóm tắt tin tức bằng cách đọc đầy đủ bài viết từ nhiều nguồn."
+			},
+			"travelPlannerFeature": {
+				"name": "Lập kế hoạch du lịch",
+				"description": "Nghiên cứu điểm đến và tạo lịch trình du lịch chi tiết theo từng ngày, lưu vào /documents/travel/."
+			},
+			"mealPlannerFeature": {
+				"name": "Lập thực đơn",
+				"description": "Tìm công thức nấu ăn thực tế và tạo thực đơn tuần kèm danh sách mua sắm, lưu vào /documents/meals/."
+			},
+			"dailyBriefingFeature": {
+				"name": "Bản tin hàng ngày",
+				"description": "Tạo bản tin buổi sáng cá nhân hóa kết hợp tin tức hôm nay với đồ thị tri thức của bạn."
+			},
+			"jobApplicationFeature": {
+				"name": "Hỗ trợ xin việc",
+				"description": "Đọc CV và mô tả công việc, sau đó tạo thư xin việc phù hợp và gợi ý cải thiện CV."
+			}
+		}
 	},
 	"sandboxPanel": {
 		"title": "Phiên Runtime",

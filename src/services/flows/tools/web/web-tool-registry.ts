@@ -1375,6 +1375,57 @@ export const performDomAction = async (
 	return response.result;
 };
 
+export const captureWebSessionScreenshot = async (
+	sessionId: string,
+): Promise<{ dataUrl: string; width: number; height: number }> => {
+	const session =
+		WEB_SESSIONS.get(sessionId) ?? (await recoverSession(sessionId));
+	if (!session) {
+		throw new Error(`No active web session: ${sessionId}`);
+	}
+
+	if (session.mode === "iframe") {
+		if (!session.iframe) {
+			throw new Error("Iframe element is not available for screenshot.");
+		}
+		const { default: html2canvas } = await import("html2canvas");
+		const target =
+			session.iframe.contentDocument?.body ?? (session.iframe as HTMLElement);
+		const canvas = await html2canvas(target, {
+			useCORS: true,
+			allowTaint: true,
+			logging: false,
+		});
+		return {
+			dataUrl: canvas.toDataURL("image/png"),
+			width: canvas.width,
+			height: canvas.height,
+		};
+	}
+
+	if (typeof session.tabId !== "number") {
+		throw new Error("Web session has no associated browser tab.");
+	}
+
+	const response = await sendWebBrowserCommand({
+		source: WEB_BROWSER_COMMAND_SOURCE,
+		command: "screenshot",
+		sessionId,
+		tabId: session.tabId,
+		windowId: session.windowId,
+	});
+
+	if (response.command !== "screenshot") {
+		throw new Error("Invalid screenshot response from background.");
+	}
+
+	return {
+		dataUrl: response.dataUrl,
+		width: response.width,
+		height: response.height,
+	};
+};
+
 export const createDefaultWebErrorResult = (error: unknown): string => {
 	return JSON.stringify(
 		{

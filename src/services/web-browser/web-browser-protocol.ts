@@ -183,6 +183,13 @@ export type WebBrowserCommandRequest =
 			sessionId: string;
 			tabId?: number;
 			windowId?: number;
+	  }
+	| {
+			source: typeof WEB_BROWSER_COMMAND_SOURCE;
+			command: "screenshot";
+			sessionId: string;
+			tabId: number;
+			windowId?: number;
 	  };
 
 export type WebBrowserCommandResponse =
@@ -233,13 +240,23 @@ export type WebBrowserCommandResponse =
 	  }
 	| {
 			source: typeof WEB_BROWSER_COMMAND_SOURCE;
+			command: "screenshot";
+			success: true;
+			sessionId: string;
+			dataUrl: string;
+			width: number;
+			height: number;
+	  }
+	| {
+			source: typeof WEB_BROWSER_COMMAND_SOURCE;
 			command:
 				| "open"
 				| "snapshot"
 				| "dom-query"
 				| "dom-action"
 				| "wait-selector"
-				| "close";
+				| "close"
+				| "screenshot";
 			success: false;
 			sessionId: string;
 			error: string;
@@ -366,6 +383,10 @@ export const isWebBrowserCommandRequest = (
 			);
 		case "close":
 			return typeof value.sessionId === "string";
+		case "screenshot":
+			return (
+				typeof value.sessionId === "string" && typeof value.tabId === "number"
+			);
 		default:
 			return false;
 	}
@@ -401,6 +422,12 @@ export const isWebBrowserCommandResponse = (
 			return typeof value.matched === "boolean" && isRecord(value.snapshot);
 		case "close":
 			return true;
+		case "screenshot":
+			return (
+				typeof value.dataUrl === "string" &&
+				typeof value.width === "number" &&
+				typeof value.height === "number"
+			);
 		default:
 			return false;
 	}

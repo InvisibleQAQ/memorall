@@ -29,16 +29,10 @@ const schema = z.object({
 		.enum(["present", "absent"])
 		.optional()
 		.describe("Selector visibility state."),
-	timeoutMs: z
-		.number()
-		.int()
-		.max(180_000)
-		.optional()
-		.describe("Total wait timeout."),
+	timeoutMs: z.number().int().optional().describe("Total wait timeout."),
 	intervalMs: z
 		.number()
 		.int()
-		.max(2_000)
 		.optional()
 		.describe(
 			"Polling interval when waiting for render or selector stability.",
@@ -46,13 +40,11 @@ const schema = z.object({
 	stabilityMs: z
 		.number()
 		.int()
-		.max(10_000)
 		.optional()
 		.describe("Stable unchanged duration required for `render` mode."),
 	delayMs: z
 		.number()
 		.int()
-		.max(300_000)
 		.optional()
 		.describe("Fixed delay mode when no selector is provided."),
 });

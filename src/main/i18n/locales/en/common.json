@@ -259,7 +259,49 @@
 		"noStateFields": "No state fields yet.",
 		"selectNodeForProperties": "Select a node to see step properties.",
 		"testingPlaceholder": "Testing harness will appear here.",
-		"ready": "Ready"
+		"ready": "Ready",
+		"features": {
+			"fsFeature": {
+				"name": "File System",
+				"description": "Access files across /documents and /workspaces with full read/write/search capabilities."
+			},
+			"documentsFsFeature": {
+				"name": "Documents File System",
+				"description": "Access and manage files in /documents with read, write, search, and folder operations."
+			},
+			"documentsFeature": {
+				"name": "Documents (Legacy)",
+				"description": "[Legacy] Basic document tools. Use documents-fs-feature instead."
+			},
+			"nodejsSandboxFeature": {
+				"name": "Node.js Sandbox",
+				"description": "Execute JavaScript/TypeScript, run shell commands, install packages, and start servers in an isolated sandbox."
+			},
+			"webFeature": {
+				"name": "Web Browser",
+				"description": "Browse the web, open URLs, read pages, interact with DOM, and search within pages using a browser session."
+			},
+			"newsCollectionFeature": {
+				"name": "News Collection",
+				"description": "Research and summarize news by searching the web and reading full articles from multiple sources."
+			},
+			"travelPlannerFeature": {
+				"name": "Travel Planner",
+				"description": "Research destinations and generate a day-by-day travel itinerary saved to /documents/travel/."
+			},
+			"mealPlannerFeature": {
+				"name": "Meal Planner",
+				"description": "Find real recipes and generate a weekly meal plan with a consolidated shopping list saved to /documents/meals/."
+			},
+			"dailyBriefingFeature": {
+				"name": "Daily Briefing",
+				"description": "Generate a personalized morning briefing combining today's news with your personal knowledge graph."
+			},
+			"jobApplicationFeature": {
+				"name": "Job Application Assistant",
+				"description": "Read your resume and a job posting, then generate a tailored cover letter and resume suggestions."
+			}
+		}
 	},
 	"sandboxPanel": {
 		"title": "Runtime Sessions",

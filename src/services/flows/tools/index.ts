@@ -3,6 +3,7 @@ import "./calculator";
 import "./current-time";
 import "./js-execute";
 import "./knowledge-graph";
+import "./knowledge-graph-write";
 
 import "./documents/doc-search";
 import "./documents/doc-read";
@@ -10,6 +11,7 @@ import "./documents/doc-write";
 import "./documents/doc-edit";
 import "./documents/doc-remove";
 import "./documents/doc-move";
+import "./documents/pdf-generate";
 
 import "./sandbox-container/container-run-code";
 import "./sandbox-container/container-execute-command";
@@ -36,6 +38,7 @@ import "./web/web-read";
 import "./web/web-search";
 import "./web/web-dom";
 import "./web/web-wait";
+import "./web/web-screenshot";
 
 import "./documents-fs/fs-glob";
 import "./documents-fs/fs-grep";

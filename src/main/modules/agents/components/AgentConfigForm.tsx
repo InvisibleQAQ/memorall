@@ -288,11 +288,19 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 								: () => toggleFeature(feature.name);
 
 						const displayName =
-							feature.type === "config" ? t(feature.nameKey) : feature.name;
+							feature.type === "config"
+								? t(feature.nameKey)
+								: feature.nameKey
+									? t(feature.nameKey, { defaultValue: feature.displayName })
+									: feature.displayName;
 						const displayDesc =
 							feature.type === "config"
 								? t(feature.descKey)
-								: feature.description;
+								: feature.descriptionKey
+									? t(feature.descriptionKey, {
+											defaultValue: feature.description,
+										})
+									: feature.description;
 						const hasDetail =
 							feature.type === "config" ? Boolean(feature.promptField) : true;
 

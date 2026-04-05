@@ -137,7 +137,11 @@ export const FlowBuilderStepsPanel: React.FC<FlowBuilderStepsPanelProps> = ({
 							<div className="text-xs text-muted-foreground">{step.type}</div>
 							{step.metadata?.description ? (
 								<div className="text-[10px] text-muted-foreground/70 mt-0.5">
-									{String(step.metadata.description)}
+									{step.metadata.descriptionKey
+										? t(String(step.metadata.descriptionKey), {
+												defaultValue: String(step.metadata.description),
+											})
+										: String(step.metadata.description)}
 								</div>
 							) : undefined}
 							{renderIOFields(step.inputs, true)}
