@@ -17,7 +17,7 @@ Turn pages, files, and ongoing research into a searchable memory system. Memoral
 [![Agent Tools](https://img.shields.io/badge/Agent-Sandbox%20%2B%20Browser-c05621)](https://github.com/zrg-team/memorall)
 [![Custom Flows](https://img.shields.io/badge/Flows-Customizable-7c3aed)](https://github.com/zrg-team/memorall)
 
-[Quick Start](#quick-start) • [Agent Power](#agent-power) • [Offline First](#offline-first) • [Architecture](#architecture-at-a-glance) • [Documentation](#documentation-map) • [GitHub](https://github.com/zrg-team/memorall)
+[Quick Start](#quick-start) • [Agent Power](#agent-power) • [Custom Agents](#custom-agents) • [Architecture](#architecture-at-a-glance) • [Documentation](#documentation-map) • [GitHub](https://github.com/zrg-team/memorall)
 
 </div>
 
@@ -50,9 +50,9 @@ Memorall's agent is designed to be powerful on your machine, not just impressive
 
 ![Memorall screenshot](docs/assets/screenshot.jpg)
 
-## ✨ What Users Can Do
+## ✨ Core Capabilities
 
-| Area | Current capabilities |
+| Area | Capabilities |
 | --- | --- |
 | Chat workspace | Stream conversations, switch between chat and knowledge-aware flows, choose topics, manage agent settings, and inspect active runtime sessions for sandbox/browser tooling. |
 | In-page assistant | Open an embedded chat overlay on any page, send selected text or extracted page context into chat, capture screenshots, and jump to the full app when needed. |
@@ -75,16 +75,30 @@ Memorall is not just a retrieval cache. It is meant to build an evolving memory 
 - The result is a stronger "knowledge context" for the agent: not only what you saved, but what it means, how it connects, and where it came from.
 - This makes the assistant better at staying aligned with your projects, vocabulary, past work, and long-running research threads.
 
-<a id="offline-first"></a>
-## 💾 Offline First
+<a id="custom-agents"></a>
+## 🧩 Custom Agents
 
-Offline-first in Memorall is architectural, not decorative:
+Memorall is not a fixed assistant — it is a foundation for building any agent you need.
 
-- local/browser-hosted models are first-class citizens
-- PGlite keeps the core knowledge store in-browser
-- background jobs and offscreen services keep heavy work local to the extension runtime
-- Supabase is optional rather than required
-- external model providers are available when you want them, but they are not mandatory for the product to function
+Every agent is a **graph you fully own**: define any nodes, any flow logic, any tools, any conditions. Plug in new graphs, tools, or capability steps without touching existing code. Toggle features like web browsing, sandbox execution, or filesystem access per-agent at runtime.
+
+The shipped graphs are examples of what the system can do, not the limit of what it supports.
+
+→ Architecture and extension guide: [docs/customize-agents.md](./docs/customize-agents.md)
+
+## 💾 Local-First Architecture
+
+Offline-first in Memorall is architectural, not decorative. The product is fully functional without any external service.
+
+- Local/browser-hosted model runtimes — Wllama, WebLLM, Transformers — are first-class citizens, not fallbacks.
+- PGlite keeps the entire knowledge store in-browser; no server database required.
+- Background jobs and offscreen services keep heavy embedding and LLM work local to the extension runtime.
+- Supabase auth is optional. The app runs local-only by default; Supabase becomes available when configured.
+- Remote providers — OpenAI, OpenRouter, LM Studio, Ollama — are available when you want them, not when you need them.
+- Embedding sizes: small `384d`, medium `768d`, and large `1536d` (remote-backed).
+- Storage: PGlite + Drizzle with vectors, migrations, topics, conversations, sources, nodes/edges, activities, and flow-builder state.
+
+---
 
 ## 🗂️ Product Surfaces
 
@@ -130,18 +144,18 @@ graph TD
   PAGE["Web pages"] -->|content extraction, overlays, activity tracking| CONTENT["content.ts + src/embedded/*"]
   CONTENT -->|messages, extracted payloads, web DOM actions| BG["src/background.ts"]
 
-  UI["Popup + standalone app<br/>src/popup.tsx / src/standalone.tsx"] -->|proxy services + jobs| JOBS["Background jobs"]
+  UI["Popup + standalone app"] -->|proxy services + jobs| JOBS["Background jobs"]
   BG -->|relay, context menus, watchdog| JOBS
 
   JOBS --> OFF["Offscreen/runtime processing"]
   OFF --> SM["ServiceManager"]
 
-  SM --> DB["Database service<br/>PGlite + Drizzle"]
+  SM --> DB["Database service: PGlite + Drizzle"]
   SM --> EMB["Embedding service"]
   SM --> LLM["LLM service"]
   SM --> FLOWS["Flows + Flow Builder"]
 
-  FLOWS --> TOOLS["Documents FS, workspace FS,<br/>web browser tools, Node sandbox"]
+  FLOWS --> TOOLS["Documents FS, workspace FS, web browser tools, Node sandbox"]
 ```
 
 The runtime split in the current codebase is deliberate:
@@ -181,29 +195,6 @@ If you want the shortest accurate mental model:
 - [`src/background`](./src/background) is the MV3 coordination layer
 - [`src/services`](./src/services) is the real engine room
 
-## 🔧 Flow And Tooling Layer
-
-The current source tree under [`src/services/flows`](./src/services/flows) exposes more than a single chat pipeline:
-
-- `knowledge-rag` is the main chat-oriented graph. It can retrieve context, add feature steps, run in agent mode, and optionally add citations.
-- `knowledge` is the graph-growth pipeline that extracts entities/facts from saved content and persists them into the knowledge graph.
-- chat flows can be extended with feature steps for document tools, filesystem tools, browser automation, and a Node.js sandbox runtime.
-- the flow builder catalog already ships services/steps for LLM, embeddings, database, retrieval, feature injection, and completion stages.
-- the agent-facing tool layer already covers browser work, document/workspace access, and sandbox-container execution, which is what makes custom agents materially useful instead of prompt-only.
-
-This is why the app can move cleanly between simple chat, retrieval-heavy chat, browser-aware actions, and document/workspace operations without hardcoding everything into one screen.
-
-## 🤖 Local-First AI Stack
-
-Current model/provider support visible in the app and config:
-
-- Browser-hosted/local runtimes: Wllama, WebLLM, Transformers
-- Remote or server-backed providers: OpenAI, OpenRouter, LM Studio, Ollama
-- Embedding sizes: small `384d`, medium `768d`, and large `1536d` (remote-backed)
-- Storage: PGlite + Drizzle with vectors, migrations, topics, conversations, sources, nodes/edges, activities, and flow-builder state
-
-The app works without Supabase. If Supabase is configured, the auth page becomes available for sign-in/sign-up; otherwise users can continue in local-only mode.
-
 <a id="documentation-map"></a>
 ## 📚 Documentation Map
 
@@ -218,6 +209,7 @@ These are the current docs that match the codebase today:
 - [Embedding service](./docs/embedding-service.md)
 - [LLM service](./docs/llm-service.md)
 - [Flows service](./docs/flows-service.md)
+- [Customize agents](./docs/customize-agents.md)
 
 ### Knowledge system
 
