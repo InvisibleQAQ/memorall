@@ -77,6 +77,127 @@ const DEFAULT_MAX_HTML_CHARS = DEFAULT_WEB_MAX_HTML_CHARS;
 const DEFAULT_POLL_INTERVAL_MS = 250;
 const sessionTimeouts = new Map<string, number>();
 
+// ─── Session persistence ──────────────────────────────────────────────────────
+// Browser-backed (tab/window) session identifiers are written to
+// chrome.storage.session so they can be recovered if the offscreen document
+// is recreated (which clears the in-memory WEB_SESSIONS map).
+
+const PERSISTED_SESSIONS_KEY = "memorall.web-sessions.v1";
+
+interface PersistedSessionEntry {
+	id: string;
+	tabId: number;
+	windowId?: number;
+	mode: WebBrowserMode;
+	requestedUrl: string;
+}
+
+const getSessionStorage = (): chrome.storage.StorageArea | null => {
+	try {
+		return (typeof chrome !== "undefined" && chrome.storage?.session) || null;
+	} catch {
+		return null;
+	}
+};
+
+const loadPersistedSessionEntries = async (): Promise<
+	Map<string, PersistedSessionEntry>
+> => {
+	const storage = getSessionStorage();
+	if (!storage) return new Map();
+	try {
+		const result = await storage.get(PERSISTED_SESSIONS_KEY);
+		const raw = result[PERSISTED_SESSIONS_KEY];
+		const entries: PersistedSessionEntry[] = Array.isArray(raw) ? raw : [];
+		return new Map(entries.map((e) => [e.id, e]));
+	} catch {
+		return new Map();
+	}
+};
+
+const savePersistedSessionEntries = async (
+	entries: Map<string, PersistedSessionEntry>,
+): Promise<void> => {
+	const storage = getSessionStorage();
+	if (!storage) return;
+	try {
+		const arr = Array.from(entries.values());
+		if (arr.length === 0) {
+			await storage.remove(PERSISTED_SESSIONS_KEY);
+		} else {
+			await storage.set({ [PERSISTED_SESSIONS_KEY]: arr });
+		}
+	} catch {
+		// Storage write is best-effort; don't break the session flow.
+	}
+};
+
+const persistSession = (session: WebSessionState): void => {
+	if (session.mode === "iframe" || typeof session.tabId !== "number") return;
+	void loadPersistedSessionEntries().then((entries) => {
+		entries.set(session.id, {
+			id: session.id,
+			tabId: session.tabId!,
+			windowId: session.windowId,
+			mode: session.mode,
+			requestedUrl: session.requestedUrl,
+		});
+		void savePersistedSessionEntries(entries);
+	});
+};
+
+const unpersistSession = (sessionId: string): void => {
+	void loadPersistedSessionEntries().then((entries) => {
+		if (entries.has(sessionId)) {
+			entries.delete(sessionId);
+			void savePersistedSessionEntries(entries);
+		}
+	});
+};
+
+/**
+ * Attempt to recover a browser-backed session from chrome.storage.session.
+ * Called when a sessionId is not found in the in-memory WEB_SESSIONS map
+ * (e.g. after the offscreen document was recreated).
+ * Returns the reconstructed session (with empty cached content) or null if
+ * no persisted entry exists for the given id.
+ */
+const recoverSession = async (
+	sessionId: string,
+): Promise<WebSessionState | null> => {
+	const entries = await loadPersistedSessionEntries();
+	const entry = entries.get(sessionId);
+	if (!entry || entry.mode === "iframe") return null;
+
+	// Check that the tab still exists before reconstructing the session.
+	try {
+		await chrome.tabs.get(entry.tabId);
+	} catch {
+		// Tab was closed — remove the stale persisted entry.
+		entries.delete(sessionId);
+		void savePersistedSessionEntries(entries);
+		return null;
+	}
+
+	const session: WebSessionState = {
+		id: entry.id,
+		requestedUrl: entry.requestedUrl,
+		currentUrl: entry.requestedUrl,
+		title: "",
+		html: "",
+		text: "",
+		domAccessible: false,
+		lastAccessedAt: Date.now(),
+		createdAt: Date.now(),
+		mode: entry.mode,
+		tabId: entry.tabId,
+		windowId: entry.windowId,
+	};
+	WEB_SESSIONS.set(sessionId, session);
+	scheduleInactivityClose(sessionId);
+	return session;
+};
+
 const buildIframe = (url: string): HTMLIFrameElement => {
 	const iframe = document.createElement("iframe");
 	iframe.style.cssText =
@@ -307,6 +428,8 @@ export const disposeActiveWebSession = async (
 	}
 	sessionTimeouts.clear();
 	await closeAllWebSessions();
+	// Clear persisted session entries so stale tabs don't survive a full dispose.
+	await savePersistedSessionEntries(new Map());
 };
 
 const touchSession = async (
@@ -314,7 +437,8 @@ const touchSession = async (
 	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
 	timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<WebSessionState> => {
-	const session = WEB_SESSIONS.get(sessionId);
+	const session =
+		WEB_SESSIONS.get(sessionId) ?? (await recoverSession(sessionId));
 	if (!session) {
 		throw new Error(`No active web session: ${sessionId}`);
 	}
@@ -322,7 +446,15 @@ const touchSession = async (
 	if (session.mode === "iframe") {
 		captureIframeSnapshot(session);
 	} else {
-		await captureBrowserSnapshot(session, maxHtmlChars, timeoutMs);
+		try {
+			await captureBrowserSnapshot(session, maxHtmlChars, timeoutMs);
+		} catch {
+			// Snapshot failed — the tab is likely mid-redirect (e.g. after a
+			// Cloudflare challenge). Return the cached session content so the
+			// caller can still read what was last captured. Mark domAccessible
+			// false to signal that the content may be stale/partial.
+			session.domAccessible = false;
+		}
 	}
 
 	scheduleInactivityClose(sessionId);
@@ -383,6 +515,7 @@ export const openWebSession = async ({
 				tabId,
 			};
 			WEB_SESSIONS.set(id, session);
+			persistSession(session);
 			try {
 				await captureBrowserSnapshot(session, maxHtmlChars, 5_000);
 			} catch {
@@ -416,11 +549,26 @@ export const openWebSession = async ({
 		};
 		applySnapshotToSession(session, response.snapshot);
 		WEB_SESSIONS.set(id, session);
-		const renderState = await waitForPageRender({
-			session,
-			timeoutMs,
-			maxHtmlChars,
-		});
+		persistSession(session);
+		let renderState: { matched: boolean; html: string; lastText: string };
+		try {
+			renderState = await waitForPageRender({
+				session,
+				timeoutMs,
+				maxHtmlChars,
+			});
+		} catch {
+			// waitForPageRender threw unexpectedly (should not happen after the
+			// exception-safe loop fix, but kept as defence-in-depth). The session
+			// is already stored — return it with renderReady:false so the caller
+			// can still use the sessionId instead of orphaning it.
+			scheduleInactivityClose(id);
+			return {
+				session,
+				disposable: !persist,
+				renderReady: false,
+			};
+		}
 		scheduleInactivityClose(id);
 		return {
 			session,
@@ -458,11 +606,21 @@ export const openWebSession = async ({
 		};
 	}
 
-	const renderState = await waitForPageRender({
-		session,
-		timeoutMs,
-		maxHtmlChars,
-	});
+	let renderState: { matched: boolean; html: string; lastText: string };
+	try {
+		renderState = await waitForPageRender({
+			session,
+			timeoutMs,
+			maxHtmlChars,
+		});
+	} catch {
+		scheduleInactivityClose(id);
+		return {
+			session,
+			disposable: !persist,
+			renderReady: false,
+		};
+	}
 	scheduleInactivityClose(id);
 	return {
 		session,
@@ -476,7 +634,7 @@ export const refreshWebSession = async (
 	maxHtmlChars = DEFAULT_MAX_HTML_CHARS,
 	timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<WebSessionState> => {
-	if (!WEB_SESSIONS.has(sessionId)) {
+	if (!WEB_SESSIONS.has(sessionId) && !(await recoverSession(sessionId))) {
 		throw new Error(`No active web session: ${sessionId}`);
 	}
 
@@ -570,6 +728,7 @@ export const closeWebSession = async (sessionId: string): Promise<void> => {
 		return;
 	}
 
+	unpersistSession(sessionId);
 	await disposeSessionArtifacts(session);
 	WEB_SESSIONS.delete(sessionId);
 };
@@ -1003,7 +1162,25 @@ export const waitForPageRender = async ({
 		| undefined;
 
 	while (true) {
-		await refreshWebSession(session.id, maxHtmlChars, timeoutMs);
+		try {
+			await refreshWebSession(session.id, maxHtmlChars, timeoutMs);
+		} catch {
+			// Snapshot failed — the tab is likely navigating due to a redirect
+			// (e.g. Cloudflare challenge → real page). Treat this as "not stable
+			// yet": reset the stability clock and keep polling until timeout.
+			previousSnapshot = undefined;
+			stableSince = null;
+			const now = Date.now();
+			if (now - startedAt >= timeoutMs) {
+				return {
+					matched: false,
+					html: session.html,
+					lastText: session.text,
+				};
+			}
+			await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+			continue;
+		}
 
 		const currentSnapshot = {
 			currentUrl: session.currentUrl,

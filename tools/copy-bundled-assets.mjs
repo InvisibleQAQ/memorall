@@ -177,7 +177,7 @@ async function main() {
 	ensureDir(ortDestDir);
 
 	const entries = fs.readdirSync(ortSrcDir);
-	const wanted = entries.filter((f) => /\.jsep\.(wasm|mjs)$/.test(f));
+	const wanted = entries.filter((f) => /\.(jsep|asyncify)\.(wasm|mjs)$/.test(f));
 
 	if (wanted.length === 0) {
 		console.warn(
@@ -191,6 +191,8 @@ async function main() {
 			: [
 					"ort-wasm-simd-threaded.jsep.mjs",
 					"ort-wasm-simd-threaded.jsep.wasm",
+					"ort-wasm-simd-threaded.asyncify.mjs",
+					"ort-wasm-simd-threaded.asyncify.wasm",
 				].filter((f) => fs.existsSync(path.join(ortSrcDir, f)));
 
 	if (filesToCopy.length === 0) {

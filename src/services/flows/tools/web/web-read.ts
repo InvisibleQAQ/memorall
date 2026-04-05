@@ -47,8 +47,6 @@ const schema = z.object({
 	timeoutMs: z
 		.number()
 		.int()
-		.min(500)
-		.max(180_000)
 		.optional()
 		.describe("Navigation/load timeout used when opening by URL."),
 	selector: z
@@ -180,11 +178,12 @@ export const createWebReadTool: ToolFactory<Input, WebToolServices> = (
 		let sessionId = input.sessionId;
 		const contentMode = input.contentMode ?? "text";
 		const maxChars = normalizeWebMaxHtmlChars(input.maxHtmlChars);
+		const timeoutMs = Math.max(500, input.timeoutMs ?? 15_000);
 		try {
 			const sessionResult = await webBrowser.getOrOpenSession({
 				sessionId: input.sessionId,
 				url: input.url,
-				timeoutMs: input.timeoutMs ?? 15_000,
+				timeoutMs,
 				maxHtmlChars: maxChars,
 				browserMode: input.browserMode,
 			});
@@ -198,7 +197,7 @@ export const createWebReadTool: ToolFactory<Input, WebToolServices> = (
 			if (session.mode === "iframe" && !session.domAccessible) {
 				const fallback = await webBrowser.fetchRenderedFallback({
 					url: session.requestedUrl,
-					timeoutMs: input.timeoutMs ?? 15_000,
+					timeoutMs,
 					maxHtmlChars: maxChars,
 				});
 				const transformedFallback = buildReadContent({

@@ -187,15 +187,11 @@ const schema = z.object({
 	maxResultsPerEngine: z
 		.number()
 		.int()
-		.min(1)
-		.max(30)
 		.optional()
 		.describe("Max results to return per engine (default 10)."),
 	timeoutMs: z
 		.number()
 		.int()
-		.min(500)
-		.max(60_000)
 		.optional()
 		.describe("Per-engine page load timeout in milliseconds (default 15000)."),
 });
@@ -212,8 +208,8 @@ export const createWebSearchEngineTool: ToolFactory<Input, WebToolServices> = (
 	execute: async (input) => {
 		const webBrowser = requireWebBrowserService(services);
 		const engines = resolveEngines(input.engines);
-		const max = input.maxResultsPerEngine ?? 10;
-		const timeout = input.timeoutMs ?? 15_000;
+		const max = Math.max(1, Math.min(30, input.maxResultsPerEngine ?? 10));
+		const timeout = Math.max(500, input.timeoutMs ?? 15_000);
 
 		const engineResults: {
 			engine: string;

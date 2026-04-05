@@ -333,6 +333,65 @@ const openSurfaceForMode = async (
 	return openBrowserTab(url);
 };
 
+const isTransientContentScriptError = (error: unknown): boolean => {
+	const message = toErrorMessage(error);
+	return (
+		message.includes("Receiving end does not exist") ||
+		message.includes("Could not establish connection") ||
+		message.includes("The message port closed before") ||
+		message.includes("Content script unavailable")
+	);
+};
+
+const isHardTabFailure = (error: unknown): boolean => {
+	const message = toErrorMessage(error);
+	return (
+		message.includes("browser tab") ||
+		message.includes("tab was closed") ||
+		message.includes("Failed to open browser tab") ||
+		message.includes("Failed to open browser window") ||
+		message.includes("Failed to resolve browser tab")
+	);
+};
+
+/**
+ * Requests a snapshot with redirect-aware retry logic.
+ *
+ * When a page redirects (e.g. Cloudflare challenge → real page), the content
+ * script is temporarily torn down. Instead of failing immediately, we wait for
+ * the tab to finish navigating and retry the snapshot.
+ */
+const requestSnapshotWithNavigationRetry = async (
+	tabId: number,
+	timeoutMs: number,
+): Promise<SuccessfulWebContentCommandResponse> => {
+	const deadline = Date.now() + timeoutMs;
+
+	while (true) {
+		const remaining = deadline - Date.now();
+		if (remaining <= 0) {
+			throw new Error(
+				`Timed out waiting for browser tab ${tabId} to produce a snapshot.`,
+			);
+		}
+
+		try {
+			return await requestSnapshot(tabId, Math.min(8_000, remaining));
+		} catch (err) {
+			if (!isTransientContentScriptError(err)) {
+				throw err;
+			}
+			// Content script is temporarily unavailable — tab is likely mid-redirect.
+			// Wait for the navigation to complete and retry.
+			const retryRemaining = deadline - Date.now();
+			if (retryRemaining <= 0) {
+				throw err;
+			}
+			await waitForTabReady(tabId, Math.min(retryRemaining, 15_000));
+		}
+	}
+};
+
 const handleOpenCommand = async (
 	request: Extract<WebBrowserCommandRequest, { command: "open" }>,
 ): Promise<WebBrowserCommandResponse> => {
@@ -341,7 +400,7 @@ const handleOpenCommand = async (
 		surface = await openSurfaceForMode(request.mode, request.url);
 		await waitForTabReady(surface.tabId, request.timeoutMs);
 
-		const snapshotResponse = await requestSnapshot(
+		const snapshotResponse = await requestSnapshotWithNavigationRetry(
 			surface.tabId,
 			request.timeoutMs,
 		);
@@ -365,7 +424,10 @@ const handleOpenCommand = async (
 			snapshot: snapshotResponse.snapshot,
 		};
 	} catch (error) {
-		if (surface) {
+		// Only close the tab for hard failures (tab creation failed, tab was closed
+		// externally, etc.). Transient navigation errors mean the tab is alive —
+		// closing it here would destroy a perfectly good browser session.
+		if (surface && isHardTabFailure(error)) {
 			await closeSurfaceArtifacts(surface);
 		}
 		return createErrorResponse(request, error);

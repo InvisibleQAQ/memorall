@@ -28,8 +28,6 @@ const schema = z.object({
 	timeoutMs: z
 		.number()
 		.int()
-		.min(500)
-		.max(180_000)
 		.optional()
 		.describe("Navigation wait timeout in milliseconds."),
 	maxHtmlChars: z
@@ -57,12 +55,13 @@ export const createWebOpenTool: ToolFactory<Input, WebToolServices> = (
 	execute: async (input) => {
 		const webBrowser = requireWebBrowserService(services);
 		const maxHtmlChars = normalizeWebMaxHtmlChars(input.maxHtmlChars);
+		const timeoutMs = Math.max(500, input.timeoutMs ?? 15_000);
 		let disposableSessionId: string | undefined;
 		try {
 			const { session, disposable, renderReady } = await webBrowser.openSession(
 				{
 					url: input.url,
-					timeoutMs: input.timeoutMs ?? 15_000,
+					timeoutMs,
 					maxHtmlChars,
 					persist: input.keepSession ?? true,
 					mode: input.browserMode,
@@ -88,6 +87,7 @@ export const createWebOpenTool: ToolFactory<Input, WebToolServices> = (
 					browserMode: session.mode,
 					renderReady: false,
 					partialContent: cleanHtml || null,
+					text: truncateContent(session.text, maxHtmlChars) || null,
 					hint: 'Page load timed out. partialContent shows what loaded so far. Call web_wait (waitMode="render") then web_read to get more content, or skip this page if partialContent is empty.',
 				});
 			}
@@ -102,6 +102,7 @@ export const createWebOpenTool: ToolFactory<Input, WebToolServices> = (
 				domAccessible: session.domAccessible,
 				browserMode: session.mode,
 				renderReady: true,
+				text: truncateContent(session.text, maxHtmlChars),
 			});
 		} catch (error) {
 			return createDefaultWebErrorResult(error);

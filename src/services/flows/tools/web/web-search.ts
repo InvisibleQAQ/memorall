@@ -52,22 +52,16 @@ const schema = z
 		maxMatches: z
 			.number()
 			.int()
-			.min(1)
-			.max(50)
 			.optional()
 			.describe("Maximum matches to return."),
 		maxSnippetChars: z
 			.number()
 			.int()
-			.min(20)
-			.max(2_000)
 			.optional()
 			.describe("Max characters returned per match snippet."),
 		timeoutMs: z
 			.number()
 			.int()
-			.min(500)
-			.max(180_000)
 			.optional()
 			.describe("Navigation/load timeout used when opening by URL."),
 	})
@@ -94,7 +88,7 @@ export const createWebSearchTool: ToolFactory<Input, WebToolServices> = (
 			const { session, disposable } = await webBrowser.getOrOpenSession({
 				sessionId: input.sessionId,
 				url: input.url,
-				timeoutMs: input.timeoutMs ?? 15_000,
+				timeoutMs: Math.max(500, input.timeoutMs ?? 15_000),
 				browserMode: input.browserMode,
 			});
 			sessionId = session.id;
@@ -108,8 +102,11 @@ export const createWebSearchTool: ToolFactory<Input, WebToolServices> = (
 				selector,
 				isRegex: input.isRegex ?? false,
 				caseSensitive: input.caseSensitive ?? false,
-				maxMatches: input.maxMatches ?? 10,
-				maxSnippetChars: input.maxSnippetChars ?? 180,
+				maxMatches: Math.max(1, Math.min(50, input.maxMatches ?? 10)),
+				maxSnippetChars: Math.max(
+					20,
+					Math.min(2_000, input.maxSnippetChars ?? 180),
+				),
 			});
 
 			const result = createWebResult({

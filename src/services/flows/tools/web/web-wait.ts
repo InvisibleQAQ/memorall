@@ -32,14 +32,12 @@ const schema = z.object({
 	timeoutMs: z
 		.number()
 		.int()
-		.min(500)
 		.max(180_000)
 		.optional()
 		.describe("Total wait timeout."),
 	intervalMs: z
 		.number()
 		.int()
-		.min(50)
 		.max(2_000)
 		.optional()
 		.describe(
@@ -48,14 +46,12 @@ const schema = z.object({
 	stabilityMs: z
 		.number()
 		.int()
-		.min(100)
 		.max(10_000)
 		.optional()
 		.describe("Stable unchanged duration required for `render` mode."),
 	delayMs: z
 		.number()
 		.int()
-		.min(50)
 		.max(300_000)
 		.optional()
 		.describe("Fixed delay mode when no selector is provided."),
@@ -77,11 +73,15 @@ export const createWebWaitTool: ToolFactory<Input, WebToolServices> = (
 		const webBrowser = requireWebBrowserService(services);
 		let disposableSessionId: string | undefined;
 		const maxChars = 160_000;
+		const timeoutMs = Math.max(500, input.timeoutMs ?? 15_000);
+		const intervalMs = Math.max(50, input.intervalMs ?? 250);
+		const stabilityMs = Math.max(100, input.stabilityMs ?? 1_000);
+		const delayMs = Math.max(50, input.delayMs ?? 1_000);
 		try {
 			const { session, disposable } = await webBrowser.getOrOpenSession({
 				sessionId: input.sessionId,
 				url: input.url,
-				timeoutMs: input.timeoutMs ?? 15_000,
+				timeoutMs,
 				browserMode: input.browserMode,
 			});
 			if (disposable) {
@@ -106,17 +106,16 @@ export const createWebWaitTool: ToolFactory<Input, WebToolServices> = (
 					sessionId: session.id,
 					selector: input.selector!,
 					state: input.state ?? "present",
-					timeoutMs: input.timeoutMs ?? 15_000,
-					intervalMs: input.intervalMs ?? 250,
+					timeoutMs,
+					intervalMs,
 					maxHtmlChars: maxChars,
 				});
 			} else if (waitMode === "time") {
-				const delay = input.delayMs ?? 1_000;
-				await waitFixedDelay(delay);
+				await waitFixedDelay(delayMs);
 				const refreshedSession = await webBrowser.refreshSession({
 					sessionId: session.id,
 					maxHtmlChars: maxChars,
-					timeoutMs: input.timeoutMs ?? 15_000,
+					timeoutMs,
 				});
 				result = {
 					matched: true,
@@ -126,16 +125,16 @@ export const createWebWaitTool: ToolFactory<Input, WebToolServices> = (
 			} else {
 				result = await webBrowser.waitForPageRender({
 					sessionId: session.id,
-					timeoutMs: input.timeoutMs ?? 15_000,
-					intervalMs: input.intervalMs ?? 250,
-					stabilityMs: input.stabilityMs ?? 1_000,
+					timeoutMs,
+					intervalMs,
+					stabilityMs,
 					maxHtmlChars: maxChars,
 				});
 			}
 			const latestSession = await webBrowser.refreshSession({
 				sessionId: session.id,
 				maxHtmlChars: maxChars,
-				timeoutMs: input.timeoutMs ?? 15_000,
+				timeoutMs,
 			});
 
 			const output = createWebResult({

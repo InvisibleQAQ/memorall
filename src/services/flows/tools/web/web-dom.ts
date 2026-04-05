@@ -30,15 +30,12 @@ const schema = z.object({
 	index: z
 		.number()
 		.int()
-		.min(0)
 		.optional()
 		.describe("Element index for selectors returning multiple results."),
 	value: z.string().optional().describe("Text to fill (input action only)."),
 	maxResults: z
 		.number()
 		.int()
-		.min(1)
-		.max(50)
 		.optional()
 		.describe("For query: max returned element list."),
 });
@@ -106,7 +103,7 @@ export const createWebDomActionTool: ToolFactory<Input, WebToolServices> = (
 				const elements = await webBrowser.queryDomElements({
 					sessionId: session.id,
 					selector: input.selector,
-					maxResults: input.maxResults ?? 20,
+					maxResults: Math.max(1, Math.min(50, input.maxResults ?? 20)),
 				});
 				const actionResult = [...elements]
 					.sort(
@@ -148,7 +145,7 @@ export const createWebDomActionTool: ToolFactory<Input, WebToolServices> = (
 				sessionId: session.id,
 				action: input.action,
 				selector: input.selector,
-				index: input.index ?? 0,
+				index: Math.max(0, input.index ?? 0),
 				value: input.value,
 			});
 
