@@ -58,6 +58,12 @@ import {
 	JOB_APPLICATION_FEATURE_SYSTEM_PROMPT,
 	JOB_APPLICATION_FEATURE_TOOLS,
 } from "./steps/features/job-application-feature";
+import {
+	PLANNER_FEATURE_DESCRIPTION,
+	PLANNER_FEATURE_NAME,
+	PLANNER_FEATURE_SYSTEM_PROMPT,
+	PLANNER_FEATURE_TOOLS,
+} from "./steps/features/planner-feature";
 
 /**
  * Flow Builder Catalog
@@ -662,6 +668,47 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			nameKey: "flowBuilder.features.dailyBriefingFeature.name",
 			tools: [...DAILY_BRIEFING_FEATURE_TOOLS],
 			systemPrompt: DAILY_BRIEFING_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-planner-feature",
+		name: PLANNER_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with planner mode instructions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description: "Tools extended with planner toolset.",
+			},
+		],
+		metadata: {
+			description: PLANNER_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.plannerFeature.description",
+			displayName: "Planner",
+			nameKey: "flowBuilder.features.plannerFeature.name",
+			tools: [...PLANNER_FEATURE_TOOLS],
+			systemPrompt: PLANNER_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
 		} satisfies FeatureCatalogMetadata,
 	},

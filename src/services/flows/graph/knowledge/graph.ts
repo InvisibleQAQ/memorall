@@ -168,6 +168,17 @@ export class KnowledgeGraphFlow extends GraphBase<
 // Self-register the flow
 flowRegistry.register({
 	flowType: "knowledge",
+	stepOrder: [
+		"entity-extraction",
+		"load-entities",
+		"entity-resolution",
+		"fact-extraction-v2",
+		"load-facts",
+		"fact-resolution",
+		"edge-enrichment",
+		"temporal-extraction",
+		"knowledge-database-save",
+	],
 	factory: (services, config) => new KnowledgeGraphFlow(services, config),
 });
 

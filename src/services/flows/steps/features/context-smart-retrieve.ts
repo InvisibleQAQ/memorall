@@ -121,7 +121,9 @@ const definition = defineStep<
 			const contextToSystem = stepRegistry.getStepByName<
 				ContextToSystemInput,
 				ContextToSystemOutput
-			>("context-to-system", services, {});
+			>("context-to-system", services, {
+				prompt: config?.prompt,
+			});
 
 			const contextToSystemResult = await contextToSystem.execute(
 				{

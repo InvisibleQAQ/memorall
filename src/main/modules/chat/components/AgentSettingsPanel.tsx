@@ -20,8 +20,16 @@ import {
 
 export const AgentSettingsPanel: React.FC = () => {
 	const { t } = useTranslation("chat");
-	const { isLoading, isSaving, isDirty, close, save, revert, resetToDefaults } =
-		useAgentConfigStore();
+	const {
+		isLoading,
+		isSaving,
+		isDirty,
+		isLegacyConfig,
+		close,
+		save,
+		revert,
+		resetToDefaults,
+	} = useAgentConfigStore();
 
 	if (isLoading) {
 		return (
@@ -112,7 +120,7 @@ export const AgentSettingsPanel: React.FC = () => {
 					<Button
 						size="sm"
 						onClick={save}
-						disabled={!isDirty || isSaving}
+						disabled={!isDirty || isSaving || isLegacyConfig}
 						className="text-xs h-8"
 					>
 						<Save size={12} className="mr-1" />

@@ -13,68 +13,29 @@
  *     default.  Steps added to the catalog after a config was saved will
  *     appear with their defaults automatically — no migration needed.
  *
- * Design note: the canonical ordering lives here, not in individual graph
- * files, so that adding a new graph type only requires a new entry in
- * GRAPH_STEP_ORDER rather than changes scattered across the codebase.
+ * Design note: the canonical step ordering for each graph type lives in the
+ * graph's own file alongside its flowRegistry.register() call.  Adding a new
+ * graph type requires no changes here.
  */
 
 import { stepRegistry } from "./step-registry";
 import { getFeatureCatalogSteps } from "./flow-builder-catalog";
+import { flowRegistry, FEATURE_SLOT } from "./flow-registry";
 import type {
 	UnifiedFlowConfig,
 	StepInstanceConfig,
 } from "./interfaces/flow-config";
 
 // ---------------------------------------------------------------------------
-// Default system prompt for knowledge-rag add-system step
+// Graph type helpers
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT = `
-You are a knowledgeable assistant.
-Use the provided system context and answer clearly, accurately, and with structured sections when useful.
-If tools or feature-enabled capabilities are available, use them repeatedly when needed to fully solve the user's requirement.
-Do not stop after a single attempt if the result is incomplete, ambiguous, or failed. Continue with follow-up tool use, retries, and verification until the task is actually resolved or you have a concrete blocking reason.
-`.trim();
-
-const DEFAULT_AGENT_COMPLETION_TOOLS = ["current_time", "js_execute"] as const;
-
-// ---------------------------------------------------------------------------
-// Canonical step ordering per graph type
-// ---------------------------------------------------------------------------
-
-/**
- * Defines the execution order for every step slot in a graph type.
- * Feature steps (catalog type="feature") are inserted at the position
- * indicated by the FEATURE_SLOT sentinel — they stay in the relative
- * order they appear in the catalog.
- *
- * To add a new graph type: add its entry here.
- * To add a new core step to an existing graph: add it in the right position.
- */
-const FEATURE_SLOT = "__features__" as const;
-
-type StepSlot = string | typeof FEATURE_SLOT;
-
-const GRAPH_STEP_ORDER = {
-	"knowledge-rag": [
-		"add-system",
-		"context-smart-retrieve",
-		"context-quick-retrieve",
-		"context-llm-retrieve",
-		FEATURE_SLOT,
-		"agent-completion",
-		"chat-completion",
-		"entities-facts-citation",
-	],
-	agent: ["add-system", FEATURE_SLOT, "agent-completion"],
-} as const satisfies Record<string, readonly StepSlot[]>;
-
-export type FlowGraphType = keyof typeof GRAPH_STEP_ORDER;
+export type FlowGraphType = string;
 
 const DEFAULT_GRAPH_TYPE: FlowGraphType = "knowledge-rag";
 
 function isFlowGraphType(value: string): value is FlowGraphType {
-	return value in GRAPH_STEP_ORDER;
+	return flowRegistry.hasFlow(value);
 }
 
 export function normalizeFlowGraphType(
@@ -113,15 +74,7 @@ function buildStepInstance(
 		}
 	}
 
-	// Special case: seed the default system prompt for add-system in knowledge-rag
-	if (name === "add-system" && graphType === "knowledge-rag") {
-		config.content = DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT;
-	}
-
-	// Preserve the legacy default toolset for agent-based chat flows.
-	if (name === "agent-completion") {
-		config.tools = [...DEFAULT_AGENT_COMPLETION_TOOLS];
-	}
+	Object.assign(config, flowRegistry.getStepDefaults(graphType, name));
 
 	return {
 		id: createDefaultStepId(graphType, name, occurrence),
@@ -133,7 +86,7 @@ function buildStepInstance(
 
 /** Resolve the ordered step names for a graph type, inserting feature steps. */
 function resolveStepOrder(graphType: FlowGraphType): string[] {
-	const slots = GRAPH_STEP_ORDER[graphType];
+	const slots = flowRegistry.getStepOrder(graphType);
 
 	const featureNames = getFeatureCatalogSteps()
 		.filter((s) => !s.graphTypes || s.graphTypes.includes(graphType))
@@ -232,59 +185,4 @@ export function mergeWithDefaultConfig(
 	}
 
 	return { graphType: normalizedGraphType, steps: base.steps };
-}
-
-/**
- * Convert an old-format KnowledgeRAGPredefinedConfig (pre-refactor) to
- * UnifiedFlowConfig.  Called by the service layer when it detects a stored
- * config that pre-dates this architecture.
- *
- * Keeping this here (close to buildDefaultFlowConfig) makes it easy to
- * update if the old format ever changes — and easy to delete once all
- * stored configs have been migrated.
- */
-export function convertLegacyKnowledgeRAGConfig(old: {
-	systemPrompt?: string;
-	contextPrompt?: string;
-	tools?: string[];
-	enableContextRetrieval?: boolean;
-	enableCitations?: boolean;
-	featureFlags?: Record<string, boolean>;
-	graphType?: string;
-}): UnifiedFlowConfig {
-	const graphType = normalizeFlowGraphType(old.graphType);
-	const base = buildDefaultFlowConfig(graphType);
-
-	const setEnabled = (name: string, enabled: boolean) => {
-		const step = base.steps.find((s) => s.name === name);
-		if (step) step.enabled = enabled;
-	};
-
-	const setConfig = (name: string, patch: Record<string, unknown>) => {
-		const step = base.steps.find((s) => s.name === name);
-		if (step) step.config = { ...(step.config ?? {}), ...patch };
-	};
-
-	// Map old top-level flags → step enabled state
-	setEnabled("context-smart-retrieve", old.enableContextRetrieval ?? true);
-	setEnabled("entities-facts-citation", old.enableCitations ?? true);
-
-	// Map old feature flags → step enabled state
-	for (const [name, enabled] of Object.entries(old.featureFlags ?? {})) {
-		setEnabled(name, enabled);
-	}
-
-	// Map old system prompt → add-system config
-	if (old.systemPrompt !== undefined) {
-		setConfig("add-system", {
-			content: old.systemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
-		});
-	}
-
-	// Map old tools → agent-completion config
-	if (old.tools !== undefined) {
-		setConfig("agent-completion", { tools: old.tools });
-	}
-
-	return base;
 }

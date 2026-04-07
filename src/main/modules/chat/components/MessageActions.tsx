@@ -12,6 +12,7 @@ import {
 	Zap,
 	Globe,
 	TerminalSquare,
+	Target,
 	type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ import { webDomRenderer } from "./tools/WebDom";
 import { webSearchRenderer } from "./tools/WebSearch";
 import { fsActionRenderer } from "./tools/FileSystem";
 import { terminalToolRenderer } from "./tools/TerminalTool";
+import { plannerToolRenderer } from "./tools/PlannerTool";
 
 const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["search", "query", "retrieval", "retrieve"], icon: Search },
@@ -38,6 +40,7 @@ const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["command", "terminal", "shell"], icon: TerminalSquare },
 	{ keywords: ["generat", "create"], icon: Sparkles },
 	{ keywords: ["write", "edit", "update"], icon: PenLine },
+	{ keywords: ["plan", "planner"], icon: Target },
 	{ keywords: ["graph", "network"], icon: Network },
 	{ keywords: ["analys", "think"], icon: Brain },
 	{ keywords: ["context", "knowledge", "data"], icon: Database },
@@ -98,6 +101,11 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	fs_grep: fsActionRenderer,
 	fs_mkdir: fsActionRenderer,
 	fs_remove: fsActionRenderer,
+	planner_create: plannerToolRenderer,
+	planner_get: plannerToolRenderer,
+	planner_check_item: plannerToolRenderer,
+	planner_add_item: plannerToolRenderer,
+	planner_remove_item: plannerToolRenderer,
 };
 
 interface ActionContentProps {

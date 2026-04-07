@@ -299,6 +299,10 @@
 			"jobApplicationFeature": {
 				"name": "Hỗ trợ xin việc",
 				"description": "Đọc CV và mô tả công việc, sau đó tạo thư xin việc phù hợp và gợi ý cải thiện CV."
+			},
+			"plannerFeature": {
+				"name": "Lập kế hoạch",
+				"description": "Buộc lập kế hoạch có cấu trúc với theo dõi hoàn thành từng mục. Agent phải kiểm tra tất cả các mục trước khi kết thúc."
 			}
 		}
 	},

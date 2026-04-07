@@ -163,6 +163,10 @@
 		"saved": "Saved",
 		"unsaved": "Unsaved",
 		"save": "Save",
+		"convertToUnified": "Convert to New Format",
+		"converting": "Converting...",
+		"legacyConfigTitle": "Legacy config detected",
+		"legacyConfigDescription": "This preset is still using the old config shape. Convert it to the unified flow config before saving so the runtime applies the same settings shown in the UI.",
 		"revert": "Revert",
 		"resetDefaults": "Reset to Defaults",
 		"resetConfirm": "This will reset all agent settings to their default values. Your current draft will be replaced."

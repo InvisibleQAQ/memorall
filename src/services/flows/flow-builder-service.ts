@@ -30,7 +30,6 @@ import type { UnifiedFlowConfig } from "./interfaces/flow-config";
 import {
 	buildDefaultFlowConfig,
 	mergeWithDefaultConfig,
-	convertLegacyKnowledgeRAGConfig,
 } from "./build-flow-config";
 
 type PredefinedFlowConfigMap = {
@@ -43,6 +42,8 @@ type FlowConfigRow = {
 	value: unknown;
 	type: string;
 };
+
+export type FlowConfigStorageFormat = "unified" | "legacy" | "empty";
 
 const getFlowConfigMetaForPredefined = (flowKey: PredefinedFlowKey) => {
 	switch (flowKey) {
@@ -764,26 +765,32 @@ export class FlowBuilderService {
 		});
 	}
 
-	/**
-	 * Load the flow configuration as a UnifiedFlowConfig.
-	 *
-	 * Storage strategy (backward-compatible, no DB migration required):
-	 *   - If the flow has a "unified_config" row, parse and merge with defaults.
-	 *   - Otherwise load the legacy key-value rows (systemPrompt, tools, …) plus
-	 *     the feature-flags from flowSteps, then convert via
-	 *     convertLegacyKnowledgeRAGConfig().
-	 *   - Falls back to buildDefaultFlowConfig() on any error.
-	 */
-	async getUnifiedFlowConfig(ref: FlowConfigRef): Promise<UnifiedFlowConfig> {
-		const graphType = "knowledge-rag"; // only supported predefined type for now
+	async getFlowConfigStorageFormat(
+		ref: FlowConfigRef,
+	): Promise<FlowConfigStorageFormat> {
+		const flow = await this.resolveFlow(ref);
+		const rows = await this.getFlowConfigRows(flow.id);
+		const rowMap = new Map(rows.map((row) => [row.name, row]));
 
+		if (rowMap.has("unified_config")) {
+			return "unified";
+		}
+
+		const hasLegacyRows = rows.some((row) => row.name !== "unified_config");
+		const { hasStoredRows } = await this.getStoredFeatureFlags(flow.id);
+
+		return hasLegacyRows || hasStoredRows ? "legacy" : "empty";
+	}
+
+	async getStoredUnifiedFlowConfig(
+		ref: FlowConfigRef,
+	): Promise<UnifiedFlowConfig | null> {
 		try {
+			const graphType = "knowledge-rag";
 			const flow = await this.resolveFlow(ref);
-			const rows = await this.getFlowConfigRows(flow.id);
-
-			const rowMap = new Map(rows.map((r) => [r.name, r]));
-
-			// New format: a single "unified_config" JSON blob
+			const rowMap = new Map(
+				(await this.getFlowConfigRows(flow.id)).map((row) => [row.name, row]),
+			);
 			const unifiedRow = rowMap.get("unified_config");
 			if (
 				unifiedRow &&
@@ -797,27 +804,75 @@ export class FlowBuilderService {
 				);
 			}
 
-			const { flags: featureFlags, hasStoredRows: hasStoredFeatureRows } =
-				await this.getStoredFeatureFlags(flow.id);
-			const legacyConfig = this.parsePredefinedConfigRows(
-				rows,
-				"knowledge-rag",
+			return null;
+		} catch (error) {
+			logError(
+				"[FLOW_BUILDER] Failed to load stored unified flow config:",
+				error,
 			);
-			const hasLegacyConfigRows = KNOWLEDGE_RAG_CONFIG_KEYS.some((key) =>
-				rowMap.has(key.name),
-			);
+			return null;
+		}
+	}
 
-			// Legacy format: individual key-value rows + feature flags in flowSteps.
-			// Support both predefined flows and custom flowId-based flows saved by the
-			// existing agent settings UI.
-			if (hasLegacyConfigRows || hasStoredFeatureRows || flow.predefinedFlow) {
-				return convertLegacyKnowledgeRAGConfig({
-					...legacyConfig,
-					featureFlags,
-				} as Parameters<typeof convertLegacyKnowledgeRAGConfig>[0]);
+	async saveUnifiedFlowConfig(
+		ref: FlowConfigRef,
+		config: UnifiedFlowConfig,
+	): Promise<void> {
+		const flow = await this.resolveFlow(ref);
+
+		await this.databaseService.transaction(async ({ db, schema }) => {
+			const existing = await db
+				.select({ id: schema.flowConfigs.id })
+				.from(schema.flowConfigs)
+				.where(
+					and(
+						eq(schema.flowConfigs.flowId, flow.id),
+						eq(schema.flowConfigs.name, "unified_config"),
+					),
+				)
+				.limit(1);
+
+			if (existing.length > 0) {
+				await db
+					.update(schema.flowConfigs)
+					.set({
+						type: "object",
+						value: config,
+						updatedAt: new Date(),
+					})
+					.where(eq(schema.flowConfigs.id, existing[0].id));
+			} else {
+				await db.insert(schema.flowConfigs).values({
+					flowId: flow.id,
+					name: "unified_config",
+					type: "object",
+					value: config,
+					metadata: {},
+				});
 			}
 
-			// Flow has no stored config yet → use canonical defaults.
+			await db
+				.update(schema.flows)
+				.set({ updatedAt: new Date() })
+				.where(eq(schema.flows.id, flow.id));
+		});
+	}
+
+	/**
+	 * Load the flow configuration as a UnifiedFlowConfig.
+	 *
+	 * Runtime only reads the unified config blob. When it is absent,
+	 * execution falls back to the canonical default flow definition.
+	 */
+	async getUnifiedFlowConfig(ref: FlowConfigRef): Promise<UnifiedFlowConfig> {
+		const graphType = "knowledge-rag";
+
+		try {
+			const stored = await this.getStoredUnifiedFlowConfig(ref);
+			if (stored) {
+				return stored;
+			}
+
 			return buildDefaultFlowConfig(graphType);
 		} catch (error) {
 			logError("[FLOW_BUILDER] Failed to load unified flow config:", error);

@@ -11,8 +11,8 @@ import NiceModal from "@ebay/nice-modal-react";
 import {
 	useAgentConfigStore,
 	GRAPH_REGISTRY,
+	getDefaultSystemPromptForGraph,
 } from "@/main/stores/agent-config";
-import { DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT } from "@/services/flows/graph/knowledge-rag/state";
 import { AgentFeatureDetailModal } from "@/main/modules/agents/modals/AgentFeatureDetailModal";
 import { Button } from "@/main/components/ui/button";
 import { Textarea } from "@/main/components/ui/textarea";
@@ -40,34 +40,36 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 	className,
 	summary,
 }) => {
-	const { t } = useTranslation(["chat", "agents"]);
+	const { t } = useTranslation(["chat", "agents", "common"]);
 	const {
 		draftConfig,
 		draftFeatures,
 		featureDefinitions,
 		availableTools,
 		currentGraphType,
+		isLegacyConfig,
 		isLoading,
+		isSaving,
 		updateField,
 		setGraphType,
 		toggleFeature,
+		convertToUnified,
 	} = useAgentConfigStore();
+	const defaultSystemPrompt = React.useMemo(
+		() => getDefaultSystemPromptForGraph(currentGraphType),
+		[currentGraphType],
+	);
 	const [systemPromptValue, setSystemPromptValue] = React.useState(
-		draftConfig.systemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
+		draftConfig.systemPrompt || defaultSystemPrompt,
 	);
 
 	React.useEffect(() => {
-		setSystemPromptValue(
-			draftConfig.systemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
-		);
-	}, [draftConfig.systemPrompt]);
+		setSystemPromptValue(draftConfig.systemPrompt || defaultSystemPrompt);
+	}, [defaultSystemPrompt, draftConfig.systemPrompt]);
 
 	const handleSystemPromptChange = (value: string) => {
 		setSystemPromptValue(value);
-		updateField(
-			"systemPrompt",
-			value === DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT ? "" : value,
-		);
+		updateField("systemPrompt", value === defaultSystemPrompt ? "" : value);
 	};
 
 	const claimedToolSet = React.useMemo(() => {
@@ -98,6 +100,31 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 
 	return (
 		<div className={cn("space-y-6", className)}>
+			{isLegacyConfig ? (
+				<div className="flex flex-col gap-3 rounded-2xl border border-amber-300/60 bg-amber-50/80 p-4 text-sm text-amber-950">
+					<div className="space-y-1">
+						<p className="font-semibold">
+							{t("agentSettings.legacyConfigTitle")}
+						</p>
+						<p className="text-xs leading-relaxed text-amber-900/80">
+							{t("agentSettings.legacyConfigDescription")}
+						</p>
+					</div>
+					<div>
+						<Button
+							type="button"
+							size="sm"
+							onClick={() => void convertToUnified()}
+							disabled={isSaving}
+						>
+							{isSaving
+								? t("agentSettings.converting")
+								: t("agentSettings.convertToUnified")}
+						</Button>
+					</div>
+				</div>
+			) : null}
+
 			<div className="space-y-3 rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/30 p-4 shadow-sm sm:p-5">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div className="flex items-start gap-3">
@@ -110,13 +137,13 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 							</Label>
 							<p className="text-sm font-semibold">
 								{t("agentSettings.charCount", {
-									count: systemPromptValue.length,
+									count: systemPromptValue?.length || 0,
 								})}
 							</p>
 						</div>
 					</div>
 					<Badge variant="outline" className="bg-background/80">
-						{systemPromptValue.length}
+						{systemPromptValue?.length || ""}
 					</Badge>
 				</div>
 				<Textarea

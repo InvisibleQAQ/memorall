@@ -4,6 +4,17 @@ import type { GraphBase, BaseStateBase } from "./graph/graph.base";
 // Base interface for all flows - any class extending GraphBase
 export type BaseFlow = GraphBase<string, BaseStateBase, AllServices>;
 
+// ---------------------------------------------------------------------------
+// Step order
+// ---------------------------------------------------------------------------
+
+export const FEATURE_SLOT = "__features__" as const;
+export type StepSlot = string | typeof FEATURE_SLOT;
+
+// ---------------------------------------------------------------------------
+// Flow type registry
+// ---------------------------------------------------------------------------
+
 type FlowConfig<T extends keyof FlowTypeRegistry> =
 	FlowTypeRegistry[T] extends { config: infer C } ? C : undefined;
 
@@ -19,6 +30,9 @@ declare global {
 // Registration interface
 export interface FlowRegistration<T extends keyof FlowTypeRegistry> {
 	flowType: T;
+	stepOrder: readonly StepSlot[];
+	/** Per-step default config values, merged on top of each step's StepMeta defaults. */
+	stepDefaults?: Record<string, Record<string, unknown>>;
 	factory: (
 		services: FlowTypeRegistry[T]["services"],
 		config?: FlowConfig<T>,
@@ -31,6 +45,11 @@ export class FlowRegistryManager {
 	private factories = new Map<
 		string,
 		(services: AllServices, config?: unknown) => BaseFlow
+	>();
+	private stepOrders = new Map<string, readonly StepSlot[]>();
+	private stepDefaultsMap = new Map<
+		string,
+		Record<string, Record<string, unknown>>
 	>();
 
 	private constructor() {}
@@ -45,13 +64,18 @@ export class FlowRegistryManager {
 	register<T extends keyof FlowTypeRegistry>(
 		registration: FlowRegistration<T>,
 	): void {
+		const flowType = registration.flowType as string;
 		this.factories.set(
-			registration.flowType as string,
+			flowType,
 			registration.factory as (
 				services: AllServices,
 				config?: unknown,
 			) => BaseFlow,
 		);
+		this.stepOrders.set(flowType, registration.stepOrder);
+		if (registration.stepDefaults) {
+			this.stepDefaultsMap.set(flowType, registration.stepDefaults);
+		}
 	}
 
 	createFlow<T extends keyof FlowTypeRegistry>(
@@ -67,6 +91,17 @@ export class FlowRegistryManager {
 			services as AllServices,
 			config,
 		) as FlowTypeRegistry[T]["flow"];
+	}
+
+	getStepOrder(graphType: string): readonly StepSlot[] {
+		return this.stepOrders.get(graphType) ?? [];
+	}
+
+	getStepDefaults(
+		graphType: string,
+		stepName: string,
+	): Record<string, unknown> {
+		return this.stepDefaultsMap.get(graphType)?.[stepName] ?? {};
 	}
 
 	getRegisteredFlowTypes(): string[] {

@@ -1,27 +1,24 @@
 import {
 	pipeline,
 	env,
-	type PretrainedOptions,
-	type FeatureExtractionPipelineOptions,
+	type PretrainedModelOptions,
 	type FeatureExtractionPipeline,
 } from "@huggingface/transformers";
 import type { BaseEmbedding } from "../interfaces/base-embedding";
 import { logError, logInfo } from "@/utils/logger";
 import { isWebGPUSupported } from "@/utils/webgpu";
 
-// Use a more permissive type that allows device and dtype options
-type ModelOptions = PretrainedOptions & {
-	device?: string;
-	dtype?: string;
-	[key: string]: any;
-};
+type ModelOptions = PretrainedModelOptions;
+type FeatureExtractionOptions = NonNullable<
+	Parameters<FeatureExtractionPipeline["_call"]>[1]
+>;
 
 export interface LocalEmbeddingOptions {
 	modelName?: string;
 	batchSize?: number;
 	stripNewLines?: boolean;
 	pretrainedOptions?: ModelOptions;
-	pipelineOptions?: FeatureExtractionPipelineOptions;
+	pipelineOptions?: FeatureExtractionOptions;
 }
 
 export class LocalEmbedding implements BaseEmbedding {
@@ -37,7 +34,7 @@ export class LocalEmbedding implements BaseEmbedding {
 	private readonly batchSize: number;
 	private readonly stripNewLines: boolean;
 	private readonly pretrainedOptions: ModelOptions;
-	private readonly pipelineOptions: FeatureExtractionPipelineOptions;
+	private readonly pipelineOptions: FeatureExtractionOptions;
 
 	constructor(options: LocalEmbeddingOptions = {}) {
 		this.name = options.modelName || "nomic-ai/nomic-embed-text-v1.5";
@@ -111,11 +108,11 @@ export class LocalEmbedding implements BaseEmbedding {
 			}
 
 			// Initialize the embedding pipeline with WebGPU or WASM
-			this.localPipe = (await pipeline(
+			this.localPipe = await pipeline(
 				"feature-extraction",
 				this.name,
-				this.pretrainedOptions as any, // Type cast needed for device/dtype options
-			)) as unknown as FeatureExtractionPipeline;
+				this.pretrainedOptions,
+			);
 
 			// Get dimensions from model
 			if (this.localPipe) {

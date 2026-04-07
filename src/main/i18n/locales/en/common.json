@@ -300,6 +300,10 @@
 			"jobApplicationFeature": {
 				"name": "Job Application Assistant",
 				"description": "Read your resume and a job posting, then generate a tailored cover letter and resume suggestions."
+			},
+			"plannerFeature": {
+				"name": "Planner",
+				"description": "Forces structured planning with item-by-item completion tracking. Agent must check all items before finishing."
 			}
 		}
 	},

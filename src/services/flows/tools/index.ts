@@ -57,3 +57,5 @@ import "./fs/fs-edit";
 import "./fs/fs-mkdir";
 import "./fs/fs-remove";
 import "./fs/fs-ls";
+
+import "./planner";

@@ -12,9 +12,9 @@ import { useAgentPresets } from "../hooks/useAgentPresets";
 import {
 	useAgentConfigStore,
 	GRAPH_REGISTRY,
+	getDefaultSystemPromptForGraph,
 } from "@/main/stores/agent-config";
 import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
-import { DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT } from "@/services/flows/graph/knowledge-rag/state";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -113,6 +113,7 @@ export const AgentsWorkspace: React.FC = () => {
 		availableTools,
 		currentGraphType,
 		initialize,
+		isLegacyConfig,
 		isDirty: hasConfigChanges,
 		isLoading: isConfigLoading,
 		isSaving: isConfigSaving,
@@ -332,7 +333,8 @@ export const AgentsWorkspace: React.FC = () => {
 			),
 		];
 		const systemPromptPreview =
-			draftConfig.systemPrompt || DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT;
+			draftConfig.systemPrompt ||
+			getDefaultSystemPromptForGraph(currentGraphType);
 		const contextPromptPreview =
 			draftConfig.contextPrompt || DEFAULT_CONTEXT_SYSTEM_PROMPT;
 
@@ -370,6 +372,7 @@ export const AgentsWorkspace: React.FC = () => {
 		Boolean(selectedPresetId) &&
 		Boolean(metadataDraft.name.trim()) &&
 		(hasMetadataChanges || hasConfigChanges) &&
+		!isLegacyConfig &&
 		!isSavingPage &&
 		!isSavingMetadata &&
 		!isConfigSaving;

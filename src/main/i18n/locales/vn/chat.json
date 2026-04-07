@@ -162,6 +162,10 @@
 		"saved": "Đã lưu",
 		"unsaved": "Chưa lưu",
 		"save": "Lưu",
+		"convertToUnified": "Chuyển sang định dạng mới",
+		"converting": "Đang chuyển đổi...",
+		"legacyConfigTitle": "Đã phát hiện cấu hình cũ",
+		"legacyConfigDescription": "Preset này vẫn đang dùng cấu hình cũ. Hãy chuyển sang unified flow config trước khi lưu để runtime áp dụng đúng các thiết lập đang hiển thị trong UI.",
 		"revert": "Hoàn tác",
 		"resetDefaults": "Khôi phục mặc định",
 		"resetConfirm": "Thao tác này sẽ đặt lại tất cả cài đặt tác nhân về giá trị mặc định. Bản nháp hiện tại sẽ bị thay thế."

@@ -1,9 +1,13 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
-import { KnowledgeRAGAnnotation, type KnowledgeRAGState } from "./state";
+import {
+	DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
+	KnowledgeRAGAnnotation,
+	type KnowledgeRAGState,
+} from "./state";
 import { GraphBase } from "@/services/flows/graph/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import { logInfo } from "@/utils/logger";
-import { flowRegistry } from "@/services/flows/flow-registry";
+import { flowRegistry, FEATURE_SLOT } from "@/services/flows/flow-registry";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 
@@ -53,9 +57,21 @@ export class KnowledgeRAGFlow extends GraphBase<
 // Self-registration
 // ---------------------------------------------------------------------------
 
-// Generic flow registry — used by flowRegistry.createFlow("knowledge-rag", …)
 flowRegistry.register({
 	flowType: "knowledge-rag",
+	stepDefaults: {
+		"add-system": { content: DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT },
+	},
+	stepOrder: [
+		"add-system",
+		"context-smart-retrieve",
+		"context-quick-retrieve",
+		"context-llm-retrieve",
+		FEATURE_SLOT,
+		"agent-completion",
+		"chat-completion",
+		"entities-facts-citation",
+	],
 	factory: (services, config) =>
 		new KnowledgeRAGFlow(services, config as UnifiedFlowConfig),
 });

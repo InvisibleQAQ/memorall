@@ -1,6 +1,10 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph/web";
-import { AgentAnnotation, type AgentState } from "./state";
+import {
+	AgentAnnotation,
+	DEFAULT_AGENT_SYSTEM_PROMPT,
+	type AgentState,
+} from "./state";
 import {
 	GraphBase,
 	type CombinedTool,
@@ -10,7 +14,7 @@ import type { CombinedServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { formatYAML } from "@/utils/yaml";
-import { flowRegistry } from "@/services/flows/flow-registry";
+import { flowRegistry, FEATURE_SLOT } from "@/services/flows/flow-registry";
 import type { BaseFlow } from "@/services/flows/flow-registry";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 import { findEnabledStepByName } from "@/services/flows/interfaces/flow-config";
@@ -25,8 +29,6 @@ type AgentGraphConfig = {
 	systemPrompt?: string;
 	tools?: `${ToolName}`[];
 };
-
-const AGENT_SYSTEM_PROMPT = `You are an intelligent assistant that can use tools to help answer user questions. Use tools when needed to provide accurate answers.`;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null;
@@ -70,7 +72,7 @@ export class AgentGraph extends GraphBase<
 > {
 	private combinedTools: CombinedTool[];
 	private executorMap: Map<string, CombinedTool>;
-	private systemPrompt = AGENT_SYSTEM_PROMPT;
+	private systemPrompt = DEFAULT_AGENT_SYSTEM_PROMPT;
 
 	constructor(services: AgentServices, config: AgentGraphConfig = {}) {
 		super(services);
@@ -377,9 +379,12 @@ export class AgentGraph extends GraphBase<
 	};
 }
 
-// Self-register the flow
 flowRegistry.register({
 	flowType: "agent",
+	stepDefaults: {
+		"add-system": { content: DEFAULT_AGENT_SYSTEM_PROMPT },
+	},
+	stepOrder: ["add-system", FEATURE_SLOT, "agent-completion"],
 	factory: (services, config) =>
 		new AgentGraph(services, config as AgentGraphConfig),
 });
