@@ -159,6 +159,18 @@
 		"detail": "Detail",
 		"featureTools": "Tools",
 		"featureSystemPrompt": "System Prompt (Read-only)",
+		"toolDescriptions": {
+			"current_time": "Get the current date and time",
+			"js_execute": "Execute JavaScript code in a sandboxed environment",
+			"calculator": "Perform basic mathematical calculations",
+			"knowledge_graph": "Query the knowledge graph for relationships and entities",
+			"doc_read": "Read document files from the file system",
+			"doc_write": "Write content to document files",
+			"doc_edit": "Edit existing document files",
+			"doc_search": "Search through documents for content",
+			"doc_move": "Move or rename document files",
+			"doc_remove": "Remove document files from the file system"
+		},
 		"cancel": "Cancel",
 		"saved": "Saved",
 		"unsaved": "Unsaved",

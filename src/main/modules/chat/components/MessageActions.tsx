@@ -6,6 +6,7 @@ import {
 	Search,
 	Sparkles,
 	ChevronDown,
+	AlertTriangle,
 	PenLine,
 	Database,
 	Brain,
@@ -33,6 +34,7 @@ import { webSearchRenderer } from "./tools/WebSearch";
 import { fsActionRenderer } from "./tools/FileSystem";
 import { terminalToolRenderer } from "./tools/TerminalTool";
 import { plannerToolRenderer } from "./tools/PlannerTool";
+import { ToolItemRawIO } from "./tools/ToolCommon";
 
 const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["search", "query", "retrieval", "retrieve"], icon: Search },
@@ -113,10 +115,88 @@ interface ActionContentProps {
 	isOpen: boolean;
 }
 
+const ActionRenderFallback: React.FC<{
+	item: MessageActionItem;
+	error?: Error | null;
+}> = ({ item, error }) => {
+	const description = item.description?.trim() || "";
+
+	return (
+		<div className="space-y-3">
+			<div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+				<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+				<div className="min-w-0">
+					<div className="font-medium">Renderer fallback</div>
+					<div className="text-xs break-words text-amber-800/90 dark:text-amber-100/90">
+						Failed to render this tool output. Showing raw content instead.
+						{error?.message ? ` ${error.message}` : ""}
+					</div>
+				</div>
+			</div>
+			{description ? (
+				<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
+					{item.description}
+				</div>
+			) : null}
+			<ToolItemRawIO item={item} />
+		</div>
+	);
+};
+
+class ActionRenderErrorBoundary extends React.Component<
+	{ children: React.ReactNode; item: MessageActionItem },
+	{ error: Error | null }
+> {
+	constructor(props: { children: React.ReactNode; item: MessageActionItem }) {
+		super(props);
+		this.state = { error: null };
+	}
+
+	static getDerivedStateFromError(error: Error) {
+		return { error };
+	}
+
+	componentDidCatch(_error: Error, _errorInfo: React.ErrorInfo) {
+		// The fallback UI handles renderer failures locally for the chat action pane.
+	}
+
+	componentDidUpdate(
+		prevProps: Readonly<{ children: React.ReactNode; item: MessageActionItem }>,
+	) {
+		if (
+			this.state.error &&
+			(prevProps.item.name !== this.props.item.name ||
+				prevProps.item.description !== this.props.item.description ||
+				prevProps.item.metadata !== this.props.item.metadata)
+		) {
+			this.setState({ error: null });
+		}
+	}
+
+	render() {
+		if (this.state.error) {
+			return (
+				<ActionRenderFallback item={this.props.item} error={this.state.error} />
+			);
+		}
+
+		return this.props.children;
+	}
+}
+
 const ActionContent: React.FC<ActionContentProps> = React.memo(
 	({ item, isOpen }) => {
 		const renderer = ACTION_RENDERERS[item.name] || defaultActionRenderer;
-		return <>{renderer(item, isOpen)}</>;
+		try {
+			return <>{renderer(item, isOpen)}</>;
+		} catch (error) {
+			return (
+				<ActionRenderFallback
+					item={item}
+					error={error instanceof Error ? error : new Error(String(error))}
+				/>
+			);
+		}
 	},
 );
 
@@ -156,7 +236,9 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 				</TaskTrigger>
 				<TaskContent>
 					<TaskItem>
-						<ActionContent item={item} isOpen={isOpen} />
+						<ActionRenderErrorBoundary item={item}>
+							<ActionContent item={item} isOpen={isOpen} />
+						</ActionRenderErrorBoundary>
 					</TaskItem>
 				</TaskContent>
 			</Task>

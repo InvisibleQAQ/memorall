@@ -132,7 +132,16 @@
 		"save": "Lưu",
 		"markdownPlaceholder": "Bắt đầu viết... (Nhập # cho tiêu đề, * cho danh sách, v.v.)",
 		"characterCount": "{{count}} ký tự",
-		"saveHint": "Phím tắt Markdown: ## cho tiêu đề, * cho danh sách | Ctrl+S để lưu"
+		"saveHint": "Phím tắt Markdown: ## cho tiêu đề, * cho danh sách | Ctrl+S để lưu",
+		"previewMode": "Xem trước",
+		"editMode": "Chỉnh sửa",
+		"insertTable": "Chèn bảng",
+		"insertImage": "Chèn ảnh",
+		"editImage": "Sửa ảnh",
+		"updateImage": "Cập nhật ảnh",
+		"imageUrl": "URL ảnh",
+		"imageAlt": "Văn bản thay thế",
+		"imageAltPlaceholder": "Mô tả ảnh..."
 	},
 	"navigator": {
 		"expand": "Mở rộng",

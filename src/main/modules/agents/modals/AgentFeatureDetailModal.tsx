@@ -3,10 +3,7 @@ import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { useTranslation } from "react-i18next";
 import { Sparkles, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-	useAgentConfigStore,
-	type AgentFeatureDefinition,
-} from "@/main/stores/agent-config";
+import { useAgentConfigStore } from "@/main/stores/agent-config";
 import { TOOL_DISPLAY_INFO } from "@/main/modules/chat/utils/tool-display-info";
 import {
 	Dialog,
@@ -22,21 +19,14 @@ import { Label } from "@/main/components/ui/label";
 import { Switch } from "@/main/components/ui/switch";
 import { Textarea } from "@/main/components/ui/textarea";
 import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+import {
+	getAgentFeatureDescription,
+	getAgentFeatureDisplayName,
+} from "../utils/feature-display";
 
 interface AgentFeatureDetailModalProps {
 	featureName: string;
 }
-
-const getFeatureDescription = (
-	feature: AgentFeatureDefinition,
-	t: ReturnType<typeof useTranslation>["t"],
-) => {
-	if (feature.type === "config") {
-		return t(feature.descKey);
-	}
-
-	return feature.description;
-};
 
 const mergeToolSelection = (
 	currentTools: string[],
@@ -60,7 +50,7 @@ const mergeToolSelection = (
 export const AgentFeatureDetailModal =
 	NiceModal.create<AgentFeatureDetailModalProps>(({ featureName }) => {
 		const modal = useModal();
-		const { t } = useTranslation("chat");
+		const { t } = useTranslation(["chat", "common"]);
 		const {
 			draftConfig,
 			featureDefinitions,
@@ -113,8 +103,8 @@ export const AgentFeatureDetailModal =
 			);
 		}
 
-		const title = feature.type === "config" ? t(feature.nameKey) : feature.name;
-		const description = getFeatureDescription(feature, t);
+		const title = getAgentFeatureDisplayName(feature, t);
+		const description = getAgentFeatureDescription(feature, t);
 
 		const renderTools = () => {
 			if (feature.type === "config" && feature.configKey === "tools") {
@@ -187,6 +177,12 @@ export const AgentFeatureDetailModal =
 							{toolsToShow.map((toolName) => {
 								const info = TOOL_DISPLAY_INFO[toolName];
 								const isEnabled = draftConfig.tools.includes(toolName);
+								const toolDescription = info?.descriptionKey
+									? t(info.descriptionKey, {
+											ns: "chat",
+											defaultValue: info.description,
+										})
+									: info?.description;
 								return (
 									<div
 										key={toolName}
@@ -207,9 +203,9 @@ export const AgentFeatureDetailModal =
 											>
 												{toolName}
 											</p>
-											{info?.description ? (
+											{toolDescription ? (
 												<p className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground">
-													{info.description}
+													{toolDescription}
 												</p>
 											) : null}
 										</div>

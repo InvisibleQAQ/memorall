@@ -210,7 +210,7 @@ const EngineSection: React.FC<{ engineResult: EngineResult }> = ({
 					<div className="space-y-1.5">
 						{visible.map((result, i) => (
 							<ResultCard
-								key={`${engine}-${result.url || i}`}
+								key={`${engine}-${result.url || result.title || "result"}-${i}`}
 								result={result}
 							/>
 						))}
@@ -271,9 +271,9 @@ export const webSearchRenderer: ActionRenderer = (
 			{/* Engine results */}
 			{results.length > 0 && (
 				<div className={cn("space-y-4", !multiEngine && "space-y-1.5")}>
-					{results.map((engineResult) => (
+					{results.map((engineResult, index) => (
 						<EngineSection
-							key={engineResult.engine}
+							key={`${engineResult.engine}-${engineResult.searchUrl || index}`}
 							engineResult={engineResult}
 						/>
 					))}
@@ -283,9 +283,9 @@ export const webSearchRenderer: ActionRenderer = (
 			{/* Errors */}
 			{errors.length > 0 && (
 				<div className="space-y-1.5">
-					{errors.map((err) => (
+					{errors.map((err, index) => (
 						<div
-							key={err.engine}
+							key={`${err.engine}-${err.error}-${index}`}
 							className="flex items-start gap-2 rounded-md border border-red-600/20 bg-red-600/5 px-3 py-2 text-xs text-red-700"
 						>
 							<AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />

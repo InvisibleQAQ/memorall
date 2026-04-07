@@ -303,6 +303,18 @@
 			"plannerFeature": {
 				"name": "Lập kế hoạch",
 				"description": "Buộc lập kế hoạch có cấu trúc với theo dõi hoàn thành từng mục. Agent phải kiểm tra tất cả các mục trước khi kết thúc."
+			},
+			"languageTutorFeature": {
+				"name": "Gia sư ngôn ngữ",
+				"description": "Gia sư ngôn ngữ tương tác: xây dựng hồ sơ người học, chạy bài học có cấu trúc với hỏi đáp, chấm điểm câu trả lời và theo dõi tiến trình trong đồ thị tri thức."
+			},
+			"shoppingAssistantFeature": {
+				"name": "Trợ lý mua sắm",
+				"description": "Nghiên cứu sản phẩm chuyên sâu: tìm kiếm nhiều nguồn, đọc giá, thông số và đánh giá, so sánh các lựa chọn thay thế và lưu báo cáo đầy đủ vào /documents/shopping-assistant/."
+			},
+			"financeTrackerFeature": {
+				"name": "Theo dõi tài chính",
+				"description": "Nghiên cứu cổ phiếu và công ty chuyên sâu với biểu đồ Mermaid và ASCII bao gồm tài chính, định giá, ý kiến chuyên gia và tin tức. Lưu báo cáo vào /documents/finance/."
 			}
 		}
 	},

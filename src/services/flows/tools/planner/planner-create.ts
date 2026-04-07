@@ -9,9 +9,10 @@ const TOOL_NAME = "planner_create" as const;
 const schema = z.object({
 	title: z.string().describe("Short title of the plan"),
 	items: z
-		.array(z.string())
-		.min(1)
-		.describe("List of short, concrete items to accomplish in the plan"),
+		.string()
+		.describe(
+			'Plan items as a single string separated by semicolons. Example: "Inspect logs; patch planner_create; verify the fix"',
+		),
 });
 
 type Input = z.infer<typeof schema>;
@@ -22,13 +23,13 @@ export const createPlannerCreateTool: ToolFactory<
 > = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Create a new plan with a title and list of items to accomplish. Replaces any existing plan. Always call this first before starting work.",
+		"Create a new plan with a title and semicolon-separated items string. Replaces any existing plan. Always call this first before starting work.",
 	schema,
 	execute: async ({ title, items }) => {
-		const descriptions = items.map((item) => item.trim()).filter(Boolean);
-		if (descriptions.length === 0) {
-			return "Plan must include at least one non-empty item.";
-		}
+		const descriptions = items
+			.split(";")
+			.map((item) => item.trim())
+			.filter(Boolean);
 		const now = new Date().toISOString();
 		const plan: Plan = {
 			title,

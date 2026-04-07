@@ -304,6 +304,18 @@
 			"plannerFeature": {
 				"name": "Planner",
 				"description": "Forces structured planning with item-by-item completion tracking. Agent must check all items before finishing."
+			},
+			"languageTutorFeature": {
+				"name": "Language Tutor",
+				"description": "Interactive language tutor that builds a learner profile, runs structured lessons with Q&A, scores answers, and tracks progress in the knowledge graph."
+			},
+			"shoppingAssistantFeature": {
+				"name": "Shopping Assistant",
+				"description": "Deep product research: searches multiple sources, reads prices, specs and reviews, compares alternatives, and saves a full report to /documents/shopping-assistant/."
+			},
+			"financeTrackerFeature": {
+				"name": "Finance Tracker",
+				"description": "Deep stock and company research with Mermaid diagrams and ASCII charts covering financials, valuation, analyst opinions, and news. Saves reports to /documents/finance/."
 			}
 		}
 	},

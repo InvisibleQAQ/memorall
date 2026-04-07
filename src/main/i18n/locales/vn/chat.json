@@ -158,6 +158,18 @@
 		"detail": "Chi tiết",
 		"featureTools": "Công cụ",
 		"featureSystemPrompt": "Lời nhắc hệ thống (Chỉ đọc)",
+		"toolDescriptions": {
+			"current_time": "Lấy ngày và giờ hiện tại",
+			"js_execute": "Thực thi mã JavaScript trong môi trường cách ly",
+			"calculator": "Thực hiện các phép tính cơ bản",
+			"knowledge_graph": "Truy vấn đồ thị tri thức để tìm quan hệ và thực thể",
+			"doc_read": "Đọc tệp tài liệu từ hệ thống tệp",
+			"doc_write": "Ghi nội dung vào tệp tài liệu",
+			"doc_edit": "Chỉnh sửa tệp tài liệu hiện có",
+			"doc_search": "Tìm kiếm nội dung trong tài liệu",
+			"doc_move": "Di chuyển hoặc đổi tên tệp tài liệu",
+			"doc_remove": "Xóa tệp tài liệu khỏi hệ thống tệp"
+		},
 		"cancel": "Hủy",
 		"saved": "Đã lưu",
 		"unsaved": "Chưa lưu",

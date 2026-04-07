@@ -132,7 +132,16 @@
 		"save": "Save",
 		"markdownPlaceholder": "Start writing... (Type # for heading, * for list, etc.)",
 		"characterCount": "{{count}} characters",
-		"saveHint": "Markdown shortcuts: ## for heading, * for list | Ctrl+S to save"
+		"saveHint": "Markdown shortcuts: ## for heading, * for list | Ctrl+S to save",
+		"previewMode": "Preview",
+		"editMode": "Edit",
+		"insertTable": "Insert Table",
+		"insertImage": "Insert Image",
+		"editImage": "Edit Image",
+		"updateImage": "Update Image",
+		"imageUrl": "Image URL",
+		"imageAlt": "Alt Text",
+		"imageAltPlaceholder": "Describe the image..."
 	},
 	"navigator": {
 		"expand": "Expand",

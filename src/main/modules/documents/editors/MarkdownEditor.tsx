@@ -1,17 +1,46 @@
 /**
  * Markdown Editor Component
- * Production-ready Tiptap-based editor with markdown shortcuts
- * Stores as pure markdown, edits as WYSIWYG HTML
+ * - Preview mode: renders raw initialContent via react-markdown (never goes through Tiptap)
+ * - Edit mode: Tiptap WYSIWYG with table, image, and formatting support
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+	useState,
+	useEffect,
+	useCallback,
+	useMemo,
+	useRef,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
 import Placeholder from "@tiptap/extension-placeholder";
 import { marked } from "marked";
 import TurndownService from "turndown";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { gfm } = require("turndown-plugin-gfm");
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import {
+	oneDark,
+	oneLight,
+} from "react-syntax-highlighter/dist/esm/styles/prism";
+import { MermaidRenderer } from "@/main/components/atoms/MermaidRenderer";
+import { useTheme } from "@/main/components/molecules/ThemeContext";
 import { Button } from "@/main/components/ui/button";
+import { Input } from "@/main/components/ui/input";
+import { Label } from "@/main/components/ui/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/main/components/ui/popover";
 import {
 	Save,
 	Loader2,
@@ -21,6 +50,10 @@ import {
 	ListOrdered,
 	Code,
 	Quote,
+	Eye,
+	Edit2,
+	ImageIcon,
+	Table as TableIcon,
 } from "lucide-react";
 import { logInfo, logError } from "@/utils/logger";
 import type { DocumentEditorProps } from "./types";
@@ -28,16 +61,16 @@ import { cn } from "@/lib/utils";
 import "./tiptap-editor.css";
 
 // Configure markdown parser
-marked.setOptions({
-	gfm: true,
-	breaks: true,
-});
+marked.setOptions({ gfm: true, breaks: true });
 
-// Configure HTML to Markdown converter
+// Configure HTML → Markdown converter with GFM table support
 const turndownService = new TurndownService({
 	headingStyle: "atx",
 	codeBlockStyle: "fenced",
 });
+turndownService.use(gfm);
+
+const remarkPlugins = [remarkGfm];
 
 export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 	file,
@@ -48,10 +81,19 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 	className,
 }) => {
 	const { t } = useTranslation("documents");
+	const { actualTheme } = useTheme();
+	const isDark = actualTheme === "dark";
 	const [isSaving, setIsSaving] = useState(false);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+	const [isPreview, setIsPreview] = useState(true);
+	const [imagePopoverOpen, setImagePopoverOpen] = useState(false);
+	const [imageUrl, setImageUrl] = useState("");
+	const [imageAlt, setImageAlt] = useState("");
+	const imageUrlInputRef = useRef<HTMLInputElement>(null);
 
-	// Convert markdown to HTML for initial content
+	// Preview ALWAYS renders initialContent directly — never goes through Tiptap
+	// so tables, mermaid, and all GFM features always render correctly.
+
 	const initialHtmlContent = useMemo(() => {
 		try {
 			return marked.parse(initialContent) as string;
@@ -61,14 +103,14 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 		}
 	}, [initialContent]);
 
-	// Initialize Tiptap editor
 	const editor = useEditor({
 		extensions: [
-			StarterKit.configure({
-				heading: {
-					levels: [1, 2, 3, 4, 5, 6],
-				},
-			}),
+			StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] } }),
+			Image.configure({ inline: false, allowBase64: true }),
+			Table.configure({ resizable: false }),
+			TableRow,
+			TableHeader,
+			TableCell,
 			Placeholder.configure({
 				placeholder: t("editor.markdownPlaceholder"),
 			}),
@@ -78,10 +120,11 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 		editorProps: {
 			attributes: {
 				class:
-					"prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4 min-h-[500px]",
+					"prose prose-sm sm:prose focus:outline-none max-w-none p-4 min-h-[500px]",
 			},
 		},
 		onUpdate: ({ editor }) => {
+			// Only track dirty state — do NOT derive preview content from Tiptap
 			const html = editor.getHTML();
 			const markdown = turndownService.turndown(html);
 			setHasUnsavedChanges(markdown !== initialContent);
@@ -89,35 +132,54 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 		},
 	});
 
-	// Update editor content when initialContent changes
+	// Reset editor when file changes
 	useEffect(() => {
-		if (!editor || !initialContent) return;
-
-		// Get current content as markdown to compare
-		const currentHtml = editor.getHTML();
-		const currentMarkdown = turndownService.turndown(currentHtml);
-
-		// Only update if the markdown content actually changed
-		// This prevents unnecessary resets after save
-		if (currentMarkdown.trim() !== initialContent.trim()) {
-			const newHtml = marked.parse(initialContent) as string;
-			editor.commands.setContent(newHtml);
-			setHasUnsavedChanges(false);
-		}
+		if (!editor) return;
+		const newHtml = marked.parse(initialContent) as string;
+		// emitUpdate=false: don't trigger onUpdate for programmatic content sets
+		editor.commands.setContent(newHtml, { emitUpdate: false } as any);
+		setHasUnsavedChanges(false);
 	}, [initialContent, editor]);
 
-	// Handle save - convert HTML to Markdown before saving
+	const handleOpenImagePopover = useCallback(() => {
+		if (!editor) return;
+		const attrs = editor.getAttributes("image");
+		setImageUrl(attrs.src || "");
+		setImageAlt(attrs.alt || "");
+		setImagePopoverOpen(true);
+		setTimeout(() => imageUrlInputRef.current?.focus(), 50);
+	}, [editor]);
+
+	const handleInsertImage = useCallback(() => {
+		if (!editor || !imageUrl.trim()) return;
+		editor
+			.chain()
+			.focus()
+			.setImage({ src: imageUrl.trim(), alt: imageAlt.trim() })
+			.run();
+		setImagePopoverOpen(false);
+		setImageUrl("");
+		setImageAlt("");
+	}, [editor, imageUrl, imageAlt]);
+
+	const handleInsertTable = useCallback(() => {
+		if (!editor) return;
+		editor
+			.chain()
+			.focus()
+			.insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+			.run();
+	}, [editor]);
+
 	const handleSave = useCallback(async () => {
 		if (!editor || !hasUnsavedChanges || isSaving || readOnly) return;
-
 		try {
 			setIsSaving(true);
 			const html = editor.getHTML();
-			// Convert HTML back to Markdown
 			const markdown = turndownService.turndown(html);
 			await onSave(markdown);
 			setHasUnsavedChanges(false);
-			logInfo(`[MARKDOWN_EDITOR] Saved ${file.name} as markdown`);
+			logInfo(`[MARKDOWN_EDITOR] Saved ${file.name}`);
 		} catch (error) {
 			logError("[MARKDOWN_EDITOR] Failed to save:", error);
 		} finally {
@@ -125,25 +187,81 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 		}
 	}, [editor, file.name, hasUnsavedChanges, isSaving, onSave, readOnly]);
 
-	// Keyboard shortcut: Ctrl+S / Cmd+S
 	useEffect(() => {
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if ((event.ctrlKey || event.metaKey) && event.key === "s") {
-				event.preventDefault();
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+				e.preventDefault();
 				handleSave();
 			}
 		};
-
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [handleSave]);
 
-	// Cleanup editor on unmount
-	useEffect(() => {
-		return () => {
+	useEffect(
+		() => () => {
 			editor?.destroy();
-		};
-	}, [editor]);
+		},
+		[editor],
+	);
+
+	const previewComponents = useMemo(
+		() => ({
+			code: ({ children, className, ...props }: any) => {
+				const match = /language-(\w+)/.exec(className || "");
+				const language = match ? match[1] : "";
+				if (!match) {
+					return (
+						<code
+							className="rounded bg-muted px-1 py-0.5 text-sm font-mono"
+							{...props}
+						>
+							{children}
+						</code>
+					);
+				}
+				if (language === "mermaid") {
+					return (
+						<MermaidRenderer chart={String(children).replace(/\n$/, "")} />
+					);
+				}
+				return (
+					<SyntaxHighlighter
+						style={isDark ? oneDark : oneLight}
+						language={language}
+						PreTag="div"
+						className="rounded-md text-sm"
+						customStyle={{
+							margin: 0,
+							padding: "1rem",
+							backgroundColor: isDark ? "hsl(220 13% 18%)" : "hsl(210 40% 98%)",
+						}}
+						{...props}
+					>
+						{String(children).replace(/\n$/, "")}
+					</SyntaxHighlighter>
+				);
+			},
+			a: ({
+				href,
+				children,
+				...props
+			}: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+				children?: React.ReactNode;
+			}) => (
+				<a
+					href={href}
+					className="text-blue-600 dark:text-blue-400 hover:underline"
+					target="_blank"
+					rel="noopener noreferrer"
+					{...props}
+				>
+					{children}
+				</a>
+			),
+		}),
+		[isDark],
+	);
 
 	if (!editor) {
 		return (
@@ -157,101 +275,226 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 		<div className={cn("flex flex-col h-full", className)}>
 			{/* Toolbar */}
 			<div className="flex items-center justify-between gap-2 px-4 py-2 border-b bg-card">
-				{hasUnsavedChanges && (
-					<span className="text-xs text-muted-foreground">
-						{t("editor.unsavedChanges")}
-					</span>
-				)}
+				<div className="flex items-center gap-1 flex-wrap">
+					{!isPreview && (
+						<>
+							<Button
+								variant={editor.isActive("bold") ? "secondary" : "ghost"}
+								size="sm"
+								onClick={() => editor.chain().focus().toggleBold().run()}
+								disabled={readOnly}
+								className="h-8 w-8 p-0"
+								title="Bold (Ctrl+B)"
+							>
+								<Bold className="h-4 w-4" />
+							</Button>
+							<Button
+								variant={editor.isActive("italic") ? "secondary" : "ghost"}
+								size="sm"
+								onClick={() => editor.chain().focus().toggleItalic().run()}
+								disabled={readOnly}
+								className="h-8 w-8 p-0"
+								title="Italic (Ctrl+I)"
+							>
+								<Italic className="h-4 w-4" />
+							</Button>
+							<Button
+								variant={editor.isActive("code") ? "secondary" : "ghost"}
+								size="sm"
+								onClick={() => editor.chain().focus().toggleCode().run()}
+								disabled={readOnly}
+								className="h-8 w-8 p-0"
+								title="Code"
+							>
+								<Code className="h-4 w-4" />
+							</Button>
+							<div className="w-px h-6 bg-border mx-1" />
+							<Button
+								variant={editor.isActive("bulletList") ? "secondary" : "ghost"}
+								size="sm"
+								onClick={() => editor.chain().focus().toggleBulletList().run()}
+								disabled={readOnly}
+								className="h-8 w-8 p-0"
+								title="Bullet List"
+							>
+								<List className="h-4 w-4" />
+							</Button>
+							<Button
+								variant={editor.isActive("orderedList") ? "secondary" : "ghost"}
+								size="sm"
+								onClick={() => editor.chain().focus().toggleOrderedList().run()}
+								disabled={readOnly}
+								className="h-8 w-8 p-0"
+								title="Numbered List"
+							>
+								<ListOrdered className="h-4 w-4" />
+							</Button>
+							<Button
+								variant={editor.isActive("blockquote") ? "secondary" : "ghost"}
+								size="sm"
+								onClick={() => editor.chain().focus().toggleBlockquote().run()}
+								disabled={readOnly}
+								className="h-8 w-8 p-0"
+								title="Quote"
+							>
+								<Quote className="h-4 w-4" />
+							</Button>
+							<div className="w-px h-6 bg-border mx-1" />
 
-				{/* Formatting toolbar */}
-				<div className="flex items-center gap-1">
-					<Button
-						variant={editor.isActive("bold") ? "secondary" : "ghost"}
-						size="sm"
-						onClick={() => editor.chain().focus().toggleBold().run()}
-						disabled={readOnly}
-						className="h-8 w-8 p-0"
-						title="Bold (Ctrl+B)"
-					>
-						<Bold className="h-4 w-4" />
-					</Button>
-					<Button
-						variant={editor.isActive("italic") ? "secondary" : "ghost"}
-						size="sm"
-						onClick={() => editor.chain().focus().toggleItalic().run()}
-						disabled={readOnly}
-						className="h-8 w-8 p-0"
-						title="Italic (Ctrl+I)"
-					>
-						<Italic className="h-4 w-4" />
-					</Button>
-					<Button
-						variant={editor.isActive("code") ? "secondary" : "ghost"}
-						size="sm"
-						onClick={() => editor.chain().focus().toggleCode().run()}
-						disabled={readOnly}
-						className="h-8 w-8 p-0"
-						title="Code (Ctrl+E)"
-					>
-						<Code className="h-4 w-4" />
-					</Button>
-					<div className="w-px h-6 bg-border mx-1" />
-					<Button
-						variant={editor.isActive("bulletList") ? "secondary" : "ghost"}
-						size="sm"
-						onClick={() => editor.chain().focus().toggleBulletList().run()}
-						disabled={readOnly}
-						className="h-8 w-8 p-0"
-						title="Bullet List"
-					>
-						<List className="h-4 w-4" />
-					</Button>
-					<Button
-						variant={editor.isActive("orderedList") ? "secondary" : "ghost"}
-						size="sm"
-						onClick={() => editor.chain().focus().toggleOrderedList().run()}
-						disabled={readOnly}
-						className="h-8 w-8 p-0"
-						title="Numbered List"
-					>
-						<ListOrdered className="h-4 w-4" />
-					</Button>
-					<Button
-						variant={editor.isActive("blockquote") ? "secondary" : "ghost"}
-						size="sm"
-						onClick={() => editor.chain().focus().toggleBlockquote().run()}
-						disabled={readOnly}
-						className="h-8 w-8 p-0"
-						title="Quote"
-					>
-						<Quote className="h-4 w-4" />
-					</Button>
-					<div className="w-px h-6 bg-border mx-1" />
-					<Button
-						size="sm"
-						onClick={handleSave}
-						disabled={!hasUnsavedChanges || isSaving || readOnly}
-						className="gap-2"
-					>
-						{isSaving ? (
-							<>
-								<Loader2 className="h-4 w-4 animate-spin" />
-								{t("editor.saving")}
-							</>
-						) : (
-							<>
-								<Save className="h-4 w-4" />
-								{t("editor.save")}
-							</>
-						)}
-					</Button>
+							{/* Insert Table */}
+							<Button
+								variant={editor.isActive("table") ? "secondary" : "ghost"}
+								size="sm"
+								onClick={handleInsertTable}
+								disabled={readOnly}
+								className="h-8 w-8 p-0"
+								title={t("editor.insertTable")}
+							>
+								<TableIcon className="h-4 w-4" />
+							</Button>
+
+							{/* Insert / Edit Image */}
+							<Popover
+								open={imagePopoverOpen}
+								onOpenChange={setImagePopoverOpen}
+							>
+								<PopoverTrigger asChild>
+									<Button
+										variant={editor.isActive("image") ? "secondary" : "ghost"}
+										size="sm"
+										onClick={handleOpenImagePopover}
+										disabled={readOnly}
+										className="h-8 w-8 p-0"
+										title={
+											editor.isActive("image")
+												? t("editor.editImage")
+												: t("editor.insertImage")
+										}
+									>
+										<ImageIcon className="h-4 w-4" />
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent
+									className="w-72 p-3"
+									align="start"
+									onOpenAutoFocus={(e) => e.preventDefault()}
+								>
+									<p className="text-sm font-medium mb-3">
+										{editor.isActive("image")
+											? t("editor.editImage")
+											: t("editor.insertImage")}
+									</p>
+									<div className="space-y-2">
+										<div>
+											<Label className="text-xs">{t("editor.imageUrl")}</Label>
+											<Input
+												ref={imageUrlInputRef}
+												value={imageUrl}
+												onChange={(e) => setImageUrl(e.target.value)}
+												placeholder="https://example.com/image.png"
+												className="h-8 text-sm mt-1"
+												onKeyDown={(e) => {
+													if (e.key === "Enter") handleInsertImage();
+													if (e.key === "Escape") setImagePopoverOpen(false);
+												}}
+											/>
+										</div>
+										<div>
+											<Label className="text-xs">{t("editor.imageAlt")}</Label>
+											<Input
+												value={imageAlt}
+												onChange={(e) => setImageAlt(e.target.value)}
+												placeholder={t("editor.imageAltPlaceholder")}
+												className="h-8 text-sm mt-1"
+												onKeyDown={(e) => {
+													if (e.key === "Enter") handleInsertImage();
+													if (e.key === "Escape") setImagePopoverOpen(false);
+												}}
+											/>
+										</div>
+										<Button
+											size="sm"
+											className="w-full"
+											onClick={handleInsertImage}
+											disabled={!imageUrl.trim()}
+										>
+											{editor.isActive("image")
+												? t("editor.updateImage")
+												: t("editor.insertImage")}
+										</Button>
+									</div>
+								</PopoverContent>
+							</Popover>
+
+							<div className="w-px h-6 bg-border mx-1" />
+							<Button
+								size="sm"
+								onClick={handleSave}
+								disabled={!hasUnsavedChanges || isSaving || readOnly}
+								className="gap-2"
+							>
+								{isSaving ? (
+									<>
+										<Loader2 className="h-4 w-4 animate-spin" />
+										{t("editor.saving")}
+									</>
+								) : (
+									<>
+										<Save className="h-4 w-4" />
+										{t("editor.save")}
+									</>
+								)}
+							</Button>
+						</>
+					)}
+				</div>
+
+				<div className="flex items-center gap-2">
+					{hasUnsavedChanges && !isPreview && (
+						<span className="text-xs text-muted-foreground">
+							{t("editor.unsavedChanges")}
+						</span>
+					)}
+					{!readOnly && (
+						<Button
+							variant={isPreview ? "secondary" : "ghost"}
+							size="sm"
+							onClick={() => setIsPreview((v) => !v)}
+							className="gap-1.5"
+						>
+							{isPreview ? (
+								<>
+									<Edit2 className="h-4 w-4" />
+									<span className="text-xs">{t("editor.editMode")}</span>
+								</>
+							) : (
+								<>
+									<Eye className="h-4 w-4" />
+									<span className="text-xs">{t("editor.previewMode")}</span>
+								</>
+							)}
+						</Button>
+					)}
 				</div>
 			</div>
 
-			{/* Editor */}
-			<div className="flex-1 overflow-auto bg-background">
-				<EditorContent editor={editor} className="h-full" />
-			</div>
+			{/* Content */}
+			{isPreview ? (
+				<div className="flex-1 overflow-auto bg-background p-4">
+					<div className="markdown-body">
+						<ReactMarkdown
+							remarkPlugins={remarkPlugins}
+							components={previewComponents}
+						>
+							{initialContent}
+						</ReactMarkdown>
+					</div>
+				</div>
+			) : (
+				<div className="flex-1 overflow-auto bg-background">
+					<EditorContent editor={editor} className="h-full" />
+				</div>
+			)}
 
 			{/* Status Bar */}
 			<div className="px-4 py-1 border-t bg-card text-xs text-muted-foreground flex items-center justify-between">
@@ -262,7 +505,7 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 							editor.getText().length,
 					})}
 				</span>
-				<span className="text-xs">{t("editor.saveHint")}</span>
+				<span>{t("editor.saveHint")}</span>
 			</div>
 		</div>
 	);

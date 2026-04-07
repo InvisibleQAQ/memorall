@@ -30,6 +30,10 @@ import { cn } from "@/lib/utils";
 import type { KnowledgeRAGPredefinedConfig } from "@/services/flows/graph/knowledge-rag/state";
 import type { AgentConfigSummary } from "../types";
 import { HoverBadgeList } from "./AgentHoverInfo";
+import {
+	getAgentFeatureDescription,
+	getAgentFeatureDisplayName,
+} from "../utils/feature-display";
 
 interface AgentConfigFormProps {
 	className?: string;
@@ -87,6 +91,58 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 	const currentGraphMeta = GRAPH_REGISTRY.find(
 		(graph) => graph.id === currentGraphType,
 	);
+	const fallbackEnabledFeatureLabels = React.useMemo(
+		() =>
+			featureDefinitions.flatMap((feature) => {
+				if (feature.type === "config") {
+					if (
+						feature.configKey === "tools" ||
+						!draftConfig[feature.configKey]
+					) {
+						return [];
+					}
+
+					return [getAgentFeatureDisplayName(feature, t)];
+				}
+
+				return draftFeatures[feature.name]
+					? [getAgentFeatureDisplayName(feature, t)]
+					: [];
+			}),
+		[draftConfig, draftFeatures, featureDefinitions, t],
+	);
+	const fallbackEnabledToolNames = React.useMemo(() => {
+		const enabledToolSet = new Set(draftConfig.tools);
+
+		for (const feature of featureDefinitions) {
+			if (feature.type === "config") {
+				if (feature.configKey === "tools" || !draftConfig[feature.configKey]) {
+					continue;
+				}
+			} else if (!draftFeatures[feature.name]) {
+				continue;
+			}
+
+			for (const tool of feature.tools) {
+				enabledToolSet.add(tool);
+			}
+		}
+
+		const availableToolSet = new Set(availableTools);
+		return [
+			...availableTools.filter((tool) => enabledToolSet.has(tool)),
+			...Array.from(enabledToolSet).filter(
+				(tool) => !availableToolSet.has(tool),
+			),
+		];
+	}, [availableTools, draftConfig, draftFeatures, featureDefinitions]);
+	const enabledFeatureLabels =
+		summary?.enabledFeatureLabels ?? fallbackEnabledFeatureLabels;
+	const enabledToolNames =
+		summary?.enabledToolNames ?? fallbackEnabledToolNames;
+	const enabledFeatureCount =
+		summary?.enabledFeatureCount ?? enabledFeatureLabels.length;
+	const enabledToolCount = summary?.enabledToolCount ?? enabledToolNames.length;
 
 	if (isLoading) {
 		return (
@@ -209,7 +265,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 								</Label>
 								<HoverBadgeList
 									title={t("summary.features", { ns: "agents" })}
-									items={summary?.enabledFeatureLabels ?? []}
+									items={enabledFeatureLabels}
 									emptyLabel={t("summary.noFeaturesEnabled", {
 										ns: "agents",
 									})}
@@ -218,7 +274,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 										<p className="text-sm font-semibold">
 											{t("summary.featuresValue", {
 												ns: "agents",
-												count: summary?.enabledFeatureCount ?? 0,
+												count: enabledFeatureCount,
 											})}
 										</p>
 									</div>
@@ -227,7 +283,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 						</div>
 						<HoverBadgeList
 							title={t("summary.tools", { ns: "agents" })}
-							items={summary?.enabledToolNames ?? []}
+							items={enabledToolNames}
 							emptyLabel={t("summary.noToolsEnabled", { ns: "agents" })}
 							badgeClassName="font-mono"
 							badgeVariant="outline"
@@ -236,7 +292,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 							<Badge variant="outline" className="cursor-help bg-background/80">
 								{t("summary.toolsValue", {
 									ns: "agents",
-									count: summary?.enabledToolCount ?? 0,
+									count: enabledToolCount,
 								})}
 							</Badge>
 						</HoverBadgeList>
@@ -314,20 +370,8 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 										)
 								: () => toggleFeature(feature.name);
 
-						const displayName =
-							feature.type === "config"
-								? t(feature.nameKey)
-								: feature.nameKey
-									? t(feature.nameKey, { defaultValue: feature.displayName })
-									: feature.displayName;
-						const displayDesc =
-							feature.type === "config"
-								? t(feature.descKey)
-								: feature.descriptionKey
-									? t(feature.descriptionKey, {
-											defaultValue: feature.description,
-										})
-									: feature.description;
+						const displayName = getAgentFeatureDisplayName(feature, t);
+						const displayDesc = getAgentFeatureDescription(feature, t);
 						const hasDetail =
 							feature.type === "config" ? Boolean(feature.promptField) : true;
 

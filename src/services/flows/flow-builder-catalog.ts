@@ -64,6 +64,24 @@ import {
 	PLANNER_FEATURE_SYSTEM_PROMPT,
 	PLANNER_FEATURE_TOOLS,
 } from "./steps/features/planner-feature";
+import {
+	LANGUAGE_TUTOR_FEATURE_DESCRIPTION,
+	LANGUAGE_TUTOR_FEATURE_NAME,
+	LANGUAGE_TUTOR_FEATURE_SYSTEM_PROMPT,
+	LANGUAGE_TUTOR_FEATURE_TOOLS,
+} from "./steps/features/language-tutor-feature";
+import {
+	SHOPPING_ASSISTANT_FEATURE_DESCRIPTION,
+	SHOPPING_ASSISTANT_FEATURE_NAME,
+	SHOPPING_ASSISTANT_FEATURE_SYSTEM_PROMPT,
+	SHOPPING_ASSISTANT_FEATURE_TOOLS,
+} from "./steps/features/shopping-assistant-feature";
+import {
+	FINANCE_TRACKER_FEATURE_DESCRIPTION,
+	FINANCE_TRACKER_FEATURE_NAME,
+	FINANCE_TRACKER_FEATURE_SYSTEM_PROMPT,
+	FINANCE_TRACKER_FEATURE_TOOLS,
+} from "./steps/features/finance-tracker-feature";
 
 /**
  * Flow Builder Catalog
@@ -752,6 +770,135 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			nameKey: "flowBuilder.features.jobApplicationFeature.name",
 			tools: [...JOB_APPLICATION_FEATURE_TOOLS],
 			systemPrompt: JOB_APPLICATION_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-language-tutor-feature",
+		name: LANGUAGE_TUTOR_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with language tutor instructions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description:
+					"Tools extended with knowledge_graph and current_time toolset.",
+			},
+		],
+		metadata: {
+			description: LANGUAGE_TUTOR_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.languageTutorFeature.description",
+			displayName: "Language Tutor",
+			nameKey: "flowBuilder.features.languageTutorFeature.name",
+			tools: [...LANGUAGE_TUTOR_FEATURE_TOOLS],
+			systemPrompt: LANGUAGE_TUTOR_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-shopping-assistant-feature",
+		name: SHOPPING_ASSISTANT_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description:
+					"Messages with shopping research instructions and open sessions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description:
+					"Tools extended with web + doc toolset for product research.",
+			},
+		],
+		metadata: {
+			description: SHOPPING_ASSISTANT_FEATURE_DESCRIPTION,
+			descriptionKey:
+				"flowBuilder.features.shoppingAssistantFeature.description",
+			displayName: "Shopping Assistant",
+			nameKey: "flowBuilder.features.shoppingAssistantFeature.name",
+			tools: [...SHOPPING_ASSISTANT_FEATURE_TOOLS],
+			systemPrompt: SHOPPING_ASSISTANT_FEATURE_SYSTEM_PROMPT,
+			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-finance-tracker-feature",
+		name: FINANCE_TRACKER_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description:
+					"Messages with financial research instructions and open sessions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description:
+					"Tools extended with web + doc toolset for stock/company research.",
+			},
+		],
+		metadata: {
+			description: FINANCE_TRACKER_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.financeTrackerFeature.description",
+			displayName: "Finance Tracker",
+			nameKey: "flowBuilder.features.financeTrackerFeature.name",
+			tools: [...FINANCE_TRACKER_FEATURE_TOOLS],
+			systemPrompt: FINANCE_TRACKER_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
 		} satisfies FeatureCatalogMetadata,
 	},

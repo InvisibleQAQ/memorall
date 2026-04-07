@@ -35,6 +35,7 @@ import {
 } from "@/main/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { coerceDate, type AgentConfigSummary } from "../types";
+import { getAgentFeatureDisplayName } from "../utils/feature-display";
 
 const PANEL_STORAGE_KEY = "memorall.agents.workspace-panels.v2";
 const DEFAULT_PANEL_SIZES = [18, 24, 58] as const;
@@ -83,7 +84,7 @@ const readStoredPanelSizes = (): [number, number, number] => {
 };
 
 export const AgentsWorkspace: React.FC = () => {
-	const { t } = useTranslation(["agents", "chat"]);
+	const { t } = useTranslation(["agents", "chat", "common"]);
 	const {
 		filteredPresets,
 		selectedPreset,
@@ -307,7 +308,11 @@ export const AgentsWorkspace: React.FC = () => {
 					: [];
 			}
 
-			return draftFeatures[feature.name] ? [feature.name] : [];
+			if (!draftFeatures[feature.name]) {
+				return [];
+			}
+
+			return [getAgentFeatureDisplayName(feature, t)];
 		});
 		const enabledToolSet = new Set(draftConfig.tools);
 
