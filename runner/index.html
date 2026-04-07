@@ -14,2122 +14,8 @@
     href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
     rel="stylesheet"
   >
-  <script>
-    document.documentElement.classList.add("js");
-  </script>
-  <style>
-    :root {
-      --bg: #f3ede3;
-      --bg-alt: #ece3d5;
-      --panel: #fbf7f0;
-      --panel-strong: #101612;
-      --panel-soft: rgba(255, 255, 255, 0.74);
-      --text: #111714;
-      --text-soft: rgba(17, 23, 20, 0.68);
-      --text-inverse: #f6f1e8;
-      --line: rgba(17, 23, 20, 0.1);
-      --line-strong: rgba(255, 255, 255, 0.12);
-      --accent: #b6ff67;
-      --accent-strong: #7ed436;
-      --accent-warm: #ffc479;
-      --shadow: 0 24px 90px rgba(14, 20, 17, 0.18);
-      --shadow-strong: 0 38px 120px rgba(0, 0, 0, 0.42);
-      --radius-lg: 30px;
-      --radius-md: 22px;
-      --radius-sm: 16px;
-      --pointer-x: 0;
-      --pointer-y: 0;
-      --scroll-scale: 0;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-    body {
-      margin: 0;
-      font-family: "Space Grotesk", sans-serif;
-      color: var(--text);
-      background:
-        radial-gradient(circle at top, rgba(182, 255, 103, 0.06), transparent 24rem),
-        var(--bg);
-      overflow-x: hidden;
-    }
-
-    a {
-      color: inherit;
-    }
-
-    section[id] {
-      scroll-margin-top: 6.5rem;
-    }
-
-    img {
-      display: block;
-      max-width: 100%;
-    }
-
-    .scroll-progress {
-      position: fixed;
-      inset: 0 auto auto 0;
-      width: 100%;
-      height: 3px;
-      transform: scaleX(var(--scroll-scale));
-      transform-origin: left center;
-      background: linear-gradient(90deg, var(--accent), var(--accent-warm));
-      z-index: 100;
-    }
-
-    .shell {
-      width: min(1200px, calc(100% - 2rem));
-      margin: 0 auto;
-    }
-
-    .hero-shell.shell {
-      width: min(1280px, calc(100% - 2rem));
-    }
-
-    .site-header {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      backdrop-filter: blur(20px);
-      background: rgba(9, 13, 10, 0.82);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .header-shell {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 1rem 0;
-    }
-
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.85rem;
-      color: var(--text-inverse);
-      text-decoration: none;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-    }
-
-    .brand img {
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
-      box-shadow: 0 14px 34px rgba(182, 255, 103, 0.16);
-    }
-
-    .site-nav {
-      display: flex;
-      align-items: center;
-      gap: 1.2rem;
-    }
-
-    .site-nav a {
-      color: rgba(246, 241, 232, 0.76);
-      text-decoration: none;
-      font-size: 0.95rem;
-      transition: color 180ms ease;
-    }
-
-    .site-nav a:hover,
-    .site-nav a:focus-visible {
-      color: var(--text-inverse);
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      min-height: 50px;
-      padding: 0.95rem 1.35rem;
-      border-radius: 999px;
-      text-decoration: none;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      border: 1px solid transparent;
-      transition:
-        transform 220ms ease,
-        border-color 220ms ease,
-        background-color 220ms ease,
-        color 220ms ease,
-        box-shadow 220ms ease;
-      will-change: transform;
-    }
-
-    .btn:hover,
-    .btn:focus-visible {
-      transform: translateY(-2px);
-    }
-
-    .btn-primary {
-      color: #0c130d;
-      background: linear-gradient(135deg, var(--accent), #d6ff9c 100%);
-      box-shadow: 0 18px 40px rgba(182, 255, 103, 0.18);
-    }
-
-    .btn-secondary {
-      color: var(--text-inverse);
-      background: rgba(255, 255, 255, 0.03);
-      border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .btn-light {
-      color: var(--text);
-      background: rgba(17, 23, 20, 0.05);
-      border-color: rgba(17, 23, 20, 0.08);
-    }
-
-    .btn-compact {
-      min-height: 44px;
-      padding: 0.8rem 1.1rem;
-      font-size: 0.92rem;
-    }
-
-    .hero {
-      position: relative;
-      overflow: hidden;
-      background:
-        radial-gradient(circle at top, rgba(182, 255, 103, 0.09), transparent 24rem),
-        linear-gradient(180deg, #0b100d 0%, #0f1511 72%, #111813 100%);
-      padding: clamp(3.4rem, 8vw, 6.5rem) 0 clamp(4.5rem, 8vw, 7rem);
-    }
-
-    .hero::before,
-    .hero::after {
-      content: "";
-      position: absolute;
-      border-radius: 999px;
-      filter: blur(40px);
-      pointer-events: none;
-      opacity: 0.72;
-    }
-
-    .hero::before {
-      width: 36rem;
-      height: 36rem;
-      top: -8rem;
-      right: -10rem;
-      background: radial-gradient(circle, rgba(182, 255, 103, 0.2), transparent 68%);
-    }
-
-    .hero::after {
-      width: 30rem;
-      height: 30rem;
-      left: -12rem;
-      bottom: 2rem;
-      background: radial-gradient(circle, rgba(255, 196, 121, 0.18), transparent 70%);
-    }
-
-    .hero-shell {
-      position: relative;
-      display: grid;
-      grid-template-columns: minmax(0, 0.98fr) minmax(430px, 1.02fr);
-      gap: clamp(2rem, 3vw, 3.4rem);
-      align-items: start;
-    }
-
-    .hero-copy {
-      position: relative;
-      z-index: 1;
-      padding-top: clamp(0.3rem, 1vw, 1rem);
-    }
-
-    .eyebrow,
-    .section-label,
-    .chip,
-    .mini-label,
-    .stat-label {
-      font-family: "IBM Plex Mono", monospace;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      font-size: 0.73rem;
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      padding: 0.55rem 0.9rem;
-      border-radius: 999px;
-      margin-bottom: 1.35rem;
-      color: rgba(246, 241, 232, 0.82);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .eyebrow::before {
-      content: "";
-      width: 0.55rem;
-      height: 0.55rem;
-      border-radius: 999px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-warm));
-      box-shadow: 0 0 16px rgba(182, 255, 103, 0.35);
-    }
-
-    .hero h1 {
-      margin: 0;
-      max-width: 9ch;
-      color: var(--text-inverse);
-      font-size: clamp(3.3rem, 9vw, 7rem);
-      line-height: 0.9;
-      letter-spacing: -0.08em;
-    }
-
-    .hero-lead {
-      max-width: 40rem;
-      margin: 1.5rem 0 0;
-      color: rgba(246, 241, 232, 0.76);
-      font-size: clamp(1.08rem, 2vw, 1.25rem);
-      line-height: 1.65;
-    }
-
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.9rem;
-      margin: 2rem 0 1.65rem;
-    }
-
-    .hero-proof {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.8rem;
-    }
-
-    .hero-proof span {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1rem;
-      border-radius: 999px;
-      color: rgba(246, 241, 232, 0.84);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    }
-
-    .hero-proof span::before {
-      content: "";
-      width: 0.42rem;
-      height: 0.42rem;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 12px rgba(182, 255, 103, 0.35);
-    }
-
-    .hero-visual {
-      position: relative;
-      min-height: 36rem;
-      padding: 2rem 0;
-      z-index: 1;
-    }
-
-    .visual-shell {
-      position: relative;
-      z-index: 1;
-      overflow: hidden;
-      border-radius: 32px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background:
-        radial-gradient(circle at top left, rgba(182, 255, 103, 0.1), transparent 26rem),
-        linear-gradient(180deg, rgba(20, 27, 23, 0.96), rgba(10, 14, 12, 0.98));
-      box-shadow: var(--shadow-strong);
-      transform:
-        perspective(1300px)
-        rotateX(calc(var(--pointer-y) * -2deg))
-        rotateY(calc(var(--pointer-x) * 3deg))
-        translate3d(calc(var(--pointer-x) * 10px), calc(var(--pointer-y) * 10px), 0);
-      transition: transform 280ms ease;
-    }
-
-    .visual-shell::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-      background-size: 22px 22px;
-      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.45), transparent 100%);
-      pointer-events: none;
-    }
-
-    .visual-topbar {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 0.9rem 1rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      color: rgba(246, 241, 232, 0.76);
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.68rem;
-    }
-
-    .visual-dots {
-      display: inline-flex;
-      gap: 0.45rem;
-    }
-
-    .visual-dots span {
-      width: 0.7rem;
-      height: 0.7rem;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.18);
-    }
-
-    .visual-body {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: minmax(152px, 0.78fr) minmax(0, 1.22fr);
-      gap: 0.9rem;
-      padding: 0.95rem;
-    }
-
-    .sidebar-column,
-    .inspector-column,
-    .main-column {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      min-width: 0;
-    }
-
-    .main-column {
-      min-width: 0;
-    }
-
-    .inspector-column {
-      grid-column: 1 / -1;
-      display: grid;
-      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-      align-items: start;
-    }
-
-    .mini-panel,
-    .main-panel {
-      border-radius: 22px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.03);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    }
-
-    .mini-panel {
-      padding: 0.9rem;
-    }
-
-    .mini-label {
-      color: rgba(246, 241, 232, 0.58);
-    }
-
-    .topic-list,
-    .doc-list,
-    .tool-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.65rem;
-      margin-top: 0.9rem;
-    }
-
-    .topic-item,
-    .doc-item,
-    .tool-item,
-    .memory-signal {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      min-width: 0;
-      padding: 0.68rem 0.72rem;
-      border-radius: 16px;
-      color: rgba(246, 241, 232, 0.76);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      font-size: 0.84rem;
-    }
-
-    .topic-item strong,
-    .doc-item strong,
-    .tool-item strong {
-      font-weight: 500;
-      min-width: 0;
-      overflow-wrap: anywhere;
-    }
-
-    .topic-item.is-active {
-      color: #0d140f;
-      background: linear-gradient(135deg, rgba(182, 255, 103, 0.98), rgba(255, 196, 121, 0.84));
-      border-color: transparent;
-      box-shadow: 0 14px 30px rgba(182, 255, 103, 0.14);
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: 0 0 auto;
-      min-width: 2.25rem;
-      padding: 0.25rem 0.5rem;
-      border-radius: 999px;
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.72rem;
-      background: rgba(255, 255, 255, 0.07);
-      color: rgba(246, 241, 232, 0.72);
-    }
-
-    .topic-item.is-active .pill {
-      color: rgba(13, 20, 15, 0.72);
-      background: rgba(13, 20, 15, 0.12);
-    }
-
-    .main-panel {
-      padding: 1rem;
-      min-height: 100%;
-      min-width: 0;
-    }
-
-    .chat-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.55rem 0.8rem;
-      color: rgba(246, 241, 232, 0.72);
-      margin-bottom: 1rem;
-      font-size: 0.86rem;
-    }
-
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.4rem 0.65rem;
-      border-radius: 999px;
-      background: rgba(182, 255, 103, 0.08);
-      color: rgba(246, 241, 232, 0.68);
-      border: 1px solid rgba(182, 255, 103, 0.12);
-    }
-
-    .message-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-    }
-
-    .message {
-      max-width: 100%;
-      padding: 0.95rem 1rem;
-      border-radius: 18px;
-      font-size: 0.9rem;
-      line-height: 1.55;
-    }
-
-    .message-user {
-      align-self: flex-end;
-      color: #0e140f;
-      background: linear-gradient(135deg, rgba(182, 255, 103, 0.98), rgba(255, 196, 121, 0.84));
-      box-shadow: 0 20px 38px rgba(182, 255, 103, 0.12);
-    }
-
-    .message-agent {
-      align-self: flex-start;
-      color: rgba(246, 241, 232, 0.9);
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .memory-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0.8rem;
-      margin-top: 1rem;
-    }
-
-    .memory-signal {
-      align-items: flex-start;
-      flex-direction: column;
-      min-height: 5.8rem;
-    }
-
-    .memory-signal strong {
-      color: var(--text-inverse);
-      font-size: 1rem;
-    }
-
-    .memory-signal span {
-      color: rgba(246, 241, 232, 0.64);
-      font-size: 0.86rem;
-      line-height: 1.45;
-    }
-
-    .graph-field {
-      position: relative;
-      height: 128px;
-      margin-top: 0.9rem;
-      border-radius: 18px;
-      background:
-        radial-gradient(circle at 30% 30%, rgba(182, 255, 103, 0.2), transparent 25%),
-        radial-gradient(circle at 76% 45%, rgba(255, 196, 121, 0.18), transparent 30%),
-        rgba(255, 255, 255, 0.03);
-      overflow: hidden;
-    }
-
-    .graph-field::before,
-    .graph-field::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(135deg, transparent 46%, rgba(255, 255, 255, 0.08) 46%, rgba(255, 255, 255, 0.08) 48%, transparent 48%),
-        linear-gradient(10deg, transparent 53%, rgba(255, 255, 255, 0.08) 53%, rgba(255, 255, 255, 0.08) 55%, transparent 55%);
-      opacity: 0.9;
-    }
-
-    .node {
-      position: absolute;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 18px rgba(182, 255, 103, 0.32);
-      animation: pulse 3.6s ease-in-out infinite;
-    }
-
-    .node:nth-child(1) { top: 20%; left: 18%; animation-delay: 0s; }
-    .node:nth-child(2) { top: 52%; left: 38%; animation-delay: 0.5s; }
-    .node:nth-child(3) { top: 32%; right: 20%; animation-delay: 1s; background: var(--accent-warm); }
-    .node:nth-child(4) { bottom: 18%; right: 28%; animation-delay: 1.4s; }
-
-    .visual-badge {
-      position: absolute;
-      z-index: 3;
-      max-width: 16rem;
-      padding: 0.85rem 1rem;
-      border-radius: 18px;
-      pointer-events: none;
-      backdrop-filter: blur(16px);
-      background: rgba(251, 247, 240, 0.94);
-      color: #121612;
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.26);
-      font-size: 0.88rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      opacity: 1;
-      animation: drift 7s ease-in-out infinite;
-    }
-
-    .visual-badge small {
-      display: block;
-      margin-top: 0.25rem;
-      color: rgba(17, 23, 20, 0.58);
-      font-size: 0.76rem;
-      font-weight: 500;
-    }
-
-    .badge-left {
-      top: -1rem;
-      left: -1rem;
-      animation-delay: 0.2s;
-    }
-
-    .badge-right {
-      right: -1rem;
-      top: 32%;
-      animation-delay: 0.9s;
-    }
-
-    .badge-bottom {
-      left: 12%;
-      bottom: -1rem;
-      animation-delay: 1.4s;
-    }
-
-    .marquee {
-      position: relative;
-      overflow: hidden;
-      border-top: 1px solid rgba(17, 23, 20, 0.08);
-      border-bottom: 1px solid rgba(17, 23, 20, 0.08);
-      background: rgba(255, 255, 255, 0.52);
-      backdrop-filter: blur(10px);
-    }
-
-    .marquee-inner {
-      display: flex;
-      width: max-content;
-      gap: 1rem;
-      padding: 1rem 0;
-      animation: marquee 28s linear infinite;
-    }
-
-    .marquee-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.7rem;
-      padding: 0.7rem 1rem;
-      border-radius: 999px;
-      background: rgba(17, 23, 20, 0.05);
-      border: 1px solid rgba(17, 23, 20, 0.06);
-      color: rgba(17, 23, 20, 0.78);
-      white-space: nowrap;
-      font-size: 0.95rem;
-    }
-
-    .marquee-item::before {
-      content: "";
-      width: 0.45rem;
-      height: 0.45rem;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), var(--accent-warm));
-      flex: 0 0 auto;
-    }
-
-    .section {
-      padding: clamp(4.5rem, 8vw, 7rem) 0;
-    }
-
-    .section-dark {
-      color: var(--text-inverse);
-      background:
-        radial-gradient(circle at top right, rgba(182, 255, 103, 0.08), transparent 20rem),
-        linear-gradient(180deg, #0b100d 0%, #121a15 100%);
-    }
-
-    .section-heading {
-      max-width: 50rem;
-      margin-bottom: 2.4rem;
-    }
-
-    .section-label {
-      margin: 0 0 0.8rem;
-      color: rgba(17, 23, 20, 0.5);
-    }
-
-    .section-dark .section-label {
-      color: rgba(246, 241, 232, 0.5);
-    }
-
-    .section-heading h2,
-    .privacy-copy h2,
-    .cta-panel h2 {
-      margin: 0;
-      font-size: clamp(2.4rem, 6vw, 4.8rem);
-      line-height: 0.94;
-      letter-spacing: -0.07em;
-      max-width: 11ch;
-    }
-
-    .section-heading p,
-    .privacy-copy p,
-    .cta-panel p {
-      margin: 1rem 0 0;
-      color: var(--text-soft);
-      font-size: 1.04rem;
-      line-height: 1.7;
-      max-width: 42rem;
-    }
-
-    .section-dark .section-heading p {
-      color: rgba(246, 241, 232, 0.66);
-    }
-
-    .comparison-grid,
-    .step-grid,
-    .feature-grid,
-    .timeline-grid,
-    .privacy-cards,
-    .stack-grid {
-      display: grid;
-      gap: 1.2rem;
-    }
-
-    .comparison-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .comparison-card {
-      padding: 1.5rem;
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .comparison-card h3,
-    .step-card h3,
-    .feature-card h3,
-    .timeline-card h3,
-    .stack-card h3,
-    .privacy-card h3 {
-      margin: 0.7rem 0 0;
-      font-size: 1.4rem;
-      letter-spacing: -0.04em;
-    }
-
-    .comparison-card p,
-    .step-card p,
-    .feature-card p,
-    .timeline-card p,
-    .stack-card p,
-    .privacy-card p {
-      color: inherit;
-      line-height: 1.65;
-    }
-
-    .comparison-card-old {
-      color: var(--text-inverse);
-      background:
-        linear-gradient(180deg, rgba(15, 21, 17, 0.98), rgba(11, 15, 13, 0.98)),
-        #111714;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .comparison-card-new {
-      background: linear-gradient(180deg, rgba(251, 247, 240, 0.98), rgba(244, 237, 227, 0.98));
-      border: 1px solid rgba(17, 23, 20, 0.08);
-    }
-
-    .story-list {
-      margin-top: 1.3rem;
-    }
-
-    .story-row {
-      display: flex;
-      gap: 0.9rem;
-      padding: 1rem 0;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .comparison-card-new .story-row {
-      border-top-color: rgba(17, 23, 20, 0.09);
-    }
-
-    .story-tag {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 3.3rem;
-      height: 1.9rem;
-      padding: 0 0.55rem;
-      border-radius: 999px;
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.72rem;
-      background: rgba(255, 255, 255, 0.07);
-      color: rgba(246, 241, 232, 0.74);
-      flex: 0 0 auto;
-    }
-
-    .comparison-card-new .story-tag {
-      background: rgba(17, 23, 20, 0.06);
-      color: rgba(17, 23, 20, 0.68);
-    }
-
-    .story-row strong {
-      display: block;
-      margin-bottom: 0.2rem;
-      font-size: 1rem;
-    }
-
-    .story-row span {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(246, 241, 232, 0.62);
-      line-height: 1.55;
-    }
-
-    .comparison-card-new .story-row span {
-      color: rgba(17, 23, 20, 0.62);
-    }
-
-    .step-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .step-card {
-      position: relative;
-      overflow: hidden;
-      padding: 1.5rem;
-      border-radius: var(--radius-lg);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    }
-
-    .step-number {
-      display: inline-block;
-      font-size: 3.8rem;
-      line-height: 1;
-      letter-spacing: -0.08em;
-      color: rgba(182, 255, 103, 0.3);
-    }
-
-    .step-card p {
-      color: rgba(246, 241, 232, 0.66);
-    }
-
-    .step-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.6rem;
-      margin-top: 1rem;
-    }
-
-    .step-pills span,
-    .feature-meta span,
-    .stack-pills span {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.5rem 0.7rem;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: rgba(246, 241, 232, 0.7);
-      font-size: 0.84rem;
-    }
-
-    .workflow-graph-panel {
-      margin-top: 1.35rem;
-      padding: clamp(1rem, 3vw, 1.35rem);
-      border-radius: 32px;
-      background:
-        radial-gradient(circle at top right, rgba(182, 255, 103, 0.09), transparent 18rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025));
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    }
-
-    .workflow-graph-intro {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .workflow-graph-intro h3 {
-      margin: 0.45rem 0 0;
-      font-size: clamp(1.6rem, 3vw, 2.2rem);
-      letter-spacing: -0.05em;
-      max-width: 14ch;
-    }
-
-    .workflow-graph-intro p {
-      margin: 0.7rem 0 0;
-      max-width: 38rem;
-      color: rgba(246, 241, 232, 0.66);
-      line-height: 1.65;
-    }
-
-    .workflow-graph-intro .step-pills {
-      margin-top: 0;
-      justify-content: flex-end;
-      flex: 0 0 auto;
-    }
-
-    .workflow-graph-shell {
-      display: grid;
-      grid-template-columns: minmax(285px, 0.72fr) minmax(0, 1.28fr);
-      gap: 1rem;
-      align-items: start;
-    }
-
-    .workflow-graph-sidebar {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .workflow-panel {
-      padding: 1rem;
-      border-radius: 24px;
-      background: rgba(255, 255, 255, 0.035);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    }
-
-    .workflow-selection-header {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.85rem;
-    }
-
-    .workflow-selection-avatar {
-      flex: 0 0 auto;
-      width: 2.75rem;
-      height: 2.75rem;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #f06d8d, #ffb0c4);
-      box-shadow: 0 0 0 10px rgba(240, 109, 141, 0.1), 0 18px 30px rgba(240, 109, 141, 0.2);
-    }
-
-    .workflow-selection-meta strong {
-      display: block;
-      color: var(--text-inverse);
-      font-size: 1.2rem;
-      letter-spacing: -0.04em;
-    }
-
-    .workflow-selection-type {
-      display: inline-flex;
-      align-items: center;
-      margin-top: 0.35rem;
-      padding: 0.38rem 0.68rem;
-      border-radius: 999px;
-      background: rgba(255, 196, 121, 0.12);
-      border: 1px solid rgba(255, 196, 121, 0.16);
-      color: rgba(246, 241, 232, 0.78);
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.68rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-
-    .workflow-selection-tabs {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.6rem;
-      margin: 1rem 0 0.9rem;
-    }
-
-    .workflow-selection-tabs span {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 2.6rem;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: rgba(246, 241, 232, 0.62);
-      font-weight: 700;
-      font-size: 0.9rem;
-    }
-
-    .workflow-selection-tabs .is-active {
-      color: var(--text-inverse);
-      background: rgba(129, 182, 255, 0.18);
-      border-color: rgba(129, 182, 255, 0.22);
-    }
-
-    .workflow-selection-copy {
-      margin: 0;
-      color: rgba(246, 241, 232, 0.72);
-      line-height: 1.65;
-    }
-
-    .workflow-connection-list {
-      display: grid;
-      gap: 0.6rem;
-      margin-top: 1rem;
-    }
-
-    .workflow-connection-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.8rem;
-      padding: 0.72rem 0.78rem;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      font-size: 0.84rem;
-      color: rgba(246, 241, 232, 0.72);
-    }
-
-    .workflow-connection-row strong {
-      color: var(--text-inverse);
-      font-weight: 600;
-    }
-
-    .workflow-type-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.55rem;
-      margin-top: 0.85rem;
-    }
-
-    .workflow-type-pill {
-      --type-color: var(--accent);
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      min-width: 0;
-      padding: 0.58rem 0.68rem;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: rgba(246, 241, 232, 0.72);
-      font-size: 0.78rem;
-    }
-
-    .workflow-type-pill::before {
-      content: "";
-      flex: 0 0 auto;
-      width: 0.68rem;
-      height: 0.68rem;
-      border-radius: 50%;
-      background: var(--type-color);
-      box-shadow: 0 0 14px color-mix(in srgb, var(--type-color) 55%, transparent);
-    }
-
-    .workflow-type-pill--paradigm { --type-color: #f06d8d; }
-    .workflow-type-pill--capability { --type-color: #37d0f2; }
-    .workflow-type-pill--benchmark { --type-color: #9edb65; }
-    .workflow-type-pill--person { --type-color: #78a9ff; }
-    .workflow-type-pill--concept { --type-color: #f29b4b; }
-    .workflow-type-pill--method { --type-color: #b387ff; }
-
-    .workflow-graph-canvas {
-      padding: 1rem;
-      min-width: 0;
-      border-radius: 28px;
-      background:
-        radial-gradient(circle at top left, rgba(182, 255, 103, 0.05), transparent 18rem),
-        linear-gradient(180deg, rgba(8, 12, 11, 0.96), rgba(9, 12, 16, 0.98));
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow:
-        0 30px 90px rgba(0, 0, 0, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      overflow: hidden;
-    }
-
-    .workflow-graph-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.8rem;
-      color: rgba(246, 241, 232, 0.72);
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.68rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .workflow-graph-toolbar span:last-child {
-      color: rgba(246, 241, 232, 0.54);
-    }
-
-    .workflow-graph-stage {
-      position: relative;
-      min-height: 400px;
-      margin-top: 0.95rem;
-      border-radius: 24px;
-      overflow: hidden;
-      background:
-        radial-gradient(circle at 24% 20%, rgba(129, 182, 255, 0.16), transparent 15rem),
-        radial-gradient(circle at 76% 74%, rgba(240, 109, 141, 0.12), transparent 16rem),
-        linear-gradient(180deg, rgba(11, 18, 33, 0.98), rgba(8, 12, 21, 1));
-    }
-
-    .workflow-graph-stage::before,
-    .workflow-graph-stage::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-    }
-
-    .workflow-graph-stage::before {
-      background:
-        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-      background-size: 46px 46px;
-      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.78), transparent 100%);
-      opacity: 0.34;
-    }
-
-    .workflow-graph-stage::after {
-      background: radial-gradient(circle at center, transparent 45%, rgba(2, 4, 8, 0.34) 100%);
-    }
-
-    .workflow-graph-svg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      pointer-events: none;
-    }
-
-    .workflow-graph-link {
-      fill: none;
-      stroke: rgba(117, 170, 255, 0.26);
-      stroke-width: 2;
-    }
-
-    .workflow-graph-link.is-strong {
-      stroke: rgba(104, 168, 255, 0.62);
-      stroke-width: 2.4;
-    }
-
-    .workflow-graph-link.is-faint {
-      stroke: rgba(255, 255, 255, 0.09);
-      stroke-width: 1.35;
-    }
-
-    .workflow-preview-node {
-      --node-color: var(--accent);
-      --node-glow: rgba(182, 255, 103, 0.34);
-      position: absolute;
-      z-index: 2;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.4rem;
-      max-width: 8.6rem;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      color: rgba(246, 241, 232, 0.84);
-    }
-
-    .workflow-preview-node-dot {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--node-color);
-      border: 2px solid rgba(255, 255, 255, 0.14);
-      box-shadow:
-        0 0 0 6px rgba(255, 255, 255, 0.03),
-        0 0 24px var(--node-glow);
-    }
-
-    .workflow-preview-node-label {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      max-width: 100%;
-      padding: 0.34rem 0.58rem;
-      border-radius: 999px;
-      background: rgba(9, 13, 20, 0.82);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(16px);
-      font-size: 0.76rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      white-space: nowrap;
-    }
-
-    .workflow-preview-node small {
-      color: rgba(246, 241, 232, 0.44);
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.58rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .workflow-preview-node.is-muted {
-      opacity: 0.55;
-    }
-
-    .workflow-preview-node-hub {
-      z-index: 3;
-      max-width: 11rem;
-    }
-
-    .workflow-preview-node-hub .workflow-preview-node-dot {
-      width: 24px;
-      height: 24px;
-      box-shadow:
-        0 0 0 12px rgba(240, 109, 141, 0.12),
-        0 0 38px rgba(240, 109, 141, 0.34);
-    }
-
-    .workflow-preview-node-hub .workflow-preview-node-label {
-      padding: 0.42rem 0.8rem;
-      font-size: 0.92rem;
-      background: rgba(18, 24, 35, 0.88);
-    }
-
-    .workflow-preview-node--paradigm {
-      --node-color: #f06d8d;
-      --node-glow: rgba(240, 109, 141, 0.36);
-    }
-
-    .workflow-preview-node--capability {
-      --node-color: #37d0f2;
-      --node-glow: rgba(55, 208, 242, 0.34);
-    }
-
-    .workflow-preview-node--benchmark {
-      --node-color: #9edb65;
-      --node-glow: rgba(158, 219, 101, 0.34);
-    }
-
-    .workflow-preview-node--person {
-      --node-color: #78a9ff;
-      --node-glow: rgba(120, 169, 255, 0.34);
-    }
-
-    .workflow-preview-node--concept {
-      --node-color: #f29b4b;
-      --node-glow: rgba(242, 155, 75, 0.34);
-    }
-
-    .workflow-preview-node--operation {
-      --node-color: #f1c24a;
-      --node-glow: rgba(241, 194, 74, 0.34);
-    }
-
-    .workflow-preview-node--method {
-      --node-color: #b387ff;
-      --node-glow: rgba(179, 135, 255, 0.34);
-    }
-
-    .workflow-preview-node--organization {
-      --node-color: #7ccf95;
-      --node-glow: rgba(124, 207, 149, 0.32);
-    }
-
-    .workflow-graph-badge,
-    .workflow-graph-stats {
-      position: absolute;
-      z-index: 4;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.55rem 0.78rem;
-      border-radius: 999px;
-      background: rgba(8, 12, 18, 0.78);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: rgba(246, 241, 232, 0.74);
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.68rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      backdrop-filter: blur(12px);
-    }
-
-    .workflow-graph-badge::before,
-    .workflow-graph-stats::before {
-      content: "";
-      width: 0.45rem;
-      height: 0.45rem;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), var(--accent-warm));
-      box-shadow: 0 0 14px rgba(182, 255, 103, 0.34);
-    }
-
-    .workflow-graph-badge {
-      top: 1rem;
-      left: 1rem;
-    }
-
-    .workflow-graph-stats {
-      right: 1rem;
-      bottom: 1rem;
-    }
-
-    .feature-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .feature-card {
-      padding: 1.5rem;
-      border-radius: var(--radius-lg);
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      box-shadow: var(--shadow);
-      transition:
-        transform 220ms ease,
-        box-shadow 220ms ease,
-        border-color 220ms ease;
-    }
-
-    .feature-card:hover,
-    .feature-card:focus-within {
-      transform: translateY(-4px);
-      box-shadow: 0 28px 82px rgba(14, 20, 17, 0.15);
-      border-color: rgba(126, 212, 54, 0.22);
-    }
-
-    .feature-tag {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 4rem;
-      padding: 0.4rem 0.7rem;
-      border-radius: 999px;
-      background: rgba(17, 23, 20, 0.05);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.74rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: rgba(17, 23, 20, 0.62);
-    }
-
-    .feature-card p {
-      color: rgba(17, 23, 20, 0.64);
-      margin-top: 0.9rem;
-    }
-
-    .feature-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.6rem;
-      margin-top: 1.1rem;
-    }
-
-    .feature-meta span {
-      color: rgba(17, 23, 20, 0.65);
-      background: rgba(17, 23, 20, 0.045);
-      border-color: rgba(17, 23, 20, 0.08);
-    }
-
-    .memory-panel {
-      padding: clamp(1.8rem, 4vw, 2.4rem);
-      border-radius: 36px;
-      background:
-        radial-gradient(circle at top left, rgba(182, 255, 103, 0.08), transparent 20rem),
-        linear-gradient(180deg, rgba(15, 21, 17, 0.98), rgba(11, 15, 13, 0.98));
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: var(--text-inverse);
-      box-shadow: var(--shadow-strong);
-    }
-
-    .memory-panel .section-label {
-      color: rgba(246, 241, 232, 0.54);
-    }
-
-    .memory-panel .section-heading {
-      margin-bottom: 2rem;
-      max-width: 54rem;
-    }
-
-    .memory-panel .section-heading p {
-      color: rgba(246, 241, 232, 0.66);
-    }
-
-    .timeline-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 1rem;
-      align-items: stretch;
-      margin-bottom: 1rem;
-    }
-
-    .timeline-card {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 0.95rem;
-      min-height: 100%;
-      padding: 1.15rem 1.1rem 1.2rem;
-      border-radius: 26px;
-      background:
-        radial-gradient(circle at top left, rgba(182, 255, 103, 0.08), transparent 10rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.03));
-      border: 1px solid rgba(255, 255, 255, 0.09);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      overflow: visible;
-    }
-
-    .timeline-card::before {
-      content: "";
-      position: absolute;
-      top: 1rem;
-      left: 1rem;
-      right: 1rem;
-      height: 1px;
-      background: linear-gradient(90deg, rgba(182, 255, 103, 0.22), rgba(255, 255, 255, 0.02));
-    }
-
-    .timeline-step {
-      display: flex;
-      align-items: center;
-      gap: 0.7rem;
-      padding-top: 0.3rem;
-    }
-
-    .timeline-index {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 2.25rem;
-      padding: 0.28rem 0.48rem;
-      border-radius: 999px;
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.72rem;
-      color: rgba(246, 241, 232, 0.8);
-      background: rgba(182, 255, 103, 0.1);
-      border: 1px solid rgba(182, 255, 103, 0.14);
-    }
-
-    .stat-label {
-      min-width: 0;
-      color: rgba(246, 241, 232, 0.58);
-    }
-
-    .timeline-card h3 {
-      margin: 0;
-      max-width: 10ch;
-    }
-
-    .timeline-card p {
-      margin: 0;
-      color: rgba(246, 241, 232, 0.64);
-    }
-
-    .stack-grid {
-      grid-template-columns: minmax(0, 1.16fr) minmax(300px, 0.84fr);
-      align-items: stretch;
-    }
-
-    .stack-proxy-panel {
-      position: relative;
-      overflow: hidden;
-      padding: clamp(1.5rem, 3vw, 2rem);
-      border-radius: 36px;
-      color: var(--text-inverse);
-      background:
-        radial-gradient(circle at 16% 52%, rgba(126, 184, 255, 0.18), transparent 18rem),
-        radial-gradient(circle at 84% 18%, rgba(182, 255, 103, 0.12), transparent 18rem),
-        linear-gradient(180deg, #121914 0%, #0d120f 100%);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: var(--shadow-strong);
-    }
-
-    .stack-proxy-panel::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-      background-size: 24px 24px;
-      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 100%);
-      pointer-events: none;
-      opacity: 0.4;
-    }
-
-    .stack-proxy-intro,
-    .stack-route-diagram {
-      position: relative;
-      z-index: 1;
-    }
-
-    .stack-proxy-intro {
-      max-width: 38rem;
-    }
-
-    .stack-proxy-intro h3 {
-      margin: 0.7rem 0 0;
-      max-width: 12ch;
-      font-size: clamp(1.9rem, 3vw, 2.8rem);
-      line-height: 0.98;
-      letter-spacing: -0.06em;
-    }
-
-    .stack-proxy-intro p:last-child {
-      margin: 1rem 0 0;
-      max-width: 39rem;
-      color: rgba(246, 241, 232, 0.68);
-      line-height: 1.75;
-    }
-
-    .stack-route-diagram {
-      width: min(100%, 47rem);
-      min-height: 36rem;
-      margin-top: 1.8rem;
-    }
-
-    .stack-route-svg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    }
-
-    .stack-route-path {
-      fill: none;
-      stroke: rgba(163, 204, 255, 0.42);
-      stroke-width: 2.1;
-      stroke-linecap: round;
-      stroke-dasharray: 7 11;
-      animation: route-flow 15s linear infinite;
-    }
-
-    .stack-route-path.is-mixed {
-      stroke: rgba(255, 196, 121, 0.36);
-    }
-
-    .stack-route-path.is-local {
-      stroke: rgba(182, 255, 103, 0.38);
-    }
-
-    .stack-route-path:nth-child(2) {
-      animation-delay: -3s;
-    }
-
-    .stack-route-path:nth-child(3) {
-      animation-delay: -6s;
-    }
-
-    .stack-route-path:nth-child(4) {
-      animation-delay: -9s;
-    }
-
-    .stack-route-path:nth-child(5) {
-      animation-delay: -12s;
-    }
-
-    .stack-hub {
-      position: absolute;
-      left: 0.8rem;
-      bottom: 1rem;
-      width: 15.5rem;
-      display: grid;
-      justify-items: center;
-      gap: 1rem;
-    }
-
-    .stack-hub-core {
-      position: relative;
-      width: clamp(6.6rem, 14vw, 8.8rem);
-      aspect-ratio: 1;
-      border-radius: 50%;
-      background:
-        radial-gradient(circle at 34% 32%, rgba(255, 255, 255, 0.98), rgba(206, 227, 255, 0.88) 22%, rgba(132, 180, 255, 0.92) 56%, rgba(82, 132, 230, 0.96) 100%);
-      box-shadow:
-        0 0 0 16px rgba(118, 169, 255, 0.08),
-        0 0 0 34px rgba(118, 169, 255, 0.04),
-        0 22px 70px rgba(48, 93, 180, 0.38);
-      animation: hub-breath 5.2s ease-in-out infinite;
-    }
-
-    .stack-hub-core::before {
-      content: "";
-      position: absolute;
-      inset: 19%;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.24) 70%, transparent 72%);
-      opacity: 0.62;
-    }
-
-    .stack-hub-core::after {
-      content: "";
-      position: absolute;
-      inset: -14%;
-      border-radius: 50%;
-      border: 1px solid rgba(180, 219, 255, 0.26);
-      animation: hub-ring 4.8s ease-out infinite;
-    }
-
-    .stack-hub-label {
-      text-align: center;
-    }
-
-    .stack-hub-label strong {
-      display: block;
-      font-size: 1.42rem;
-      letter-spacing: -0.04em;
-    }
-
-    .stack-hub-label span {
-      display: block;
-      margin-top: 0.25rem;
-      color: rgba(246, 241, 232, 0.68);
-      font-size: 0.92rem;
-      line-height: 1.45;
-    }
-
-    .stack-providers {
-      position: absolute;
-      top: 0.65rem;
-      right: 0.35rem;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      width: 18rem;
-      display: grid;
-      gap: 0.72rem;
-      align-content: start;
-    }
-
-    .stack-provider {
-      position: relative;
-      width: 100%;
-      min-height: 3.2rem;
-      display: flex;
-      align-items: center;
-      gap: 0.9rem;
-      padding: 0.72rem 0.95rem;
-      border-radius: 999px;
-      background: rgba(238, 245, 255, 0.94);
-      border: 1px solid rgba(92, 146, 227, 0.12);
-      box-shadow: 0 14px 30px rgba(20, 36, 73, 0.12);
-      color: #24303a;
-    }
-
-    .stack-provider::before {
-      content: "";
-      width: 1rem;
-      height: 1rem;
-      border-radius: 50%;
-      flex: 0 0 auto;
-      background: linear-gradient(135deg, #7ab2ff, #d7eaff);
-      box-shadow: 0 0 18px rgba(122, 178, 255, 0.4);
-      animation: pulse 3.6s ease-in-out infinite;
-    }
-
-    .stack-provider strong {
-      display: block;
-      font-size: 0.96rem;
-      letter-spacing: -0.03em;
-    }
-
-    .stack-provider small {
-      display: block;
-      margin-top: 0.14rem;
-      color: rgba(36, 48, 58, 0.58);
-      font-size: 0.71rem;
-      line-height: 1.4;
-    }
-
-    .stack-provider.is-mixed {
-      background: rgba(250, 238, 222, 0.97);
-      border-color: rgba(255, 196, 121, 0.22);
-      color: #392b1e;
-    }
-
-    .stack-provider.is-mixed::before {
-      background: linear-gradient(135deg, var(--accent-warm), #fff0c8);
-      box-shadow: 0 0 18px rgba(255, 196, 121, 0.42);
-    }
-
-    .stack-provider.is-local {
-      background: rgba(232, 246, 214, 0.97);
-      border-color: rgba(126, 212, 54, 0.18);
-      color: #21301f;
-    }
-
-    .stack-provider.is-local::before {
-      background: linear-gradient(135deg, var(--accent), #edffc9);
-      box-shadow: 0 0 18px rgba(182, 255, 103, 0.46);
-    }
-
-    .stack-detail-column {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .stack-note-card {
-      padding: 1.35rem;
-      border-radius: 28px;
-      background: rgba(255, 255, 255, 0.76);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      box-shadow: var(--shadow);
-    }
-
-    .stack-note-card p {
-      margin: 0.8rem 0 0;
-      color: rgba(17, 23, 20, 0.66);
-      line-height: 1.65;
-    }
-
-    .stack-note-card h3 {
-      margin: 0.65rem 0 0;
-      font-size: 1.36rem;
-      letter-spacing: -0.04em;
-    }
-
-    .stack-note-list {
-      display: grid;
-      gap: 0.8rem;
-      margin-top: 1rem;
-    }
-
-    .stack-note-item {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 0.9rem;
-      padding: 0.85rem 0.95rem;
-      border-radius: 20px;
-      background: rgba(17, 23, 20, 0.04);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-    }
-
-    .stack-note-item strong {
-      font-size: 0.98rem;
-      letter-spacing: -0.02em;
-    }
-
-    .stack-note-item span {
-      max-width: 14rem;
-      color: rgba(17, 23, 20, 0.58);
-      font-size: 0.84rem;
-      line-height: 1.45;
-      text-align: right;
-    }
-
-    .stack-surface-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.65rem;
-      margin-top: 1rem;
-    }
-
-    .stack-surface-row span {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.65rem 0.8rem;
-      border-radius: 999px;
-      background: rgba(17, 23, 20, 0.05);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      color: rgba(17, 23, 20, 0.68);
-      font-size: 0.86rem;
-    }
-
-    .stack-surface-row span::before {
-      content: "";
-      width: 0.5rem;
-      height: 0.5rem;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #7ab2ff, var(--accent));
-      box-shadow: 0 0 12px rgba(122, 178, 255, 0.35);
-    }
-
-    .privacy-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
-      gap: 1.2rem;
-      align-items: start;
-    }
-
-    .privacy-copy {
-      padding: 1.6rem 0;
-    }
-
-    .privacy-cards {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .privacy-card {
-      padding: 1.35rem;
-      border-radius: 26px;
-      background: rgba(255, 255, 255, 0.72);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      box-shadow: var(--shadow);
-    }
-
-    .privacy-card p {
-      color: rgba(17, 23, 20, 0.63);
-      margin-top: 0.85rem;
-    }
-
-    .cta-panel {
-      padding: clamp(2rem, 6vw, 3.4rem);
-      border-radius: 36px;
-      background:
-        radial-gradient(circle at top left, rgba(182, 255, 103, 0.16), transparent 18rem),
-        radial-gradient(circle at bottom right, rgba(255, 196, 121, 0.14), transparent 16rem),
-        linear-gradient(180deg, rgba(15, 21, 17, 0.98), rgba(10, 14, 12, 0.98));
-      color: var(--text-inverse);
-      box-shadow: var(--shadow-strong);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .cta-panel p {
-      color: rgba(246, 241, 232, 0.68);
-      max-width: 36rem;
-    }
-
-    .cta-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.9rem;
-      margin-top: 1.6rem;
-    }
-
-    .site-footer {
-      padding: 0 0 2.8rem;
-    }
-
-    .footer-shell {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1.5rem;
-      padding-top: 2rem;
-      border-top: 1px solid rgba(17, 23, 20, 0.09);
-    }
-
-    .footer-copy {
-      color: rgba(17, 23, 20, 0.58);
-      font-size: 0.95rem;
-    }
-
-    .footer-links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .footer-links a {
-      color: rgba(17, 23, 20, 0.68);
-      text-decoration: none;
-      transition: color 180ms ease;
-    }
-
-    .footer-links a:hover,
-    .footer-links a:focus-visible {
-      color: var(--text);
-    }
-
-    .js .reveal {
-      opacity: 0;
-      transform: translateY(36px);
-      transition:
-        opacity 720ms cubic-bezier(0.2, 1, 0.3, 1),
-        transform 720ms cubic-bezier(0.2, 1, 0.3, 1);
-      transition-delay: var(--reveal-delay, 0ms);
-    }
-
-    .js .reveal.is-visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    @keyframes drift {
-      0%,
-      100% {
-        transform: translate3d(0, 0, 0);
-      }
-      50% {
-        transform: translate3d(0, -10px, 0);
-      }
-    }
-
-    @keyframes pulse {
-      0%,
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
-      50% {
-        transform: scale(1.18);
-        opacity: 0.82;
-      }
-    }
-
-    @keyframes marquee {
-      from {
-        transform: translateX(0);
-      }
-      to {
-        transform: translateX(calc(-50% - 0.5rem));
-      }
-    }
-
-    @keyframes route-flow {
-      from {
-        stroke-dashoffset: 0;
-      }
-      to {
-        stroke-dashoffset: -180;
-      }
-    }
-
-    @keyframes hub-breath {
-      0%,
-      100% {
-        transform: scale(1);
-      }
-      50% {
-        transform: scale(1.04);
-      }
-    }
-
-    @keyframes hub-ring {
-      0% {
-        opacity: 0;
-        transform: scale(0.72);
-      }
-      18% {
-        opacity: 0.7;
-      }
-      100% {
-        opacity: 0;
-        transform: scale(1.18);
-      }
-    }
-
-    @media (max-width: 1180px) {
-      .hero-shell,
-      .privacy-grid,
-      .stack-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .hero-visual {
-        min-height: auto;
-      }
-
-      .visual-badge {
-        transform: scale(0.94);
-      }
-
-      .stack-route-diagram {
-        width: 100%;
-        min-height: 36rem;
-      }
-
-      .stack-provider {
-        width: 100%;
-      }
-    }
-
-    @media (max-width: 980px) {
-      .site-nav {
-        display: none;
-      }
-
-      .comparison-grid,
-      .feature-grid,
-      .timeline-grid,
-      .privacy-cards {
-        grid-template-columns: 1fr;
-      }
-
-      .step-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .timeline-card {
-        padding: 1.1rem 1rem 1.15rem;
-      }
-
-      .footer-shell {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-    }
-
-    @media (max-width: 860px) {
-      .visual-body {
-        grid-template-columns: 1fr;
-      }
-
-      .visual-badge {
-        display: none;
-      }
-
-      .stack-route-diagram {
-        min-height: auto;
-        width: 100%;
-        display: grid;
-        gap: 1.2rem;
-      }
-
-      .stack-route-svg {
-        display: none;
-      }
-
-      .stack-hub {
-        position: relative;
-        top: auto;
-        left: auto;
-        width: 100%;
-        transform: none;
-        margin: 0 auto;
-      }
-
-      .stack-providers {
-        position: relative;
-        top: auto;
-        right: auto;
-        width: 100%;
-        display: grid;
-        gap: 0.8rem;
-      }
-
-      .stack-provider {
-        position: relative;
-        top: auto;
-        right: auto;
-        width: 100%;
-      }
-
-      .stack-note-item {
-        flex-direction: column;
-      }
-
-      .stack-note-item span {
-        max-width: none;
-        text-align: left;
-      }
-    }
-
-    @media (max-width: 720px) {
-      .shell {
-        width: min(100% - 1.25rem, 1200px);
-      }
-
-      .header-shell {
-        flex-wrap: wrap;
-      }
-
-      .header-actions,
-      .hero-actions,
-      .cta-actions {
-        width: 100%;
-      }
-
-      .header-actions .btn,
-      .hero-actions .btn,
-      .cta-actions .btn {
-        flex: 1 1 100%;
-      }
-
-      .hero-proof span {
-        width: 100%;
-      }
-
-      .memory-grid,
-      .privacy-cards {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      html {
-        scroll-behavior: auto;
-      }
-
-      *,
-      *::before,
-      *::after {
-        animation: none !important;
-        transition-duration: 0.01ms !important;
-        transition-delay: 0ms !important;
-      }
-
-      .visual-shell {
-        transform: none !important;
-      }
-    }
-  </style>
+  <script src="./js/index.js"></script>
+  <link rel="stylesheet" href="./css/index.css">
 </head>
 <body>
   <div class="scroll-progress" aria-hidden="true"></div>
@@ -2496,6 +382,232 @@
               <span>Flow builder</span>
             </div>
           </article>
+        </div>
+
+        <div class="workflow-graph-panel reveal">
+          <div class="workflow-graph-intro">
+            <div>
+              <p class="section-label">Graph Preview</p>
+              <h3>See the topic graph instead of guessing what memory means.</h3>
+              <p>
+                Captured pages, notes, papers, and people become inspectable nodes with edges back to source
+                material, so each topic stays navigable instead of collapsing into one long chat thread.
+              </p>
+            </div>
+            <div class="step-pills">
+              <span>Topic scoped</span>
+              <span>Source linked</span>
+              <span>Inspectable nodes</span>
+            </div>
+          </div>
+
+          <div class="workflow-graph-shell">
+            <div class="workflow-graph-sidebar">
+              <div class="workflow-panel">
+                <div class="mini-label">Topics</div>
+                <div class="topic-list">
+                  <div class="topic-item">
+                    <strong>Default (No Topic)</strong>
+                    <span class="pill">0</span>
+                  </div>
+                  <div class="topic-item">
+                    <strong>EGPU</strong>
+                    <span class="pill">1</span>
+                  </div>
+                  <div class="topic-item is-active">
+                    <strong>Agent researcher</strong>
+                    <span class="pill">115</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="workflow-panel">
+                <div class="workflow-selection-header">
+                  <span class="workflow-selection-avatar" aria-hidden="true"></span>
+                  <div class="workflow-selection-meta">
+                    <strong>ReCode</strong>
+                    <span class="workflow-selection-type">AI_AGENT_PARADIGM</span>
+                  </div>
+                </div>
+
+                <div class="workflow-selection-tabs" aria-hidden="true">
+                  <span class="is-active">Summary</span>
+                  <span>Edges (61)</span>
+                </div>
+
+                <p class="workflow-selection-copy">
+                  A code-centric agent paradigm that keeps planning and low-level execution in one shared
+                  representation, so the graph can connect methods, benchmarks, authors, and related ideas.
+                </p>
+
+                <div class="workflow-connection-list">
+                  <div class="workflow-connection-row">
+                    <strong>Connects to</strong>
+                    <span>Code Generation</span>
+                  </div>
+                  <div class="workflow-connection-row">
+                    <strong>Benchmarked in</strong>
+                    <span>ALFWorld</span>
+                  </div>
+                  <div class="workflow-connection-row">
+                    <strong>Related paradigm</strong>
+                    <span>ReAct</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="workflow-panel">
+                <div class="mini-label">Node Types</div>
+                <div class="workflow-type-grid">
+                  <span class="workflow-type-pill workflow-type-pill--paradigm">AI paradigm</span>
+                  <span class="workflow-type-pill workflow-type-pill--capability">Capability</span>
+                  <span class="workflow-type-pill workflow-type-pill--benchmark">Benchmark</span>
+                  <span class="workflow-type-pill workflow-type-pill--person">Person</span>
+                  <span class="workflow-type-pill workflow-type-pill--concept">Concept</span>
+                  <span class="workflow-type-pill workflow-type-pill--method">Method</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="workflow-graph-canvas">
+              <div class="workflow-graph-toolbar">
+                <div class="visual-dots" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <span>Agent researcher / graph explorer</span>
+                <span>115 nodes / 186 edges</span>
+              </div>
+
+              <div class="workflow-graph-stage" aria-label="Example of a topic-scoped knowledge graph in Memorall">
+                <span class="workflow-graph-badge">focused topic: Agent researcher</span>
+                <span class="workflow-graph-stats">selected node: ReCode</span>
+
+                <svg class="workflow-graph-svg" viewBox="0 0 760 420" preserveAspectRatio="none" aria-hidden="true">
+                  <path class="workflow-graph-link is-faint" d="M 170 104 C 208 138, 238 162, 300 176"></path>
+                  <path class="workflow-graph-link is-faint" d="M 204 146 C 256 174, 284 198, 340 218"></path>
+                  <path class="workflow-graph-link is-faint" d="M 312 126 C 350 154, 390 190, 426 212"></path>
+                  <path class="workflow-graph-link is-faint" d="M 382 84 C 420 126, 454 180, 486 214"></path>
+                  <path class="workflow-graph-link is-strong" d="M 462 240 C 524 196, 560 170, 620 132"></path>
+                  <path class="workflow-graph-link is-strong" d="M 462 240 C 548 212, 612 204, 676 192"></path>
+                  <path class="workflow-graph-link is-strong" d="M 462 240 C 548 232, 622 248, 688 266"></path>
+                  <path class="workflow-graph-link is-strong" d="M 462 240 C 538 266, 592 296, 638 336"></path>
+                  <path class="workflow-graph-link is-strong" d="M 462 240 C 504 286, 528 322, 560 366"></path>
+                  <path class="workflow-graph-link is-strong" d="M 462 240 C 422 296, 398 324, 352 360"></path>
+                  <path class="workflow-graph-link is-strong" d="M 462 240 C 372 252, 310 254, 246 248"></path>
+                  <path class="workflow-graph-link is-strong" d="M 462 240 C 378 220, 320 216, 268 214"></path>
+                  <path class="workflow-graph-link is-faint" d="M 620 132 C 648 150, 664 164, 676 192"></path>
+                  <path class="workflow-graph-link is-faint" d="M 676 192 C 668 222, 674 244, 688 266"></path>
+                  <path class="workflow-graph-link is-faint" d="M 560 366 C 522 354, 486 356, 448 350"></path>
+                  <path class="workflow-graph-link is-faint" d="M 352 360 C 318 334, 294 306, 282 274"></path>
+                  <path class="workflow-graph-link is-faint" d="M 246 248 C 244 216, 248 190, 268 214"></path>
+                </svg>
+
+                <div class="workflow-preview-node workflow-preview-node--method is-muted" style="left: 17%; top: 18%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">RepPenalty</span>
+                  <small>method</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--method is-muted" style="left: 22%; top: 28%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">Solver</span>
+                  <small>method</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--paradigm is-muted" style="left: 31%; top: 14%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">InstructGPT</span>
+                  <small>paradigm</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--paradigm is-muted" style="left: 39%; top: 28%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">RLHF</span>
+                  <small>paradigm</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--paradigm workflow-preview-node-hub" style="left: 58%; top: 58%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">ReCode</span>
+                  <small>AI agent paradigm</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--capability" style="left: 66%; top: 32%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">Granularity Control</span>
+                  <small>capability</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--concept" style="left: 80%; top: 24%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">Code Generation</span>
+                  <small>concept</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--paradigm" style="left: 88%; top: 39%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">ReAct</span>
+                  <small>paradigm</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--paradigm" style="left: 90%; top: 57%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">AdaPlanner</span>
+                  <small>paradigm</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--benchmark" style="left: 82%; top: 67%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">ScienceWorld</span>
+                  <small>benchmark</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--benchmark" style="left: 71%; top: 83%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">ALFWorld</span>
+                  <small>benchmark</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--operation" style="left: 57%; top: 87%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">Planning</span>
+                  <small>operation</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--concept" style="left: 45%; top: 82%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">Decision Tree</span>
+                  <small>concept</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--person" style="left: 32%; top: 61%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">Yu</span>
+                  <small>person</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--person" style="left: 23%; top: 63%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">Zhao</span>
+                  <small>person</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--person" style="left: 26%; top: 51%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">Wu</span>
+                  <small>person</small>
+                </div>
+
+                <div class="workflow-preview-node workflow-preview-node--person" style="left: 39%; top: 44%;">
+                  <span class="workflow-preview-node-dot"></span>
+                  <span class="workflow-preview-node-label">Language Model</span>
+                  <small>agent type</small>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -2912,64 +1024,6 @@
     </div>
   </footer>
 
-  <script>
-    (function () {
-      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const progressBar = document.querySelector(".scroll-progress");
-      const hero = document.querySelector(".hero");
-      const revealTargets = document.querySelectorAll(".reveal:not(.is-visible)");
-
-      if (!reduceMotion && "IntersectionObserver" in window) {
-        const observer = new IntersectionObserver(
-          (entries) => {
-            entries.forEach((entry) => {
-              if (!entry.isIntersecting) {
-                return;
-              }
-
-              entry.target.classList.add("is-visible");
-              observer.unobserve(entry.target);
-            });
-          },
-          { threshold: 0.18, rootMargin: "0px 0px -8% 0px" },
-        );
-
-        revealTargets.forEach((element, index) => {
-          element.style.setProperty("--reveal-delay", `${Math.min(index * 45, 220)}ms`);
-          observer.observe(element);
-        });
-      } else {
-        revealTargets.forEach((element) => element.classList.add("is-visible"));
-      }
-
-      const updateScrollProgress = () => {
-        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-        const ratio = scrollable > 0 ? window.scrollY / scrollable : 0;
-        progressBar.style.setProperty("--scroll-scale", ratio.toFixed(3));
-      };
-
-      updateScrollProgress();
-      window.addEventListener("scroll", updateScrollProgress, { passive: true });
-      window.addEventListener("resize", updateScrollProgress);
-
-      if (!reduceMotion && hero) {
-        const resetPointer = () => {
-          document.documentElement.style.setProperty("--pointer-x", "0");
-          document.documentElement.style.setProperty("--pointer-y", "0");
-        };
-
-        hero.addEventListener("pointermove", (event) => {
-          const rect = hero.getBoundingClientRect();
-          const x = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
-          const y = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
-
-          document.documentElement.style.setProperty("--pointer-x", x.toFixed(3));
-          document.documentElement.style.setProperty("--pointer-y", y.toFixed(3));
-        });
-
-        hero.addEventListener("pointerleave", resetPointer);
-      }
-    })();
-  </script>
 </body>
 </html>
+

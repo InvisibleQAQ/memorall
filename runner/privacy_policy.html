@@ -3,236 +3,671 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="description"
+    content="Memorall privacy policy covering local-first storage, optional remote providers, optional auth and sync, browser permissions, and user data controls."
+  >
   <title>Memorall - Privacy Policy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  >
+  <script src="./js/index.js"></script>
+  <link rel="stylesheet" href="./css/index.css">
   <style>
-    * {
+    .policy-hero {
+      padding-bottom: clamp(4rem, 8vw, 6rem);
+    }
+
+    .policy-hero-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.88fr);
+      gap: clamp(1.6rem, 3vw, 2.8rem);
+      align-items: start;
+    }
+
+    .policy-summary-panel {
+      padding: clamp(1.4rem, 3vw, 1.8rem);
+      border-radius: 32px;
+      background:
+        radial-gradient(circle at top left, rgba(111, 234, 243, 0.12), transparent 18rem),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: var(--shadow-strong);
+    }
+
+    .policy-summary-panel h2 {
       margin: 0;
+      color: var(--text-inverse);
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 0.95;
+      letter-spacing: -0.06em;
+      max-width: 10ch;
+    }
+
+    .policy-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.85rem;
+      margin-top: 1.35rem;
+    }
+
+    .policy-summary-card {
+      padding: 1rem;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .policy-summary-card strong {
+      display: block;
+      color: var(--text-inverse);
+      font-size: 1rem;
+      letter-spacing: -0.03em;
+    }
+
+    .policy-summary-card span {
+      display: block;
+      margin-top: 0.45rem;
+      color: rgba(246, 241, 232, 0.7);
+      font-size: 0.94rem;
+      line-height: 1.55;
+    }
+
+    .policy-layout {
+      display: grid;
+      grid-template-columns: minmax(250px, 0.36fr) minmax(0, 0.64fr);
+      gap: 1.2rem;
+      align-items: start;
+    }
+
+    .policy-nav-card {
+      position: sticky;
+      top: 6.75rem;
+      padding: 1.35rem;
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(17, 23, 20, 0.08);
+      box-shadow: var(--shadow);
+    }
+
+    .policy-nav-card h3 {
+      margin: 0.7rem 0 0;
+      font-size: 1.5rem;
+      letter-spacing: -0.05em;
+    }
+
+    .policy-nav-card p {
+      color: rgba(17, 23, 20, 0.64);
+      line-height: 1.65;
+    }
+
+    .policy-nav-list {
+      display: grid;
+      gap: 0.7rem;
+      margin-top: 1rem;
+    }
+
+    .policy-nav-list a {
+      display: block;
+      padding: 0.85rem 0.95rem;
+      border-radius: 18px;
+      background: rgba(17, 23, 20, 0.04);
+      border: 1px solid rgba(17, 23, 20, 0.08);
+      color: rgba(17, 23, 20, 0.8);
+      text-decoration: none;
+      font-weight: 600;
+      transition:
+        transform 220ms ease,
+        border-color 220ms ease,
+        box-shadow 220ms ease,
+        background-color 220ms ease;
+    }
+
+    .policy-nav-list a:hover,
+    .policy-nav-list a:focus-visible {
+      transform: translateY(-2px);
+      border-color: rgba(36, 199, 239, 0.18);
+      background: rgba(36, 199, 239, 0.08);
+      box-shadow: 0 16px 34px rgba(17, 23, 20, 0.12);
+    }
+
+    .policy-nav-note {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(17, 23, 20, 0.08);
+    }
+
+    .policy-article {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .policy-block {
+      padding: clamp(1.35rem, 3vw, 1.75rem);
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(17, 23, 20, 0.08);
+      box-shadow: var(--shadow);
+    }
+
+    .policy-block[id] {
+      scroll-margin-top: 6.5rem;
+    }
+
+    .policy-block h2 {
+      margin: 0.65rem 0 0;
+      font-size: clamp(1.7rem, 4vw, 2.2rem);
+      line-height: 0.95;
+      letter-spacing: -0.06em;
+    }
+
+    .policy-block p {
+      margin: 1rem 0 0;
+      color: rgba(17, 23, 20, 0.68);
+      line-height: 1.75;
+    }
+
+    .policy-list {
+      display: grid;
+      gap: 0.75rem;
+      margin: 1rem 0 0;
       padding: 0;
-      box-sizing: border-box;
+      list-style: none;
     }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      background: #f8f9fa;
+    .policy-list li {
+      padding: 0.95rem 1rem;
+      border-radius: 20px;
+      background: rgba(17, 23, 20, 0.04);
+      border: 1px solid rgba(17, 23, 20, 0.08);
+      color: rgba(17, 23, 20, 0.72);
+      line-height: 1.62;
     }
 
-    .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 3rem 2rem;
-      text-align: center;
-      color: white;
+    .policy-list strong {
+      color: var(--text);
     }
 
-    .header h1 {
-      font-size: 2.5rem;
-      margin-bottom: 0.5rem;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    .policy-note {
+      margin-top: 1rem;
+      padding: 0.95rem 1rem;
+      border-radius: 20px;
+      background: rgba(36, 199, 239, 0.08);
+      border: 1px solid rgba(36, 199, 239, 0.16);
+      color: rgba(17, 23, 20, 0.72);
+      line-height: 1.62;
     }
 
-    .header p {
-      font-size: 1.2rem;
-      color: rgba(255,255,255,0.9);
-    }
-
-    .container {
-      max-width: 900px;
-      margin: -2rem auto 3rem;
-      padding: 0 2rem;
-    }
-
-    .content {
-      background: white;
-      padding: 3rem;
-      border-radius: 15px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-
-    h2 {
-      color: #2c3e50;
-      margin-top: 2rem;
-      margin-bottom: 1rem;
-      font-size: 1.8rem;
-      border-bottom: 2px solid #667eea;
-      padding-bottom: 0.5rem;
-    }
-
-    h2:first-child {
-      margin-top: 0;
-    }
-
-    h3 {
-      color: #34495e;
-      margin-top: 1.5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    p {
-      margin-bottom: 1rem;
-      color: #555;
-    }
-
-    ul {
-      padding-left: 1.5rem;
-      margin-bottom: 1rem;
-    }
-
-    li {
-      margin: 0.5rem 0;
-      color: #555;
-    }
-
-    strong {
-      color: #2c3e50;
-    }
-
-    code {
-      background: #f4f4f4;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-family: 'Courier New', monospace;
-      color: #667eea;
-    }
-
-    a {
-      color: #667eea;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    .back-link {
-      display: inline-block;
-      margin-bottom: 2rem;
-      padding: 0.75rem 1.5rem;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 50px;
-      text-decoration: none;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
-
-    .back-link:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-      text-decoration: none;
-    }
-
-    footer {
-      background: #1a1a1a;
-      color: white;
-      padding: 2rem;
-      text-align: center;
-      margin-top: 3rem;
-    }
-
-    footer a {
-      color: white;
-    }
-
-    @media (max-width: 768px) {
-      .header h1 {
-        font-size: 2rem;
+    @media (max-width: 1180px) {
+      .policy-hero-shell,
+      .policy-layout {
+        grid-template-columns: 1fr;
       }
 
-      .content {
-        padding: 2rem 1.5rem;
+      .policy-nav-card {
+        position: static;
       }
+    }
 
-      h2 {
-        font-size: 1.5rem;
+    @media (max-width: 720px) {
+      .policy-summary-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Privacy Policy</h1>
-    <p>Your privacy is our priority</p>
-  </div>
+  <div class="scroll-progress" aria-hidden="true"></div>
 
-  <div class="container">
-    <a href="index.html" class="back-link">← Back to Home</a>
+  <header class="site-header">
+    <div class="shell header-shell">
+      <a class="brand" href="./index.html">
+        <img src="images/origin.png" alt="Memorall logo">
+        <span>Memorall</span>
+      </a>
 
-    <div class="content">
-    
-    <h2>Overview</h2>
-    <p>Memorall is committed to protecting your privacy. This extension operates entirely locally in your browser with no server dependencies or data transmission.</p>
-    
-    <h2>Data Collection</h2>
-    <p>Memorall collects and stores the following data <strong>locally on your device only</strong>:</p>
-    <ul>
-      <li><strong>Web page content:</strong> When you choose to "Remember" a page, the extension extracts and stores page content locally</li>
-      <li><strong>Chat conversations:</strong> Your conversations with the AI assistant are stored locally</li>
-      <li><strong>Knowledge graph:</strong> Extracted entities and relationships are stored in a local database</li>
-      <li><strong>AI model files:</strong> Language models and embeddings are downloaded once and cached locally</li>
-    </ul>
-    
-    <h2>Data Storage</h2>
-    <ul>
-      <li>All data is stored locally using browser storage APIs (IndexedDB, OPFS)</li>
-      <li>No data is transmitted to external servers</li>
-      <li>No cloud sync or backup services are used</li>
-      <li>Data remains on your device and under your control</li>
-    </ul>
-    
-    <h2>Data Processing</h2>
-    <ul>
-      <li>All AI processing happens locally in your browser using WebAssembly</li>
-      <li>No API calls are made to external AI services</li>
-      <li>No data is sent to third parties for processing</li>
-    </ul>
-    
-    <h2>Model Downloads</h2>
-    <p>The extension downloads AI model files from HuggingFace.co during initial setup:</p>
-    <ul>
-      <li>These are binary data files (.gguf, .bin), not executable code</li>
-      <li>Downloads occur only when you explicitly choose to use a model</li>
-      <li>Models are cached locally and reused</li>
-      <li>No usage data is sent back to HuggingFace</li>
-    </ul>
-    
-    <h2>Permissions Used</h2>
-    <ul>
-      <li><strong>activeTab:</strong> Access current tab content when you click "Remember this page"</li>
-      <li><strong>storage:</strong> Store your knowledge base locally in the browser</li>
-      <li><strong>contextMenus:</strong> Add right-click menu options for quick access</li>
-      <li><strong>notifications:</strong> Show status notifications for save operations</li>
-      <li><strong>offscreen:</strong> Run AI processing in background for better performance</li>
-      <li><strong>&lt;all_urls&gt;:</strong> Allow content capture from any website you visit</li>
-    </ul>
-    
-    <h2>Third-Party Services</h2>
-    <p>The only external connection is to HuggingFace.co to download model files. No analytics, tracking, or telemetry services are used.</p>
-    
-    <h2>Data Deletion</h2>
-    <p>You can delete all extension data at any time:</p>
-    <ul>
-      <li>Use browser settings to clear extension data</li>
-      <li>Uninstalling the extension removes all stored data</li>
-      <li>No data persists after uninstallation</li>
-    </ul>
-    
-    <h2>Changes to This Policy</h2>
-    <p>We may update this privacy policy as the extension evolves. Changes will be posted on this page with an updated effective date.</p>
-    
-    <h2>Contact</h2>
-    <p>For questions about privacy, please open an issue on our <a href="https://github.com/zrg-team/memorall/issues" target="_blank">GitHub repository</a>.</p>
+      <nav class="site-nav" aria-label="Privacy policy sections">
+        <a href="#summary">Summary</a>
+        <a href="#details">Details</a>
+        <a href="#permissions">Permissions</a>
+        <a href="#contact">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-secondary btn-compact" href="./index.html">Home</a>
+        <a
+          class="btn btn-primary btn-compact"
+          href="https://chromewebstore.google.com/detail/memorall/kcienfpnencfkniagcjlpaehofblfhab"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Get Extension
+        </a>
+      </div>
     </div>
-  </div>
+  </header>
 
-  <footer>
-    <p style="color: rgba(255,255,255,0.6);">
-      Built with ❤️ for privacy-conscious knowledge workers
-    </p>
-    <p style="color: rgba(255,255,255,0.4); margin-top: 1rem;">
-      © 2025 Memorall. All rights reserved.
-    </p>
+  <main id="top">
+    <section class="hero policy-hero">
+      <div class="shell policy-hero-shell">
+        <div class="hero-copy reveal is-visible">
+          <div class="eyebrow">Privacy Policy</div>
+          <h1>Local first when possible. Explicit when data leaves the browser.</h1>
+          <p class="hero-lead">
+            Memorall is designed so core capture, storage, retrieval, and many model workflows can stay in
+            the browser. Optional remote providers, authentication, and sync features are user-controlled
+            choices rather than mandatory parts of the core experience.
+          </p>
+
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="./index.html">Back To Home</a>
+            <a
+              class="btn btn-secondary"
+              href="https://github.com/zrg-team/memorall/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ask A Question
+            </a>
+          </div>
+
+          <div class="hero-proof">
+            <span>Core data can stay local</span>
+            <span>Remote providers are opt-in</span>
+            <span>Optional auth and sync</span>
+            <span>User-controlled deletion</span>
+          </div>
+        </div>
+
+        <aside class="policy-summary-panel reveal is-visible" aria-label="Privacy policy highlights">
+          <p class="section-label">At A Glance</p>
+          <h2>What this means in practice.</h2>
+
+          <div class="policy-summary-grid">
+            <article class="policy-summary-card">
+              <strong>Default posture</strong>
+              <span>Core memory, chats, and documents can stay on-device in browser-local storage.</span>
+            </article>
+            <article class="policy-summary-card">
+              <strong>Downloads</strong>
+              <span>Model assets may be fetched when you choose local model workflows that require them.</span>
+            </article>
+            <article class="policy-summary-card">
+              <strong>Remote services</strong>
+              <span>External AI providers or cloud features are used only when you explicitly configure or enable them.</span>
+            </article>
+            <article class="policy-summary-card">
+              <strong>Your control</strong>
+              <span>You can remove stored data from the app, clear extension storage, or uninstall the extension.</span>
+            </article>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="summary">
+      <div class="shell">
+        <div class="section-heading reveal">
+          <p class="section-label">Quick Summary</p>
+          <h2>The short version before the detailed breakdown.</h2>
+          <p>
+            This page explains what Memorall may store, how local-first processing works, when network
+            requests can happen, and what browser permissions support those flows.
+          </p>
+        </div>
+
+        <div class="privacy-cards">
+          <article class="privacy-card reveal">
+            <p class="section-label">Local Core</p>
+            <h3>No required hosted account</h3>
+            <p>
+              Memorall's core local-first workflows can run without forcing a hosted account, hosted database,
+              or remote model API.
+            </p>
+          </article>
+
+          <article class="privacy-card reveal">
+            <p class="section-label">Stored Context</p>
+            <h3>Work stays attached to your project</h3>
+            <p>
+              Saved pages, chat context, graph data, notes, and imported documents can remain in browser-local
+              storage and related local surfaces.
+            </p>
+          </article>
+
+          <article class="privacy-card reveal">
+            <p class="section-label">Optional Services</p>
+            <h3>Remote providers are a separate choice</h3>
+            <p>
+              If you connect external AI providers or optional auth and sync services, data sent through those
+              services follows that specific integration path rather than the local-only path.
+            </p>
+          </article>
+
+          <article class="privacy-card reveal">
+            <p class="section-label">Controls</p>
+            <h3>You can remove local data</h3>
+            <p>
+              Stored data can be removed inside the product, by clearing extension storage, or by uninstalling
+              the extension from the browser.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="details">
+      <div class="shell">
+        <div class="section-heading reveal">
+          <p class="section-label">Policy Details</p>
+          <h2>What gets stored, processed, and optionally sent out.</h2>
+          <p>
+            The details below are organized around the actual product shape in this repository: local-first
+            storage and model paths, plus optional remote providers and optional authentication or sync layers.
+          </p>
+        </div>
+
+        <div class="policy-layout">
+          <aside class="policy-nav-card reveal">
+            <p class="section-label">Policy Map</p>
+            <h3>Jump to a section.</h3>
+
+            <div class="policy-nav-list">
+              <a href="#overview">Overview</a>
+              <a href="#data-collected">What Memorall may store</a>
+              <a href="#local-processing">Local storage and processing</a>
+              <a href="#network-requests">Network requests and third parties</a>
+              <a href="#deletion">Deletion and retention control</a>
+              <a href="#changes-contact">Changes and contact</a>
+            </div>
+
+            <p class="policy-nav-note">
+              If you enable a remote provider or optional cloud feature, the prompts, files, or metadata you
+              send through that path may be processed under that provider's own terms and privacy policy.
+            </p>
+          </aside>
+
+          <div class="policy-article">
+            <article class="policy-block reveal" id="overview">
+              <p class="section-label">Overview</p>
+              <h2>Overview</h2>
+              <p>
+                Memorall is built around a local-first browser workflow. The core experience can capture pages,
+                manage documents, store chats, and build memory context without requiring every workflow to pass
+                through a remote server.
+              </p>
+              <p>
+                Some features are optional rather than mandatory. That includes remote AI providers and optional
+                authentication or cloud-sync style integrations when they are configured for a deployment.
+              </p>
+            </article>
+
+            <article class="policy-block reveal" id="data-collected">
+              <p class="section-label">Stored Data</p>
+              <h2>What Memorall may store</h2>
+              <ul class="policy-list">
+                <li>
+                  <strong>Captured web content:</strong> pages, selected text, screenshots, page metadata, and
+                  other context you explicitly choose to save.
+                </li>
+                <li>
+                  <strong>Chat and memory data:</strong> conversations, drafts, summaries, graph relationships,
+                  and workspace context created while using Memorall.
+                </li>
+                <li>
+                  <strong>Documents and files:</strong> PDFs, Markdown, spreadsheets, notes, and workspace files
+                  you import, create, or attach.
+                </li>
+                <li>
+                  <strong>Model assets and caches:</strong> local model files, embeddings, and related cached
+                  artifacts when you choose workflows that need them.
+                </li>
+                <li>
+                  <strong>Configuration data:</strong> model settings, provider configuration state, and other
+                  product preferences needed to restore your setup.
+                </li>
+              </ul>
+            </article>
+
+            <article class="policy-block reveal" id="local-processing">
+              <p class="section-label">Local Handling</p>
+              <h2>Local storage and processing</h2>
+              <ul class="policy-list">
+                <li>
+                  <strong>Browser-local storage:</strong> Memorall uses browser storage surfaces such as
+                  IndexedDB, OPFS, and related local mechanisms to keep memory and document data close to the
+                  browser environment.
+                </li>
+                <li>
+                  <strong>Local inference paths:</strong> some workflows can run with browser-hosted runtimes or
+                  locally configured model servers such as LM Studio or Ollama instead of remote APIs.
+                </li>
+                <li>
+                  <strong>No mandatory sign-in for the core path:</strong> the local-first core does not require
+                  every user to create an account before using the product.
+                </li>
+              </ul>
+            </article>
+
+            <article class="policy-block reveal" id="network-requests">
+              <p class="section-label">Network Requests</p>
+              <h2>When network requests and third parties can be involved</h2>
+              <ul class="policy-list">
+                <li>
+                  <strong>Model downloads:</strong> Memorall may connect to Hugging Face hosts when you choose a
+                  local model workflow that needs downloadable model assets.
+                </li>
+                <li>
+                  <strong>Remote AI providers:</strong> if you explicitly configure and use a remote AI provider,
+                  the prompts, files, and related context you send through that provider may leave the browser and
+                  be processed by that provider.
+                </li>
+                <li>
+                  <strong>Optional auth or sync:</strong> if a deployment enables optional authentication or cloud
+                  features, related account or sync traffic may go to the configured backend for that deployment.
+                </li>
+              </ul>
+
+              <p class="policy-note">
+                Remote providers and optional cloud services are not the same as the local-only path. If you turn
+                them on, you should review the privacy terms of those services separately.
+              </p>
+            </article>
+
+            <article class="policy-block reveal" id="deletion">
+              <p class="section-label">Control</p>
+              <h2>Deletion and retention control</h2>
+              <ul class="policy-list">
+                <li>
+                  <strong>Inside Memorall:</strong> remove saved context, files, or memory objects directly from
+                  the product where those controls are available.
+                </li>
+                <li>
+                  <strong>Browser-level clearing:</strong> clear extension or site data using browser controls to
+                  remove locally stored records.
+                </li>
+                <li>
+                  <strong>Uninstall:</strong> uninstalling the extension removes the extension from the browser and
+                  typically removes its locally stored data, subject to browser behavior.
+                </li>
+                <li>
+                  <strong>External services:</strong> if data was sent to a remote provider or optional cloud
+                  service, retention on that service is governed by that service rather than by local browser
+                  storage alone.
+                </li>
+              </ul>
+            </article>
+
+            <article class="policy-block reveal" id="changes-contact">
+              <p class="section-label">Updates</p>
+              <h2>Changes and contact</h2>
+              <p>
+                This privacy policy may be updated as the product evolves. Material wording should be updated on
+                this page so the public runner site stays aligned with the current product architecture.
+              </p>
+              <p>
+                For questions, feedback, or suspected inaccuracies, open an issue on the Memorall repository or
+                review the source directly.
+              </p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-dark" id="permissions">
+      <div class="shell">
+        <div class="section-heading reveal">
+          <p class="section-label">Extension Permissions</p>
+          <h2>Why the extension asks for browser access.</h2>
+          <p>
+            Permissions support page capture, document handling, local storage, background work, and the
+            browser-aware workflows described on the landing page.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card reveal">
+            <span class="feature-tag">activeTab</span>
+            <h3>Read the current page when you ask</h3>
+            <p>
+              Used to inspect or capture the active tab when you explicitly trigger a page-aware workflow.
+            </p>
+            <div class="feature-meta">
+              <span>User initiated</span>
+              <span>Current tab only</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">tabs</span>
+            <h3>Work across browser surfaces</h3>
+            <p>
+              Supports tab-aware actions, workspace flows, and browser context handling across extension features.
+            </p>
+            <div class="feature-meta">
+              <span>Browser context</span>
+              <span>Tab workflows</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">webNavigation</span>
+            <h3>Respond to page navigation state</h3>
+            <p>
+              Helps the extension react to navigation events that matter for content capture and page-aware tools.
+            </p>
+            <div class="feature-meta">
+              <span>Page lifecycle</span>
+              <span>Capture timing</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">storage</span>
+            <h3>Persist memory and settings locally</h3>
+            <p>
+              Used to keep chats, graph data, saved context, configuration, and other local-first product state.
+            </p>
+            <div class="feature-meta">
+              <span>Local memory</span>
+              <span>Settings</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">contextMenus</span>
+            <h3>Capture from the right-click menu</h3>
+            <p>
+              Adds shortcut actions so you can send page or selection context into Memorall from the browser UI.
+            </p>
+            <div class="feature-meta">
+              <span>Quick capture</span>
+              <span>Selection workflows</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">notifications</span>
+            <h3>Show status and background feedback</h3>
+            <p>
+              Used for save confirmations, progress updates, and other workflow signals from the extension.
+            </p>
+            <div class="feature-meta">
+              <span>Status updates</span>
+              <span>Progress feedback</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">offscreen + hosts</span>
+            <h3>Run background tasks and fetch required assets</h3>
+            <p>
+              Offscreen processing supports heavier background work, while host access covers PDF handling and
+              Hugging Face model downloads when those workflows are enabled.
+            </p>
+            <div class="feature-meta">
+              <span>PDF support</span>
+              <span>Model asset fetches</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="contact">
+      <div class="shell">
+        <div class="cta-panel reveal">
+          <p class="section-label">Questions</p>
+          <h2>Need clarification on a privacy or data-flow detail?</h2>
+          <p>
+            The public site, source code, and issue tracker should stay aligned. If something here looks stale or
+            ambiguous, open an issue so the policy and product copy can be corrected together.
+          </p>
+          <div class="cta-actions">
+            <a class="btn btn-primary" href="./index.html">Back To Home</a>
+            <a
+              class="btn btn-secondary"
+              href="https://github.com/zrg-team/memorall"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View Source
+            </a>
+            <a
+              class="btn btn-secondary"
+              href="https://github.com/zrg-team/memorall/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open Issue
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-shell">
+      <div>
+        <a class="brand" href="./index.html">
+          <img src="images/origin.png" alt="Memorall logo">
+          <span>Memorall</span>
+        </a>
+        <p class="footer-copy">Local-first AI memory, agent workspace, and knowledge graph for the browser.</p>
+      </div>
+
+      <div class="footer-links">
+        <a href="https://github.com/zrg-team/memorall" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/zrg-team/memorall/issues" target="_blank" rel="noopener noreferrer">Issues</a>
+        <a href="https://github.com/zrg-team/memorall/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
+        <a href="./privacy_policy.html">Privacy Policy</a>
+      </div>
+    </div>
   </footer>
 </body>
 </html>
