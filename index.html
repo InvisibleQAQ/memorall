@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="description"
+    content="Memorall turns pages, files, and ongoing research into a searchable memory system with a page-aware assistant, document library, knowledge graph, and local-first agent."
+  >
+  <title>Memorall - Local-First AI Memory For Serious Work In Tabs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  >
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="./js/index.js"></script>
+  <link rel="stylesheet" href="./css/index.css">
+</head>
+<body>
+  <div class="scroll-progress" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="shell header-shell">
+      <a class="brand" href="#top">
+        <img src="images/origin.png" alt="Memorall logo">
+        <span>Memorall</span>
+      </a>
+
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#problem">Why</a>
+        <a href="#workflow">How It Works</a>
+        <a href="#surfaces">Surfaces</a>
+        <a href="#privacy">Privacy</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-secondary btn-compact" href="./privacy_policy.html">Privacy</a>
+        <a
+          class="btn btn-primary btn-compact"
+          href="https://chromewebstore.google.com/detail/memorall/kcienfpnencfkniagcjlpaehofblfhab"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Get Extension
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="shell hero-shell">
+        <div class="hero-copy reveal is-visible">
+          <div class="eyebrow">Offline-first AI memory for serious work in tabs</div>
+          <h1>One browser. Your whole memory. Zero context loss.</h1>
+          <p class="hero-lead">
+            Turn pages, files, notes, and ongoing research into a searchable memory system.
+            Memorall combines a page-aware assistant, document and workspace library,
+            topic-scoped knowledge graph, and a local-first agent that can actually use tools.
+          </p>
+
+          <div class="hero-actions">
+            <a
+              class="btn btn-primary"
+              href="https://chromewebstore.google.com/detail/memorall/kcienfpnencfkniagcjlpaehofblfhab"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Add To Chrome
+            </a>
+            <a
+              class="btn btn-secondary"
+              href="https://github.com/zrg-team/memorall"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View On GitHub
+            </a>
+          </div>
+
+          <div class="hero-proof">
+            <span>Local-first by default</span>
+            <span>Browser + sandbox tools</span>
+            <span>Knowledge graph + docs</span>
+            <span>Custom flow builder</span>
+          </div>
+        </div>
+
+        <div class="hero-visual reveal is-visible">
+          <div class="visual-badge badge-left" aria-hidden="true">
+            Capture from any tab
+            <small>Selection, visible page, HTML, screenshot</small>
+          </div>
+          <div class="visual-badge badge-right" aria-hidden="true">
+            Retrieve real context
+            <small>Graph nodes, docs, prior workspaces</small>
+          </div>
+          <div class="visual-badge badge-bottom" aria-hidden="true">
+            Run tool-aware agents
+            <small>Browser, files, sandbox, custom flows</small>
+          </div>
+
+          <div class="visual-shell">
+            <div class="visual-topbar">
+              <div class="visual-dots" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <span>Topic: Browser Agent Redesign</span>
+              <span>Local mode active</span>
+            </div>
+
+            <div class="visual-body">
+              <div class="sidebar-column">
+                <div class="mini-panel">
+                  <div class="mini-label">Topics</div>
+                  <div class="topic-list">
+                    <div class="topic-item is-active">
+                      <strong>Agent redesign</strong>
+                      <span class="pill">active</span>
+                    </div>
+                    <div class="topic-item">
+                      <strong>Launch brief</strong>
+                      <span class="pill">11 docs</span>
+                    </div>
+                    <div class="topic-item">
+                      <strong>Model notes</strong>
+                      <span class="pill">7 nodes</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mini-panel">
+                  <div class="mini-label">Documents</div>
+                  <div class="doc-list">
+                    <div class="doc-item">
+                      <strong>landing-notes.md</strong>
+                      <span class="pill">md</span>
+                    </div>
+                    <div class="doc-item">
+                      <strong>runner-copy.pdf</strong>
+                      <span class="pill">pdf</span>
+                    </div>
+                    <div class="doc-item">
+                      <strong>launch-sheet.xlsx</strong>
+                      <span class="pill">xls</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="main-column">
+                <div class="main-panel">
+                  <div class="chat-header">
+                    <span class="chip">page-aware assistant</span>
+                    <span>14 sources linked</span>
+                  </div>
+
+                  <div class="message-stack">
+                    <div class="message message-user">
+                      Turn the current pages, notes, and PDFs into a tighter launch brief.
+                    </div>
+                    <div class="message message-agent">
+                      I merged the active tab, linked workspace notes, pulled related graph nodes,
+                      and queued the missing PDF pages for knowledge conversion.
+                    </div>
+                    <div class="message message-agent">
+                      Draft is ready. Browser tools stay open if you want me to inspect the live page
+                      or rewrite the content block by block.
+                    </div>
+                  </div>
+
+                  <div class="memory-grid">
+                    <div class="memory-signal">
+                      <strong>Recall</strong>
+                      <span>Hybrid retrieval combines chat history, files, and topic graph context.</span>
+                    </div>
+                    <div class="memory-signal">
+                      <strong>Activity</strong>
+                      <span>Browser session, document FS, and sandbox runtime stay available to the agent.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="inspector-column">
+                <div class="mini-panel">
+                  <div class="mini-label">Knowledge graph</div>
+                  <div class="graph-field" aria-hidden="true">
+                    <span class="node"></span>
+                    <span class="node"></span>
+                    <span class="node"></span>
+                    <span class="node"></span>
+                  </div>
+                </div>
+
+                <div class="mini-panel">
+                  <div class="mini-label">Enabled tools</div>
+                  <div class="tool-list">
+                    <div class="tool-item">
+                      <strong>Web browser</strong>
+                      <span class="pill">dom</span>
+                    </div>
+                    <div class="tool-item">
+                      <strong>Workspace FS</strong>
+                      <span class="pill">rw</span>
+                    </div>
+                    <div class="tool-item">
+                      <strong>Node sandbox</strong>
+                      <span class="pill">npm</span>
+                    </div>
+                    <div class="tool-item">
+                      <strong>Flow builder</strong>
+                      <span class="pill">graph</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="marquee" aria-label="Product capabilities">
+      <div class="marquee-inner">
+        <div class="marquee-item">Page-aware assistant</div>
+        <div class="marquee-item">Topic-scoped graph memory</div>
+        <div class="marquee-item">Document and workspace library</div>
+        <div class="marquee-item">Browser automation tools</div>
+        <div class="marquee-item">Node sandbox runtime</div>
+        <div class="marquee-item">PGlite in the browser</div>
+        <div class="marquee-item">Wllama, WebLLM, Transformers</div>
+        <div class="marquee-item">PDF, Excel, Markdown conversion</div>
+        <div class="marquee-item">Custom flow builder</div>
+        <div class="marquee-item">Optional OpenAI-compatible providers</div>
+        <div class="marquee-item">Page-aware assistant</div>
+        <div class="marquee-item">Topic-scoped graph memory</div>
+        <div class="marquee-item">Document and workspace library</div>
+        <div class="marquee-item">Browser automation tools</div>
+        <div class="marquee-item">Node sandbox runtime</div>
+        <div class="marquee-item">PGlite in the browser</div>
+        <div class="marquee-item">Wllama, WebLLM, Transformers</div>
+        <div class="marquee-item">PDF, Excel, Markdown conversion</div>
+        <div class="marquee-item">Custom flow builder</div>
+        <div class="marquee-item">Optional OpenAI-compatible providers</div>
+      </div>
+    </section>
+
+    <section class="section" id="problem">
+      <div class="shell">
+        <div class="section-heading reveal">
+          <p class="section-label">The Problem</p>
+          <h2>Most assistants answer the prompt. Memorall keeps the work.</h2>
+          <p>
+            Browsers are where serious research happens, but context usually gets scattered across tabs,
+            PDFs, notes, screenshots, and one-off prompts. Memorall keeps those threads inside one memory
+            system you can search, inspect, and reuse later.
+          </p>
+        </div>
+
+        <div class="comparison-grid">
+          <article class="comparison-card comparison-card-old reveal">
+            <p class="section-label">Without Memorall</p>
+            <h3>Context lives in fragments.</h3>
+            <p>
+              The browser has the real work, but your assistant only sees whatever you pasted into the last prompt.
+            </p>
+
+            <div class="story-list">
+              <div class="story-row">
+                <span class="story-tag">TAB</span>
+                <div>
+                  <strong>Research drifts away</strong>
+                  <span>Important pages vanish into tab history or bookmarks with no usable memory attached.</span>
+                </div>
+              </div>
+              <div class="story-row">
+                <span class="story-tag">PDF</span>
+                <div>
+                  <strong>Documents stay disconnected</strong>
+                  <span>Specs, notes, and downloads sit in separate folders with no shared retrieval context.</span>
+                </div>
+              </div>
+              <div class="story-row">
+                <span class="story-tag">PROMPT</span>
+                <div>
+                  <strong>Every question starts over</strong>
+                  <span>New chats lose the surrounding work, the source trail, and the vocabulary of the project.</span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="comparison-card comparison-card-new reveal">
+            <p class="section-label">With Memorall</p>
+            <h3>Memory stays attached to the job.</h3>
+            <p>
+              Save pages, files, and conversations into a shared topic, then let the agent retrieve and act on that context.
+            </p>
+
+            <div class="story-list">
+              <div class="story-row">
+                <span class="story-tag">TOPIC</span>
+                <div>
+                  <strong>Pages and files land in one workspace</strong>
+                  <span>Selections, screenshots, PDFs, Markdown, and notes stay grouped around the work you are doing.</span>
+                </div>
+              </div>
+              <div class="story-row">
+                <span class="story-tag">GRAPH</span>
+                <div>
+                  <strong>Facts keep their relationships</strong>
+                  <span>Topic-scoped graph memory links entities, sources, and conversations instead of leaving raw text disconnected.</span>
+                </div>
+              </div>
+              <div class="story-row">
+                <span class="story-tag">AGENT</span>
+                <div>
+                  <strong>The assistant can actually use the context</strong>
+                  <span>Retrieve docs, inspect live pages, use filesystem tools, and run code in the sandbox without leaving the thread.</span>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-dark" id="workflow">
+      <div class="shell">
+        <div class="section-heading reveal">
+          <p class="section-label">How It Works</p>
+          <h2>From scattered browsing to durable memory in three steps.</h2>
+          <p>
+            Memorall follows the same rhythm as real browser work: capture what matters, connect it into memory,
+            then let the agent use that memory with tools.
+          </p>
+        </div>
+
+        <div class="step-grid">
+          <article class="step-card reveal">
+            <span class="step-number">01</span>
+            <h3>Capture working context</h3>
+            <p>
+              Save visible pages, selected text, screenshots, PDFs, Markdown, and workspace files into a topic
+              without breaking your browsing flow.
+            </p>
+            <div class="step-pills">
+              <span>Embedded overlay</span>
+              <span>Selection capture</span>
+              <span>Document upload</span>
+            </div>
+          </article>
+
+          <article class="step-card reveal">
+            <span class="step-number">02</span>
+            <h3>Turn storage into memory</h3>
+            <p>
+              Convert notes, documents, and conversations into topic-scoped graph data and hybrid retrieval context
+              that survives beyond a single session.
+            </p>
+            <div class="step-pills">
+              <span>Knowledge graph</span>
+              <span>PGlite + vectors</span>
+              <span>Semantic recall</span>
+            </div>
+          </article>
+
+          <article class="step-card reveal">
+            <span class="step-number">03</span>
+            <h3>Let the agent use it</h3>
+            <p>
+              Chat with an agent that can open pages, inspect DOM state, work with files, run code in the sandbox,
+              and follow custom graph-based flows.
+            </p>
+            <div class="step-pills">
+              <span>Browser tools</span>
+              <span>Node sandbox</span>
+              <span>Flow builder</span>
+            </div>
+          </article>
+        </div>
+
+        <div class="workflow-story-panel reveal">
+          <div class="workflow-story-intro">
+            <div>
+              <p class="section-label">Knowledge Graph Flow</p>
+              <h3>Scroll through the moment raw research becomes connected memory.</h3>
+              <p>
+                First you see captured webpages, PDFs, notes, and sheets. Then those source objects collapse into
+                graph nodes, relationships appear, and the final topic graph becomes legible.
+              </p>
+            </div>
+            <div class="step-pills">
+              <span>Pages + files</span>
+              <span>Node conversion</span>
+              <span>Connected graph</span>
+            </div>
+          </div>
+
+          <div class="workflow-story-shell" data-workflow-story>
+            <div class="workflow-story-visual">
+              <div class="workflow-story-canvas">
+                <div class="workflow-story-toolbar">
+                  <div class="visual-dots" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <span>Memorall / topic memory pipeline</span>
+                  <span class="workflow-story-progress-label">raw sources</span>
+                </div>
+
+                <div class="workflow-story-stage" aria-label="Resources transform into a connected knowledge graph as you scroll">
+                  <span class="workflow-story-badge">topic: Agent researcher</span>
+                  <span class="workflow-story-stats">stage 1 of 4</span>
+                  <svg class="workflow-story-svg" viewBox="0 0 760 440" preserveAspectRatio="none" aria-hidden="true"></svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="workflow-story-copy">
+              <article class="workflow-story-step is-active" data-story-step="0">
+                <span class="workflow-story-index">01</span>
+                <h4>See the raw materials</h4>
+                <p>
+                  Start with the actual working set: live webpages, PDFs, notes, spreadsheets, and research snippets.
+                  Memorall keeps the source surface visible instead of pretending memory starts as abstract data.
+                </p>
+              </article>
+
+              <article class="workflow-story-step" data-story-step="1">
+                <span class="workflow-story-index">02</span>
+                <h4>Transform resources into nodes</h4>
+                <p>
+                  Scroll deeper and those captures compress into graph-ready entities. The visual shifts from documents
+                  to compact nodes that can be retrieved, compared, and referenced later.
+                </p>
+              </article>
+
+              <article class="workflow-story-step" data-story-step="2">
+                <span class="workflow-story-index">03</span>
+                <h4>Reveal the relationships</h4>
+                <p>
+                  Connections begin to appear between ideas, people, methods, benchmarks, and source files. This is
+                  where storage stops being a pile of files and becomes navigable knowledge.
+                </p>
+              </article>
+
+              <article class="workflow-story-step" data-story-step="3">
+                <span class="workflow-story-index">04</span>
+                <h4>Land on the final knowledge graph</h4>
+                <p>
+                  The final view is a topic graph the agent can inspect and use. Sources remain attached, but the user
+                  now sees a durable map instead of disconnected artifacts.
+                </p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="surfaces">
+      <div class="shell">
+        <div class="section-heading reveal">
+          <p class="section-label">Product Surfaces</p>
+          <h2>Everything you need to work with memory, not just chat.</h2>
+          <p>
+            Memorall ships as a browser extension with multiple surfaces that stay connected: page overlays,
+            the main chat workspace, a document library, graph explorer, model controls, diagnostics, and a visual flow builder.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card reveal">
+            <span class="feature-tag">Page</span>
+            <h3>In-page assistant</h3>
+            <p>
+              Open a page-aware overlay on any site and send selections, visible content, full page context,
+              HTML structure, and screenshots directly into chat or a topic.
+            </p>
+            <div class="feature-meta">
+              <span>Selection capture</span>
+              <span>Screenshot context</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">Docs</span>
+            <h3>Document and workspace library</h3>
+            <p>
+              Manage stored documents and writable workspaces, preview PDFs and Excel, edit Markdown and text,
+              and keep source material attached to the project instead of scattered across folders.
+            </p>
+            <div class="feature-meta">
+              <span>PDF + Excel preview</span>
+              <span>Writable workspace</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">Graph</span>
+            <h3>Topic-scoped knowledge graph</h3>
+            <p>
+              Convert notes, pages, PDFs, and spreadsheets into graph-ready context so the agent can follow
+              entities, relationships, and sources over time.
+            </p>
+            <div class="feature-meta">
+              <span>Source-linked nodes</span>
+              <span>Topic filtering</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">Tools</span>
+            <h3>Tool-using agent</h3>
+            <p>
+              Give the agent browser access, filesystem-style document tools, and a browser-hosted Node.js sandbox
+              instead of limiting it to plain text responses.
+            </p>
+            <div class="feature-meta">
+              <span>DOM actions</span>
+              <span>Sandbox runtime</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">Models</span>
+            <h3>Local and remote model control</h3>
+            <p>
+              Run browser-hosted models with Wllama, WebLLM, and Transformers, or connect OpenAI-compatible
+              providers when you decide the task needs them.
+            </p>
+            <div class="feature-meta">
+              <span>Local-first</span>
+              <span>Optional providers</span>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <span class="feature-tag">Flows</span>
+            <h3>Visual flow builder</h3>
+            <p>
+              Build graph-based agents with configurable feature steps like web browsing, retrieval, filesystem access,
+              sandbox execution, and other capability layers.
+            </p>
+            <div class="feature-meta">
+              <span>Graph logic</span>
+              <span>Custom agents</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="memory">
+      <div class="shell">
+        <div class="memory-panel reveal">
+          <div class="section-heading">
+            <p class="section-label">Memory</p>
+            <h2>It gets sharper as your context compounds.</h2>
+            <p>
+              Memorall is not a temporary retrieval cache. It is designed to build an evolving memory context
+              around your tabs, files, language, and long-running research threads.
+            </p>
+          </div>
+
+          <div class="timeline-grid">
+            <article class="timeline-card">
+              <div class="timeline-step">
+                <span class="timeline-index">01</span>
+                <div class="stat-label">First capture</div>
+              </div>
+              <h3>Save the page</h3>
+              <p>
+                Capture a selection, visible content, or screenshot while the source is still open.
+              </p>
+            </article>
+
+            <article class="timeline-card">
+              <div class="timeline-step">
+                <span class="timeline-index">02</span>
+                <div class="stat-label">Research session</div>
+              </div>
+              <h3>Link files and notes</h3>
+              <p>
+                PDFs, Markdown, spreadsheets, and workspace documents join the same topic.
+              </p>
+            </article>
+
+            <article class="timeline-card">
+              <div class="timeline-step">
+                <span class="timeline-index">03</span>
+                <div class="stat-label">Project week</div>
+              </div>
+              <h3>Retrieve richer context</h3>
+              <p>
+                Graph nodes, document text, and prior conversations start surfacing together.
+              </p>
+            </article>
+
+            <article class="timeline-card">
+              <div class="timeline-step">
+                <span class="timeline-index">04</span>
+                <div class="stat-label">Long-running work</div>
+              </div>
+              <h3>Stop starting from zero</h3>
+              <p>
+                The agent stays closer to your projects, vocabulary, and decision trail over time.
+              </p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="stack">
+      <div class="shell">
+        <div class="section-heading reveal">
+          <p class="section-label">Stack</p>
+          <h2>Local by default. Expand only when you choose.</h2>
+          <p>
+            Memorall sits in the middle as the model gateway. It keeps one memory-aware interface in front of
+            browser-local runtimes, local model servers, and remote APIs, so you can route work where it belongs
+            without changing the way you use the product.
+          </p>
+        </div>
+
+        <div class="stack-grid">
+          <article class="stack-proxy-panel reveal">
+            <div class="stack-proxy-intro">
+              <p class="section-label">Memorall proxy</p>
+              <h3>One control surface across local and remote model targets.</h3>
+              <p>
+                Prompts, retrieved memory, tools, and routing decisions pass through Memorall first. From there,
+                the same workspace can send work to browser-local inference, local servers like Ollama or LM Studio,
+                or remote providers like OpenAI and Anthropic only when you opt in.
+              </p>
+            </div>
+
+            <div class="stack-route-diagram" aria-label="Memorall routes requests to local and remote model providers">
+              <svg class="stack-route-svg" viewBox="0 0 760 580" preserveAspectRatio="none" aria-hidden="true">
+                <path class="stack-route-path" d="M 186 430 C 272 360, 346 112, 448 46"></path>
+                <path class="stack-route-path" d="M 186 430 C 280 376, 352 166, 448 109"></path>
+                <path class="stack-route-path is-mixed" d="M 186 430 C 290 392, 360 220, 448 172"></path>
+                <path class="stack-route-path is-local" d="M 186 430 C 296 414, 370 280, 448 235"></path>
+                <path class="stack-route-path is-local" d="M 186 430 C 298 428, 374 338, 448 298"></path>
+                <path class="stack-route-path is-local" d="M 186 430 C 300 442, 378 396, 448 361"></path>
+                <path class="stack-route-path is-local" d="M 186 430 C 300 458, 380 454, 448 424"></path>
+                <path class="stack-route-path is-local" d="M 186 430 C 298 478, 380 512, 448 487"></path>
+              </svg>
+
+              <div class="stack-hub">
+                <div class="stack-hub-core">
+                </div>
+                <div class="stack-hub-label">
+                  <strong>Memorall</strong>
+                  <span>Proxy, memory router, and model control plane</span>
+                </div>
+              </div>
+
+              <ul class="stack-providers">
+                <li class="stack-provider">
+                  <div>
+                    <strong>OpenAI</strong>
+                    <small>remote API target</small>
+                  </div>
+                </li>
+                <li class="stack-provider">
+                  <div>
+                    <strong>Anthropic</strong>
+                    <small>remote API target</small>
+                  </div>
+                </li>
+                <li class="stack-provider is-mixed">
+                  <div>
+                    <strong>Azure / OpenRouter</strong>
+                    <small>swappable external gateway</small>
+                  </div>
+                </li>
+                <li class="stack-provider is-local">
+                  <div>
+                    <strong>Ollama</strong>
+                    <small>local server runtime</small>
+                  </div>
+                </li>
+                <li class="stack-provider is-local">
+                  <div>
+                    <strong>LM Studio</strong>
+                    <small>local server runtime</small>
+                  </div>
+                </li>
+                <li class="stack-provider is-local">
+                  <div>
+                    <strong>WebLLM</strong>
+                    <small>browser-local inference</small>
+                  </div>
+                </li>
+                <li class="stack-provider is-local">
+                  <div>
+                    <strong>Wllama</strong>
+                    <small>browser-local inference</small>
+                  </div>
+                </li>
+                <li class="stack-provider is-local">
+                  <div>
+                    <strong>Transformers.js</strong>
+                    <small>browser-local inference</small>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </article>
+
+          <div class="stack-detail-column">
+            <article class="stack-note-card reveal">
+              <p class="section-label">Centralized routing</p>
+              <h3>Local-first does not mean local-only.</h3>
+              <p>
+                Memorall centralizes the model boundary. You keep one workspace, one memory layer, and one tool surface,
+                while the request can still land on the best local or remote model for the job.
+              </p>
+            </article>
+
+            <article class="stack-note-card reveal">
+              <p class="section-label">Targets</p>
+              <h3>Choose the runtime, keep the workflow.</h3>
+              <div class="stack-note-list">
+                <div class="stack-note-item">
+                  <strong>WebLLM</strong>
+                  <span>browser-local inference target</span>
+                </div>
+                <div class="stack-note-item">
+                  <strong>Wllama</strong>
+                  <span>browser-local inference target</span>
+                </div>
+                <div class="stack-note-item">
+                  <strong>Transformers.js</strong>
+                  <span>browser-local inference target</span>
+                </div>
+                <div class="stack-note-item">
+                  <strong>Ollama + LM Studio</strong>
+                  <span>local server runtimes behind the same control surface</span>
+                </div>
+                <div class="stack-note-item">
+                  <strong>Remote APIs</strong>
+                  <span>OpenAI, Anthropic, Azure, OpenRouter when explicitly enabled</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="stack-note-card reveal">
+              <p class="section-label">What stays centralized</p>
+              <h3>Memory, tools, and routing stay inside Memorall.</h3>
+              <p>
+                The user-facing surface does not fragment just because the model target changes. Retrieval, document context,
+                browser tools, workspace files, and agent logic still enter through the same product layer first.
+              </p>
+              <div class="stack-surface-row">
+                <span>Topic memory</span>
+                <span>Browser tools</span>
+                <span>Workspace files</span>
+                <span>Agent flows</span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="privacy">
+      <div class="shell">
+        <div class="privacy-grid">
+          <div class="privacy-copy reveal">
+            <p class="section-label">Privacy</p>
+            <h2>Privacy is architecture, not a marketing toggle.</h2>
+            <p>
+              Memorall is built so the core experience can stay local. Optional auth and external providers exist,
+              but the product does not force them on every workflow.
+            </p>
+            <div class="cta-actions">
+              <a class="btn btn-light" href="./privacy_policy.html">Read Privacy Policy</a>
+              <a
+                class="btn btn-light"
+                href="https://github.com/zrg-team/memorall"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Browse Source
+              </a>
+            </div>
+          </div>
+
+          <div class="privacy-cards">
+            <article class="privacy-card reveal">
+              <p class="section-label">Local-only core</p>
+              <h3>No mandatory account</h3>
+              <p>The core app can run locally in the browser without forcing sign-in or a hosted database.</p>
+            </article>
+
+            <article class="privacy-card reveal">
+              <p class="section-label">In-browser storage</p>
+              <h3>Knowledge stays close</h3>
+              <p>Pages, graph data, and conversations live in browser storage backed by PGlite and local file surfaces.</p>
+            </article>
+
+            <article class="privacy-card reveal">
+              <p class="section-label">Provider control</p>
+              <h3>Choose local or remote models</h3>
+              <p>Use browser-hosted runtimes by default and connect external providers only when you want that tradeoff.</p>
+            </article>
+
+            <article class="privacy-card reveal">
+              <p class="section-label">Long-running work</p>
+              <h3>Memory follows the project</h3>
+              <p>Topics, files, graph nodes, and chats stay connected so the assistant does not forget your work after one tab closes.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell">
+        <div class="cta-panel reveal">
+          <p class="section-label">Get Started</p>
+          <h2>Build memory into the way you already work.</h2>
+          <p>
+            Memorall is for people who do real work in tabs and want the browser to remember the job,
+            not just the last prompt.
+          </p>
+          <div class="cta-actions">
+            <a
+              class="btn btn-primary"
+              href="https://chromewebstore.google.com/detail/memorall/kcienfpnencfkniagcjlpaehofblfhab"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Add To Chrome
+            </a>
+            <a
+              class="btn btn-secondary"
+              href="https://github.com/zrg-team/memorall"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View On GitHub
+            </a>
+            <a class="btn btn-secondary" href="./privacy_policy.html">Privacy Policy</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-shell">
+      <div>
+        <a class="brand" href="#top">
+          <img src="images/origin.png" alt="Memorall logo">
+          <span>Memorall</span>
+        </a>
+        <p class="footer-copy">Local-first AI memory, agent workspace, and knowledge graph for the browser.</p>
+      </div>
+
+      <div class="footer-links">
+        <a href="https://github.com/zrg-team/memorall" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/zrg-team/memorall/issues" target="_blank" rel="noopener noreferrer">Issues</a>
+        <a href="https://github.com/zrg-team/memorall/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
+        <a href="./privacy_policy.html">Privacy Policy</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
+
