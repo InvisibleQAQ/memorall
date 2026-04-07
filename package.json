@@ -28,7 +28,7 @@
     "package:edge": "cd dist/chrome && tar -a -c -f ../../memorall-edge.zip *",
     "package:all": "npm run build:prod && npm run package:chrome && npm run package:edge",
     "package": "node tools/build-manifest.mjs && node ./tools/build-publish.mjs",
-    "build:runner": "gh-pages -d runner",
+    "build:runner": "node tools/deploy-runner.mjs",
     "type-check": "tsc --noEmit",
     "clean": "extension clean",
     "lint": "extension lint",
