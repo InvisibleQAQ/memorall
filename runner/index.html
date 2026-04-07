@@ -14,6 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
     rel="stylesheet"
   >
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script src="./js/index.js"></script>
   <link rel="stylesheet" href="./css/index.css">
 </head>
@@ -384,228 +385,80 @@
           </article>
         </div>
 
-        <div class="workflow-graph-panel reveal">
-          <div class="workflow-graph-intro">
+        <div class="workflow-story-panel reveal">
+          <div class="workflow-story-intro">
             <div>
-              <p class="section-label">Graph Preview</p>
-              <h3>See the topic graph instead of guessing what memory means.</h3>
+              <p class="section-label">Knowledge Graph Flow</p>
+              <h3>Scroll through the moment raw research becomes connected memory.</h3>
               <p>
-                Captured pages, notes, papers, and people become inspectable nodes with edges back to source
-                material, so each topic stays navigable instead of collapsing into one long chat thread.
+                First you see captured webpages, PDFs, notes, and sheets. Then those source objects collapse into
+                graph nodes, relationships appear, and the final topic graph becomes legible.
               </p>
             </div>
             <div class="step-pills">
-              <span>Topic scoped</span>
-              <span>Source linked</span>
-              <span>Inspectable nodes</span>
+              <span>Pages + files</span>
+              <span>Node conversion</span>
+              <span>Connected graph</span>
             </div>
           </div>
 
-          <div class="workflow-graph-shell">
-            <div class="workflow-graph-sidebar">
-              <div class="workflow-panel">
-                <div class="mini-label">Topics</div>
-                <div class="topic-list">
-                  <div class="topic-item">
-                    <strong>Default (No Topic)</strong>
-                    <span class="pill">0</span>
+          <div class="workflow-story-shell" data-workflow-story>
+            <div class="workflow-story-visual">
+              <div class="workflow-story-canvas">
+                <div class="workflow-story-toolbar">
+                  <div class="visual-dots" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
                   </div>
-                  <div class="topic-item">
-                    <strong>EGPU</strong>
-                    <span class="pill">1</span>
-                  </div>
-                  <div class="topic-item is-active">
-                    <strong>Agent researcher</strong>
-                    <span class="pill">115</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="workflow-panel">
-                <div class="workflow-selection-header">
-                  <span class="workflow-selection-avatar" aria-hidden="true"></span>
-                  <div class="workflow-selection-meta">
-                    <strong>ReCode</strong>
-                    <span class="workflow-selection-type">AI_AGENT_PARADIGM</span>
-                  </div>
+                  <span>Memorall / topic memory pipeline</span>
+                  <span class="workflow-story-progress-label">raw sources</span>
                 </div>
 
-                <div class="workflow-selection-tabs" aria-hidden="true">
-                  <span class="is-active">Summary</span>
-                  <span>Edges (61)</span>
-                </div>
-
-                <p class="workflow-selection-copy">
-                  A code-centric agent paradigm that keeps planning and low-level execution in one shared
-                  representation, so the graph can connect methods, benchmarks, authors, and related ideas.
-                </p>
-
-                <div class="workflow-connection-list">
-                  <div class="workflow-connection-row">
-                    <strong>Connects to</strong>
-                    <span>Code Generation</span>
-                  </div>
-                  <div class="workflow-connection-row">
-                    <strong>Benchmarked in</strong>
-                    <span>ALFWorld</span>
-                  </div>
-                  <div class="workflow-connection-row">
-                    <strong>Related paradigm</strong>
-                    <span>ReAct</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="workflow-panel">
-                <div class="mini-label">Node Types</div>
-                <div class="workflow-type-grid">
-                  <span class="workflow-type-pill workflow-type-pill--paradigm">AI paradigm</span>
-                  <span class="workflow-type-pill workflow-type-pill--capability">Capability</span>
-                  <span class="workflow-type-pill workflow-type-pill--benchmark">Benchmark</span>
-                  <span class="workflow-type-pill workflow-type-pill--person">Person</span>
-                  <span class="workflow-type-pill workflow-type-pill--concept">Concept</span>
-                  <span class="workflow-type-pill workflow-type-pill--method">Method</span>
+                <div class="workflow-story-stage" aria-label="Resources transform into a connected knowledge graph as you scroll">
+                  <span class="workflow-story-badge">topic: Agent researcher</span>
+                  <span class="workflow-story-stats">stage 1 of 4</span>
+                  <svg class="workflow-story-svg" viewBox="0 0 760 440" preserveAspectRatio="none" aria-hidden="true"></svg>
                 </div>
               </div>
             </div>
 
-            <div class="workflow-graph-canvas">
-              <div class="workflow-graph-toolbar">
-                <div class="visual-dots" aria-hidden="true">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <span>Agent researcher / graph explorer</span>
-                <span>115 nodes / 186 edges</span>
-              </div>
+            <div class="workflow-story-copy">
+              <article class="workflow-story-step is-active" data-story-step="0">
+                <span class="workflow-story-index">01</span>
+                <h4>See the raw materials</h4>
+                <p>
+                  Start with the actual working set: live webpages, PDFs, notes, spreadsheets, and research snippets.
+                  Memorall keeps the source surface visible instead of pretending memory starts as abstract data.
+                </p>
+              </article>
 
-              <div class="workflow-graph-stage" aria-label="Example of a topic-scoped knowledge graph in Memorall">
-                <span class="workflow-graph-badge">focused topic: Agent researcher</span>
-                <span class="workflow-graph-stats">selected node: ReCode</span>
+              <article class="workflow-story-step" data-story-step="1">
+                <span class="workflow-story-index">02</span>
+                <h4>Transform resources into nodes</h4>
+                <p>
+                  Scroll deeper and those captures compress into graph-ready entities. The visual shifts from documents
+                  to compact nodes that can be retrieved, compared, and referenced later.
+                </p>
+              </article>
 
-                <svg class="workflow-graph-svg" viewBox="0 0 760 420" preserveAspectRatio="none" aria-hidden="true">
-                  <path class="workflow-graph-link is-faint" d="M 170 104 C 208 138, 238 162, 300 176"></path>
-                  <path class="workflow-graph-link is-faint" d="M 204 146 C 256 174, 284 198, 340 218"></path>
-                  <path class="workflow-graph-link is-faint" d="M 312 126 C 350 154, 390 190, 426 212"></path>
-                  <path class="workflow-graph-link is-faint" d="M 382 84 C 420 126, 454 180, 486 214"></path>
-                  <path class="workflow-graph-link is-strong" d="M 462 240 C 524 196, 560 170, 620 132"></path>
-                  <path class="workflow-graph-link is-strong" d="M 462 240 C 548 212, 612 204, 676 192"></path>
-                  <path class="workflow-graph-link is-strong" d="M 462 240 C 548 232, 622 248, 688 266"></path>
-                  <path class="workflow-graph-link is-strong" d="M 462 240 C 538 266, 592 296, 638 336"></path>
-                  <path class="workflow-graph-link is-strong" d="M 462 240 C 504 286, 528 322, 560 366"></path>
-                  <path class="workflow-graph-link is-strong" d="M 462 240 C 422 296, 398 324, 352 360"></path>
-                  <path class="workflow-graph-link is-strong" d="M 462 240 C 372 252, 310 254, 246 248"></path>
-                  <path class="workflow-graph-link is-strong" d="M 462 240 C 378 220, 320 216, 268 214"></path>
-                  <path class="workflow-graph-link is-faint" d="M 620 132 C 648 150, 664 164, 676 192"></path>
-                  <path class="workflow-graph-link is-faint" d="M 676 192 C 668 222, 674 244, 688 266"></path>
-                  <path class="workflow-graph-link is-faint" d="M 560 366 C 522 354, 486 356, 448 350"></path>
-                  <path class="workflow-graph-link is-faint" d="M 352 360 C 318 334, 294 306, 282 274"></path>
-                  <path class="workflow-graph-link is-faint" d="M 246 248 C 244 216, 248 190, 268 214"></path>
-                </svg>
+              <article class="workflow-story-step" data-story-step="2">
+                <span class="workflow-story-index">03</span>
+                <h4>Reveal the relationships</h4>
+                <p>
+                  Connections begin to appear between ideas, people, methods, benchmarks, and source files. This is
+                  where storage stops being a pile of files and becomes navigable knowledge.
+                </p>
+              </article>
 
-                <div class="workflow-preview-node workflow-preview-node--method is-muted" style="left: 17%; top: 18%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">RepPenalty</span>
-                  <small>method</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--method is-muted" style="left: 22%; top: 28%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">Solver</span>
-                  <small>method</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--paradigm is-muted" style="left: 31%; top: 14%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">InstructGPT</span>
-                  <small>paradigm</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--paradigm is-muted" style="left: 39%; top: 28%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">RLHF</span>
-                  <small>paradigm</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--paradigm workflow-preview-node-hub" style="left: 58%; top: 58%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">ReCode</span>
-                  <small>AI agent paradigm</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--capability" style="left: 66%; top: 32%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">Granularity Control</span>
-                  <small>capability</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--concept" style="left: 80%; top: 24%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">Code Generation</span>
-                  <small>concept</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--paradigm" style="left: 88%; top: 39%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">ReAct</span>
-                  <small>paradigm</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--paradigm" style="left: 90%; top: 57%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">AdaPlanner</span>
-                  <small>paradigm</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--benchmark" style="left: 82%; top: 67%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">ScienceWorld</span>
-                  <small>benchmark</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--benchmark" style="left: 71%; top: 83%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">ALFWorld</span>
-                  <small>benchmark</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--operation" style="left: 57%; top: 87%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">Planning</span>
-                  <small>operation</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--concept" style="left: 45%; top: 82%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">Decision Tree</span>
-                  <small>concept</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--person" style="left: 32%; top: 61%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">Yu</span>
-                  <small>person</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--person" style="left: 23%; top: 63%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">Zhao</span>
-                  <small>person</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--person" style="left: 26%; top: 51%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">Wu</span>
-                  <small>person</small>
-                </div>
-
-                <div class="workflow-preview-node workflow-preview-node--person" style="left: 39%; top: 44%;">
-                  <span class="workflow-preview-node-dot"></span>
-                  <span class="workflow-preview-node-label">Language Model</span>
-                  <small>agent type</small>
-                </div>
-              </div>
+              <article class="workflow-story-step" data-story-step="3">
+                <span class="workflow-story-index">04</span>
+                <h4>Land on the final knowledge graph</h4>
+                <p>
+                  The final view is a topic graph the agent can inspect and use. Sources remain attached, but the user
+                  now sees a durable map instead of disconnected artifacts.
+                </p>
+              </article>
             </div>
           </div>
         </div>
