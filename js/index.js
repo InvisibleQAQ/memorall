@@ -14,18 +14,19 @@ const smoothStep = (edge0, edge1, value) => {
 const initWorkflowStory = ({ reduceMotion }) => {
   const shell = document.querySelector("[data-workflow-story]");
   const stage = shell?.querySelector(".workflow-story-stage");
+  const resourceLayerNode = shell?.querySelector(".workflow-story-resource-layer");
   const svgNode = shell?.querySelector(".workflow-story-svg");
   const stepNodes = shell ? Array.from(shell.querySelectorAll("[data-story-step]")) : [];
   const progressLabel = shell?.querySelector(".workflow-story-progress-label");
   const statsLabel = shell?.querySelector(".workflow-story-stats");
 
-  if (!shell || !stage || !svgNode || !window.d3) {
+  if (!shell || !stage || !resourceLayerNode || !svgNode || !window.d3) {
     return;
   }
 
   const d3 = window.d3;
-  const width = 760;
-  const height = 440;
+  const width = 820;
+  const height = 520;
   const stageLabels = [
     "raw sources",
     "resource nodes",
@@ -40,7 +41,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
       meta: "webpage",
       color: "#72e8f4",
       accent: "#24c7ef",
-      resource: { x: 156, y: 140, w: 210, h: 122, r: 24 },
+      layer: 1,
+      resource: { x: 156, y: 140, w: 224, h: 126, r: 16 },
       graph: { x: 208, y: 138, w: 32, h: 32, r: 16 },
     },
     {
@@ -49,7 +51,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
       meta: "pdf",
       color: "#f7b15d",
       accent: "#ffd699",
-      resource: { x: 548, y: 126, w: 184, h: 118, r: 22 },
+      layer: 2,
+      resource: { x: 556, y: 126, w: 192, h: 120, r: 16 },
       graph: { x: 520, y: 108, w: 28, h: 28, r: 14 },
     },
     {
@@ -58,7 +61,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
       meta: "markdown",
       color: "#7cb7ff",
       accent: "#d9ebff",
-      resource: { x: 198, y: 304, w: 176, h: 108, r: 20 },
+      layer: 1,
+      resource: { x: 206, y: 314, w: 174, h: 108, r: 16 },
       graph: { x: 168, y: 298, w: 26, h: 26, r: 13 },
     },
     {
@@ -67,7 +71,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
       meta: "spreadsheet",
       color: "#8fe7c1",
       accent: "#dff9ed",
-      resource: { x: 560, y: 296, w: 196, h: 112, r: 22 },
+      layer: 1,
+      resource: { x: 566, y: 308, w: 202, h: 112, r: 16 },
       graph: { x: 594, y: 302, w: 28, h: 28, r: 14 },
     },
     {
@@ -76,7 +81,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
       meta: "topic",
       color: "#f7b15d",
       accent: "#ffe0a6",
-      resource: { x: 384, y: 236, w: 198, h: 116, r: 28 },
+      layer: 4,
+      resource: { x: 382, y: 244, w: 198, h: 116, r: 18 },
       graph: { x: 378, y: 222, w: 40, h: 40, r: 20 },
     },
     {
@@ -85,7 +91,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
       meta: "concept",
       color: "#ef9d4e",
       accent: "#ffd4a2",
-      resource: { x: 344, y: 106, w: 154, h: 92, r: 20 },
+      layer: 3,
+      resource: { x: 344, y: 92, w: 168, h: 96, r: 16 },
       graph: { x: 352, y: 96, w: 24, h: 24, r: 12 },
     },
     {
@@ -94,7 +101,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
       meta: "operation",
       color: "#ffe09a",
       accent: "#fff0c6",
-      resource: { x: 454, y: 352, w: 148, h: 88, r: 20 },
+      layer: 3,
+      resource: { x: 458, y: 382, w: 150, h: 92, r: 16 },
       graph: { x: 454, y: 342, w: 24, h: 24, r: 12 },
     },
     {
@@ -103,7 +111,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
       meta: "people",
       color: "#5faeff",
       accent: "#d8e8ff",
-      resource: { x: 628, y: 208, w: 144, h: 86, r: 18 },
+      layer: 5,
+      resource: { x: 652, y: 214, w: 146, h: 88, r: 16 },
       graph: { x: 608, y: 202, w: 22, h: 22, r: 11 },
     },
   ];
@@ -122,7 +131,10 @@ const initWorkflowStory = ({ reduceMotion }) => {
     { source: "authors", target: "pdf", secondary: true },
   ];
 
-  const svg = d3.select(svgNode).attr("viewBox", `0 0 ${width} ${height}`);
+  const svg = d3.select(svgNode)
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+  const resourceLayer = d3.select(resourceLayerNode);
   const defs = svg.append("defs");
   const shadow = defs
     .append("filter")
@@ -153,18 +165,26 @@ const initWorkflowStory = ({ reduceMotion }) => {
     .join("g")
     .attr("filter", "url(#workflow-story-shadow)");
 
+  const resourceCardSelection = resourceLayer
+    .selectAll(".workflow-story-resource-card")
+    .data(items)
+    .join((enter) => {
+      const card = enter.append("article").attr("class", "workflow-story-resource-card");
+      card.append("span").attr("class", "workflow-story-resource-card-icon");
+      const content = card.append("div").attr("class", "workflow-story-resource-card-content");
+      content.append("strong").attr("class", "workflow-story-resource-card-title");
+      content.append("span").attr("class", "workflow-story-resource-card-meta");
+      const lineGroup = content.append("div").attr("class", "workflow-story-resource-card-lines");
+      [0, 1].forEach(() => {
+        lineGroup.append("span").attr("class", "workflow-story-resource-card-line");
+      });
+      return card;
+    })
+    .style("z-index", (item) => String(item.layer))
+    .style("--workflow-card-accent", (item) => item.accent);
+
   nodeSelection.append("circle").attr("class", "workflow-story-halo");
   nodeSelection.append("rect").attr("class", "workflow-story-card");
-
-  const iconGroup = nodeSelection.append("g").attr("class", "workflow-story-resource-icon");
-  iconGroup.append("rect").attr("class", "workflow-story-icon-frame");
-  iconGroup.append("path").attr("class", "workflow-story-icon-mark");
-
-  const linesGroup = nodeSelection.append("g").attr("class", "workflow-story-resource-lines");
-  [0, 1, 2].forEach(() => linesGroup.append("line"));
-
-  nodeSelection.append("text").attr("class", "workflow-story-resource-title");
-  nodeSelection.append("text").attr("class", "workflow-story-resource-meta");
   nodeSelection.append("text").attr("class", "workflow-story-node-label");
   nodeSelection.append("text").attr("class", "workflow-story-node-meta");
 
@@ -179,6 +199,11 @@ const initWorkflowStory = ({ reduceMotion }) => {
       return 2;
     }
     return 3;
+  };
+
+  const updateStageScale = () => {
+    const scale = stage.clientWidth / width;
+    stage.style.setProperty("--workflow-story-scale", String(scale));
   };
 
   const getNodeState = (item, progress) => {
@@ -199,14 +224,18 @@ const initWorkflowStory = ({ reduceMotion }) => {
   const render = (progress) => {
     const clamped = clamp(progress, 0, 1);
     const stageIndex = getStageIndex(clamped);
-    const morph = smoothStep(0.18, 0.5, clamped);
     const linkAlpha = smoothStep(0.52, 0.82, clamped);
     const finalAlpha = smoothStep(0.74, 0.98, clamped);
-    const resourceAlpha = 1 - smoothStep(0.12, 0.42, clamped);
+    const nodeCardAlpha = smoothStep(0.24, 0.58, clamped);
+    const resourceCardAlpha = 1 - smoothStep(0.2, 0.48, clamped);
+    const resourceExit = smoothStep(0.16, 0.44, clamped);
     const nodeLabelAlpha = smoothStep(0.3, 0.7, clamped);
+    const expansionProgress = smoothStep(0.82, 0.98, clamped);
 
     const states = new Map(items.map((item) => [item.id, getNodeState(item, clamped)]));
 
+    shell.style.setProperty("--workflow-story-expand", expansionProgress.toFixed(4));
+    updateStageScale();
     stage.dataset.stage = String(stageIndex);
     if (progressLabel) {
       progressLabel.textContent = stageLabels[stageIndex];
@@ -222,6 +251,25 @@ const initWorkflowStory = ({ reduceMotion }) => {
     linkSelection
       .attr("d", (d) => buildLinkPath(states.get(d.source), states.get(d.target)))
       .attr("opacity", (d) => (d.secondary ? linkAlpha * 0.65 : linkAlpha));
+
+    resourceCardSelection.each(function updateResourceCard(item) {
+      const selection = d3.select(this);
+      const widthValue = lerp(item.resource.w, item.resource.w * 0.9, resourceExit);
+      const heightValue = lerp(item.resource.h, item.resource.h * 0.9, resourceExit);
+      const xValue = lerp(item.resource.x, item.resource.x + (item.graph.x - item.resource.x) * 0.22, resourceExit);
+      const yValue = lerp(item.resource.y, item.resource.y + (item.graph.y - item.resource.y) * 0.22, resourceExit);
+      const radiusValue = lerp(item.resource.r, Math.min(item.resource.r, 12), resourceExit);
+
+      selection
+        .style("width", `${widthValue}px`)
+        .style("height", `${heightValue}px`)
+        .style("border-radius", `${radiusValue}px`)
+        .style("opacity", String(resourceCardAlpha))
+        .style("transform", `translate3d(${xValue - widthValue / 2}px, ${yValue - heightValue / 2}px, 0)`);
+
+      selection.select(".workflow-story-resource-card-title").text(item.title);
+      selection.select(".workflow-story-resource-card-meta").text(item.meta);
+    });
 
     nodeSelection.each(function updateNode(item) {
       const current = states.get(item.id);
@@ -246,46 +294,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
         .attr("rx", current.r)
         .attr("fill", nodeFill)
         .attr("stroke", strokeFill)
-        .attr("stroke-width", 1.2 + finalAlpha * 0.8);
-
-      selection.select(".workflow-story-icon-frame")
-        .attr("x", -current.w / 2 + 18)
-        .attr("y", -current.h / 2 + 16)
-        .attr("width", lerp(28, 10, morph))
-        .attr("height", lerp(22, 10, morph))
-        .attr("rx", lerp(7, 5, morph))
-        .attr("fill", item.accent)
-        .attr("opacity", 0.92 - morph * 0.34);
-
-      selection.select(".workflow-story-icon-mark")
-        .attr(
-          "d",
-          `M ${-current.w / 2 + 24} ${-current.h / 2 + 27} L ${-current.w / 2 + 38} ${-current.h / 2 + 27} M ${-current.w / 2 + 24} ${-current.h / 2 + 34} L ${-current.w / 2 + 34} ${-current.h / 2 + 34}`,
-        )
-        .attr("fill", "none")
-        .attr("opacity", resourceAlpha);
-
-      selection.selectAll(".workflow-story-resource-lines line")
-        .data([0, 1, 2])
-        .attr("x1", -current.w / 2 + 18)
-        .attr("x2", (d, index) => current.w / 2 - 18 - index * 12)
-        .attr("y1", (d, index) => -current.h / 2 + 52 + index * 16)
-        .attr("y2", (d, index) => -current.h / 2 + 52 + index * 16)
-        .attr("opacity", resourceAlpha);
-
-      selection.select(".workflow-story-resource-title")
-        .attr("x", -current.w / 2 + 18)
-        .attr("y", -current.h / 2 + 38)
-        .attr("text-anchor", "start")
-        .attr("opacity", resourceAlpha)
-        .text(item.title);
-
-      selection.select(".workflow-story-resource-meta")
-        .attr("x", -current.w / 2 + 18)
-        .attr("y", -current.h / 2 + 56)
-        .attr("text-anchor", "start")
-        .attr("opacity", resourceAlpha)
-        .text(item.meta);
+        .attr("stroke-width", 1.2 + finalAlpha * 0.8)
+        .attr("opacity", nodeCardAlpha);
 
       selection.select(".workflow-story-node-label")
         .attr("x", 0)
@@ -315,10 +325,14 @@ const initWorkflowStory = ({ reduceMotion }) => {
     render(clamp(raw, 0, 1));
   };
 
+  updateStageScale();
   render(reduceMotion ? 1 : 0);
   updateProgress();
   window.addEventListener("scroll", updateProgress, { passive: true });
-  window.addEventListener("resize", updateProgress);
+  window.addEventListener("resize", () => {
+    updateStageScale();
+    updateProgress();
+  });
 };
 
 const initLandingPage = () => {
