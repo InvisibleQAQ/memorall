@@ -15,6 +15,15 @@ const badgeVariants = cva(
 				destructive:
 					"border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
 				outline: "text-foreground",
+				/* Landing page pill — mono label with cyan tint */
+				pill:
+					"rounded-pill border-[rgba(36,199,239,0.28)] bg-[rgba(36,199,239,0.08)] text-cyan font-mono text-[0.72rem] tracking-[0.08em] uppercase",
+				/* Landing page chip — page-aware assistant style */
+				chip:
+					"rounded-pill border-[rgba(36,199,239,0.18)] bg-[rgba(36,199,239,0.10)] text-foreground/70 font-mono text-[0.72rem]",
+				/* Warm orange accent pill */
+				warm:
+					"rounded-pill border-[rgba(247,177,93,0.28)] bg-[rgba(247,177,93,0.10)] text-warm font-mono text-[0.72rem]",
 			},
 		},
 		defaultVariants: {

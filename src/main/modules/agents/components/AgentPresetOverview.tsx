@@ -87,7 +87,7 @@ const SummaryCard: React.FC<{
 	const card = (
 		<Card
 			className={cn(
-				"h-full border-border/70 bg-gradient-to-br from-background via-background to-muted/20 shadow-sm",
+				"h-full glass",
 				highlight ? "border-foreground/10" : "",
 			)}
 		>
@@ -299,7 +299,7 @@ export const AgentPresetOverview: React.FC<AgentPresetOverviewProps> = ({
 				)}
 			>
 				<div className="space-y-5 p-5">
-					<Card className="border-border/70 bg-gradient-to-br from-background via-background to-muted/20 shadow-sm">
+					<Card className="glass">
 						<CardHeader className="pb-3">
 							<CardTitle>{t("overview.metadataTitle")}</CardTitle>
 							<CardDescription>
@@ -395,7 +395,7 @@ export const AgentPresetOverview: React.FC<AgentPresetOverviewProps> = ({
 						/>
 					</div>
 
-					<Card className="border-border/70 bg-gradient-to-br from-background via-background to-muted/20 shadow-sm">
+					<Card className="glass">
 						<CardHeader className="pb-3">
 							<CardTitle>{t("summary.promptsTitle")}</CardTitle>
 							<CardDescription>

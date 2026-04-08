@@ -18,6 +18,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -45,18 +49,36 @@ export default {
           foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
+          DEFAULT: "hsl(var(--popover) / 0.90)",
           foreground: "hsl(var(--popover-foreground))",
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
+          DEFAULT: "hsl(var(--card) / 0.75)",
           foreground: "hsl(var(--card-foreground))",
+        },
+        /* Landing page accent colors */
+        cyan: {
+          DEFAULT: "#24c7ef",
+          strong: "#1594df",
+        },
+        warm: {
+          DEFAULT: "#f7b15d",
         },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "1.125rem",    /* 18px — message bubbles */
+        "2xl": "1.375rem", /* 22px — mini-panels */
+        "3xl": "1.875rem", /* 30px — main shells */
+        pill: "9999px",
+      },
+      boxShadow: {
+        glass: "0 24px 90px rgba(34, 27, 46, 0.12)",
+        "glass-strong": "0 38px 120px rgba(19, 15, 28, 0.42)",
+        "glow-cyan": "0 0 0 1px rgba(36,199,239,0.28), 0 4px 20px rgba(36,199,239,0.12)",
+        "glow-warm": "0 0 0 1px rgba(247,177,93,0.28), 0 4px 20px rgba(247,177,93,0.12)",
       },
       keyframes: {
         "accordion-down": {

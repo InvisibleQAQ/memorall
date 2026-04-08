@@ -272,9 +272,9 @@ export const ChatPage: React.FC = () => {
 							exit={{ opacity: 0, x: 24 }}
 							transition={{ duration: 0.2, ease: "easeOut" }}
 							className={cn(
-								"flex-shrink-0 border-l bg-background",
+								"z-10 flex-shrink-0 border-l bg-card",
 								"fixed top-12 bottom-0 right-0 left-0 z-50",
-								"md:relative md:top-auto md:bottom-auto md:left-auto md:w-[480px] md:max-w-full md:z-auto",
+								"md:relative md:top-auto md:bottom-auto md:left-auto md:w-[480px] md:max-w-full md:z-10",
 							)}
 						>
 							<AgentSettingsPanel />

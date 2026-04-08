@@ -181,7 +181,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 				</div>
 			) : null}
 
-			<div className="space-y-3 rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/30 p-4 shadow-sm sm:p-5">
+			<div className="space-y-3 rounded-2xl glass p-4 sm:p-5">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div className="flex items-start gap-3">
 						<div className="rounded-xl bg-muted p-2.5 text-muted-foreground">
@@ -212,7 +212,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 				</p>
 			</div>
 
-			<div className="space-y-3 rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/30 p-4 shadow-sm sm:p-5">
+			<div className="space-y-3 rounded-2xl glass p-4 sm:p-5">
 				<div className="flex items-start gap-3">
 					<div className="rounded-xl bg-muted p-2.5 text-muted-foreground">
 						<Network size={16} />
@@ -253,7 +253,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 			</div>
 
 			<div className="space-y-4">
-				<div className="rounded-2xl border border-border/70 bg-gradient-to-r from-background via-background to-muted/30 p-4 shadow-sm sm:p-5">
+				<div className="rounded-2xl glass p-4 sm:p-5">
 					<div className="flex items-start justify-between gap-3">
 						<div className="flex items-start gap-3">
 							<div className="rounded-xl bg-muted p-2.5 text-muted-foreground">
@@ -313,7 +313,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 							return (
 								<div
 									key={feature.name}
-									className="space-y-3 rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/20 p-4 shadow-sm transition-colors hover:border-foreground/15"
+									className="space-y-3 rounded-2xl glass p-4 transition-colors"
 								>
 									<div className="flex items-start gap-3">
 										<div className="rounded-xl bg-muted p-2.5 text-muted-foreground">
@@ -378,7 +378,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 						return (
 							<div
 								key={feature.name}
-								className="space-y-3 rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/20 p-4 shadow-sm transition-colors hover:border-foreground/15"
+								className="space-y-3 rounded-2xl glass p-4 transition-colors"
 							>
 								<div className="flex items-start justify-between gap-3">
 									<div className="space-y-0.5">

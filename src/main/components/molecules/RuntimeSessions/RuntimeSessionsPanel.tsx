@@ -58,10 +58,10 @@ export const RuntimeSessionsPanel: React.FC = () => {
 
 	return (
 		<div
-			className="flex-shrink-0 relative"
+			className="relative z-10 flex-shrink-0"
 			style={collapsed ? { width: 64 } : { width }}
 		>
-			<div className="flex h-full flex-col border-r bg-background">
+			<div className="flex h-full flex-col border-r bg-card">
 				<div
 					className={cn(
 						"flex-shrink-0 border-b bg-muted/20",

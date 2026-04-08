@@ -97,8 +97,8 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 	}, [refreshRuntimeSessions]);
 
 	return (
-		<div className="h-screen bg-background flex flex-col">
-			<nav className="border-b flex-shrink-0 bg-muted/20">
+		<div className="h-screen bg-app flex flex-col">
+			<nav className="flex-shrink-0 sticky top-0 z-40" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', background: 'var(--header-glass)', borderBottom: '1px solid var(--glass-border)' }}>
 				<div className="px-3">
 					<div className="flex h-12 items-center justify-between">
 						<div className="flex items-center space-x-1">
@@ -115,8 +115,8 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 													to={item.path}
 													className={`${
 														isSelected
-															? "bg-background text-foreground shadow-sm border border-border"
-															: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+															? "bg-blue-500/10 text-blue-500 border border-blue-500/30 shadow-[0_0_0_1px_rgba(59,130,246,0.28),0_4px_20px_rgba(59,130,246,0.12)]"
+															: "text-muted-foreground hover:text-foreground hover:bg-white/5"
 													} p-2 text-sm font-medium flex items-center rounded-md transition-all duration-200 ease-in-out`}
 												>
 													<IconComponent
@@ -142,8 +142,8 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 												<button
 													className={`${
 														isDebugSelected
-															? "bg-background text-foreground shadow-sm border border-border"
-															: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+															? "bg-blue-500/10 text-blue-500 border border-blue-500/30 shadow-[0_0_0_1px_rgba(59,130,246,0.28),0_4px_20px_rgba(59,130,246,0.12)]"
+															: "text-muted-foreground hover:text-foreground hover:bg-white/5"
 													} p-2 text-sm font-medium flex items-center rounded-md transition-all duration-200 ease-in-out`}
 												>
 													<Bug
@@ -188,7 +188,7 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 										<TooltipTrigger asChild>
 											<button
 												onClick={openStandalonePage}
-												className="text-muted-foreground hover:text-foreground hover:bg-muted/50 p-2 text-sm font-medium flex items-center rounded-md transition-all duration-200 ease-in-out"
+												className="text-muted-foreground hover:text-foreground hover:bg-white/5 p-2 text-sm font-medium flex items-center rounded-md transition-all duration-200 ease-in-out"
 											>
 												<ExternalLink size={16} />
 											</button>
