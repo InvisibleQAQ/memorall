@@ -63,8 +63,16 @@ interface ErrorResponse {
 		message: string;
 		type: string;
 		code: string | null;
+		modelId?: string | null;
+		serviceName?: string | null;
 	};
 }
+
+type RunnerMessageError = Error & {
+	code?: string | null;
+	modelId?: string | null;
+	serviceName?: string | null;
+};
 
 type PendingRequest = {
 	resolve: (value: unknown) => void;
@@ -456,7 +464,13 @@ export class TransformerLLM implements BaseLLM {
 			pendingRequest.resolve(payload);
 		} else if (type === "error") {
 			const errorData = payload as ErrorResponse;
-			const error = new Error(errorData.error?.message || "Unknown error");
+			const error = new Error(
+				errorData.error?.message || "Unknown error",
+			) as RunnerMessageError;
+			error.name = errorData.error?.type || "RunnerError";
+			error.code = errorData.error?.code;
+			error.modelId = errorData.error?.modelId;
+			error.serviceName = errorData.error?.serviceName;
 			pendingRequest.reject(error);
 		}
 	};

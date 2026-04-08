@@ -20,6 +20,7 @@
   --pointer-x: 0;
   --pointer-y: 0;
   --scroll-scale: 0;
+  --header-overlap: 5.1rem;
 }
 
 * {
@@ -187,7 +188,8 @@ img {
   background:
     radial-gradient(circle at top, rgba(111, 234, 243, 0.14), transparent 24rem),
     linear-gradient(180deg, #221a2f 0%, #281f36 72%, #302540 100%);
-  padding: clamp(3.4rem, 8vw, 6.5rem) 0 clamp(4.5rem, 8vw, 7rem);
+  margin-top: calc(-1 * var(--header-overlap));
+  padding: calc(clamp(3.4rem, 8vw, 6.5rem) + var(--header-overlap)) 0 clamp(4.5rem, 8vw, 7rem);
 }
 
 .hero::before,
@@ -2162,6 +2164,10 @@ img {
 }
 
 @media (max-width: 720px) {
+  :root {
+    --header-overlap: 8.5rem;
+  }
+
   .shell {
     width: min(100% - 1.25rem, 1200px);
   }

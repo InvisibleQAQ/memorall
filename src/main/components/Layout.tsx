@@ -98,7 +98,15 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 
 	return (
 		<div className="h-screen bg-app flex flex-col">
-			<nav className="flex-shrink-0 sticky top-0 z-40" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', background: 'var(--header-glass)', borderBottom: '1px solid var(--glass-border)' }}>
+			<nav
+				className="flex-shrink-0 sticky top-0 z-40"
+				style={{
+					backdropFilter: "blur(20px)",
+					WebkitBackdropFilter: "blur(20px)",
+					background: "var(--header-glass)",
+					borderBottom: "1px solid var(--glass-border)",
+				}}
+			>
 				<div className="px-3">
 					<div className="flex h-12 items-center justify-between">
 						<div className="flex items-center space-x-1">

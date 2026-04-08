@@ -154,6 +154,7 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 	async modelsFor(
 		name: string,
 	): Promise<{ object: "list"; data: ModelInfo[] }> {
+		await this.ensureOnDemandService(name);
 		const llm = await this.get(name);
 		if (!llm) {
 			throw new Error(
@@ -163,7 +164,6 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 
 		return await llm.models();
 	}
-
 	chatCompletionsFor(
 		name: string,
 		request: ChatCompletionRequest,
@@ -230,22 +230,7 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 		model: string,
 		onProgress?: (progress: ProgressEvent) => void,
 	): Promise<ModelInfo> {
-		// Lazy service creation: create service if it doesn't exist
-		if (!this.has(name)) {
-			try {
-				if (name === DEFAULT_SERVICES.WLLAMA) {
-					await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
-				} else if (name === DEFAULT_SERVICES.WEBLLM) {
-					await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
-				} else if (name === DEFAULT_SERVICES.TRANSFORMER) {
-					await this.create(DEFAULT_SERVICES.TRANSFORMER, {
-						type: "transformer",
-					});
-				}
-			} catch (error) {
-				logWarn(`Failed to create service on-demand: ${name}`, error);
-			}
-		}
+		await this.ensureOnDemandService(name);
 
 		// For lite services, try local first
 		const llm = await this.get(name);
@@ -331,25 +316,10 @@ export class LLMServiceProxy extends LLMServiceCore implements ILLMService {
 		// If there's a current model, ensure its service exists
 		if (this.currentModel) {
 			const serviceName = this.currentModel.serviceName;
-			if (!this.has(serviceName)) {
-				try {
-					// Determine config type from service name
-					if (serviceName === DEFAULT_SERVICES.WLLAMA) {
-						await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
-					} else if (serviceName === DEFAULT_SERVICES.WEBLLM) {
-						await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
-					} else if (serviceName === DEFAULT_SERVICES.TRANSFORMER) {
-						await this.create(DEFAULT_SERVICES.TRANSFORMER, {
-							type: "transformer",
-						});
-					}
-				} catch (error) {
-					logWarn(
-						`Failed to create service for current model: ${serviceName}`,
-						error,
-					);
-				}
-			}
+			await this.ensureOnDemandService(
+				serviceName,
+				"create service for current model",
+			);
 		}
 	}
 

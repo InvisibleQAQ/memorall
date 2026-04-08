@@ -86,10 +86,7 @@ const SummaryCard: React.FC<{
 }) => {
 	const card = (
 		<Card
-			className={cn(
-				"h-full glass",
-				highlight ? "border-foreground/10" : "",
-			)}
+			className={cn("h-full glass", highlight ? "border-foreground/10" : "")}
 		>
 			<CardContent className="flex min-h-[84px] items-start gap-3 p-4">
 				<div className="mt-0.5 rounded-lg bg-muted p-2 text-muted-foreground">

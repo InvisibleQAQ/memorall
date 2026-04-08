@@ -1,4 +1,5 @@
 import type { ServiceProvider } from "./interfaces/llm-service.interface";
+import type { LLMRegistry } from "./interfaces/service";
 
 // Shared constants for LLM services
 export const DEFAULT_SERVICES = {
@@ -10,6 +11,19 @@ export const DEFAULT_SERVICES = {
 	LMSTUDIO: "lmstudio",
 	OLLAMA: "ollama",
 } as const;
+
+export type DefaultOnDemandServiceName =
+	| typeof DEFAULT_SERVICES.WLLAMA
+	| typeof DEFAULT_SERVICES.WEBLLM
+	| typeof DEFAULT_SERVICES.TRANSFORMER;
+
+export const DEFAULT_ON_DEMAND_SERVICE_CONFIGS = {
+	[DEFAULT_SERVICES.WLLAMA]: { type: "wllama" },
+	[DEFAULT_SERVICES.WEBLLM]: { type: "webllm" },
+	[DEFAULT_SERVICES.TRANSFORMER]: { type: "transformer" },
+} as const satisfies {
+	[K in DefaultOnDemandServiceName]: LLMRegistry[K]["config"];
+};
 
 // Provider to service name mapping
 export const PROVIDER_TO_SERVICE: Record<ServiceProvider, string> = {

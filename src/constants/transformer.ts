@@ -15,14 +15,13 @@ export const RECOMMENDATION_TRANSFORMER_MODELS: string[] = [
 	"onnx-community/Qwen3-0.6B-ONNX",
 
 	// Gemma 3 models - Google's latest open models (March 2025)
-	// DISABLED: gemma-3-1b-it-ONNX - Known JSEP crash bug in transformers.js 3.8 (Issue #1469)
-	// NOT available in WebLLM prebuilt config (only Gemma 2 models available)
-	// For Gemma 3 1B, use Wllama with GGUF format instead
-	// "onnx-community/gemma-3-1b-it-ONNX",
-	"onnx-community/gemma-3-270m-it", // Gemma 3 270M works in transformers.js
+	// DISABLED: gemma-3-1b-it-ONNX is not reliable in the bundled browser runtime.
+	// Use another transformer model or a Wllama GGUF Gemma variant instead.
+	// DISABLED: gemma-3-270m-it currently fails tokenizer metadata loading in the bundled browser runtime.
+	// Use the Wllama Gemma GGUF variant instead.
 
 	// Phi 4 - Microsoft's latest reasoning model
-	"onnx-community/Phi-4-mini-instruct",
+	"onnx-community/Phi-4-mini-instruct-ONNX-GQA",
 
 	// LFM2 models - Liquid AI's efficient foundation models
 	"onnx-community/LFM2-350M-ONNX",
@@ -65,19 +64,10 @@ export const QUICK_TRANSFORMER_MODELS = [
 	},
 
 	// === GEMMA 3 (March 2025) ===
-	// DISABLED: gemma-3-1b-it-ONNX has known JSEP crash bug (GitHub Issue #1469)
-	// NOT available in WebLLM (only Gemma 2 models in prebuilt config)
-	// For Gemma 3 1B: Use Wllama provider with GGUF format
-	// {
-	// 	model: "onnx-community/gemma-3-1b-it-ONNX",
-	// 	size: "500MB",
-	// 	description: "💎 Gemma 3 1B: Latest Google model, 32K context (WebGPU)",
-	// },
-	{
-		model: "onnx-community/gemma-3-270m-it",
-		size: "180MB",
-		description: "💎 Gemma 3 270M: Works in transformers.js (WebGPU)",
-	},
+	// DISABLED: gemma-3-1b-it-ONNX is not reliable in the bundled browser runtime.
+	// Use another transformer model or a Wllama GGUF Gemma variant instead.
+	// DISABLED: gemma-3-270m-it currently fails tokenizer metadata loading in the bundled browser runtime.
+	// Use the Wllama Gemma GGUF variant instead.
 
 	// === QWEN 3 (April 2025) ===
 	{
@@ -110,9 +100,9 @@ export const QUICK_TRANSFORMER_MODELS = [
 
 	// === PHI 4 MODELS ===
 	{
-		model: "onnx-community/Phi-4-mini-instruct",
-		size: "2.4GB",
-		description: "🔬 Phi 4: Latest reasoning model (WebGPU)",
+		model: "onnx-community/Phi-4-mini-instruct-ONNX-GQA",
+		size: "3.1GB",
+		description: "🔬 Phi 4: ONNX GQA WebGPU build for browser inference",
 	},
 
 	// === SMOLLM2 ===

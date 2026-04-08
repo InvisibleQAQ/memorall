@@ -10,13 +10,23 @@ import type {
 } from "./interfaces/llm-service.interface";
 import type { ToolCapabilityInfo } from "./interfaces/tool-capability";
 import { NO_TOOL_SUPPORT } from "./interfaces/tool-capability";
-import { CURRENT_MODEL_KEY } from "./constants";
+import {
+	CURRENT_MODEL_KEY,
+	DEFAULT_ON_DEMAND_SERVICE_CONFIGS,
+	type DefaultOnDemandServiceName,
+} from "./constants";
+import type { LLMRegistry } from "./interfaces/service";
 
 export abstract class LLMServiceCore {
 	protected llms = new Map<string, BaseLLM>();
 	protected currentModel: CurrentModelInfo | null = null;
 	private storageUnsubscribe: (() => void) | null = null;
 	private storageLoadAttempted = false;
+
+	protected abstract create<K extends keyof LLMRegistry>(
+		name: string,
+		config: LLMRegistry[K]["config"],
+	): Promise<LLMRegistry[K]["llm"]>;
 
 	// Event system for current model changes
 	private currentModelListeners = new Set<
@@ -155,6 +165,29 @@ export abstract class LLMServiceCore {
 					error,
 				);
 			}
+		}
+	}
+
+	protected async ensureOnDemandService(
+		name: string,
+		failureContext = "create service on-demand",
+	): Promise<boolean> {
+		if (this.has(name)) {
+			return true;
+		}
+
+		const serviceName = name as DefaultOnDemandServiceName;
+		const config = DEFAULT_ON_DEMAND_SERVICE_CONFIGS[serviceName];
+		if (!config) {
+			return false;
+		}
+
+		try {
+			await this.create(serviceName, config);
+			return true;
+		} catch (error) {
+			logWarn(`Failed to ${failureContext}: ${name}`, error);
+			return false;
 		}
 	}
 

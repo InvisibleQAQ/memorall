@@ -11,6 +11,42 @@ const loadedModelsCache = new Map();
 // Progress callback for current load operation
 let currentProgressCallback = null;
 
+const UNSUPPORTED_BROWSER_MODELS = new Map([
+	[
+		"onnx-community/Phi-4-mini-instruct",
+		"onnx-community/Phi-4-mini-instruct does not expose the public browser-ready ONNX tokenizer files needed by this runtime. Use onnx-community/Phi-4-mini-instruct-ONNX-GQA instead.",
+	],
+	[
+		"onnx-community/gemma-3-1b-it-ONNX",
+		"onnx-community/gemma-3-1b-it-ONNX is not currently reliable in the bundled transformers.js runtime in the browser. Use another transformer model or a Wllama GGUF Gemma model instead.",
+	],
+	[
+		"onnx-community/gemma-3-270m-it",
+		"onnx-community/gemma-3-270m-it is not currently compatible with the bundled transformers.js runtime in the browser. Use a Wllama GGUF Gemma model or another transformer model such as Qwen3 or LFM2 instead.",
+	],
+]);
+
+function toRunnerErrorPayload(error, overrides = {}) {
+	const message =
+		error instanceof Error ? error.message : String(error || "Unknown error");
+	const type =
+		typeof overrides.type === "string"
+			? overrides.type
+			: error instanceof Error && error.name
+				? error.name
+				: "Error";
+
+	return {
+		error: {
+			message,
+			type,
+			code: overrides.code ?? null,
+			modelId: overrides.modelId ?? null,
+			serviceName: "transformer",
+		},
+	};
+}
+
 async function ensureTransformers() {
 	if (transformers) return;
 	// Dynamically import transformers from local bundle
@@ -80,6 +116,11 @@ async function ensureTransformers() {
 async function loadTransformerModel(modelId, notifyProgress) {
 	await ensureTransformers();
 
+	const unsupportedMessage = UNSUPPORTED_BROWSER_MODELS.get(modelId);
+	if (unsupportedMessage) {
+		throw new Error(unsupportedMessage);
+	}
+
 	const hasWebGPU =
 		typeof navigator !== "undefined" && typeof navigator.gpu !== "undefined";
 	let device = hasWebGPU ? "webgpu" : "wasm";
@@ -111,9 +152,21 @@ async function loadTransformerModel(modelId, notifyProgress) {
 
 	// Load tokenizer
 	console.log("[transformer-runner] loading tokenizer for", modelId);
-	const tokenizer = await AutoTokenizer.from_pretrained(modelId, {
-		progress_callback: progressCallback,
-	});
+	let tokenizer;
+	try {
+		tokenizer = await AutoTokenizer.from_pretrained(modelId, {
+			progress_callback: progressCallback,
+		});
+	} catch (error) {
+		const errorMessage =
+			error instanceof Error ? error.message : String(error);
+		if (errorMessage.includes("tokenizer_class")) {
+			throw new Error(
+				`Failed to load tokenizer metadata for ${modelId}. This model is not currently compatible with the bundled transformers.js runtime in the browser.`,
+			);
+		}
+		throw error;
+	}
 	console.log("[transformer-runner] tokenizer loaded successfully");
 
 	// Try multiple configurations: device (WebGPU → WASM) and threads (4 → 1)
@@ -314,19 +367,24 @@ window.addEventListener("message", async (event) => {
 
 					let errorMessage = `Failed to load model: ${errorStr || "Unknown error"}`;
 					if (isMemoryError) {
+						const requestedModel = typeof model === "string" ? model : "This model";
 						errorMessage +=
 							"\n\nThis is likely due to insufficient memory or WebGPU issues. " +
-							"Gemma 3 1B requires at least 2-3GB of available RAM in q4 format. " +
+							`${requestedModel} may require more available RAM or a different execution backend than your browser can provide. ` +
 							"Try:\n1. Closing other browser tabs\n2. Restarting your browser\n3. Using a smaller model";
 					}
 
-					reply(src, origin, messageId, "error", {
-						error: {
-							message: errorMessage,
+					reply(
+						src,
+						origin,
+						messageId,
+						"error",
+						toRunnerErrorPayload(errorMessage, {
 							type: "ModelLoadError",
-							code: null,
-						},
-					});
+							code: "TRANSFORMER_MODEL_LOAD_FAILED",
+							modelId: typeof model === "string" ? model : null,
+						}),
+					);
 				}
 				break;
 			}
@@ -609,13 +667,7 @@ window.addEventListener("message", async (event) => {
 		}
 	} catch (error) {
 		console.error("Transformer runner error:", error);
-		reply(src, origin, messageId, "error", {
-			error: {
-				message: error.message || "Unknown error",
-				type: error.name || "Error",
-				code: null,
-			},
-		});
+		reply(src, origin, messageId, "error", toRunnerErrorPayload(error));
 	}
 });
 

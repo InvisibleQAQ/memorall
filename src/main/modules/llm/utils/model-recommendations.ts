@@ -170,26 +170,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 	// Text-only models optimized for on-device use
 	// Note: WebGPU browser support is in progress, Node.js/Deno/Bun work
 
-	// Transformers.js - Gemma 3 1B
-	{
-		provider: "transformer",
-		providerName: PROVIDER_INFO.transformer.name,
-		modelId: "onnx-community/gemma-3-1b-it-ONNX",
-		displayName: "Gemma 3 1B",
-		size: "500MB",
-		sizeGB: 0.5,
-		contextLength: 32768, // 32K context
-		requiresWebGPU: true,
-		minMemoryGB: 3,
-		releaseDate: "2025-03",
-		performanceScore: 88, // Fast, lightweight
-		qualityScore: 78, // Google's latest small model
-		contextScore: 85, // 32K context
-		config: {
-			provider: "transformer",
-			model: "onnx-community/gemma-3-1b-it-ONNX",
-		},
-	},
+	// DISABLED: Gemma 3 transformer browser support is currently unreliable in this build.
+	// Prefer the Wllama GGUF variants instead.
 
 	// === QWEN 3 MODELS (Released April 2025) ===
 	// MoE architecture, 40% better than Qwen 2.5

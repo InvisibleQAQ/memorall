@@ -117,6 +117,7 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 	}
 
 	async modelsFor(name: string) {
+		await this.ensureOnDemandService(name);
 		const llm = await this.get(name);
 		if (!llm) throw new Error(`LLM "${name}" not found`);
 		return llm.models();
@@ -171,22 +172,7 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 		model: string,
 		onProgress?: (progress: ProgressEvent) => void,
 	): Promise<ModelInfo> {
-		// Lazy service creation: create service if it doesn't exist
-		if (!this.has(name)) {
-			try {
-				if (name === DEFAULT_SERVICES.WLLAMA) {
-					await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
-				} else if (name === DEFAULT_SERVICES.WEBLLM) {
-					await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
-				} else if (name === DEFAULT_SERVICES.TRANSFORMER) {
-					await this.create(DEFAULT_SERVICES.TRANSFORMER, {
-						type: "transformer",
-					});
-				}
-			} catch (error) {
-				logWarn(`Failed to create service on-demand: ${name}`, error);
-			}
-		}
+		await this.ensureOnDemandService(name);
 
 		const llm = await this.get(name);
 		if (!llm) throw new Error(`LLM "${name}" not found`);
@@ -226,12 +212,26 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 			);
 		}
 
-		const result = await llmWithServe.serve(model, onProgress);
-		if (!this.currentModel) {
-			throw new Error("Cannot determine provider - no current model set");
+		try {
+			const result = await llmWithServe.serve(model, onProgress);
+			if (!this.currentModel) {
+				throw new Error("Cannot determine provider - no current model set");
+			}
+			await this.setCurrentModel(model, this.currentModel.provider, name);
+			return result;
+		} catch (error) {
+			if (
+				name === DEFAULT_SERVICES.TRANSFORMER &&
+				this.currentModel?.serviceName === name &&
+				this.currentModel?.modelId === model
+			) {
+				await this.clearCurrentModel();
+				logWarn(
+					`Cleared stale selected model after transformer load failure: ${name}/${model}`,
+				);
+			}
+			throw error;
 		}
-		await this.setCurrentModel(model, this.currentModel.provider, name);
-		return result;
 	}
 
 	async models() {
@@ -353,39 +353,41 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 			// Restore any saved local services (ollama, lmstudio)
 			await this.restoreLocalServices();
 
-			// If there's a current model, ensure its service exists and load the model
+			// If there's a current model, ensure its service exists.
+			// If restoring that saved model fails, clear it and continue startup.
 			if (this.currentModel?.modelId) {
 				const serviceName = this.currentModel.serviceName;
+				const modelId = this.currentModel.modelId;
 
-				// Create the service if it doesn't exist
-				if (!this.has(serviceName)) {
-					try {
-						if (serviceName === DEFAULT_SERVICES.WLLAMA) {
-							await this.create(DEFAULT_SERVICES.WLLAMA, { type: "wllama" });
-						} else if (serviceName === DEFAULT_SERVICES.WEBLLM) {
-							await this.create(DEFAULT_SERVICES.WEBLLM, { type: "webllm" });
-						} else if (serviceName === DEFAULT_SERVICES.TRANSFORMER) {
-							await this.create(DEFAULT_SERVICES.TRANSFORMER, {
-								type: "transformer",
-							});
-						}
-					} catch (error) {
-						logWarn(`Failed to create service: ${serviceName}`, error);
-					}
-				}
+				await this.ensureOnDemandService(
+					serviceName,
+					"create service for current model",
+				);
 
-				// Load the model if the service exists
+				// Try restoring the saved model, but never let a failed download or load
+				// block the app from finishing startup.
 				if (this.has(serviceName)) {
 					try {
 						const models = await this.modelsFor(serviceName);
 						const isLoaded = models.data.some(
-							(m) => m.id === this.currentModel?.modelId && m.loaded,
+							(model) => model.id === modelId && model.loaded,
 						);
+
 						if (!isLoaded) {
-							await this.serveFor(serviceName, this.currentModel.modelId);
+							await this.serveFor(serviceName, modelId);
 						}
 					} catch (error) {
-						logWarn(`Failed to load model for ${serviceName}:`, error);
+						logWarn(`Failed to restore model for ${serviceName}:`, error);
+
+						if (
+							this.currentModel?.serviceName === serviceName &&
+							this.currentModel?.modelId === modelId
+						) {
+							await this.clearCurrentModel();
+							logWarn(
+								`Cleared stale startup model after restore failure: ${serviceName}/${modelId}`,
+							);
+						}
 					}
 				}
 			}
