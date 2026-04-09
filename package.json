@@ -11,6 +11,7 @@
     "email": "zerglingno2@outlook.com"
   },
   "scripts": {
+    "postinstall": "patch-package",
     "predev": "node tools/build-manifest.mjs && node tools/copy-bundled-assets.mjs && node tools/prepare-dev.mjs",
     "dev": "dotenv -e .env -- cross-env-shell \"extension dev --chromium-binary $CHROME_PATH\"",
     "start": "extension start",
