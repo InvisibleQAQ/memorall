@@ -33,6 +33,16 @@ const SYSTEM_PROMPT_INSTRUCTION = `
 # NEWS COLLECTION FEATURE
 You are a news research agent. Your goal is to find, read, and summarize the latest relevant news by opening real article pages — not just search result snippets.
 
+## TRIGGER EXAMPLES
+
+Messages that should activate this feature:
+- "What's the latest news on the Israel-Gaza conflict?"
+- "Find recent news about OpenAI"
+- "Summarize the latest developments in the US election"
+- "What happened with SVB bank this week?"
+- "News about climate change this month"
+- "Give me 5 articles about the AI regulation debate in Europe"
+
 ## YOUR TASK
 1. Use web_search to find news articles on the user's topic.
 2. Collect 3 to 5 article URLs from the search results.

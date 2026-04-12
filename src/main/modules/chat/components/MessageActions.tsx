@@ -103,6 +103,7 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	fs_grep: fsActionRenderer,
 	fs_mkdir: fsActionRenderer,
 	fs_remove: fsActionRenderer,
+	web_screenshot: defaultActionRenderer,
 	planner_create: plannerToolRenderer,
 	planner_get: plannerToolRenderer,
 	planner_check_item: plannerToolRenderer,

@@ -25,6 +25,7 @@ import {
 } from "@/main/modules/llm/components";
 import { cn } from "@/lib/utils";
 import { serviceManager } from "@/services";
+import type { AttachedDocumentRef } from "@/types/chat";
 import { RuntimeSessionsPanel } from "@/main/components/molecules/RuntimeSessions";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { isPopupSurface } from "@/utils/dom";
@@ -46,6 +47,11 @@ export const ChatPage: React.FC = () => {
 		(state) => state.refresh,
 	);
 	const isWideViewport = useIsWideViewport();
+	const [attachedImages, setAttachedImages] = React.useState<File[]>([]);
+	const [attachedDocumentRefs, setAttachedDocumentRefs] = React.useState<
+		AttachedDocumentRef[]
+	>([]);
+
 	const {
 		inputValue,
 		setInputValue,
@@ -64,6 +70,16 @@ export const ChatPage: React.FC = () => {
 		insertSeparator,
 		deleteMessages,
 	} = useChat(model);
+
+	const handleChatSubmit = (
+		e: React.FormEvent,
+		images: File[],
+		docRefs: AttachedDocumentRef[],
+	) => {
+		handleSubmit(e, images, docRefs);
+		setAttachedImages([]);
+		setAttachedDocumentRefs([]);
+	};
 
 	// Refresh after each assistant response finishes
 	const wasInProgressRef = useRef(false);
@@ -229,7 +245,7 @@ export const ChatPage: React.FC = () => {
 				<ChatInput
 					inputValue={inputValue}
 					setInputValue={setInputValue}
-					onSubmit={handleSubmit}
+					onSubmit={handleChatSubmit}
 					isLoading={isLoading}
 					model={model}
 					status={status}
@@ -245,6 +261,10 @@ export const ChatPage: React.FC = () => {
 					selectedAgentFlowId={selectedAgentFlowId}
 					setSelectedAgentFlowId={setSelectedAgentFlowId}
 					onCreateAgentFlow={handleCreateAgentFlow}
+					attachedImages={attachedImages}
+					onAttachedImagesChange={setAttachedImages}
+					attachedDocumentRefs={attachedDocumentRefs}
+					onAttachedDocumentRefsChange={setAttachedDocumentRefs}
 					onOpenAgentSettings={() => {
 						if (isOpen) {
 							close();

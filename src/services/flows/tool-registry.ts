@@ -1,5 +1,5 @@
 import z from "zod";
-import type { BaseTool, ToolFactory } from "./interfaces/tool";
+import type { BaseTool, ToolFactory, ToolResultValue } from "./interfaces/tool";
 import type { ChatCompletionTool } from "@/types/openai";
 
 // Global tool type registry for smart type inference
@@ -203,7 +203,7 @@ export class ToolRegistryManager {
 		toolName: T,
 		args: ToolTypeRegistry[T]["input"],
 		services: ToolTypeRegistry[T]["services"],
-	): Promise<string> {
+	): Promise<ToolResultValue> {
 		const tool = this.getTool(toolName, services);
 		const validatedArgs = tool.schema.parse(args);
 		return tool.execute(validatedArgs);

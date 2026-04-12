@@ -1,5 +1,7 @@
-import type { ChatMessage } from "@/types/openai";
+import type { ChatMessage, ChatCompletionContentPart } from "@/types/openai";
+import type { ComplexContent, ComplexContentPartImage } from "@/types/chat";
 import type { Message } from "@/services/database";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
 const DESCRIPTION_SMALL_LIMIT = 500;
 const DESCRIPTION_LIMIT = 1000;
@@ -34,14 +36,65 @@ function buildAssistantContent(msg: Message): string {
 	return content;
 }
 
-export function buildSendMessages(relevantMessages: Message[]): ChatMessage[] {
-	return relevantMessages
-		.filter((msg) => msg.type !== "separator")
-		.map((msg): ChatMessage => {
+/** Convert a stored image part into an OpenAI image_url content part (base64 data URI). */
+async function resolveImagePart(
+	part: ComplexContentPartImage,
+): Promise<ChatCompletionContentPart> {
+	const dataUri = await documentFileSystemService.readFileAsBase64(
+		part.path,
+		part.mimeType,
+	);
+	return {
+		type: "image_url",
+		image_url: { url: dataUri, detail: "auto" },
+	};
+}
+
+/**
+ * Build the OpenAI content value for a user message.
+ * If the message has complexContent (multipart), resolve images to base64 data URIs
+ * and return a content array. Otherwise return the plain string.
+ */
+async function buildUserContent(
+	msg: Message,
+): Promise<string | ChatCompletionContentPart[]> {
+	const complexContent = msg.complexContent as
+		| ComplexContent
+		| null
+		| undefined;
+
+	if (!complexContent || complexContent.length === 0) {
+		return msg.content;
+	}
+
+	const parts: ChatCompletionContentPart[] = await Promise.all(
+		complexContent.map(async (part): Promise<ChatCompletionContentPart> => {
+			if (part.type === "text") {
+				return { type: "text", text: part.text };
+			}
+			return resolveImagePart(part);
+		}),
+	);
+
+	return parts;
+}
+
+export async function buildSendMessages(
+	relevantMessages: Message[],
+): Promise<ChatMessage[]> {
+	const filtered = relevantMessages.filter((msg) => msg.type !== "separator");
+
+	return Promise.all(
+		filtered.map(async (msg): Promise<ChatMessage> => {
 			const role = msg.role as "system" | "user" | "assistant";
-			if (role === "system" || role === "user") {
+			if (role === "system") {
 				return { role, content: msg.content };
 			}
+			if (role === "user") {
+				const content = await buildUserContent(msg);
+				return { role, content };
+			}
 			return { role: "assistant", content: buildAssistantContent(msg) };
-		});
+		}),
+	);
 }

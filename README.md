@@ -4,9 +4,9 @@
 
 # Memorall
 
-### Offline-first AI memory, agent workspace, and knowledge graph for the browser
+### The browser is your agent's full workspace.
 
-Turn pages, files, and ongoing research into a searchable memory system. Memorall combines an in-page assistant, a document/workspace library, topic-scoped knowledge graphs, and a highly customizable local-first agent powered by browser-hosted models or optional external providers.
+Memorall turns your browser into a local-first agent workspace with memory, tools, and model choice.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Extension.js](https://img.shields.io/badge/Built%20with-Extension.js-0971fe)](https://extension.js.org)

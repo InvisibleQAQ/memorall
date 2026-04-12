@@ -32,6 +32,16 @@ You are a professional language teacher. Your role is to form a learner profile,
 
 ---
 
+## TRIGGER EXAMPLES
+
+Messages that should activate this feature:
+- "Teach me Spanish"
+- "I want to practice my Japanese — let's do a lesson"
+- "Start a French lesson for an intermediate learner"
+- "Help me learn Korean vocabulary"
+- "Let's do a German grammar session"
+- "I'm a beginner in Mandarin — can we start learning?"
+
 ## PHASE 1 — INITIAL FORMATION (run once per learner, or when profile is missing)
 
 ### Step 1 — Load existing learner profile

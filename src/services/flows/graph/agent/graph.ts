@@ -11,6 +11,7 @@ import {
 	type ToolName,
 } from "@/services/flows/graph/graph.base";
 import type { CombinedServices } from "@/services/flows/interfaces/tool";
+import { extractToolResult } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { formatYAML } from "@/utils/yaml";
@@ -270,6 +271,7 @@ export class AgentGraph extends GraphBase<
 		const toolResults: Array<{
 			toolName: string;
 			content: string;
+			images: ReturnType<typeof extractToolResult>["images"];
 			toolCall: (typeof lastMessage.tool_calls)[number];
 		}> = [];
 
@@ -294,11 +296,7 @@ export class AgentGraph extends GraphBase<
 					toolCall.id,
 					content,
 				);
-				toolResults.push({
-					toolName,
-					content,
-					toolCall,
-				});
+				toolResults.push({ toolName, content, images: [], toolCall });
 				continue;
 			}
 
@@ -307,19 +305,17 @@ export class AgentGraph extends GraphBase<
 
 				// Validate and execute the tool (services already bound via factory)
 				const validatedArgs = combined.executor.schema.parse(args);
-				const result = await combined.executor.execute(validatedArgs);
-				logInfo("[TOOL EXECUTE] Tool call result", toolCall, result);
+				const rawResult = await combined.executor.execute(validatedArgs);
+				const { content, images } = extractToolResult(rawResult);
+				logInfo("[TOOL EXECUTE] Tool call result", toolCall, content);
 
+				// LLM tool message must be a string (OpenAI spec — no array content on role:tool)
 				updatedMessages = this.chat.toolMessage(
 					updatedMessages,
 					toolCall.id,
-					result,
+					content,
 				);
-				toolResults.push({
-					toolName,
-					content: result,
-					toolCall,
-				});
+				toolResults.push({ toolName, content, images, toolCall });
 			} catch (error) {
 				const errorMessage =
 					error instanceof Error ? error.message : "Unknown error";
@@ -331,11 +327,7 @@ export class AgentGraph extends GraphBase<
 					toolCall.id,
 					content,
 				);
-				toolResults.push({
-					toolName,
-					content,
-					toolCall,
-				});
+				toolResults.push({ toolName, content, images: [], toolCall });
 			}
 		}
 
@@ -367,6 +359,7 @@ export class AgentGraph extends GraphBase<
 					tool: result.toolName,
 					tool_call: result.toolCall,
 					...(structured || {}),
+					...(result.images.length > 0 ? { images: result.images } : {}),
 				},
 			};
 		});

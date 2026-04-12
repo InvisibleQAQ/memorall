@@ -582,6 +582,51 @@ export class DocumentFileSystem {
 	}
 
 	/**
+	 * Upload an image from the chat input.
+	 * Stores under /resources/images/ with a UUID filename to avoid collisions.
+	 * Returns the relative path (e.g. /resources/images/<uuid>.png) suitable for
+	 * storing in messages.complexContent and retrieving via readFileAsBase64().
+	 */
+	async uploadChatImage(file: File): Promise<string> {
+		await this.initialize();
+
+		const ext = file.name.includes(".")
+			? file.name.slice(file.name.lastIndexOf("."))
+			: "";
+		const uuid =
+			typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+				? crypto.randomUUID()
+				: `img-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+		const fileName = `${uuid}${ext}`;
+
+		const targetDir = `${DOCUMENTS_ROOT}/resources/images`;
+		await this.ensureDirectory(targetDir);
+
+		const fullPath = `${targetDir}/${fileName}`;
+		const arrayBuffer = await file.arrayBuffer();
+		await fs.promises.writeFile(fullPath, new Uint8Array(arrayBuffer));
+
+		logInfo(`🖼️ Uploaded chat image: ${fullPath}`);
+		return `/resources/images/${fileName}`;
+	}
+
+	/**
+	 * Read a file stored in the document filesystem and return it as a base64 data URI.
+	 * @param path Relative path as stored in complexContent (e.g. /resources/images/<uuid>.png)
+	 * @param mimeType MIME type for the data URI (e.g. "image/png")
+	 */
+	async readFileAsBase64(path: string, mimeType: string): Promise<string> {
+		const bytes = await this.getFileContent(path);
+
+		let binary = "";
+		for (let i = 0; i < bytes.length; i++) {
+			binary += String.fromCharCode(bytes[i]);
+		}
+		const base64 = btoa(binary);
+		return `data:${mimeType};base64,${base64}`;
+	}
+
+	/**
 	 * Create a new folder
 	 */
 	async createFolder(

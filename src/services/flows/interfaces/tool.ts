@@ -16,18 +16,55 @@ export interface AllServices {
 	documentFileSystem?: DocumentFileSystem;
 }
 
+// ==================== TOOL RESULT ====================
+
+/** An image produced by a tool and stored in document-fs. */
+export interface ToolResultImage {
+	/** Relative path in document filesystem (e.g. /resources/images/<uuid>.png) */
+	path: string;
+	mimeType: string;
+}
+
+/**
+ * Rich tool result that carries both a text description for the LLM
+ * (OpenAI tool messages are string-only) and optional image references
+ * for the UI to render inside the action card.
+ */
+export interface ToolComplexResult {
+	/** Text sent to the LLM as the tool message content. */
+	content: string;
+	/** Images produced by the tool, stored in document-fs by path. */
+	images?: ToolResultImage[];
+}
+
+/**
+ * Tools may return a plain string (backward-compatible) or a ToolComplexResult.
+ * String results are treated as { content: result, images: [] }.
+ */
+export type ToolResultValue = string | ToolComplexResult;
+
+/** Normalise a ToolResultValue to its two components. */
+export const extractToolResult = (
+	value: ToolResultValue,
+): { content: string; images: ToolResultImage[] } => {
+	if (typeof value === "string") {
+		return { content: value, images: [] };
+	}
+	return { content: value.content, images: value.images ?? [] };
+};
+
 // Base tool interface for runtime storage (no generic constraints)
 export interface BaseTool {
 	name: string;
 	description: string;
 	schema: z.ZodSchema;
-	execute: (input: unknown) => Promise<string>;
+	execute: (input: unknown) => Promise<ToolResultValue>;
 }
 
 // Typed tool interface for implementation
 export interface Tool<TInput> extends Omit<BaseTool, "schema" | "execute"> {
 	schema: z.ZodSchema<TInput>;
-	execute: (input: TInput) => Promise<string>;
+	execute: (input: TInput) => Promise<ToolResultValue>;
 }
 
 // Factory function type for creating tools with services bound

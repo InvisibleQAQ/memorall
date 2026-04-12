@@ -2,12 +2,21 @@ import { useState, useEffect } from "react";
 import { chatService } from "@/main/modules/chat/services/chat-service";
 import type { ChatMessage } from "@/types/openai";
 import { useChatStore } from "@/main/stores/chat";
-import type { ChatStatus } from "@/types/chat";
+import type {
+	ChatStatus,
+	ComplexContent,
+	AttachedDocumentRef,
+} from "@/types/chat";
 import { logError, logInfo } from "@/utils/logger";
 import { serviceManager } from "@/services";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type { Message } from "@/services/database";
 import { buildSendMessages } from "@/main/modules/chat/utils/build-send-messages";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
+import {
+	extractDocumentText,
+	formatDocumentBlock,
+} from "@/main/modules/chat/utils/extract-document-text";
 
 export interface InProgressMessage {
 	id: string;
@@ -131,7 +140,11 @@ export const useChat = (model: string) => {
 		}
 	};
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = async (
+		e: React.FormEvent,
+		attachedImages: File[] = [],
+		attachedDocumentRefs: AttachedDocumentRef[] = [],
+	) => {
 		e.preventDefault();
 		if (!inputValue.trim() || isLoading || !model) return;
 
@@ -160,10 +173,83 @@ export const useChat = (model: string) => {
 		}
 
 		try {
+			// Separate document refs by kind
+			const imageRefs = attachedDocumentRefs.filter(
+				(r) => r.docType === "image",
+			);
+			const docRefs = attachedDocumentRefs.filter((r) => r.docType !== "image");
+
+			// Extract text from non-image document refs and prepend as formatted blocks
+			let effectiveMessageContent = userMessageContent;
+			if (docRefs.length > 0) {
+				const blocks = await Promise.all(
+					docRefs.map(async (ref) => {
+						try {
+							const bytes = await documentFileSystemService.getFileContent(
+								ref.path,
+							);
+							const text = await extractDocumentText(ref.docType, bytes);
+							return text ? formatDocumentBlock(ref.path, text) : null;
+						} catch {
+							return null;
+						}
+					}),
+				);
+				const validBlocks = blocks.filter(Boolean).join("\n");
+				if (validBlocks) {
+					effectiveMessageContent = validBlocks + "\n" + userMessageContent;
+				}
+			}
+
+			// Upload new images and merge with image document refs to build complexContent
+			let complexContent: ComplexContent | undefined;
+			const imageParts: Array<{
+				type: "image";
+				path: string;
+				mimeType: string;
+			}> = [];
+
+			if (attachedImages.length > 0) {
+				const uploaded = await Promise.all(
+					attachedImages.map(async (file) => {
+						const path = await documentFileSystemService.uploadChatImage(file);
+						return { type: "image" as const, path, mimeType: file.type };
+					}),
+				);
+				imageParts.push(...uploaded);
+			}
+
+			if (imageRefs.length > 0) {
+				imageParts.push(
+					...imageRefs.map((ref) => ({
+						type: "image" as const,
+						path: ref.path,
+						mimeType: ref.mimeType,
+					})),
+				);
+			}
+
+			const hasExpandedDocumentContent =
+				effectiveMessageContent !== userMessageContent;
+
+			if (imageParts.length > 0 || hasExpandedDocumentContent) {
+				complexContent = [
+					{ type: "text" as const, text: effectiveMessageContent },
+					...imageParts,
+				];
+			}
+
 			// Add user message to store and database
 			const userMessage = await addMessage({
 				role: "user",
 				content: userMessageContent,
+				complexContent: complexContent ?? null,
+				metadata:
+					docRefs.length > 0
+						? {
+								attachedDocuments: docRefs,
+							}
+						: undefined,
 				// Include topicId when in knowledge mode with a selected topic
 				topicId:
 					isKnowledgeMode &&
@@ -189,7 +275,9 @@ export const useChat = (model: string) => {
 					: allMessages;
 
 			// Build messages for the API, prefixing assistant messages with their stored actions
-			const sendMessages: ChatMessage[] = buildSendMessages(relevantMessages);
+			// buildSendMessages is async because it resolves image paths to base64 data URIs
+			const sendMessages: ChatMessage[] =
+				await buildSendMessages(relevantMessages);
 
 			// Create assistant message placeholder
 			assistantMessage = await addMessage({
@@ -377,5 +465,5 @@ export const useChat = (model: string) => {
 		handleStop,
 		insertSeparator,
 		deleteMessages,
-	};
+	} as const;
 };

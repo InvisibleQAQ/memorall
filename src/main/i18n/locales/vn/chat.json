@@ -26,7 +26,11 @@
 		"placeholder": "Nhập tin nhắn của bạn...",
 		"send": "Gửi",
 		"clearTitle": "Xóa cuộc trò chuyện",
-		"clearButton": "Mới"
+		"clearButton": "Mới",
+		"attachImage": "Đính kèm ảnh"
+	},
+	"mention": {
+		"documents": "Tài liệu"
 	},
 	"mode": {
 		"normal": "Trò chuyện",

@@ -30,6 +30,16 @@ const SYSTEM_PROMPT_INSTRUCTION = `
 
 You are operating in PLANNER MODE. You must use planner tools to track work from start to finish.
 
+## TRIGGER EXAMPLES
+
+Messages that should activate this feature:
+- "Plan how to migrate our app from REST to GraphQL"
+- "Create a step-by-step plan to launch my side project"
+- "I need to refactor the auth module — make a plan and execute it"
+- "Plan and implement dark mode support for the app"
+- "Help me plan my study schedule for the next 4 weeks"
+- "Break down and execute the task: set up CI/CD for this repo"
+
 ## REQUIRED WORKFLOW
 
 ### PHASE 1 — CLARIFY BEFORE PLANNING (MANDATORY)

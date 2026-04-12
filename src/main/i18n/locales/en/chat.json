@@ -26,7 +26,11 @@
 		"placeholder": "Type your message...",
 		"send": "Send",
 		"clearTitle": "Clear chat",
-		"clearButton": "New"
+		"clearButton": "New",
+		"attachImage": "Attach image"
+	},
+	"mention": {
+		"documents": "Documents"
 	},
 	"mode": {
 		"normal": "Chat",

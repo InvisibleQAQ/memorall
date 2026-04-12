@@ -3,7 +3,7 @@
  * Right-side slide panel for analyzing activities with AI
  */
 
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { Button } from "@/main/components/ui/button";
@@ -19,6 +19,7 @@ import {
 } from "@/main/modules/chat/components";
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
 import { groupMessagesBySeparators } from "@/main/modules/chat/utils/message-grouping";
+import type { AttachedDocumentRef } from "@/types/chat";
 
 interface ActivityChatPanelProps {
 	isOpen: boolean;
@@ -50,6 +51,10 @@ export const ActivityChatPanel: React.FC<ActivityChatPanelProps> = ({
 		insertSeparator,
 		deleteMessages,
 	} = useChat(model);
+	const [attachedImages, setAttachedImages] = useState<File[]>([]);
+	const [attachedDocumentRefs, setAttachedDocumentRefs] = useState<
+		AttachedDocumentRef[]
+	>([]);
 
 	// Set initial message to input when panel opens
 	useEffect(() => {
@@ -146,6 +151,10 @@ export const ActivityChatPanel: React.FC<ActivityChatPanelProps> = ({
 							agentFlows={[]}
 							selectedAgentFlowId={selectedAgentFlowId}
 							setSelectedAgentFlowId={setSelectedAgentFlowId}
+							attachedImages={attachedImages}
+							onAttachedImagesChange={setAttachedImages}
+							attachedDocumentRefs={attachedDocumentRefs}
+							onAttachedDocumentRefsChange={setAttachedDocumentRefs}
 						/>
 					</div>
 				)}
