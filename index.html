@@ -8,6 +8,11 @@
     content="Memorall makes the browser the home base for your agent, memory, files, and models with local-first control and optional external providers."
   >
   <title>Memorall - Browser-Native Agent Workspace With Local-First Control</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="./images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./images/favicon-16x16.png">
+  <link rel="shortcut icon" href="./images/favicon.ico">
+  <link rel="manifest" href="./images/site.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -24,7 +29,7 @@
   <header class="site-header">
     <div class="shell header-shell">
       <a class="brand" href="#top">
-        <img src="images/origin.png" alt="Memorall logo">
+        <img src="images/apple-touch-icon.png" alt="Memorall logo">
         <span>Memorall</span>
       </a>
 
@@ -36,6 +41,22 @@
         <a href="#stack">Models</a>
         <a href="#privacy">Privacy</a>
       </nav>
+
+      <div class="compact-nav">
+        <button class="compact-nav-toggle" type="button" aria-label="Open section menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="compact-nav-menu" aria-label="Compact section menu">
+          <a href="#problem">Why</a>
+          <a href="#workflow">Memory</a>
+          <a href="#surfaces">Agent Power</a>
+          <a href="#memory">Offline-First</a>
+          <a href="#stack">Models</a>
+          <a href="#privacy">Privacy</a>
+        </div>
+      </div>
 
       <div class="header-actions">
         <a class="btn btn-secondary btn-compact" href="./privacy_policy.html">Privacy</a>
@@ -56,11 +77,9 @@
       <div class="shell hero-shell">
         <div class="hero-copy reveal is-visible">
           <div class="eyebrow">Browser-native agent workspace</div>
-          <h1>The browser is enough for a real agent.</h1>
+          <h1>The browser is your agent's full workspace.</h1>
           <p class="hero-lead">
-            The browser is where you already spend most of your day, but your agents keep running somewhere else:
-            in chat apps, IDEs, separate pages, or command windows. Memorall brings that work back into one browser
-            agent with memory you control, strong local tools, offline-first execution, and flexible model support.
+            Memorall turns your browser into a local-first agent workspace with memory, tools, and model choice.
           </p>
 
           <div class="hero-actions">
@@ -868,7 +887,7 @@
     <div class="shell footer-shell">
       <div>
         <a class="brand" href="#top">
-          <img src="images/origin.png" alt="Memorall logo">
+          <img src="images/apple-touch-icon.png" alt="Memorall logo">
           <span>Memorall</span>
         </a>
         <p class="footer-copy">Browser-native agent workspace with local-first memory, tools, files, and model control.</p>

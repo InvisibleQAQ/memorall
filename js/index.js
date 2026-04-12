@@ -27,6 +27,7 @@ const initWorkflowStory = ({ reduceMotion }) => {
   const d3 = window.d3;
   const width = 820;
   const height = 520;
+  const compactViewportQuery = window.matchMedia("(max-width: 860px)");
   const stageLabels = [
     "raw sources",
     "resource nodes",
@@ -201,6 +202,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
     return 3;
   };
 
+  const isCompactViewport = () => compactViewportQuery.matches;
+
   const updateStageScale = () => {
     const scale = stage.clientWidth / width;
     stage.style.setProperty("--workflow-story-scale", String(scale));
@@ -223,17 +226,20 @@ const initWorkflowStory = ({ reduceMotion }) => {
 
   const render = (progress) => {
     const clamped = clamp(progress, 0, 1);
-    const stageIndex = getStageIndex(clamped);
+    const compactViewport = isCompactViewport();
+    const stageLead = compactViewport ? 0.08 : 0.06;
+    const stageIndex = getStageIndex(clamp(clamped + stageLead, 0, 1));
     const linkAlpha = smoothStep(0.52, 0.82, clamped);
     const finalAlpha = smoothStep(0.74, 0.98, clamped);
     const nodeCardAlpha = smoothStep(0.24, 0.58, clamped);
     const resourceCardAlpha = 1 - smoothStep(0.2, 0.48, clamped);
     const resourceExit = smoothStep(0.16, 0.44, clamped);
     const nodeLabelAlpha = smoothStep(0.3, 0.7, clamped);
-    const expansionProgress = smoothStep(0.82, 0.98, clamped);
+    const expansionProgress = compactViewport ? 0 : smoothStep(0.92, 0.995, clamped);
 
     const states = new Map(items.map((item) => [item.id, getNodeState(item, clamped)]));
 
+    shell.dataset.compact = compactViewport ? "true" : "false";
     shell.style.setProperty("--workflow-story-expand", expansionProgress.toFixed(4));
     updateStageScale();
     stage.dataset.stage = String(stageIndex);
@@ -338,6 +344,8 @@ const initWorkflowStory = ({ reduceMotion }) => {
 const initLandingPage = () => {
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const progressBar = document.querySelector(".scroll-progress");
+  const siteHeader = document.querySelector(".site-header");
+  const headerShell = siteHeader?.querySelector(".header-shell");
   const hero = document.querySelector(".hero");
   const revealTargets = document.querySelectorAll(".reveal:not(.is-visible)");
 
@@ -374,9 +382,84 @@ const initLandingPage = () => {
     progressBar.style.setProperty("--scroll-scale", ratio.toFixed(3));
   };
 
+  const syncHeaderWidth = () => {
+    if (!siteHeader || !headerShell) {
+      return;
+    }
+
+    const viewportPadding = window.innerWidth <= 720 ? 20 : 32;
+    const fullWidth = Math.min(1200, window.innerWidth - viewportPadding);
+
+    if (!siteHeader.classList.contains("is-compact") || window.innerWidth <= 980) {
+      headerShell.style.width = `${Math.ceil(fullWidth)}px`;
+      return;
+    }
+
+    const visibleChildren = Array
+      .from(headerShell.children)
+      .filter((child) => window.getComputedStyle(child).display !== "none");
+    const styles = window.getComputedStyle(headerShell);
+    const gap = parseFloat(styles.columnGap || styles.gap || "0");
+    const paddingX = parseFloat(styles.paddingLeft || "0") + parseFloat(styles.paddingRight || "0");
+    const borderX = parseFloat(styles.borderLeftWidth || "0") + parseFloat(styles.borderRightWidth || "0");
+
+    const contentWidth = visibleChildren.reduce((total, child, index) => {
+      const next = total + child.getBoundingClientRect().width;
+      return index === 0 ? next : next + gap;
+    }, 0);
+
+    const compactWidth = Math.min(
+      Math.ceil(contentWidth + paddingX + borderX),
+      window.innerWidth - Math.max(viewportPadding, 40),
+    );
+
+    headerShell.style.width = `${compactWidth}px`;
+  };
+
+  const queueHeaderWidthSync = () => {
+    window.requestAnimationFrame(syncHeaderWidth);
+  };
+
+  const updateHeaderState = () => {
+    if (!siteHeader) {
+      return;
+    }
+
+    const shouldCompact = window.scrollY > 28;
+    const isCompact = siteHeader.classList.contains("is-compact");
+
+    if (shouldCompact === isCompact) {
+      queueHeaderWidthSync();
+      return;
+    }
+
+    if (shouldCompact) {
+      siteHeader.classList.add("is-compact");
+      queueHeaderWidthSync();
+      return;
+    }
+
+    const viewportPadding = window.innerWidth <= 720 ? 20 : 32;
+    const fullWidth = Math.min(1200, window.innerWidth - viewportPadding);
+    const previousTransition = headerShell.style.transition;
+
+    headerShell.style.transition = "none";
+    headerShell.style.width = `${Math.ceil(fullWidth)}px`;
+    siteHeader.classList.remove("is-compact");
+
+    window.requestAnimationFrame(() => {
+      headerShell.style.transition = previousTransition;
+      queueHeaderWidthSync();
+    });
+  };
+
   updateScrollProgress();
+  updateHeaderState();
   window.addEventListener("scroll", updateScrollProgress, { passive: true });
+  window.addEventListener("scroll", updateHeaderState, { passive: true });
   window.addEventListener("resize", updateScrollProgress);
+  window.addEventListener("resize", updateHeaderState);
+  window.addEventListener("resize", queueHeaderWidthSync);
 
   if (!reduceMotion && hero) {
     const resetPointer = () => {

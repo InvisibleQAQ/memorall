@@ -8,6 +8,11 @@
     content="Memorall privacy policy covering local-first storage, optional remote providers, optional auth and sync, browser permissions, and user data controls."
   >
   <title>Memorall - Privacy Policy</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="./images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./images/favicon-16x16.png">
+  <link rel="shortcut icon" href="./images/favicon.ico">
+  <link rel="manifest" href="./images/site.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -17,204 +22,397 @@
   <script src="./js/index.js"></script>
   <link rel="stylesheet" href="./css/index.css">
   <style>
+    :root {
+      --policy-bg: #f7f7f5;
+      --policy-surface: #ffffff;
+      --policy-border: #e5e7eb;
+      --policy-text: #111827;
+      --policy-text-soft: #4b5563;
+      --policy-muted: #6b7280;
+      --policy-link: #1d4ed8;
+    }
+
+    body {
+      color: var(--policy-text);
+      background: var(--policy-bg);
+    }
+
+    .scroll-progress,
+    .hero::before,
+    .hero::after {
+      display: none;
+    }
+
+    .site-header {
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--policy-border);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand,
+    .site-nav a {
+      color: var(--policy-text);
+    }
+
+    .brand img {
+      box-shadow: none;
+    }
+
+    .site-nav a {
+      color: var(--policy-muted);
+    }
+
+    .site-nav a:hover,
+    .site-nav a:focus-visible,
+    .footer-links a:hover,
+    .footer-links a:focus-visible {
+      color: var(--policy-text);
+    }
+
+    .btn,
+    .feature-card,
+    .privacy-card {
+      box-shadow: none;
+    }
+
+    .btn {
+      min-height: 42px;
+      border-radius: 10px;
+      font-weight: 600;
+      transform: none;
+    }
+
+    .btn:hover,
+    .btn:focus-visible,
+    .feature-card:hover,
+    .feature-card:focus-within {
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-primary {
+      color: #fff;
+      background: #111827;
+    }
+
+    .btn-secondary,
+    .btn-light {
+      color: var(--policy-text);
+      background: var(--policy-surface);
+      border-color: var(--policy-border);
+    }
+
+    .hero {
+      margin-top: 0;
+      padding: 2.5rem 0 1rem;
+      background: transparent;
+    }
+
     .policy-hero {
-      padding-bottom: clamp(4rem, 8vw, 6rem);
+      padding-bottom: 1rem;
     }
 
     .policy-hero-shell {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.88fr);
-      gap: clamp(1.6rem, 3vw, 2.8rem);
-      align-items: start;
+      display: block;
+    }
+
+    .hero-copy {
+      padding-top: 0;
+    }
+
+    .eyebrow {
+      margin-bottom: 0.75rem;
+      color: var(--policy-muted);
+      background: transparent;
+      border: 0;
+      padding: 0;
+    }
+
+    .eyebrow::before {
+      display: none;
+    }
+
+    .hero h1 {
+      max-width: 18ch;
+      color: var(--policy-text);
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 1.12;
+      letter-spacing: -0.04em;
+    }
+
+    .hero-lead,
+    .section-heading p,
+    .privacy-copy p,
+    .cta-panel p,
+    .policy-nav-card p,
+    .policy-block p,
+    .privacy-card p,
+    .feature-card p,
+    .section-dark .section-heading p {
+      color: var(--policy-text-soft);
+      max-width: 60rem;
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .hero-actions,
+    .cta-actions {
+      margin-top: 1.25rem;
+    }
+
+    .hero-proof {
+      gap: 0.5rem;
+    }
+
+    .hero-proof span,
+    .feature-meta span {
+      color: var(--policy-muted);
+      background: var(--policy-surface);
+      border: 1px solid var(--policy-border);
+      box-shadow: none;
+      padding: 0.55rem 0.8rem;
+    }
+
+    .hero-proof span::before {
+      width: 0.35rem;
+      height: 0.35rem;
+      box-shadow: none;
+    }
+
+    .policy-summary-panel,
+    .policy-nav-card,
+    .policy-block,
+    .privacy-card,
+    .feature-card,
+    .cta-panel {
+      background: var(--policy-surface);
+      border: 1px solid var(--policy-border);
+      border-radius: 14px;
+      box-shadow: none;
+    }
+
+    .policy-summary-panel,
+    .policy-nav-card,
+    .policy-block,
+    .privacy-card,
+    .feature-card,
+    .cta-panel {
+      padding: 1.25rem;
     }
 
     .policy-summary-panel {
-      padding: clamp(1.4rem, 3vw, 1.8rem);
-      border-radius: 32px;
-      background:
-        radial-gradient(circle at top left, rgba(111, 234, 243, 0.12), transparent 18rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: var(--shadow-strong);
+      margin-top: 1rem;
     }
 
-    .policy-summary-panel h2 {
-      margin: 0;
-      color: var(--text-inverse);
-      font-size: clamp(2rem, 4vw, 3rem);
-      line-height: 0.95;
-      letter-spacing: -0.06em;
-      max-width: 10ch;
+    .policy-summary-panel h2,
+    .section-heading h2,
+    .privacy-copy h2,
+    .cta-panel h2,
+    .policy-block h2 {
+      margin: 0.5rem 0 0;
+      max-width: none;
+      color: var(--policy-text);
+      font-size: clamp(1.5rem, 4vw, 2.1rem);
+      line-height: 1.18;
+      letter-spacing: -0.03em;
     }
 
-    .policy-summary-grid {
+    .policy-summary-grid,
+    .privacy-cards,
+    .feature-grid,
+    .policy-article {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.85rem;
-      margin-top: 1.35rem;
+      gap: 0.9rem;
+    }
+
+    .policy-summary-grid,
+    .privacy-cards,
+    .feature-grid {
+      grid-template-columns: 1fr;
+      margin-top: 1rem;
     }
 
     .policy-summary-card {
-      padding: 1rem;
-      border-radius: 22px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 0.9rem 0;
+      border: 0;
+      border-bottom: 1px solid var(--policy-border);
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .policy-summary-card:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
     }
 
     .policy-summary-card strong {
       display: block;
-      color: var(--text-inverse);
+      color: var(--policy-text);
       font-size: 1rem;
-      letter-spacing: -0.03em;
     }
 
     .policy-summary-card span {
       display: block;
-      margin-top: 0.45rem;
-      color: rgba(246, 241, 232, 0.7);
-      font-size: 0.94rem;
-      line-height: 1.55;
+      margin-top: 0.35rem;
+      color: var(--policy-text-soft);
+      line-height: 1.6;
+    }
+
+    .section {
+      padding: 1rem 0 1.5rem;
+    }
+
+    .section-dark {
+      color: inherit;
+      background: transparent;
+    }
+
+    .section-heading {
+      max-width: none;
+      margin-bottom: 1rem;
+    }
+
+    .section-label {
+      margin: 0 0 0.45rem;
+      color: var(--policy-muted);
     }
 
     .policy-layout {
       display: grid;
-      grid-template-columns: minmax(250px, 0.36fr) minmax(0, 0.64fr);
-      gap: 1.2rem;
-      align-items: start;
+      grid-template-columns: 1fr;
+      gap: 0.9rem;
     }
 
     .policy-nav-card {
-      position: sticky;
-      top: 6.75rem;
-      padding: 1.35rem;
-      border-radius: 30px;
-      background: rgba(255, 255, 255, 0.76);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      box-shadow: var(--shadow);
+      position: static;
     }
 
     .policy-nav-card h3 {
-      margin: 0.7rem 0 0;
-      font-size: 1.5rem;
-      letter-spacing: -0.05em;
-    }
-
-    .policy-nav-card p {
-      color: rgba(17, 23, 20, 0.64);
-      line-height: 1.65;
+      margin: 0.4rem 0 0;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
     }
 
     .policy-nav-list {
-      display: grid;
-      gap: 0.7rem;
-      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 0.9rem;
     }
 
     .policy-nav-list a {
-      display: block;
-      padding: 0.85rem 0.95rem;
-      border-radius: 18px;
-      background: rgba(17, 23, 20, 0.04);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      color: rgba(17, 23, 20, 0.8);
+      display: inline-block;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid var(--policy-border);
+      border-radius: 999px;
+      color: var(--policy-text);
+      background: transparent;
+      font-weight: 500;
       text-decoration: none;
-      font-weight: 600;
-      transition:
-        transform 220ms ease,
-        border-color 220ms ease,
-        box-shadow 220ms ease,
-        background-color 220ms ease;
     }
 
     .policy-nav-list a:hover,
     .policy-nav-list a:focus-visible {
-      transform: translateY(-2px);
-      border-color: rgba(36, 199, 239, 0.18);
-      background: rgba(36, 199, 239, 0.08);
-      box-shadow: 0 16px 34px rgba(17, 23, 20, 0.12);
+      background: #f3f4f6;
+      border-color: #d1d5db;
     }
 
     .policy-nav-note {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid rgba(17, 23, 20, 0.08);
-    }
-
-    .policy-article {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .policy-block {
-      padding: clamp(1.35rem, 3vw, 1.75rem);
-      border-radius: 30px;
-      background: rgba(255, 255, 255, 0.78);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      box-shadow: var(--shadow);
+      margin-top: 0.9rem;
+      padding-top: 0.9rem;
+      border-top: 1px solid var(--policy-border);
     }
 
     .policy-block[id] {
       scroll-margin-top: 6.5rem;
     }
 
-    .policy-block h2 {
-      margin: 0.65rem 0 0;
-      font-size: clamp(1.7rem, 4vw, 2.2rem);
-      line-height: 0.95;
-      letter-spacing: -0.06em;
-    }
-
-    .policy-block p {
-      margin: 1rem 0 0;
-      color: rgba(17, 23, 20, 0.68);
-      line-height: 1.75;
-    }
-
     .policy-list {
-      display: grid;
-      gap: 0.75rem;
       margin: 1rem 0 0;
-      padding: 0;
-      list-style: none;
+      padding-left: 1.25rem;
     }
 
     .policy-list li {
-      padding: 0.95rem 1rem;
-      border-radius: 20px;
-      background: rgba(17, 23, 20, 0.04);
-      border: 1px solid rgba(17, 23, 20, 0.08);
-      color: rgba(17, 23, 20, 0.72);
-      line-height: 1.62;
+      margin: 0.55rem 0;
+      color: var(--policy-text-soft);
+      line-height: 1.7;
     }
 
     .policy-list strong {
-      color: var(--text);
+      color: var(--policy-text);
     }
 
     .policy-note {
       margin-top: 1rem;
-      padding: 0.95rem 1rem;
-      border-radius: 20px;
-      background: rgba(36, 199, 239, 0.08);
-      border: 1px solid rgba(36, 199, 239, 0.16);
-      color: rgba(17, 23, 20, 0.72);
-      line-height: 1.62;
+      padding: 0.9rem 1rem;
+      border-left: 3px solid #d1d5db;
+      border-radius: 8px;
+      background: #f9fafb;
+      color: var(--policy-text-soft);
     }
 
-    @media (max-width: 1180px) {
-      .policy-hero-shell,
-      .policy-layout {
-        grid-template-columns: 1fr;
-      }
+    .feature-tag {
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--policy-muted);
+      font-size: 0.75rem;
+    }
 
-      .policy-nav-card {
-        position: static;
+    .feature-card h3,
+    .privacy-card h3 {
+      margin-top: 0.5rem;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .feature-meta {
+      margin-top: 0.9rem;
+    }
+
+    a {
+      color: var(--policy-link);
+    }
+
+    .site-footer {
+      padding: 1rem 0 2rem;
+    }
+
+    .footer-shell {
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--policy-border);
+    }
+
+    .footer-copy,
+    .footer-links a {
+      color: var(--policy-muted);
+    }
+
+    .js .reveal,
+    .js .reveal.is-visible {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+
+    @media (max-width: 980px) {
+      .site-nav {
+        display: none;
       }
     }
 
     @media (max-width: 720px) {
-      .policy-summary-grid {
-        grid-template-columns: 1fr;
+      .hero {
+        padding-top: 1.75rem;
+      }
+
+      .hero-proof span,
+      .header-actions .btn,
+      .hero-actions .btn,
+      .cta-actions .btn {
+        width: 100%;
       }
     }
   </style>
@@ -225,7 +423,7 @@
   <header class="site-header">
     <div class="shell header-shell">
       <a class="brand" href="./index.html">
-        <img src="images/origin.png" alt="Memorall logo">
+        <img src="images/apple-touch-icon.png" alt="Memorall logo">
         <span>Memorall</span>
       </a>
 
@@ -655,7 +853,7 @@
     <div class="shell footer-shell">
       <div>
         <a class="brand" href="./index.html">
-          <img src="images/origin.png" alt="Memorall logo">
+          <img src="images/apple-touch-icon.png" alt="Memorall logo">
           <span>Memorall</span>
         </a>
         <p class="footer-copy">Local-first AI memory, agent workspace, and knowledge graph for the browser.</p>
