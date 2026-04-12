@@ -117,6 +117,21 @@ function cleanHTMLElement(
 	return `${indent}<${tagName}${attrString}>\n${childrenString}\n${indent}</${tagName}>`;
 }
 
+export function extractElementTextContent(element: Element): string {
+	if (element instanceof HTMLElement) {
+		return element.innerText.trim() || element.textContent?.trim() || "";
+	}
+	return element.textContent?.trim() || "";
+}
+
+export function extractElementCleanHTML(element: Element): string {
+	return cleanHTMLElement(element, 50, 0);
+}
+
+export function extractElementOuterHTML(element: Element): string {
+	return element.outerHTML;
+}
+
 // Extract HTML structure from viewport (visible area only)
 export function extractViewportHTMLStructure(): string {
 	// Get all elements in the viewport

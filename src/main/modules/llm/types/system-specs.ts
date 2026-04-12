@@ -50,6 +50,12 @@ export interface ModelRecommendation {
 	releaseDate: string;
 	/** Whether this uses WebGPU acceleration */
 	usesWebGPU: boolean;
+	/**
+	 * KV cache bytes per token at full fp16 precision.
+	 * Formula: 2 (K+V) × nLayers × nKvHeads × headDim × 2 bytes
+	 * Used for accurate VRAM estimation at any context length.
+	 */
+	kvBytesPerToken: number;
 	/** Model configuration for download */
 	config: ModelConfig;
 }

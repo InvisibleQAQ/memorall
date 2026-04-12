@@ -33,9 +33,15 @@ export const Conversation = React.forwardRef<
 		className?: string;
 		children: React.ReactNode;
 		onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+		onWheel?: (e: React.WheelEvent<HTMLDivElement>) => void;
 	}
->(({ className, children, onScroll }, ref) => (
-	<div ref={ref} className={`relative ${className || ""}`} onScroll={onScroll}>
+>(({ className, children, onScroll, onWheel }, ref) => (
+	<div
+		ref={ref}
+		className={`relative ${className || ""}`}
+		onScroll={onScroll}
+		onWheel={onWheel}
+	>
 		{children}
 	</div>
 ));

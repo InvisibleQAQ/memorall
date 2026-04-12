@@ -3,6 +3,7 @@ import type { ChatMessage } from "../types";
 import { EmbeddedMarkdown } from "./EmbeddedMarkdown";
 import { Task, TaskTrigger, TaskContent, TaskItem } from "./TaskComponents";
 import { Loader } from "./Icons";
+import { EMBEDDED_CONTEXT_TAG_CONFIG } from "@/embedded/context-items";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "@/constants/language";
 import type { Language } from "@/constants/language";
@@ -79,57 +80,30 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 			};
 		}
 
-		// Extract other sections
-		const sectionPatterns = [
-			{
-				regex: /<selected_text>([\s\S]*?)<\/selected_text>/,
-				label: "📝 Selected Text",
-				type: "text",
-			},
-			{
-				regex: /<viewport_content>([\s\S]*?)<\/viewport_content>/,
-				label: "👁️ Viewport Content",
-				type: "text",
-			},
-			{
-				regex: /<viewport_html_structure>([\s\S]*?)<\/viewport_html_structure>/,
-				label: "🏗️ Viewport HTML",
-				type: "html",
-			},
-			{
-				regex: /<full_page_content>([\s\S]*?)<\/full_page_content>/,
-				label: "📄 Full Page Content",
-				type: "text",
-			},
-			{
-				regex:
-					/<full_page_html_structure>([\s\S]*?)<\/full_page_html_structure>/,
-				label: "🏗️ Page HTML",
-				type: "html",
-			},
-			{
-				regex: /<viewport_screenshot>([\s\S]*?)<\/viewport_screenshot>/,
-				label: "📸 Viewport Screenshot",
-				type: "screenshot",
-			},
-			{
-				regex: /<screenshot>([\s\S]*?)<\/screenshot>/,
-				label: "📸 Full Page Screenshot",
-				type: "screenshot",
-			},
-			{
-				regex: /<selected_image>([\s\S]*?)<\/selected_image>/,
-				label: "🖼️ Selected Region",
-				type: "screenshot",
-			},
-		];
+		const tagPattern = Object.keys(EMBEDDED_CONTEXT_TAG_CONFIG).join("|");
+		const sectionRegex = new RegExp(
+			`<(${tagPattern})>([\\s\\S]*?)<\\/\\1>`,
+			"g",
+		);
+		const labelPrefixByType: Record<string, string> = {
+			text: "📝",
+			html: "🏗️",
+			screenshot: "📸",
+		};
 
-		sectionPatterns.forEach(({ regex, label, type }) => {
-			const match = contextContent.match(regex);
-			if (match) {
-				sections.push({ type, content: match[1].trim(), label });
+		for (const match of contextContent.matchAll(sectionRegex)) {
+			const tag = match[1];
+			const sectionConfig = EMBEDDED_CONTEXT_TAG_CONFIG[tag];
+			if (!sectionConfig) {
+				continue;
 			}
-		});
+
+			sections.push({
+				type: sectionConfig.displayType,
+				content: match[2].trim(),
+				label: `${labelPrefixByType[sectionConfig.displayType]} ${sectionConfig.renderLabel}`,
+			});
+		}
 
 		return {
 			hasContext: true,
@@ -188,7 +162,7 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 		return (
 			<>
 				<pre
-					className="whitespace-pre-wrap font-sans text-sm max-w-full"
+					className="whitespace-pre-wrap font-sans text-sm max-w-full text-foreground"
 					style={{
 						wordBreak: "break-word",
 						overflowWrap: "break-word",
@@ -221,17 +195,19 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 
 	// Message with context sections
 	return (
-		<div className="space-y-3">
+		<div className="space-y-3 text-foreground">
 			{/* User's actual message */}
 			{parsed.userMessage && (
-				<div className="text-sm">{parsed.userMessage}</div>
+				<div className="rounded-lg border border-border/70 bg-background px-3 py-2 text-sm text-foreground shadow-sm">
+					{parsed.userMessage}
+				</div>
 			)}
 
 			{/* Context sections */}
 			<div className="space-y-2">
 				{/* Website info */}
 				{parsed.websiteInfo && (
-					<div className="flex items-start gap-2.5 bg-card rounded-lg px-3 py-2.5 border border-border hover:bg-accent transition-colors">
+					<div className="flex items-start gap-2.5 bg-card rounded-lg px-3 py-2.5 border border-border hover:bg-accent transition-colors text-card-foreground">
 						<svg
 							className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0"
 							fill="none"
@@ -246,8 +222,10 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 							/>
 						</svg>
 						<div className="flex-1 min-w-0">
-							<div className="text-sm truncate">{parsed.websiteInfo.title}</div>
-							<div className="truncate text-xs mt-0.5">
+							<div className="text-sm truncate text-card-foreground">
+								{parsed.websiteInfo.title}
+							</div>
+							<div className="truncate text-xs mt-0.5 text-muted-foreground">
 								{parsed.websiteInfo.url}
 							</div>
 						</div>
@@ -264,9 +242,9 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 					return (
 						<div
 							key={idx}
-							className="border border-border rounded-lg overflow-hidden bg-card"
+							className="border border-border rounded-lg overflow-hidden bg-card text-card-foreground"
 						>
-							<div className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium bg-card hover:bg-accent transition-colors">
+							<div className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium bg-card hover:bg-accent transition-colors text-card-foreground">
 								<button
 									onClick={() => toggleSection(section.label)}
 									className="flex-1 flex items-center justify-between text-left"
@@ -332,17 +310,17 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 							</div>
 
 							{isExpanded && (
-								<div className="px-3 py-2 border-t border-border bg-muted/30">
+								<div className="px-3 py-2 border-t border-border bg-muted/30 text-foreground">
 									{isScreenshot ? (
 										<div className="text-xs text-muted-foreground italic">
 											{section.content}
 										</div>
 									) : isHtml ? (
-										<pre className="whitespace-pre-wrap font-mono text-xs text-foreground/80 max-h-96 overflow-y-auto overflow-x-auto">
+										<pre className="whitespace-pre-wrap font-mono text-xs text-foreground max-h-96 overflow-y-auto overflow-x-auto">
 											{section.content}
 										</pre>
 									) : (
-										<pre className="whitespace-pre-wrap font-sans text-xs text-foreground/80 max-h-96 overflow-y-auto">
+										<pre className="whitespace-pre-wrap font-sans text-xs text-foreground max-h-96 overflow-y-auto">
 											{section.content}
 										</pre>
 									)}

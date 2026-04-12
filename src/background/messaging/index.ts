@@ -2,6 +2,7 @@ import { logInfo, logError } from "@/utils/logger";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { activityTrackingManager } from "@/background/activity-tracking-manager";
 import { BACKGROUND_EVENTS } from "@/constants/events";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import {
 	isJobNotificationMessage,
 	type JobNotificationMessage,
@@ -100,6 +101,132 @@ function handleOpenSavePage(sendResponse: SendResponse): true {
 		logError("❌ Failed to open documents page:", error);
 		sendResponse({ success: false, error: "Failed to open documents page" });
 	}
+	return true;
+}
+
+function collectDocumentFolderPaths(
+	nodes: Array<{
+		type: "file" | "folder";
+		path: string;
+		children?: Array<{
+			type: "file" | "folder";
+			path: string;
+			children?: any[];
+		}>;
+	}>,
+): string[] {
+	const folders = new Set<string>(["/"]);
+	const visit = (items: typeof nodes): void => {
+		items.forEach((node) => {
+			if (node.type === "folder") {
+				folders.add(node.path);
+			}
+			if (node.children && node.children.length > 0) {
+				visit(node.children as typeof nodes);
+			}
+		});
+	};
+	visit(nodes);
+	return Array.from(folders).sort((left, right) => left.localeCompare(right));
+}
+
+function handleGetDocumentFolders(sendResponse: SendResponse): true {
+	(async () => {
+		try {
+			await documentFileSystemService.initialize();
+			const tree = await documentFileSystemService.getTree();
+			sendResponse({
+				success: true,
+				folders: collectDocumentFolderPaths(tree),
+			});
+		} catch (error) {
+			logError("❌ Failed to load document folders:", error);
+			sendResponse({
+				success: false,
+				error:
+					error instanceof Error
+						? error.message
+						: "Failed to load document folders",
+			});
+		}
+	})();
+	return true;
+}
+
+function handleSaveEmbeddedContextPreview(
+	message: Record<string, unknown>,
+	sendResponse: SendResponse,
+): true {
+	(async () => {
+		try {
+			const folderPath =
+				typeof message.folderPath === "string" && message.folderPath.trim()
+					? message.folderPath
+					: "/";
+			const fileName =
+				typeof message.fileName === "string" && message.fileName.trim()
+					? message.fileName.trim()
+					: null;
+
+			if (!fileName) {
+				sendResponse({ success: false, error: "Missing file name" });
+				return;
+			}
+
+			await documentFileSystemService.initialize();
+
+			if (
+				Array.isArray(message.imageSources) &&
+				message.imageSources.length > 0
+			) {
+				const lastDotIndex = fileName.lastIndexOf(".");
+				const baseName =
+					lastDotIndex === -1 ? fileName : fileName.slice(0, lastDotIndex);
+				const extension =
+					lastDotIndex === -1 ? ".png" : fileName.slice(lastDotIndex);
+
+				for (let index = 0; index < message.imageSources.length; index += 1) {
+					const source = message.imageSources[index];
+					if (typeof source !== "string" || !source) {
+						continue;
+					}
+
+					const response = await fetch(source);
+					const blob = await response.blob();
+					const numberedName =
+						message.imageSources.length > 1
+							? `${baseName}-${index + 1}${extension}`
+							: `${baseName}${extension}`;
+					const file = new File([blob], numberedName, {
+						type: blob.type || "image/png",
+					});
+					await documentFileSystemService.uploadFile(file, folderPath);
+				}
+
+				sendResponse({ success: true });
+				return;
+			}
+
+			const content =
+				typeof message.content === "string" ? message.content : "";
+			const mimeType =
+				typeof message.mimeType === "string" && message.mimeType
+					? message.mimeType
+					: "text/plain";
+			const file = new File([content], fileName, { type: mimeType });
+			await documentFileSystemService.uploadFile(file, folderPath);
+			sendResponse({ success: true });
+		} catch (error) {
+			logError("❌ Failed to save embedded context preview:", error);
+			sendResponse({
+				success: false,
+				error:
+					error instanceof Error
+						? error.message
+						: "Failed to save embedded context preview",
+			});
+		}
+	})();
 	return true;
 }
 
@@ -237,6 +364,9 @@ export function registerMessageHandler(onPopupOpened: () => void): void {
 		if (type === BACKGROUND_EVENTS.GET_TOPICS_FOR_SELECTOR)
 			return handleGetTopicsForSelector(sendResponse);
 
+		if (type === BACKGROUND_EVENTS.GET_DOCUMENT_FOLDERS)
+			return handleGetDocumentFolders(sendResponse);
+
 		if (type === BACKGROUND_EVENTS.OPEN_FULL_PAGE)
 			return handleOpenFullPage(sendResponse);
 
@@ -245,6 +375,9 @@ export function registerMessageHandler(onPopupOpened: () => void): void {
 
 		if (type === BACKGROUND_EVENTS.SAVE_CONTENT_WITH_TOPIC)
 			return handleSaveContentWithTopic(msg, sender.tab?.id, sendResponse);
+
+		if (type === BACKGROUND_EVENTS.SAVE_EMBEDDED_CONTEXT_PREVIEW)
+			return handleSaveEmbeddedContextPreview(msg, sendResponse);
 
 		if (type === BACKGROUND_EVENTS.CONTENT_EXTRACTED)
 			return handleContentExtracted(msg, sendResponse);

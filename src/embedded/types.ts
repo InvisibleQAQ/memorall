@@ -83,12 +83,32 @@ export interface RememberContext {
 	timestamp: string;
 }
 
+export type EmbeddedContextKind =
+	| "selection"
+	| "viewport"
+	| "viewport_html"
+	| "full_page"
+	| "full_page_html"
+	| "viewport_screenshot"
+	| "screenshot"
+	| "selected_image"
+	| "smart_text"
+	| "smart_clean_html"
+	| "smart_html";
+
+export interface EmbeddedContextItem {
+	id: string;
+	kind: EmbeddedContextKind;
+	label: string;
+	content: string;
+}
+
 export interface ChatModalProps {
 	context?: string;
 	mode?: "general" | "topic";
 	pageUrl: string;
 	pageTitle: string;
-	contextOptions?: Array<{ type: string; label: string; content: string }>;
+	contextOptions?: EmbeddedContextItem[];
 	onClose: () => void;
 }
 
@@ -110,6 +130,11 @@ export interface BackgroundMessage {
 	showTopicSelector?: boolean;
 	contextData?: RememberContext;
 	data?: ExtractedPageData | ExtractedSelectionData;
+	folderPath?: string;
+	fileName?: string;
+	mimeType?: string;
+	content?: string;
+	imageSources?: string[];
 }
 
 export interface MessageResponse {

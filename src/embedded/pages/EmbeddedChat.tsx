@@ -1,6 +1,7 @@
 import React, {
 	useCallback,
 	useEffect,
+	useMemo,
 	useState,
 	type FormEventHandler,
 } from "react";
@@ -23,15 +24,22 @@ import {
 	SourcesContent,
 	SourcesTrigger,
 } from "@/embedded/components/MessageControl";
-import type { ChatModalProps, ChatMessage, ChatAction } from "@/embedded/types";
+import type {
+	ChatModalProps,
+	ChatMessage,
+	ChatAction,
+	EmbeddedContextItem,
+} from "@/embedded/types";
 import { embeddedChatService } from "@/embedded/chat-service";
 import { EmbeddedContextSections } from "@/embedded/components/ContextSections";
+import { createSmartSelectOverlay } from "@/embedded/components/SmartSelectOverlay";
 import {
 	loadLanguageFromStorage,
 	EMBEDDED_TRANSLATIONS,
 } from "@/embedded/language";
 import { EmbeddedMessageRenderer } from "@/embedded/components/EmbeddedMessageRenderer";
 import { EmbeddedChatInput } from "@/embedded/components/EmbeddedChatInput";
+import { buildEmbeddedContextMessageContent } from "@/embedded/context-items";
 import { customStyles } from "@/embedded/styles/customStyles";
 import { createShadowPage } from "@/embedded/utils/create-shadow-page";
 
@@ -72,19 +80,48 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 
 	const [abortController, setAbortController] =
 		useState<AbortController | null>(null);
-	const [selectedContexts, setSelectedContexts] = useState<
-		Array<{ type: string; label: string; content: string }>
+	const initialContextOptions = useMemo(
+		() => contextOptions ?? [],
+		[contextOptions],
+	);
+	const initialContextOptionMap = useMemo(
+		() =>
+			new Map(
+				initialContextOptions.map((contextItem) => [
+					contextItem.id,
+					contextItem,
+				]),
+			),
+		[initialContextOptions],
+	);
+	const initialContextOrder = useMemo(
+		() =>
+			new Map(
+				initialContextOptions.map((contextItem, index) => [
+					contextItem.id,
+					index,
+				]),
+			),
+		[initialContextOptions],
+	);
+	const [availableContexts, setAvailableContexts] = useState<
+		EmbeddedContextItem[]
+	>(initialContextOptions);
+	const [attachedContexts, setAttachedContexts] = useState<
+		EmbeddedContextItem[]
 	>([]);
-	const [, setAvailableContexts] = useState<
-		Array<{ type: string; label: string; content: string }>
-	>(contextOptions || []);
+	const [isSmartSelectMode, setIsSmartSelectMode] = useState(false);
 	const [showConfirmClose, setShowConfirmClose] = useState(false);
 	const [showContextSection, setShowContextSection] = useState(true);
 
 	// Check if there's unsaved content
 	const hasUnsavedContent = useCallback(() => {
-		return messages.length > 0 || inputValue.trim().length > 0;
-	}, [messages, inputValue]);
+		return (
+			messages.length > 0 ||
+			inputValue.trim().length > 0 ||
+			attachedContexts.length > 0
+		);
+	}, [attachedContexts.length, messages.length, inputValue]);
 
 	// Handle overlay click - show confirmation if there's unsaved content
 	const handleOverlayClick = useCallback(() => {
@@ -119,17 +156,78 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	const handleDeleteChat = useCallback(() => {
 		setMessages([]);
 		setInputValue("");
-		setSelectedContexts([]);
-		setAvailableContexts(contextOptions || []);
-	}, [contextOptions]);
+		setAttachedContexts([]);
+		setAvailableContexts(initialContextOptions);
+	}, [initialContextOptions]);
 
 	// Handle toggle context section
 	const handleToggleContextSection = useCallback(() => {
 		setShowContextSection((prev) => !prev);
 	}, []);
 
+	const restoreAvailableContext = useCallback(
+		(itemId: string, currentAvailable: EmbeddedContextItem[]) => {
+			const originalItem = initialContextOptionMap.get(itemId);
+			if (!originalItem) {
+				return currentAvailable;
+			}
+
+			const nextAvailable = [...currentAvailable, originalItem];
+			nextAvailable.sort((left, right) => {
+				const leftIndex =
+					initialContextOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+				const rightIndex =
+					initialContextOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+				return leftIndex - rightIndex;
+			});
+			return nextAvailable;
+		},
+		[initialContextOptionMap, initialContextOrder],
+	);
+
+	const handleAttachContext = useCallback(
+		(contextItem: EmbeddedContextItem) => {
+			setAvailableContexts((prev) =>
+				prev.filter((availableItem) => availableItem.id !== contextItem.id),
+			);
+			setAttachedContexts((prev) => [...prev, contextItem]);
+		},
+		[],
+	);
+
+	const handleAttachSmartContext = useCallback(
+		(contextItem: EmbeddedContextItem) => {
+			setAttachedContexts((prev) => [...prev, contextItem]);
+		},
+		[],
+	);
+
+	const handleRemoveAttachedContext = useCallback(
+		(itemId: string) => {
+			setAttachedContexts((prev) => {
+				const nextAttached = prev.filter((contextItem) => {
+					return contextItem.id !== itemId;
+				});
+				return nextAttached;
+			});
+
+			if (!initialContextOptionMap.has(itemId)) {
+				return;
+			}
+
+			setAvailableContexts((prev) => restoreAvailableContext(itemId, prev));
+		},
+		[initialContextOptionMap, restoreAvailableContext],
+	);
+
+	const handleClearAttachedContexts = useCallback(() => {
+		setAttachedContexts([]);
+		setAvailableContexts(initialContextOptions);
+	}, [initialContextOptions]);
+
 	// Auto-scroll state
 	const conversationRef = React.useRef<HTMLDivElement>(null);
+	const smartSelectCleanupRef = React.useRef<(() => void) | null>(null);
 	const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
 	// Topic status
@@ -371,17 +469,59 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 
 	// Prevent scroll on body when modal is open
 	useEffect(() => {
-		// Save current body overflow style
-		const originalOverflow = document.body.style.overflow;
+		const originalBodyOverflow = document.body.style.overflow;
+		const originalHtmlOverflow = document.documentElement.style.overflow;
+		const originalBodyOverscroll = document.body.style.overscrollBehavior;
+		const originalHtmlOverscroll =
+			document.documentElement.style.overscrollBehavior;
 
-		// Prevent body scroll
-		document.body.style.overflow = "hidden";
+		if (isSmartSelectMode) {
+			document.body.style.overflow = originalBodyOverflow;
+			document.documentElement.style.overflow = originalHtmlOverflow;
+			document.body.style.overscrollBehavior = originalBodyOverscroll;
+			document.documentElement.style.overscrollBehavior =
+				originalHtmlOverscroll;
+		} else {
+			document.body.style.overflow = "hidden";
+			document.documentElement.style.overflow = "hidden";
+			document.body.style.overscrollBehavior = "contain";
+			document.documentElement.style.overscrollBehavior = "contain";
+		}
 
 		// Restore on cleanup
 		return () => {
-			document.body.style.overflow = originalOverflow;
+			document.body.style.overflow = originalBodyOverflow;
+			document.documentElement.style.overflow = originalHtmlOverflow;
+			document.body.style.overscrollBehavior = originalBodyOverscroll;
+			document.documentElement.style.overscrollBehavior =
+				originalHtmlOverscroll;
+		};
+	}, [isSmartSelectMode]);
+
+	useEffect(() => {
+		return () => {
+			smartSelectCleanupRef.current?.();
+			smartSelectCleanupRef.current = null;
 		};
 	}, []);
+
+	useEffect(() => {
+		const preattachedContexts = initialContextOptions.filter(
+			(contextItem) => contextItem.kind === "selected_image",
+		);
+		if (preattachedContexts.length > 0) {
+			setAttachedContexts(preattachedContexts);
+			setAvailableContexts(
+				initialContextOptions.filter(
+					(contextItem) => contextItem.kind !== "selected_image",
+				),
+			);
+			return;
+		}
+
+		setAttachedContexts([]);
+		setAvailableContexts(initialContextOptions);
+	}, [initialContextOptions]);
 
 	// Add initial context if provided
 	useEffect(() => {
@@ -412,6 +552,32 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 		}
 	}, [abortController]);
 
+	const handleStartSmartSelect = useCallback(() => {
+		setIsSmartSelectMode(true);
+		smartSelectCleanupRef.current?.();
+		smartSelectCleanupRef.current = createSmartSelectOverlay(
+			(contextItem) => {
+				smartSelectCleanupRef.current = null;
+				setIsSmartSelectMode(false);
+				handleAttachSmartContext(contextItem);
+				setShowContextSection(true);
+			},
+			() => {
+				smartSelectCleanupRef.current = null;
+				setIsSmartSelectMode(false);
+			},
+			{
+				smartSelect: texts.contextSection.smartSelect,
+				smartSelectInstruction: texts.contextSection.smartSelectInstruction,
+				smartSelectCancel: texts.contextSection.smartSelectCancel,
+				smartSelectChooseFormat: texts.contextSection.smartSelectChooseFormat,
+				smartSelectText: texts.contextSection.smartSelectText,
+				smartSelectCleanHtml: texts.contextSection.smartSelectCleanHtml,
+				smartSelectHtml: texts.contextSection.smartSelectHtml,
+			},
+		);
+	}, [handleAttachSmartContext, texts.contextSection]);
+
 	const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
 		async (event) => {
 			event.preventDefault();
@@ -419,7 +585,16 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 			if (!inputValue.trim() || isTyping || !modelAvailable) return;
 
 			const userMessageContent = inputValue.trim();
+			const attachedContextsForMessage = attachedContexts;
+			const composedUserContent = buildEmbeddedContextMessageContent({
+				userMessage: userMessageContent,
+				contexts: attachedContextsForMessage,
+				pageTitle,
+				pageUrl,
+			});
 			setInputValue("");
+			setAttachedContexts([]);
+			setAvailableContexts(initialContextOptions);
 			setIsTyping(true);
 			setShouldAutoScroll(true); // Enable auto-scroll when sending message
 
@@ -429,7 +604,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 
 			const userMessage: ChatMessage = {
 				id: nanoid(),
-				content: userMessageContent, // Display only user's message
+				content: composedUserContent,
 				role: "user",
 				timestamp: new Date(),
 			};
@@ -448,12 +623,11 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 			setStreamingMessageId(assistantMessageId);
 
 			try {
-				// Build messages array with hidden context in the last message
 				const messagesForAPI = [
 					...messages,
 					{
 						id: userMessage.id,
-						content: userMessageContent,
+						content: composedUserContent,
 						role: userMessage.role,
 						timestamp: userMessage.timestamp,
 					},
@@ -553,21 +727,34 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 			isTyping,
 			modelAvailable,
 			messages,
+			attachedContexts,
+			initialContextOptions,
+			pageTitle,
+			pageUrl,
+			selectedModel,
 			selectedAgentFlowId,
+			selectedTopic,
 			scrollToBottom,
+			texts.chat.errorMessage,
 		],
 	);
 
 	return (
 		<div
-			className="fixed inset-0 z-[999999] bg-black/30 animate-in fade-in duration-200"
+			className={`fixed inset-0 z-[999999] animate-in fade-in duration-200 ${
+				isSmartSelectMode ? "bg-transparent" : "bg-black/30"
+			}`}
 			onClick={handleOverlayClick}
 			onKeyDown={(e) => e.stopPropagation()}
 			onKeyUp={(e) => e.stopPropagation()}
 			onKeyPress={(e) => e.stopPropagation()}
 		>
 			<div
-				className="fixed right-0 top-0 h-full w-full max-w-[30%] min-w-[400px] flex flex-col overflow-hidden bg-background shadow-2xl border-l animate-in slide-in-from-right duration-300"
+				className={`fixed flex flex-col overflow-hidden bg-background shadow-2xl animate-in slide-in-from-right duration-300 ${
+					isSmartSelectMode
+						? "right-3 top-3 h-auto w-[320px] max-w-[calc(100vw-1.5rem)] min-w-0 rounded-2xl border bg-background/95 backdrop-blur"
+						: "right-0 top-0 h-full w-full max-w-[30%] min-w-[400px] border-l"
+				}`}
 				onClick={(e) => e.stopPropagation()}
 				onKeyDown={(e) => e.stopPropagation()}
 				onKeyUp={(e) => e.stopPropagation()}
@@ -587,230 +774,261 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					texts={texts.messageControl}
 				/>
 
-				{/* Conversation Area - exact same structure as your example */}
-				<Conversation
-					ref={conversationRef}
-					className="flex-1 overflow-y-auto"
-					onScroll={handleScroll}
-				>
-					<ConversationContent className="space-y-4">
-						{/* Show passkey required banner */}
-						{needsPasskey ? (
-							<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
-								<div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3">
-									<svg
-										className="w-6 h-6 text-amber-600 dark:text-amber-400"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-										/>
-									</svg>
-								</div>
-								<h3 className="font-medium mb-2 text-foreground">
-									{texts.chat.authRequired || "Authentication Required"}
-								</h3>
-								<p className="text-muted-foreground text-xs leading-relaxed mb-4">
-									{texts.chat.authRequiredDescription ||
-										`${
-											encryptedProviders.length > 0
-												? `Your ${encryptedProviders.join(", ")} provider`
-												: `Your ${selectedProvider} model`
-										} requires authentication. Please open the main app to enter your passkey.`}
-								</p>
-								<button
-									onClick={() => {
-										chrome.runtime.sendMessage({
-											type: "OPEN_FULL_PAGE",
-										});
-										onClose();
-									}}
-									className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-								>
-									{texts.chat.openMainApp || "Open Main App"}
-								</button>
+				{isSmartSelectMode ? (
+					<div className="px-3 py-3">
+						<div className="rounded-xl border bg-background/90 px-3 py-3 shadow-sm">
+							<div className="text-base font-semibold text-foreground">
+								{texts.contextSection.smartSelect}
 							</div>
-						) : noModelConfig ? (
-							<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
-								<div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-									<svg
-										className="w-6 h-6 text-muted-foreground"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-										/>
-									</svg>
-								</div>
-								<h3 className="font-medium mb-2 text-foreground">
-									{texts.chat.noModelConfig}
-								</h3>
-								<p className="text-muted-foreground text-xs leading-relaxed mb-4">
-									{texts.chat.noModelConfigDescription}
-								</p>
-								<button
-									onClick={() => {
-										chrome.runtime.sendMessage({
-											type: "OPEN_FULL_PAGE",
-										});
-										onClose();
-									}}
-									className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-								>
-									{texts.chat.configureModel}
-								</button>
-							</div>
-						) : messages.length === 0 ? (
-							<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
-								<div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3 overflow-hidden">
-									<img
-										src={chrome.runtime.getURL("logo.png")}
-										alt="Memorall Logo"
-										className="w-8 h-8 object-contain"
-									/>
-								</div>
-								<h3 className="font-medium mb-2">
-									{texts.chat.recallKnowledge}
-								</h3>
-								<p className="text-muted-foreground text-xs leading-relaxed">
-									{texts.chat.recallDescription}
-								</p>
-							</div>
-						) : (
-							messages.map((message) => (
-								<div key={message.id} className="space-y-3 overflow-x-hidden">
-									<Message role={message.role}>
-										<MessageContent role={message.role}>
-											<EmbeddedMessageRenderer
-												message={message}
-												isLoading={message.isStreaming || false}
-												allMessages={messages}
-												selectedTopic={selectedTopic}
-											/>
-										</MessageContent>
-									</Message>
-									{/* Reasoning - only for AI messages */}
-									{message.reasoning && message.role === "assistant" && (
-										<div className="max-w-[100%]">
-											<Reasoning
-												isStreaming={message.isStreaming}
-												defaultOpen={false}
+							<p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+								{texts.contextSection.smartSelectInstruction}
+							</p>
+						</div>
+					</div>
+				) : (
+					<>
+						{/* Conversation Area - exact same structure as your example */}
+						<Conversation
+							ref={conversationRef}
+							className="flex-1 overflow-y-auto overscroll-contain"
+							onScroll={handleScroll}
+							onWheel={handleWheel}
+						>
+							<ConversationContent className="space-y-4">
+								{/* Show passkey required banner */}
+								{needsPasskey ? (
+									<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+										<div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3">
+											<svg
+												className="w-6 h-6 text-amber-600 dark:text-amber-400"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
 											>
-												<ReasoningTrigger />
-												<ReasoningContent>{message.reasoning}</ReasoningContent>
-											</Reasoning>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													strokeWidth={2}
+													d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+												/>
+											</svg>
 										</div>
-									)}
-									{/* Sources - only for AI messages */}
-									{message.sources &&
-										message.sources.length > 0 &&
-										message.role === "assistant" && (
-											<div className="max-w-[100%]">
-												<Sources>
-													<SourcesTrigger count={message.sources.length} />
-													<SourcesContent>
-														{message.sources.map((source, index) => (
-															<Source
-																key={index}
-																href={source.url}
-																title={source.title}
-															/>
-														))}
-													</SourcesContent>
-												</Sources>
-											</div>
-										)}
-								</div>
-							))
-						)}
-					</ConversationContent>
-				</Conversation>
+										<h3 className="font-medium mb-2 text-foreground">
+											{texts.chat.authRequired || "Authentication Required"}
+										</h3>
+										<p className="text-muted-foreground text-xs leading-relaxed mb-4">
+											{texts.chat.authRequiredDescription ||
+												`${
+													encryptedProviders.length > 0
+														? `Your ${encryptedProviders.join(", ")} provider`
+														: `Your ${selectedProvider} model`
+												} requires authentication. Please open the main app to enter your passkey.`}
+										</p>
+										<button
+											onClick={() => {
+												chrome.runtime.sendMessage({
+													type: "OPEN_FULL_PAGE",
+												});
+												onClose();
+											}}
+											className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+										>
+											{texts.chat.openMainApp || "Open Main App"}
+										</button>
+									</div>
+								) : noModelConfig ? (
+									<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+										<div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+											<svg
+												className="w-6 h-6 text-muted-foreground"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													strokeWidth={2}
+													d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+												/>
+											</svg>
+										</div>
+										<h3 className="font-medium mb-2 text-foreground">
+											{texts.chat.noModelConfig}
+										</h3>
+										<p className="text-muted-foreground text-xs leading-relaxed mb-4">
+											{texts.chat.noModelConfigDescription}
+										</p>
+										<button
+											onClick={() => {
+												chrome.runtime.sendMessage({
+													type: "OPEN_FULL_PAGE",
+												});
+												onClose();
+											}}
+											className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+										>
+											{texts.chat.configureModel}
+										</button>
+									</div>
+								) : messages.length === 0 ? (
+									<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+										<div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3 overflow-hidden">
+											<img
+												src={chrome.runtime.getURL("logo.png")}
+												alt="Memorall Logo"
+												className="w-8 h-8 object-contain"
+											/>
+										</div>
+										<h3 className="font-medium mb-2">
+											{texts.chat.recallKnowledge}
+										</h3>
+										<p className="text-muted-foreground text-xs leading-relaxed">
+											{texts.chat.recallDescription}
+										</p>
+									</div>
+								) : (
+									messages.map((message) => (
+										<div
+											key={message.id}
+											className="space-y-3 overflow-x-hidden"
+										>
+											<Message role={message.role}>
+												<MessageContent role={message.role}>
+													<EmbeddedMessageRenderer
+														message={message}
+														isLoading={message.isStreaming || false}
+														allMessages={messages}
+														selectedTopic={selectedTopic}
+													/>
+												</MessageContent>
+											</Message>
+											{/* Reasoning - only for AI messages */}
+											{message.reasoning && message.role === "assistant" && (
+												<div className="max-w-[100%]">
+													<Reasoning
+														isStreaming={message.isStreaming}
+														defaultOpen={false}
+													>
+														<ReasoningTrigger />
+														<ReasoningContent>
+															{message.reasoning}
+														</ReasoningContent>
+													</Reasoning>
+												</div>
+											)}
+											{/* Sources - only for AI messages */}
+											{message.sources &&
+												message.sources.length > 0 &&
+												message.role === "assistant" && (
+													<div className="max-w-[100%]">
+														<Sources>
+															<SourcesTrigger count={message.sources.length} />
+															<SourcesContent>
+																{message.sources.map((source, index) => (
+																	<Source
+																		key={index}
+																		href={source.url}
+																		title={source.title}
+																	/>
+																))}
+															</SourcesContent>
+														</Sources>
+													</div>
+												)}
+										</div>
+									))
+								)}
+							</ConversationContent>
+						</Conversation>
+					</>
+				)}
 
 				{/* Show Context Button - visible when section is hidden */}
-				{!showContextSection && (
-					<div className="border-t px-4 py-2 flex-shrink-0">
-						<button
-							onClick={handleToggleContextSection}
-							className="flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
-							onKeyDown={(e) => e.stopPropagation()}
-							onKeyUp={(e) => e.stopPropagation()}
-							onKeyPress={(e) => e.stopPropagation()}
-						>
-							<svg
-								className="w-3.5 h-3.5"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
+				{!isSmartSelectMode &&
+					!showContextSection &&
+					attachedContexts.length === 0 && (
+						<div className="border-t px-4 py-2 flex-shrink-0">
+							<button
+								onClick={handleToggleContextSection}
+								className="flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+								onKeyDown={(e) => e.stopPropagation()}
+								onKeyUp={(e) => e.stopPropagation()}
+								onKeyPress={(e) => e.stopPropagation()}
 							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									d="M4 6h16M4 12h16M4 18h16"
-								/>
-							</svg>
-							<span>{texts.chat.context}</span>
-						</button>
+								<svg
+									className="w-3.5 h-3.5"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M4 6h16M4 12h16M4 18h16"
+									/>
+								</svg>
+								<span>{texts.chat.context}</span>
+							</button>
+						</div>
+					)}
+
+				{/* Context Section with animation */}
+				{!isSmartSelectMode && (
+					<div
+						className="overflow-hidden transition-all duration-300 ease-in-out"
+						style={{
+							maxHeight:
+								showContextSection || attachedContexts.length > 0
+									? "500px"
+									: "0px",
+							opacity:
+								showContextSection || attachedContexts.length > 0 ? 1 : 0,
+						}}
+					>
+						<EmbeddedContextSections
+							availableContexts={availableContexts}
+							attachedContexts={attachedContexts}
+							onAttachContext={handleAttachContext}
+							onRemoveAttachedContext={handleRemoveAttachedContext}
+							onClearAttachedContexts={handleClearAttachedContexts}
+							onStartSmartSelect={handleStartSmartSelect}
+							showContextSection={showContextSection}
+							onToggleContextSection={handleToggleContextSection}
+							texts={texts.contextSection}
+						/>
 					</div>
 				)}
 
-				{/* Context Section with animation */}
-				<div
-					className="overflow-hidden transition-all duration-300 ease-in-out"
-					style={{
-						maxHeight: showContextSection ? "500px" : "0px",
-						opacity: showContextSection ? 1 : 0,
-					}}
-				>
-					<EmbeddedContextSections
-						pageUrl={pageUrl}
-						pageTitle={pageTitle}
-						contextOptions={contextOptions}
-						setMessages={setMessages}
-						selectedContexts={selectedContexts}
-						setSelectedContexts={setSelectedContexts}
-						showContextSection={showContextSection}
-						onToggleContextSection={handleToggleContextSection}
-						texts={texts.contextSection}
-					/>
-				</div>
-
 				{/* Input Area - using separate component */}
-				<EmbeddedChatInput
-					inputValue={inputValue}
-					setInputValue={setInputValue}
-					onSubmit={handleSubmit}
-					isTyping={isTyping}
-					modelAvailable={modelAvailable}
-					selectedAgentFlowId={selectedAgentFlowId}
-					setSelectedAgentFlowId={setSelectedAgentFlowId}
-					agentFlows={agentFlows}
-					selectedTopic={selectedTopic}
-					setSelectedTopic={setSelectedTopic}
-					topics={topics}
-					topicsLoading={topicsLoading}
-					hasTopics={hasTopics}
-					messages={messages}
-					onDeleteChat={handleDeleteChat}
-					onStop={handleStop}
-					onOpenSettings={() => {
-						chrome.runtime.sendMessage({
-							type: "OPEN_FULL_PAGE",
-						});
-						onClose();
-					}}
-					language={language}
-				/>
+				{!isSmartSelectMode && (
+					<EmbeddedChatInput
+						inputValue={inputValue}
+						setInputValue={setInputValue}
+						onSubmit={handleSubmit}
+						isTyping={isTyping}
+						modelAvailable={modelAvailable}
+						selectedAgentFlowId={selectedAgentFlowId}
+						setSelectedAgentFlowId={setSelectedAgentFlowId}
+						agentFlows={agentFlows}
+						selectedTopic={selectedTopic}
+						setSelectedTopic={setSelectedTopic}
+						topics={topics}
+						topicsLoading={topicsLoading}
+						hasTopics={hasTopics}
+						messages={messages}
+						onDeleteChat={handleDeleteChat}
+						onStop={handleStop}
+						onOpenSettings={() => {
+							chrome.runtime.sendMessage({
+								type: "OPEN_FULL_PAGE",
+							});
+							onClose();
+						}}
+						language={language}
+					/>
+				)}
 
 				{/* Confirmation Modal */}
 				{showConfirmClose && (

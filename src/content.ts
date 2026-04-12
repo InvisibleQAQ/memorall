@@ -16,9 +16,11 @@ import {
 	extractFullPageHTMLStructure,
 	createImageSelectorOverlay,
 } from "./embedded";
+import { createEmbeddedContextItem } from "./embedded/context-items";
 import { createEmbeddedChatModal } from "./embedded/pages/EmbeddedChat";
 import type {
 	BackgroundMessage,
+	EmbeddedContextItem,
 	MessageResponse,
 	ExtractedSelectionData,
 } from "./embedded/types";
@@ -551,29 +553,29 @@ async function handleShowChatModal(
 		}
 
 		// Extract context options if requested
-		let contextOptions: Array<{
-			type: string;
-			label: string;
-			content: string;
-		}> = [];
+		let contextOptions: EmbeddedContextItem[] = [];
 
 		if (message.selectedText && message.selectedText.trim()) {
-			contextOptions.push({
-				type: "selection",
-				label: "Selected text",
-				content: message.selectedText,
-			});
+			contextOptions.push(
+				createEmbeddedContextItem({
+					kind: "selection",
+					label: "Selected text",
+					content: message.selectedText,
+				}),
+			);
 		}
 
 		// 2. Viewport content (visible content)
 		try {
 			const viewportContent = extractViewportContent();
 			if (viewportContent.trim()) {
-				contextOptions.push({
-					type: "viewport",
-					label: "Visible content",
-					content: viewportContent,
-				});
+				contextOptions.push(
+					createEmbeddedContextItem({
+						kind: "viewport",
+						label: "Visible content",
+						content: viewportContent,
+					}),
+				);
 			}
 		} catch (e) {
 			// Ignore
@@ -583,11 +585,13 @@ async function handleShowChatModal(
 		try {
 			const viewportHTML = extractViewportHTMLStructure();
 			if (viewportHTML.trim()) {
-				contextOptions.push({
-					type: "viewport_html",
-					label: "Visible HTML",
-					content: viewportHTML,
-				});
+				contextOptions.push(
+					createEmbeddedContextItem({
+						kind: "viewport_html",
+						label: "Visible HTML",
+						content: viewportHTML,
+					}),
+				);
 			}
 		} catch (e) {
 			// Ignore
@@ -602,11 +606,13 @@ async function handleShowChatModal(
 				document.body.innerText ||
 				"";
 			if (fullContent.trim()) {
-				contextOptions.push({
-					type: "full_page",
-					label: "Page text",
-					content: fullContent,
-				});
+				contextOptions.push(
+					createEmbeddedContextItem({
+						kind: "full_page",
+						label: "Page text",
+						content: fullContent,
+					}),
+				);
 			} else {
 				// Ignore
 			}
@@ -615,11 +621,13 @@ async function handleShowChatModal(
 			// Fallback: use basic text extraction
 			const fallbackText = document.body.innerText || "";
 			if (fallbackText.trim()) {
-				contextOptions.push({
-					type: "full_page",
-					label: "Page text",
-					content: fallbackText,
-				});
+				contextOptions.push(
+					createEmbeddedContextItem({
+						kind: "full_page",
+						label: "Page text",
+						content: fallbackText,
+					}),
+				);
 			}
 		}
 
@@ -627,29 +635,35 @@ async function handleShowChatModal(
 		try {
 			const fullPageHTML = extractFullPageHTMLStructure();
 			if (fullPageHTML.trim()) {
-				contextOptions.push({
-					type: "full_page_html",
-					label: "Page HTML",
-					content: fullPageHTML,
-				});
+				contextOptions.push(
+					createEmbeddedContextItem({
+						kind: "full_page_html",
+						label: "Page HTML",
+						content: fullPageHTML,
+					}),
+				);
 			}
 		} catch (e) {
 			// Ignore
 		}
 
 		// 6. Viewport screenshot - placeholder, will be captured on demand
-		contextOptions.push({
-			type: "viewport_screenshot",
-			label: "Visible image",
-			content: "", // Empty until user clicks to capture
-		});
+		contextOptions.push(
+			createEmbeddedContextItem({
+				kind: "viewport_screenshot",
+				label: "Visible image",
+				content: "",
+			}),
+		);
 
 		// 7. Full page screenshot - placeholder, will be captured on demand
-		contextOptions.push({
-			type: "screenshot",
-			label: "Full page image",
-			content: "", // Empty until user clicks to capture
-		});
+		contextOptions.push(
+			createEmbeddedContextItem({
+				kind: "screenshot",
+				label: "Full page image",
+				content: "",
+			}),
+		);
 
 		// Create new chat modal
 		createEmbeddedChatModal({
@@ -699,11 +713,11 @@ function handleShowImageSelector(
 
 				// Create context options with the selected image
 				const contextOptions = [
-					{
-						type: "selected_image",
+					createEmbeddedContextItem({
+						kind: "selected_image",
 						label: "Selected region",
 						content: selectedImageData,
-					},
+					}),
 				];
 
 				// Create chat modal with the selected image pre-loaded

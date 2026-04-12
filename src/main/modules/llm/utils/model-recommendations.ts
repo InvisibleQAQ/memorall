@@ -27,7 +27,32 @@ interface ModelSpec {
 	qualityScore: number;
 	/** Context score based on context length (0-100) */
 	contextScore: number;
+	/**
+	 * KV cache bytes per token at full fp16 precision.
+	 * Formula: 2 (K+V) × nLayers × nKvHeads × headDim × 2 bytes
+	 * Used for accurate VRAM estimation.
+	 */
+	kvBytesPerToken: number;
 	config: ModelRecommendation["config"];
+}
+
+/**
+ * Returns estimated available memory (GB) for a given model type on this device.
+ * WebGPU models use VRAM; CPU models use a fraction of system RAM.
+ */
+function getAvailableGB(specs: SystemSpecs, requiresWebGPU: boolean): number {
+	if (requiresWebGPU) {
+		if (specs.gpu?.estimatedVRAM) return specs.gpu.estimatedVRAM;
+		const byCategory: Record<string, number> = {
+			ultra: 12,
+			high: 8,
+			medium: 4,
+			low: 2,
+		};
+		return byCategory[specs.deviceCategory] ?? 4;
+	}
+	// CPU path: 40% of RAM is a safe budget for AI (leaves room for OS + browser)
+	return specs.memoryGB * 0.4;
 }
 
 /**
@@ -118,6 +143,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 98, // Smallest, fastest WebGPU model
 		qualityScore: 40,
 		contextScore: 60,
+		// 2 × 16 layers × 4 kv_heads × 32 head_dim × 2 bytes = 8 192
+		kvBytesPerToken: 8_192,
 		config: {
 			provider: "transformer",
 			model: "onnx-community/LFM2-350M-ONNX",
@@ -139,6 +166,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 90,
 		qualityScore: 60,
 		contextScore: 60,
+		// 2 × 20 layers × 4 kv_heads × 48 head_dim × 2 bytes = 15 360
+		kvBytesPerToken: 15_360,
 		config: {
 			provider: "transformer",
 			model: "onnx-community/LFM2-700M-ONNX",
@@ -160,6 +189,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 80,
 		qualityScore: 75,
 		contextScore: 60,
+		// 2 × 22 layers × 4 kv_heads × 64 head_dim × 2 bytes = 22 528
+		kvBytesPerToken: 22_528,
 		config: {
 			provider: "transformer",
 			model: "onnx-community/LFM2-1.2B-ONNX",
@@ -191,6 +222,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 92, // Very small and fast
 		qualityScore: 70,
 		contextScore: 85, // 32K context
+		// 2 × 28 layers × 8 kv_heads × 64 head_dim × 2 bytes = 57 344
+		kvBytesPerToken: 57_344,
 		config: {
 			provider: "transformer",
 			model: "onnx-community/Qwen3-0.6B-ONNX",
@@ -212,6 +245,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 95,
 		qualityScore: 70,
 		contextScore: 85,
+		// 2 × 28 layers × 8 kv_heads × 64 head_dim × 2 bytes = 57 344
+		kvBytesPerToken: 57_344,
 		config: {
 			provider: "webllm",
 			model: "Qwen3-0.6B-q4f16_1-MLC",
@@ -233,6 +268,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 75,
 		qualityScore: 85, // MoE architecture, better quality
 		contextScore: 98, // Excellent 128K context
+		// 2 × 28 layers × 8 kv_heads × 128 head_dim × 2 bytes = 114 688
+		kvBytesPerToken: 114_688,
 		config: {
 			provider: "webllm",
 			model: "Qwen3-1.7B-q4f16_1-MLC",
@@ -254,6 +291,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 60, // CPU-based, slower
 		qualityScore: 85,
 		contextScore: 98,
+		// Same architecture as WebLLM variant
+		kvBytesPerToken: 114_688,
 		config: {
 			provider: "wllama",
 			repo: "ggml-org/Qwen3-1.7B-GGUF",
@@ -278,6 +317,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 65,
 		qualityScore: 90, // Distilled from R1, excellent reasoning
 		contextScore: 50,
+		// Qwen2.5-7B base: 2 × 28 layers × 4 kv_heads × 128 head_dim × 2 bytes = 57 344
+		kvBytesPerToken: 57_344,
 		config: {
 			provider: "webllm",
 			model: "DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC",
@@ -301,6 +342,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 80,
 		qualityScore: 85, // Strong reasoning: 83.9% MATH-500, 28.9% AIME
 		contextScore: 98, // 128K context
+		// Qwen2.5-1.5B base: 2 × 28 layers × 2 kv_heads × 128 head_dim × 2 bytes = 28 672
+		kvBytesPerToken: 28_672,
 		config: {
 			provider: "transformer",
 			model: "onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX",
@@ -322,6 +365,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 65,
 		qualityScore: 85,
 		contextScore: 98, // 128K context
+		// Same Qwen2.5-1.5B base architecture
+		kvBytesPerToken: 28_672,
 		config: {
 			provider: "wllama",
 			repo: "unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
@@ -347,6 +392,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 82, // Fast with dual-mode reasoning
 		qualityScore: 88, // Beats Qwen2.5-3B, matches 4B models
 		contextScore: 98, // 128K context
+		// 2 × 36 layers × 8 kv_heads × 96 head_dim × 2 bytes = 110 592
+		kvBytesPerToken: 110_592,
 		config: {
 			provider: "transformer",
 			model: "HuggingFaceTB/SmolLM3-3B-ONNX",
@@ -371,6 +418,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 75, // 2x faster than Qwen3 on CPU
 		qualityScore: 45,
 		contextScore: 60,
+		// 2 × 16 layers × 4 kv_heads × 32 head_dim × 2 bytes = 8 192
+		kvBytesPerToken: 8_192,
 		config: {
 			provider: "wllama",
 			repo: "LiquidAI/LFM2-VL-450M-GGUF",
@@ -392,6 +441,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 70,
 		qualityScore: 60,
 		contextScore: 60,
+		// 2 × 20 layers × 4 kv_heads × 48 head_dim × 2 bytes = 15 360
+		kvBytesPerToken: 15_360,
 		config: {
 			provider: "wllama",
 			repo: "LiquidAI/LFM2-700M-GGUF",
@@ -413,6 +464,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 65,
 		qualityScore: 75,
 		contextScore: 60,
+		// 2 × 22 layers × 4 kv_heads × 64 head_dim × 2 bytes = 22 528
+		kvBytesPerToken: 22_528,
 		config: {
 			provider: "wllama",
 			repo: "LiquidAI/LFM2-1.2B-GGUF",
@@ -421,7 +474,7 @@ const MODEL_DATABASE: ModelSpec[] = [
 	},
 
 	// === PHI-3.5-MINI (Released August 2024, Microsoft) ===
-	// 3.8B params, 128K context
+	// 3.8B params, 128K context — MHA (no GQA), so KV cache is large
 
 	{
 		provider: "webllm",
@@ -437,6 +490,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 78,
 		qualityScore: 88, // Excellent quality for size
 		contextScore: 98, // 128K context
+		// MHA: 2 × 32 layers × 32 kv_heads × 96 head_dim × 2 bytes = 393 216
+		kvBytesPerToken: 393_216,
 		config: {
 			provider: "webllm",
 			model: "Phi-3.5-mini-instruct-q4f16_1-MLC",
@@ -460,6 +515,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 85,
 		qualityScore: 65,
 		contextScore: 98,
+		// 2 × 16 layers × 8 kv_heads × 64 head_dim × 2 bytes = 32 768
+		kvBytesPerToken: 32_768,
 		config: {
 			provider: "webllm",
 			model: "Llama-3.2-1B-Instruct-q4f32_1-MLC",
@@ -480,6 +537,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 70,
 		qualityScore: 80,
 		contextScore: 98,
+		// 2 × 28 layers × 8 kv_heads × 128 head_dim × 2 bytes = 114 688
+		kvBytesPerToken: 114_688,
 		config: {
 			provider: "webllm",
 			model: "Llama-3.2-3B-Instruct-q4f32_1-MLC",
@@ -502,6 +561,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 76,
 		qualityScore: 80,
 		contextScore: 60,
+		// 2 × 26 layers × 4 kv_heads × 256 head_dim × 2 bytes = 106 496
+		kvBytesPerToken: 106_496,
 		config: {
 			provider: "webllm",
 			model: "gemma-2-2b-it-q4f16_1-MLC",
@@ -524,6 +585,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 83,
 		qualityScore: 68,
 		contextScore: 60,
+		// 2 × 24 layers × 8 kv_heads × 64 head_dim × 2 bytes = 49 152
+		kvBytesPerToken: 49_152,
 		config: {
 			provider: "webllm",
 			model: "SmolLM2-1.7B-Instruct-q4f16_1-MLC",
@@ -546,6 +609,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 81,
 		qualityScore: 75,
 		contextScore: 98,
+		// 2 × 28 layers × 2 kv_heads × 128 head_dim × 2 bytes = 28 672
+		kvBytesPerToken: 28_672,
 		config: {
 			provider: "webllm",
 			model: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
@@ -568,6 +633,8 @@ const MODEL_DATABASE: ModelSpec[] = [
 		performanceScore: 79,
 		qualityScore: 78,
 		contextScore: 98,
+		// Same Qwen2.5-1.5B architecture
+		kvBytesPerToken: 28_672,
 		config: {
 			provider: "webllm",
 			model: "Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC",
@@ -591,16 +658,18 @@ export function generateRecommendations(
 			return false;
 		}
 
-		// Basic memory check: model requires more RAM than system has
+		// Basic RAM floor check (OS/browser baseline requirement)
 		if (model.minMemoryGB > specs.memoryGB) {
 			return false;
 		}
 
-		// Conservative memory check: model should use ≤30% of RAM for safety
-		// This accounts for OS, browser, and other processes
-		// Example: 8GB RAM → recommend models ≤2.4GB
-		const maxRecommendedSize = specs.memoryGB * 0.3;
-		if (model.sizeGB > maxRecommendedSize) {
+		// VRAM-aware filter: model weights + KV cache at 4K context must fit.
+		// This replaces the overly conservative 30%-of-RAM rule and correctly
+		// uses VRAM for WebGPU models vs RAM budget for CPU models.
+		const availableGB = getAvailableGB(specs, model.requiresWebGPU);
+		const minKvCacheGB = (model.kvBytesPerToken * 4096) / 1024 ** 3;
+		const minTotalGB = (model.sizeGB + minKvCacheGB) * 1.2; // 20% runtime buffer
+		if (minTotalGB > availableGB) {
 			return false;
 		}
 
@@ -704,6 +773,7 @@ export function generateRecommendations(
 			reason,
 			releaseDate: model.releaseDate,
 			usesWebGPU: model.requiresWebGPU && specs.hasWebGPU,
+			kvBytesPerToken: model.kvBytesPerToken,
 			config: model.config,
 		};
 	});
