@@ -3,7 +3,7 @@
  * Hierarchical navigation with drag-and-drop support for reorganizing files and folders
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	ChevronRight,
@@ -15,7 +15,16 @@ import {
 	FileCode,
 	File,
 	Home,
+	Pencil,
+	Trash2,
 } from "lucide-react";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/main/components/ui/dropdown-menu";
 import {
 	DndContext,
 	closestCenter,
@@ -44,6 +53,8 @@ interface DocumentTreeProps {
 		targetFolderId: string,
 		nodeType: "file" | "folder",
 	) => void;
+	onRename?: (node: DocumentTreeNode, newName: string) => void;
+	onDelete?: (node: DocumentTreeNode) => void;
 }
 
 const FILE_ICONS: Record<DocumentType, React.ComponentType<any>> = {
@@ -70,6 +81,8 @@ interface TreeItemProps {
 	selectedId: string | null;
 	onSelectNode: (node: DocumentTreeNode) => void;
 	onToggleExpand?: (node: DocumentTreeNode) => void;
+	onRename?: (node: DocumentTreeNode, newName: string) => void;
+	onDelete?: (node: DocumentTreeNode) => void;
 }
 
 const TreeItem: React.FC<TreeItemProps> = ({
@@ -78,7 +91,15 @@ const TreeItem: React.FC<TreeItemProps> = ({
 	selectedId,
 	onSelectNode,
 	onToggleExpand,
+	onRename,
+	onDelete,
 }) => {
+	const { t } = useTranslation("documents");
+	const [contextMenuOpen, setContextMenuOpen] = React.useState(false);
+	const [isRenaming, setIsRenaming] = React.useState(false);
+	const [renameValue, setRenameValue] = React.useState(node.name);
+	const renameInputRef = useRef<HTMLInputElement>(null);
+	const [triggerPos, setTriggerPos] = React.useState({ x: 0, y: 0 });
 	const hasChildren =
 		node.type === "folder" && node.children && node.children.length > 0;
 	const isFolder = node.type === "folder";
@@ -130,64 +151,134 @@ const TreeItem: React.FC<TreeItemProps> = ({
 		iconColorClass = FILE_COLORS[fileType];
 	}
 
+	const handleRenameSubmit = () => {
+		const trimmed = renameValue.trim();
+		if (trimmed && trimmed !== node.name) {
+			onRename?.(node, trimmed);
+		}
+		setIsRenaming(false);
+	};
+
 	return (
 		<div>
 			{/* Droppable wrapper only for the folder row itself */}
-			<div
-				ref={isFolder ? setDropRef : undefined}
-				className={cn(isOver && isFolder && "bg-primary/10 rounded-sm")}
-			>
+			<DropdownMenu open={contextMenuOpen} onOpenChange={setContextMenuOpen}>
 				<div
-					ref={setDragRef}
-					{...dragAttributes}
-					{...dragListeners}
-					className={cn(
-						"flex items-center gap-1 px-2 py-1 rounded-sm transition-colors cursor-grab active:cursor-grabbing",
-						isSelected && "bg-accent text-accent-foreground font-medium",
-						!isDragging && "hover:bg-accent",
-						isOver && isFolder && "ring-2 ring-primary ring-inset",
-					)}
-					style={{
-						paddingLeft: `${level * 12 + 8}px`,
-						transform: dragStyle.transform,
-						opacity: dragStyle.opacity,
-					}}
-					onClick={() => {
-						onSelectNode(node);
-						// Also toggle expansion for folders when clicking anywhere on the folder
-						if (isFolder && hasChildren) {
-							onToggleExpand?.(node);
-						}
-					}}
+					ref={isFolder ? setDropRef : undefined}
+					className={cn(isOver && isFolder && "bg-primary/10 rounded-sm")}
 				>
-					{/* Expand/Collapse Toggle (only for folders with children) */}
-					{isFolder && hasChildren ? (
-						<button
-							onClick={(e) => {
-								e.stopPropagation();
+					<div
+						ref={setDragRef}
+						{...dragAttributes}
+						{...dragListeners}
+						className={cn(
+							"relative flex items-center gap-1 px-2 py-1 rounded-sm transition-colors cursor-grab active:cursor-grabbing",
+							isSelected && "bg-accent text-accent-foreground font-medium",
+							!isDragging && "hover:bg-accent",
+							isOver && isFolder && "ring-2 ring-primary ring-inset",
+						)}
+						style={{
+							paddingLeft: `${level * 12 + 8}px`,
+							transform: dragStyle.transform,
+							opacity: dragStyle.opacity,
+						}}
+						onClick={() => {
+							if (isRenaming) return;
+							onSelectNode(node);
+							// Also toggle expansion for folders when clicking anywhere on the folder
+							if (isFolder && hasChildren) {
 								onToggleExpand?.(node);
-							}}
-							className="p-0.5 hover:bg-muted rounded flex-shrink-0"
-						>
-							{node.isExpanded ? (
-								<ChevronDown className="h-3.5 w-3.5" />
-							) : (
-								<ChevronRight className="h-3.5 w-3.5" />
-							)}
-						</button>
-					) : (
-						<div className="w-4 flex-shrink-0" />
-					)}
+							}
+						}}
+						onContextMenu={(e) => {
+							if (!onRename && !onDelete) return;
+							e.preventDefault();
+							e.stopPropagation();
+							const rect = e.currentTarget.getBoundingClientRect();
+							setTriggerPos({
+								x: e.clientX - rect.left,
+								y: e.clientY - rect.top,
+							});
+							setContextMenuOpen(true);
+						}}
+					>
+						{/* Hidden trigger anchors the DropdownMenuContent at cursor position */}
+						<DropdownMenuTrigger
+							className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden"
+							style={{ left: triggerPos.x, top: triggerPos.y }}
+							tabIndex={-1}
+						/>
+						{/* Expand/Collapse Toggle (only for folders with children) */}
+						{isFolder && hasChildren ? (
+							<button
+								onClick={(e) => {
+									e.stopPropagation();
+									onToggleExpand?.(node);
+								}}
+								className="p-0.5 hover:bg-muted rounded flex-shrink-0"
+							>
+								{node.isExpanded ? (
+									<ChevronDown className="h-3.5 w-3.5" />
+								) : (
+									<ChevronRight className="h-3.5 w-3.5" />
+								)}
+							</button>
+						) : (
+							<div className="w-4 flex-shrink-0" />
+						)}
 
-					{/* Icon */}
-					<IconComponent
-						className={`h-4 w-4 ${iconColorClass} flex-shrink-0`}
-					/>
+						{/* Icon */}
+						<IconComponent
+							className={`h-4 w-4 ${iconColorClass} flex-shrink-0`}
+						/>
 
-					{/* Name */}
-					<span className="text-sm truncate flex-1">{node.name}</span>
+						{/* Name / Rename input */}
+						{isRenaming ? (
+							<input
+								ref={renameInputRef}
+								className="text-sm flex-1 min-w-0 bg-background border border-primary rounded px-1 outline-none"
+								value={renameValue}
+								autoFocus
+								onClick={(e) => e.stopPropagation()}
+								onChange={(e) => setRenameValue(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") handleRenameSubmit();
+									if (e.key === "Escape") {
+										setRenameValue(node.name);
+										setIsRenaming(false);
+									}
+								}}
+								onBlur={handleRenameSubmit}
+							/>
+						) : (
+							<span className="text-sm truncate flex-1">{node.name}</span>
+						)}
+					</div>
 				</div>
-			</div>
+				<DropdownMenuContent align="start">
+					{onRename && (
+						<DropdownMenuItem
+							onClick={() => {
+								setRenameValue(node.name);
+								setIsRenaming(true);
+							}}
+						>
+							<Pencil className="h-4 w-4" />
+							{t("tree.rename")}
+						</DropdownMenuItem>
+					)}
+					{onRename && onDelete && <DropdownMenuSeparator />}
+					{onDelete && (
+						<DropdownMenuItem
+							className="text-destructive focus:text-destructive"
+							onClick={() => onDelete(node)}
+						>
+							<Trash2 className="h-4 w-4" />
+							{t("tree.delete")}
+						</DropdownMenuItem>
+					)}
+				</DropdownMenuContent>
+			</DropdownMenu>
 
 			{/* Render Children OUTSIDE droppable area */}
 			{isFolder && hasChildren && node.isExpanded && (
@@ -200,6 +291,8 @@ const TreeItem: React.FC<TreeItemProps> = ({
 							selectedId={selectedId}
 							onSelectNode={onSelectNode}
 							onToggleExpand={onToggleExpand}
+							onRename={onRename}
+							onDelete={onDelete}
 						/>
 					))}
 				</div>
@@ -214,6 +307,8 @@ export const DocumentTreeDraggable: React.FC<DocumentTreeProps> = ({
 	onSelectNode,
 	onToggleExpand,
 	onMove,
+	onRename,
+	onDelete,
 }) => {
 	const [activeId, setActiveId] = React.useState<string | null>(null);
 
@@ -353,6 +448,8 @@ export const DocumentTreeDraggable: React.FC<DocumentTreeProps> = ({
 				selectedId={selectedId}
 				onSelectNode={onSelectNode}
 				onToggleExpand={onToggleExpand}
+				onRename={onRename}
+				onDelete={onDelete}
 			/>
 		);
 	};

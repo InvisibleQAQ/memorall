@@ -26,6 +26,7 @@ import TurndownService from "turndown";
 const { gfm } = require("turndown-plugin-gfm");
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
 	oneDark,
@@ -71,6 +72,7 @@ const turndownService = new TurndownService({
 turndownService.use(gfm);
 
 const remarkPlugins = [remarkGfm];
+const rehypePlugins = [rehypeRaw];
 
 export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 	file,
@@ -480,10 +482,11 @@ export const MarkdownEditor: React.FC<DocumentEditorProps> = ({
 
 			{/* Content */}
 			{isPreview ? (
-				<div className="flex-1 overflow-auto bg-background p-4">
-					<div className="markdown-body">
+				<div className="flex-1 overflow-auto bg-background">
+					<div className="markdown-preview mx-auto max-w-4xl px-8 py-6">
 						<ReactMarkdown
 							remarkPlugins={remarkPlugins}
+							rehypePlugins={rehypePlugins}
 							components={previewComponents}
 						>
 							{initialContent}

@@ -11,6 +11,9 @@ const loadedModelsCache = new Map();
 // Progress callback for current load operation
 let currentProgressCallback = null;
 
+// Track current in-flight message context for unhandled rejection recovery
+let currentMessageContext = null;
+
 const UNSUPPORTED_BROWSER_MODELS = new Map([
 	[
 		"onnx-community/Phi-4-mini-instruct",
@@ -265,6 +268,8 @@ window.addEventListener("message", async (event) => {
 	const src = event.source;
 	const origin = event.origin;
 	const { messageId, type, payload } = event.data || {};
+
+	currentMessageContext = { src, origin, messageId };
 
 	try {
 		switch (type) {
@@ -668,6 +673,57 @@ window.addEventListener("message", async (event) => {
 	} catch (error) {
 		console.error("Transformer runner error:", error);
 		reply(src, origin, messageId, "error", toRunnerErrorPayload(error));
+	} finally {
+		currentMessageContext = null;
+	}
+});
+
+// Global safety net: catch unhandled promise rejections (e.g. OOM inside transformers.js)
+window.addEventListener("unhandledrejection", (event) => {
+	event.preventDefault();
+	const error = event.reason;
+	console.error("[transformer-runner] Unhandled promise rejection caught:", error);
+
+	if (currentMessageContext) {
+		const { src, origin, messageId } = currentMessageContext;
+		currentMessageContext = null;
+
+		const errorMsg = error instanceof Error ? error.message : String(error || "Unknown error");
+		const isOOM =
+			error instanceof RangeError ||
+			errorMsg.includes("Array buffer allocation failed") ||
+			errorMsg.includes("memory") ||
+			errorMsg.includes("Aborted") ||
+			/^\d+$/.test(errorMsg);
+
+		let message = `Operation failed: ${errorMsg}`;
+		if (isOOM) {
+			message =
+				"Model loading failed: out of memory (Array buffer allocation failed). " +
+				"Try closing other browser tabs, restarting your browser, or using a smaller model.";
+		}
+
+		reply(src, origin, messageId, "error", {
+			error: {
+				message,
+				type: isOOM ? "OutOfMemoryError" : (error?.name || "Error"),
+				code: isOOM ? "TRANSFORMER_OOM" : "TRANSFORMER_UNHANDLED_ERROR",
+				modelId: null,
+				serviceName: "transformer",
+			},
+		});
+	}
+});
+
+// Global safety net: catch synchronous errors in the iframe
+window.addEventListener("error", (event) => {
+	console.error("[transformer-runner] Uncaught error in iframe:", event.error || event.message);
+
+	if (currentMessageContext) {
+		const { src, origin, messageId } = currentMessageContext;
+		currentMessageContext = null;
+
+		reply(src, origin, messageId, "error", toRunnerErrorPayload(event.error || new Error(event.message || "Unknown error")));
 	}
 });
 

@@ -65,7 +65,9 @@
 	},
 	"tree": {
 		"dropToRoot": "Drop to move to root folder",
-		"rootFolder": "Root folder"
+		"rootFolder": "Root folder",
+		"rename": "Rename",
+		"delete": "Delete"
 	},
 	"excelSelector": {
 		"title": "Convert Excel Sheets to Remembered Content",

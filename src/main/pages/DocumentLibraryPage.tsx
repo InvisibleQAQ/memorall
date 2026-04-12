@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useDocumentLibrary } from "@/main/modules/documents/hooks/useDocumentLibrary";
@@ -6,6 +6,7 @@ import { DocumentLibraryHeader } from "@/main/modules/documents/components/Docum
 import { DocumentLibrarySidebar } from "@/main/modules/documents/components/DocumentLibrarySidebar";
 import { DocumentLibraryContent } from "@/main/modules/documents/components/DocumentLibraryContent";
 import { DocumentLibraryCompactNavigator } from "@/main/modules/documents/components/DocumentLibraryCompactNavigator";
+import type { DocumentTreeNode } from "@/types/document-library";
 
 export const DocumentLibraryPage: React.FC = () => {
 	const { t } = useTranslation("documents");
@@ -14,6 +15,28 @@ export const DocumentLibraryPage: React.FC = () => {
 		typeof document !== "undefined" &&
 		document.documentElement.dataset.uiSurface === "popup";
 	const activeTree = lib.isWorkspaceSection ? lib.workspaceTree : lib.tree;
+
+	const handleTreeRename = useCallback(
+		(node: DocumentTreeNode, newName: string) => {
+			if (node.type === "file" && node.file) {
+				lib.handleRenameItem({ type: "file", item: node.file }, newName);
+			} else if (node.type === "folder" && node.folder) {
+				lib.handleRenameItem({ type: "folder", item: node.folder }, newName);
+			}
+		},
+		[lib],
+	);
+
+	const handleTreeDelete = useCallback(
+		(node: DocumentTreeNode) => {
+			if (node.type === "file" && node.file) {
+				lib.handleDeleteItem({ type: "file", item: node.file });
+			} else if (node.type === "folder" && node.folder) {
+				lib.handleDeleteItem({ type: "folder", item: node.folder });
+			}
+		},
+		[lib],
+	);
 
 	if (lib.loading) {
 		return (
@@ -61,6 +84,8 @@ export const DocumentLibraryPage: React.FC = () => {
 						onToggleExpand={lib.handleToggleExpand}
 						onToggleExpandWorkspace={lib.handleToggleExpandWorkspace}
 						onMove={lib.handleMove}
+						onRenameNode={handleTreeRename}
+						onDeleteNode={handleTreeDelete}
 					/>
 					<div className="min-w-0 flex-1 overflow-hidden">
 						<DocumentLibraryContent
@@ -101,6 +126,8 @@ export const DocumentLibraryPage: React.FC = () => {
 						onToggleExpand={lib.handleToggleExpand}
 						onToggleExpandWorkspace={lib.handleToggleExpandWorkspace}
 						onMove={lib.handleMove}
+						onRenameNode={handleTreeRename}
+						onDeleteNode={handleTreeDelete}
 					/>
 					<div className="min-w-0 flex-1 overflow-hidden">
 						<DocumentLibraryContent

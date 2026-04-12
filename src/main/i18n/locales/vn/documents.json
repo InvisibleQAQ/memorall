@@ -65,7 +65,9 @@
 	},
 	"tree": {
 		"dropToRoot": "Thả để di chuyển đến thư mục gốc",
-		"rootFolder": "Thư mục gốc"
+		"rootFolder": "Thư mục gốc",
+		"rename": "Đổi tên",
+		"delete": "Xóa"
 	},
 	"excelSelector": {
 		"title": "Chuyển đổi bảng tính Excel thành nội dung đã nhớ",

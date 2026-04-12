@@ -22,6 +22,8 @@ interface DocumentLibrarySidebarProps {
 		targetFolderId: string,
 		nodeType: "file" | "folder",
 	) => void;
+	onRenameNode?: (node: DocumentTreeNode, newName: string) => void;
+	onDeleteNode?: (node: DocumentTreeNode) => void;
 }
 
 export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
@@ -36,6 +38,8 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 	onToggleExpand,
 	onToggleExpandWorkspace,
 	onMove,
+	onRenameNode,
+	onDeleteNode,
 }: DocumentLibrarySidebarProps) {
 	const { t } = useTranslation("documents");
 	const [docsExpanded, setDocsExpanded] = useState(true);
@@ -69,6 +73,8 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 						onSelectNode={onSelectDocNode}
 						onToggleExpand={onToggleExpand}
 						onMove={onMove}
+						onRename={onRenameNode}
+						onDelete={onDeleteNode}
 					/>
 				</div>
 			)}
@@ -101,6 +107,8 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 						selectedId={selectedSection === "workspace" ? selectedNodeId : null}
 						onSelectNode={onSelectWorkspaceNode}
 						onToggleExpand={onToggleExpandWorkspace}
+						onRename={onRenameNode}
+						onDelete={onDeleteNode}
 					/>
 				</div>
 			)}

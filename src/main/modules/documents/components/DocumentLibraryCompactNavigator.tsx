@@ -22,6 +22,8 @@ interface DocumentLibraryCompactNavigatorProps {
 		targetFolderId: string,
 		nodeType: "file" | "folder",
 	) => void;
+	onRenameNode?: (node: DocumentTreeNode, newName: string) => void;
+	onDeleteNode?: (node: DocumentTreeNode) => void;
 }
 
 export const DocumentLibraryCompactNavigator = memo(
@@ -38,6 +40,8 @@ export const DocumentLibraryCompactNavigator = memo(
 		onToggleExpand,
 		onToggleExpandWorkspace,
 		onMove,
+		onRenameNode,
+		onDeleteNode,
 	}: DocumentLibraryCompactNavigatorProps) {
 		const { t } = useTranslation("documents");
 		const [isCollapsed, setIsCollapsed] = useState(false);
@@ -101,6 +105,8 @@ export const DocumentLibraryCompactNavigator = memo(
 							isWorkspaceSection ? onToggleExpandWorkspace : onToggleExpand
 						}
 						onMove={isWorkspaceSection ? undefined : onMove}
+						onRename={onRenameNode}
+						onDelete={onDeleteNode}
 					/>
 				</div>
 			</aside>
