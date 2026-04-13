@@ -17,6 +17,7 @@ import {
 	extractDocumentText,
 	formatDocumentBlock,
 } from "@/main/modules/chat/utils/extract-document-text";
+import type { ChatCompletionMessageToolCall } from "@/types/openai";
 
 export interface InProgressMessage {
 	id: string;
@@ -39,6 +40,14 @@ const cloneActions = (
 	actions.map((action) => ({
 		...action,
 		metadata: { ...action.metadata },
+	}));
+
+const cloneToolCalls = (
+	toolCalls: ChatCompletionMessageToolCall[] | undefined,
+): ChatCompletionMessageToolCall[] | undefined =>
+	toolCalls?.map((toolCall) => ({
+		...toolCall,
+		function: { ...toolCall.function },
 	}));
 
 export const useChat = (model: string) => {
@@ -357,6 +366,7 @@ export const useChat = (model: string) => {
 					content: errorContent,
 					metadata: {
 						actions: result.actions,
+						tool_calls: cloneToolCalls(result.toolCalls),
 						model: model,
 						provider: provider,
 						timeToAnswer: timeToAnswer,
@@ -386,6 +396,7 @@ export const useChat = (model: string) => {
 					content: result.content,
 					metadata: {
 						actions: result.actions,
+						tool_calls: cloneToolCalls(result.toolCalls),
 						model: model,
 						provider: provider,
 						timeToAnswer: timeToAnswer,

@@ -14,9 +14,68 @@ let Wllama;
 const loadedModelsCache = new Map();
 const activeOperations = new Map(); // Track active operations for abort support
 const WLLAMA_METADATA_PREFIX = "__metadata__";
+const pendingLoadMemoryHints = new Map();
+const DEFAULT_WLLAMA_N_CTX = 65536;
 
 // Stored progress callback for current load operation
 let currentProgressCallback = null;
+
+function resolveMemoryContextTokens(memoryHint) {
+	if (!memoryHint || typeof memoryHint !== "object") {
+		return undefined;
+	}
+
+	const { availableGB, sizeGB, kvBytesPerToken, contextLength } = memoryHint;
+	const hasValidNumbers =
+		typeof availableGB === "number" &&
+		Number.isFinite(availableGB) &&
+		availableGB > 0 &&
+		typeof sizeGB === "number" &&
+		Number.isFinite(sizeGB) &&
+		sizeGB >= 0 &&
+		typeof kvBytesPerToken === "number" &&
+		Number.isFinite(kvBytesPerToken) &&
+		kvBytesPerToken > 0;
+
+	if (!hasValidNumbers) {
+		return undefined;
+	}
+
+	const availableForKV = availableGB / 1.2 - sizeGB;
+	if (availableForKV <= 0) {
+		return 0;
+	}
+
+	const maxTokens = Math.floor((availableForKV * 1024 ** 3) / kvBytesPerToken);
+	const roundedTokens = Math.max(0, Math.floor(maxTokens / 1024) * 1024);
+
+	if (
+		typeof contextLength === "number" &&
+		Number.isFinite(contextLength) &&
+		contextLength > 0
+	) {
+		return Math.min(roundedTokens, contextLength);
+	}
+
+	return roundedTokens;
+}
+
+async function resolveWllamaPromptLength(wllama, messages) {
+	const prompt = await wllama.formatChat(messages, true);
+	const tokens = await wllama.tokenize(prompt, true);
+	let promptLength = Array.isArray(tokens) ? tokens.length : 0;
+
+	if (
+		wllama.addBosToken &&
+		typeof wllama.bosToken === "number" &&
+		Array.isArray(tokens) &&
+		tokens[0] !== wllama.bosToken
+	) {
+		promptLength += 1;
+	}
+
+	return promptLength;
+}
 
 async function ensureWllama() {
 	if (Wllama) return;
@@ -107,6 +166,19 @@ async function loadWllamaModel(modelId, notifyProgress) {
 
 	const { url } = parseModelName(modelId);
 	const wllama = new Wllama(WASM_PATHS);
+	const memoryHint = pendingLoadMemoryHints.get(modelId);
+	const memoryContextTokens = resolveMemoryContextTokens(memoryHint);
+
+	if (typeof memoryContextTokens === "number" && memoryContextTokens <= 0) {
+		throw new Error(
+			`Model does not fit available device memory (availableGB=${memoryHint?.availableGB ?? "unknown"})`,
+		);
+	}
+
+	const nCtx =
+		typeof memoryContextTokens === "number"
+			? Math.min(DEFAULT_WLLAMA_N_CTX, memoryContextTokens)
+			: DEFAULT_WLLAMA_N_CTX;
 
 	const progressCallback = (progress) => {
 		if (notifyProgress) {
@@ -116,10 +188,14 @@ async function loadWllamaModel(modelId, notifyProgress) {
 		}
 	};
 
-	await wllama.loadModelFromUrl(url, {
-		progressCallback,
-		n_ctx: 65536,
-	});
+	try {
+		await wllama.loadModelFromUrl(url, {
+			progressCallback,
+			n_ctx: nCtx,
+		});
+	} finally {
+		pendingLoadMemoryHints.delete(modelId);
+	}
 
 	return wllama;
 }
@@ -233,11 +309,14 @@ window.addEventListener("message", async (event) => {
 			}
 
 			case "serve": {
-				const { model } = payload || {};
+				const { model, _memoryHint } = payload || {};
 				if (!model) throw new Error("Model name is required");
 
 				// Validate format
 				parseModelName(model);
+				if (_memoryHint) {
+					pendingLoadMemoryHints.set(model, _memoryHint);
+				}
 
 				const notifyProgress = (info) => {
 					reply(src, origin, messageId, "progress", info);
@@ -282,6 +361,7 @@ window.addEventListener("message", async (event) => {
 					top_p = 0.9,
 					top_k = 40,
 					stop,
+					_memoryHint,
 				} = payload || {};
 
 				if (!messages) throw new Error("Messages are required");
@@ -297,6 +377,9 @@ window.addEventListener("message", async (event) => {
 				// Create abort controller for this operation
 				const abortController = new AbortController();
 				activeOperations.set(messageId, { abortController });
+				if (_memoryHint) {
+					pendingLoadMemoryHints.set(targetModel, _memoryHint);
+				}
 
 				// Convert OpenAI format to wllama format
 				const wllamaMessages = messages.map((msg) => ({
@@ -306,8 +389,64 @@ window.addEventListener("message", async (event) => {
 
 				try {
 					await wllamaManager.withModel(targetModel, async (wllama) => {
+						const promptLength = await resolveWllamaPromptLength(
+							wllama,
+							wllamaMessages,
+						);
+						const loadedContextInfo = wllama.getLoadedContextInfo?.();
+						const maxContextTokens =
+							typeof loadedContextInfo?.n_ctx === "number"
+								? loadedContextInfo.n_ctx
+								: typeof _memoryHint?.contextLength === "number"
+									? _memoryHint.contextLength
+									: undefined;
+						const memoryContextTokens = resolveMemoryContextTokens(_memoryHint);
+						const maxTotalContextTokens =
+							typeof maxContextTokens === "number" &&
+							typeof memoryContextTokens === "number"
+								? Math.min(maxContextTokens, memoryContextTokens)
+								: typeof maxContextTokens === "number"
+									? maxContextTokens
+									: memoryContextTokens;
+						const maxNewTokensLimit =
+							typeof maxTotalContextTokens === "number"
+								? Math.max(0, maxTotalContextTokens - promptLength)
+								: undefined;
+						const requestedMaxTokens =
+							typeof max_tokens === "number" && Number.isFinite(max_tokens)
+								? max_tokens
+								: 256;
+						const effectiveMaxTokens =
+							typeof maxNewTokensLimit === "number"
+								? Math.min(requestedMaxTokens, maxNewTokensLimit)
+								: requestedMaxTokens;
+
+						if (
+							typeof maxNewTokensLimit === "number" &&
+							maxNewTokensLimit <= 0
+						) {
+							throw new Error(
+								typeof memoryContextTokens === "number" &&
+								(typeof maxContextTokens !== "number" ||
+									memoryContextTokens <= maxContextTokens)
+									? `Prompt is too long for available device memory (promptLength=${promptLength}, memoryContextTokens=${memoryContextTokens}, availableGB=${_memoryHint?.availableGB ?? "unknown"})`
+									: `Prompt is too long for the model context window (promptLength=${promptLength}, maxContextTokens=${maxContextTokens})`,
+							);
+						}
+
+						if (effectiveMaxTokens < requestedMaxTokens) {
+							console.log("[wllama-runner] clamped nPredict", {
+								requested: requestedMaxTokens,
+								effective: effectiveMaxTokens,
+								promptLength,
+								maxContextTokens,
+								memoryContextTokens,
+								availableGB: _memoryHint?.availableGB,
+							});
+						}
+
 						const wllamaOptions = {
-							nPredict: typeof max_tokens === "number" ? max_tokens : 256,
+							nPredict: effectiveMaxTokens,
 							sampling: {
 								temp: typeof temperature === "number" ? temperature : 0.7,
 								top_p: typeof top_p === "number" ? top_p : 0.9,

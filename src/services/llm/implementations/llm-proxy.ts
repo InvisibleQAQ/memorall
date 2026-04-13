@@ -9,7 +9,6 @@ import type {
 } from "../interfaces/base-llm";
 import type { ServiceProvider } from "../interfaces/llm-service.interface";
 import type { ToolCapabilityInfo } from "../interfaces/tool-capability";
-import { NO_TOOL_SUPPORT } from "../interfaces/tool-capability";
 import { LLM_DOWNLOAD_PROGRESS_EVENT } from "../constants";
 import type {
 	ChatCompletionChunk,
@@ -27,6 +26,7 @@ import {
 	normalizeTokenUsage,
 	resolveTokenUsage,
 } from "../utils/token-usage";
+import { resolveToolCapabilitiesForLLM } from "../tools/tool-capability-resolver";
 
 // Proxy class for LLMs that exist in background jobs
 export class LLMProxy implements BaseLLM {
@@ -386,10 +386,8 @@ export class LLMProxy implements BaseLLM {
 		}
 	}
 
-	async getToolCapabilities(_model?: string): Promise<ToolCapabilityInfo> {
-		// Tool capabilities are handled at the service level, not through background jobs
-		// The proxy delegates to the actual LLM service which determines tool support
-		return NO_TOOL_SUPPORT;
+	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
+		return resolveToolCapabilitiesForLLM(this.llmType, model);
 	}
 
 	async supportsTools(model?: string): Promise<boolean> {

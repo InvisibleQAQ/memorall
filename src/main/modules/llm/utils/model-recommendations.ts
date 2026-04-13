@@ -4,6 +4,7 @@ import type {
 	RecommendationSet,
 	ModelPreference,
 } from "../types/system-specs";
+import { getAvailableModelMemoryGB, estimateModelMemory } from "./model-memory";
 
 /**
  * Model database with specifications
@@ -34,25 +35,6 @@ interface ModelSpec {
 	 */
 	kvBytesPerToken: number;
 	config: ModelRecommendation["config"];
-}
-
-/**
- * Returns estimated available memory (GB) for a given model type on this device.
- * WebGPU models use VRAM; CPU models use a fraction of system RAM.
- */
-function getAvailableGB(specs: SystemSpecs, requiresWebGPU: boolean): number {
-	if (requiresWebGPU) {
-		if (specs.gpu?.estimatedVRAM) return specs.gpu.estimatedVRAM;
-		const byCategory: Record<string, number> = {
-			ultra: 12,
-			high: 8,
-			medium: 4,
-			low: 2,
-		};
-		return byCategory[specs.deviceCategory] ?? 4;
-	}
-	// CPU path: 40% of RAM is a safe budget for AI (leaves room for OS + browser)
-	return specs.memoryGB * 0.4;
 }
 
 /**
@@ -642,6 +624,82 @@ const MODEL_DATABASE: ModelSpec[] = [
 	},
 ];
 
+export interface ModelRuntimeProfile {
+	provider: ModelSpec["provider"];
+	modelId: string;
+	sizeGB: number;
+	contextLength: number;
+	requiresWebGPU: boolean;
+	kvBytesPerToken: number;
+}
+
+const RUNTIME_PROFILE_OVERRIDES: ModelRuntimeProfile[] = [
+	{
+		provider: "transformer",
+		modelId: "LiquidAI/LFM2.5-1.2B-Thinking-ONNX",
+		sizeGB: 0.854,
+		contextLength: 128000,
+		requiresWebGPU: true,
+		// Conservative fallback derived from nearby 1B-class architectures.
+		kvBytesPerToken: 32_768,
+	},
+	{
+		provider: "transformer",
+		modelId: "LiquidAI/LFM2.5-1.2B-Instruct-ONNX",
+		sizeGB: 0.709,
+		contextLength: 8192,
+		requiresWebGPU: true,
+		// Same base architecture as the existing LFM2 1.2B transformer entry.
+		kvBytesPerToken: 22_528,
+	},
+];
+
+function normalizeModelId(modelId: string): string {
+	return modelId.trim().toLowerCase();
+}
+
+function modelIdsMatch(left: string, right: string): boolean {
+	const leftNormalized = normalizeModelId(left);
+	const rightNormalized = normalizeModelId(right);
+	if (leftNormalized === rightNormalized) {
+		return true;
+	}
+
+	const leftLeaf = leftNormalized.split("/").pop() ?? leftNormalized;
+	const rightLeaf = rightNormalized.split("/").pop() ?? rightNormalized;
+	return leftLeaf === rightLeaf;
+}
+
+export function getModelRuntimeProfile(
+	modelId: string,
+	provider?: ModelSpec["provider"],
+): ModelRuntimeProfile | undefined {
+	const match = MODEL_DATABASE.find((model) => {
+		if (provider && model.provider !== provider) {
+			return false;
+		}
+		return modelIdsMatch(model.modelId, modelId);
+	});
+
+	if (match) {
+		return {
+			provider: match.provider,
+			modelId: match.modelId,
+			sizeGB: match.sizeGB,
+			contextLength: match.contextLength,
+			requiresWebGPU: match.requiresWebGPU,
+			kvBytesPerToken: match.kvBytesPerToken,
+		};
+	}
+
+	return RUNTIME_PROFILE_OVERRIDES.find((profile) => {
+		if (provider && profile.provider !== provider) {
+			return false;
+		}
+		return modelIdsMatch(profile.modelId, modelId);
+	});
+}
+
 /**
  * Generates model recommendations based on system specs and user preference
  * Returns top N models sorted by score
@@ -666,10 +724,14 @@ export function generateRecommendations(
 		// VRAM-aware filter: model weights + KV cache at 4K context must fit.
 		// This replaces the overly conservative 30%-of-RAM rule and correctly
 		// uses VRAM for WebGPU models vs RAM budget for CPU models.
-		const availableGB = getAvailableGB(specs, model.requiresWebGPU);
-		const minKvCacheGB = (model.kvBytesPerToken * 4096) / 1024 ** 3;
-		const minTotalGB = (model.sizeGB + minKvCacheGB) * 1.2; // 20% runtime buffer
-		if (minTotalGB > availableGB) {
+		const availableGB = getAvailableModelMemoryGB(specs, model.requiresWebGPU);
+		const minEstimate = estimateModelMemory(
+			model.sizeGB,
+			model.kvBytesPerToken,
+			4096,
+			availableGB,
+		);
+		if (minEstimate.totalGB > availableGB) {
 			return false;
 		}
 

@@ -11,13 +11,11 @@ import type {
 } from "@/types/openai";
 import type { ToolCapabilityInfo } from "../interfaces/tool-capability";
 import {
-	PROMPT_TOOL_SUPPORT,
-	NO_TOOL_SUPPORT,
-} from "../interfaces/tool-capability";
-import {
-	injectToolsIntoSystemPrompt,
 	extractToolCallsFromResponse,
+	preparePromptToolRequest,
+	PromptToolStreamTransformer,
 } from "../tools/tool-adapter";
+import { getWllamaToolCapabilities } from "../tools/tool-capability-resolver";
 import {
 	chunkHasFinishReason,
 	extractChunkOutputText,
@@ -27,23 +25,11 @@ import {
 } from "../utils/token-usage";
 import { LLM_RUNNER_URLS } from "@/config/llm-runner";
 import { waitForDOMReady } from "@/utils/dom";
-
-// Local model patterns for GGUF models
-const MODEL_TOOL_PATTERNS: Array<{
-	pattern: RegExp;
-	capability: ToolCapabilityInfo;
-}> = [
-	// Llama instruct models - prompt injection
-	{ pattern: /llama.*instruct/i, capability: PROMPT_TOOL_SUPPORT },
-	// Qwen - prompt injection
-	{ pattern: /qwen/i, capability: PROMPT_TOOL_SUPPORT },
-	// Mistral instruct - prompt injection
-	{ pattern: /mistral.*instruct/i, capability: PROMPT_TOOL_SUPPORT },
-	// Phi - prompt injection
-	{ pattern: /phi/i, capability: PROMPT_TOOL_SUPPORT },
-	// Generic small models - no support
-	{ pattern: /tiny|small|mini/i, capability: NO_TOOL_SUPPORT },
-];
+import { detectSystemSpecs } from "@/main/modules/llm/utils/system-detection";
+import {
+	buildRunnerMemoryHint,
+	type RunnerMemoryHint,
+} from "../utils/runner-memory-hints";
 
 interface ServeRequest {
 	model: string;
@@ -106,6 +92,9 @@ export class WllamaLLM implements BaseLLM {
 	private loading = false;
 	private pending = new Map<string, PendingRequest>();
 	private signalMap = new Map<string, AbortSignal>();
+	private systemSpecsPromise: Promise<Awaited<
+		ReturnType<typeof detectSystemSpecs>
+	> | null> | null = null;
 	private url: string;
 
 	constructor(url = LLM_RUNNER_URLS?.wllama) {
@@ -196,15 +185,14 @@ export class WllamaLLM implements BaseLLM {
 	): Promise<ChatCompletionResponse> {
 		if (!this.ready) await this.initialize();
 
-		// Check if model supports tools via prompt injection
 		const capability = await this.getToolCapabilities(request.model);
-		let processedRequest = request;
-		let usePromptInjection = false;
-
-		if (request.tools?.length && capability.supported) {
-			processedRequest = injectToolsIntoSystemPrompt(request);
-			usePromptInjection = true;
-		}
+		const shouldNormalizePromptMessages =
+			capability.mode === "prompt_injection";
+		const usePromptToolParsing =
+			shouldNormalizePromptMessages && !!request.tools?.length;
+		const processedRequest = shouldNormalizePromptMessages
+			? preparePromptToolRequest(request)
+			: request;
 
 		// Remove signal from request payload (can't serialize AbortSignal)
 		const {
@@ -220,9 +208,10 @@ export class WllamaLLM implements BaseLLM {
 			signalId = Math.random().toString(36).slice(2);
 			this.signalMap.set(signalId, signal);
 		}
+		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
 
 		try {
-			let response = (await this.send("chat/completions", requestPayload, {
+			let response = (await this.send("chat/completions", payloadWithHints, {
 				signalId,
 			})) as ChatCompletionResponse;
 
@@ -236,7 +225,7 @@ export class WllamaLLM implements BaseLLM {
 			};
 
 			// Extract tool calls from text if using prompt injection
-			if (usePromptInjection) {
+			if (usePromptToolParsing) {
 				response = extractToolCallsFromResponse(response);
 			}
 
@@ -253,13 +242,14 @@ export class WllamaLLM implements BaseLLM {
 	): AsyncIterableIterator<ChatCompletionChunk> {
 		if (!this.ready) await this.initialize();
 
-		// Check if model supports tools via prompt injection
 		const capability = await this.getToolCapabilities(request.model);
-		let processedRequest = request;
-
-		if (request.tools?.length && capability.supported) {
-			processedRequest = injectToolsIntoSystemPrompt(request);
-		}
+		const shouldNormalizePromptMessages =
+			capability.mode === "prompt_injection";
+		const usePromptToolParsing =
+			shouldNormalizePromptMessages && !!request.tools?.length;
+		const processedRequest = shouldNormalizePromptMessages
+			? preparePromptToolRequest(request)
+			: request;
 
 		// Remove signal and tool fields from request payload (can't serialize)
 		const {
@@ -275,6 +265,7 @@ export class WllamaLLM implements BaseLLM {
 			signalId = Math.random().toString(36).slice(2);
 			this.signalMap.set(signalId, signal);
 		}
+		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
 
 		try {
 			const chunks: ChatCompletionChunk[] = [];
@@ -282,6 +273,9 @@ export class WllamaLLM implements BaseLLM {
 			let streamError: Error | null = null;
 			let completionOutput = "";
 			let finalUsage = normalizeTokenUsage(undefined);
+			const promptToolTransformer = usePromptToolParsing
+				? new PromptToolStreamTransformer()
+				: null;
 
 			const chunkHandler = (incomingChunk: ChatCompletionChunk) => {
 				const usage = normalizeTokenUsage(incomingChunk.usage);
@@ -305,10 +299,15 @@ export class WllamaLLM implements BaseLLM {
 							? { ...incomingChunk, usage }
 							: incomingChunk;
 
-				chunks.push(chunk);
+				if (!promptToolTransformer) {
+					chunks.push(chunk);
+					return;
+				}
+
+				chunks.push(...promptToolTransformer.ingest(chunk));
 			};
 
-			const streamPromise = this.send("chat/completions", requestPayload, {
+			const streamPromise = this.send("chat/completions", payloadWithHints, {
 				onStreamChunk: chunkHandler,
 				signalId,
 			}).catch((error) => {
@@ -332,6 +331,12 @@ export class WllamaLLM implements BaseLLM {
 			// Yield any remaining chunks
 			while (chunks.length > 0) {
 				yield chunks.shift()!;
+			}
+
+			if (promptToolTransformer) {
+				for (const chunk of promptToolTransformer.flush()) {
+					yield chunk;
+				}
 			}
 
 			if (streamError) {
@@ -367,16 +372,7 @@ export class WllamaLLM implements BaseLLM {
 	}
 
 	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
-		if (model) {
-			for (const { pattern, capability } of MODEL_TOOL_PATTERNS) {
-				if (pattern.test(model)) {
-					return capability;
-				}
-			}
-		}
-
-		// Default for local GGUF models: prompt injection
-		return PROMPT_TOOL_SUPPORT;
+		return getWllamaToolCapabilities(model);
 	}
 
 	async supportsTools(model?: string): Promise<boolean> {
@@ -418,7 +414,11 @@ export class WllamaLLM implements BaseLLM {
 			return existingModel;
 		}
 		const request: ServeRequest = { model };
-		const response = await this.send("serve", request, { onProgress });
+		const response = await this.send(
+			"serve",
+			await this.withRunnerMemoryHint(request),
+			{ onProgress },
+		);
 		return response as ModelInfo;
 	}
 
@@ -435,6 +435,41 @@ export class WllamaLLM implements BaseLLM {
 		await this.serve(model, onProgress);
 	}
 
+	private async withRunnerMemoryHint(
+		requestPayload: Omit<ChatCompletionRequest, "signal"> | ServeRequest,
+	): Promise<
+		(Omit<ChatCompletionRequest, "signal"> | ServeRequest) & {
+			_memoryHint?: RunnerMemoryHint;
+		}
+	> {
+		const memoryHint = await this.getRunnerMemoryHint(requestPayload.model);
+		if (!memoryHint) {
+			return requestPayload;
+		}
+
+		return {
+			...requestPayload,
+			_memoryHint: memoryHint,
+		};
+	}
+
+	private async getRunnerMemoryHint(
+		modelId?: string,
+	): Promise<RunnerMemoryHint | undefined> {
+		const specs = await this.getSystemSpecs();
+		return buildRunnerMemoryHint(modelId, "wllama", specs);
+	}
+
+	private async getSystemSpecs(): Promise<Awaited<
+		ReturnType<typeof detectSystemSpecs>
+	> | null> {
+		if (!this.systemSpecsPromise) {
+			this.systemSpecsPromise = detectSystemSpecs().catch(() => null);
+		}
+
+		return this.systemSpecsPromise;
+	}
+
 	destroy(): void {
 		this.iframe?.remove();
 		this.iframe = null;
@@ -444,6 +479,7 @@ export class WllamaLLM implements BaseLLM {
 		);
 		this.pending.clear();
 		this.ready = false;
+		this.systemSpecsPromise = null;
 	}
 
 	private onMessage = (ev: MessageEvent<IncomingMessage>) => {

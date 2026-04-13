@@ -10,11 +10,12 @@ import type {
 	ChatCompletionResponse,
 } from "@/types/openai";
 import type { ToolCapabilityInfo } from "../interfaces/tool-capability";
-import { PROMPT_TOOL_SUPPORT } from "../interfaces/tool-capability";
 import {
-	injectToolsIntoSystemPrompt,
 	extractToolCallsFromResponse,
+	preparePromptToolRequest,
+	PromptToolStreamTransformer,
 } from "../tools/tool-adapter";
+import { getWebLLMToolCapabilities } from "../tools/tool-capability-resolver";
 import {
 	chunkHasFinishReason,
 	extractChunkOutputText,
@@ -24,6 +25,11 @@ import {
 } from "../utils/token-usage";
 import { LLM_RUNNER_URLS } from "@/config/llm-runner";
 import { waitForDOMReady } from "@/utils/dom";
+import { detectSystemSpecs } from "@/main/modules/llm/utils/system-detection";
+import {
+	buildRunnerMemoryHint,
+	type RunnerMemoryHint,
+} from "../utils/runner-memory-hints";
 
 interface ServeRequest {
 	model: string;
@@ -80,6 +86,9 @@ export class WebLLMLLM implements BaseLLM {
 	private loading = false;
 	private pending = new Map<string, PendingRequest>();
 	private signalMap = new Map<string, AbortSignal>();
+	private systemSpecsPromise: Promise<Awaited<
+		ReturnType<typeof detectSystemSpecs>
+	> | null> | null = null;
 	private url: string;
 
 	constructor(url = LLM_RUNNER_URLS.webllm) {
@@ -181,33 +190,38 @@ export class WebLLMLLM implements BaseLLM {
 	): Promise<ChatCompletionResponse> {
 		if (!this.ready) await this.initialize();
 
-		// Check if tools need prompt injection
 		const capability = await this.getToolCapabilities(request.model);
-		let processedRequest = request;
-		let usePromptInjection = false;
+		const shouldNormalizePromptMessages =
+			capability.mode === "prompt_injection";
+		const usePromptToolParsing =
+			shouldNormalizePromptMessages && !!request.tools?.length;
+		const processedRequest = shouldNormalizePromptMessages
+			? preparePromptToolRequest(request)
+			: request;
 
-		if (request.tools?.length && capability.supported) {
-			processedRequest = injectToolsIntoSystemPrompt(request);
-			usePromptInjection = true;
-		}
-
-		// Remove signal and tool fields from request payload (can't serialize)
-		const {
-			signal,
-			tools,
-			tool_choice,
-			parallel_tool_calls,
-			...requestPayload
-		} = processedRequest;
+		const { signal, ...serializableRequest } = processedRequest;
+		const requestPayload =
+			capability.mode === "native"
+				? serializableRequest
+				: (() => {
+						const {
+							tools,
+							tool_choice,
+							parallel_tool_calls,
+							...promptRequestPayload
+						} = serializableRequest;
+						return promptRequestPayload;
+					})();
 
 		let signalId: string | undefined;
 		if (signal) {
 			signalId = Math.random().toString(36).slice(2);
 			this.signalMap.set(signalId, signal);
 		}
+		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
 
 		try {
-			let response = (await this.send("chat/completions", requestPayload, {
+			let response = (await this.send("chat/completions", payloadWithHints, {
 				signalId,
 			})) as ChatCompletionResponse;
 
@@ -221,7 +235,7 @@ export class WebLLMLLM implements BaseLLM {
 			};
 
 			// Extract tool calls from text if using prompt injection
-			if (usePromptInjection) {
+			if (usePromptToolParsing) {
 				response = extractToolCallsFromResponse(response);
 			}
 
@@ -238,28 +252,35 @@ export class WebLLMLLM implements BaseLLM {
 	): AsyncIterableIterator<ChatCompletionChunk> {
 		if (!this.ready) await this.initialize();
 
-		// Check if tools need prompt injection
 		const capability = await this.getToolCapabilities(request.model);
-		let processedRequest = request;
+		const shouldNormalizePromptMessages =
+			capability.mode === "prompt_injection";
+		const usePromptToolParsing =
+			shouldNormalizePromptMessages && !!request.tools?.length;
+		const processedRequest = shouldNormalizePromptMessages
+			? preparePromptToolRequest(request)
+			: request;
 
-		if (request.tools?.length && capability.supported) {
-			processedRequest = injectToolsIntoSystemPrompt(request);
-		}
-
-		// Remove signal and tool fields from request payload (can't serialize)
-		const {
-			signal,
-			tools,
-			tool_choice,
-			parallel_tool_calls,
-			...requestPayload
-		} = processedRequest;
+		const { signal, ...serializableRequest } = processedRequest;
+		const requestPayload =
+			capability.mode === "native"
+				? serializableRequest
+				: (() => {
+						const {
+							tools,
+							tool_choice,
+							parallel_tool_calls,
+							...promptRequestPayload
+						} = serializableRequest;
+						return promptRequestPayload;
+					})();
 
 		let signalId: string | undefined;
 		if (signal) {
 			signalId = Math.random().toString(36).slice(2);
 			this.signalMap.set(signalId, signal);
 		}
+		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
 
 		try {
 			const chunks: ChatCompletionChunk[] = [];
@@ -267,6 +288,9 @@ export class WebLLMLLM implements BaseLLM {
 			let streamError: Error | null = null;
 			let completionOutput = "";
 			let finalUsage = normalizeTokenUsage(undefined);
+			const promptToolTransformer = usePromptToolParsing
+				? new PromptToolStreamTransformer()
+				: null;
 
 			const chunkHandler = (incomingChunk: ChatCompletionChunk) => {
 				const usage = normalizeTokenUsage(incomingChunk.usage);
@@ -290,10 +314,15 @@ export class WebLLMLLM implements BaseLLM {
 							? { ...incomingChunk, usage }
 							: incomingChunk;
 
-				chunks.push(chunk);
+				if (!promptToolTransformer) {
+					chunks.push(chunk);
+					return;
+				}
+
+				chunks.push(...promptToolTransformer.ingest(chunk));
 			};
 
-			const streamPromise = this.send("chat/completions", requestPayload, {
+			const streamPromise = this.send("chat/completions", payloadWithHints, {
 				onStreamChunk: chunkHandler,
 				signalId,
 			}).catch((error) => {
@@ -317,6 +346,12 @@ export class WebLLMLLM implements BaseLLM {
 			// Yield any remaining chunks
 			while (chunks.length > 0) {
 				yield chunks.shift()!;
+			}
+
+			if (promptToolTransformer) {
+				for (const chunk of promptToolTransformer.flush()) {
+					yield chunk;
+				}
 			}
 
 			if (streamError) {
@@ -345,9 +380,8 @@ export class WebLLMLLM implements BaseLLM {
 		await this.send("delete", request);
 	}
 
-	async getToolCapabilities(_model?: string): Promise<ToolCapabilityInfo> {
-		// WebLLM models use prompt injection for tool support
-		return PROMPT_TOOL_SUPPORT;
+	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
+		return getWebLLMToolCapabilities(model);
 	}
 
 	async supportsTools(model?: string): Promise<boolean> {
@@ -383,6 +417,39 @@ export class WebLLMLLM implements BaseLLM {
 		await this.serve(model, onProgress);
 	}
 
+	private async withRunnerMemoryHint(
+		requestPayload: Omit<ChatCompletionRequest, "signal">,
+	): Promise<
+		Omit<ChatCompletionRequest, "signal"> & { _memoryHint?: RunnerMemoryHint }
+	> {
+		const memoryHint = await this.getRunnerMemoryHint(requestPayload.model);
+		if (!memoryHint) {
+			return requestPayload;
+		}
+
+		return {
+			...requestPayload,
+			_memoryHint: memoryHint,
+		};
+	}
+
+	private async getRunnerMemoryHint(
+		modelId?: string,
+	): Promise<RunnerMemoryHint | undefined> {
+		const specs = await this.getSystemSpecs();
+		return buildRunnerMemoryHint(modelId, "webllm", specs);
+	}
+
+	private async getSystemSpecs(): Promise<Awaited<
+		ReturnType<typeof detectSystemSpecs>
+	> | null> {
+		if (!this.systemSpecsPromise) {
+			this.systemSpecsPromise = detectSystemSpecs().catch(() => null);
+		}
+
+		return this.systemSpecsPromise;
+	}
+
 	destroy(): void {
 		this.iframe?.remove();
 		this.iframe = null;
@@ -392,6 +459,7 @@ export class WebLLMLLM implements BaseLLM {
 		);
 		this.pending.clear();
 		this.ready = false;
+		this.systemSpecsPromise = null;
 	}
 
 	private onMessage = (ev: MessageEvent<IncomingMessage>) => {

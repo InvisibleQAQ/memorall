@@ -1,4 +1,8 @@
-import type { ChatMessage, ChatCompletionContentPart } from "@/types/openai";
+import type {
+	ChatMessage,
+	ChatCompletionContentPart,
+	ChatCompletionMessageToolCall,
+} from "@/types/openai";
 import type { ComplexContent, ComplexContentPartImage } from "@/types/chat";
 import type { Message } from "@/services/database";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
@@ -34,6 +38,16 @@ function buildAssistantContent(msg: Message): string {
 	const content = `${actionsPrefix}\n\n${msg.content}`;
 
 	return content;
+}
+
+function getStoredToolCalls(
+	msg: Message,
+): ChatCompletionMessageToolCall[] | undefined {
+	const metadata = msg.metadata as Record<string, unknown> | null;
+	const toolCalls = metadata?.tool_calls;
+	return Array.isArray(toolCalls)
+		? (toolCalls as ChatCompletionMessageToolCall[])
+		: undefined;
 }
 
 /** Convert a stored image part into an OpenAI image_url content part (base64 data URI). */
@@ -93,6 +107,14 @@ export async function buildSendMessages(
 			if (role === "user") {
 				const content = await buildUserContent(msg);
 				return { role, content };
+			}
+			const toolCalls = getStoredToolCalls(msg);
+			if (toolCalls?.length) {
+				return {
+					role: "assistant",
+					content: msg.content || null,
+					tool_calls: toolCalls,
+				};
 			}
 			return { role: "assistant", content: buildAssistantContent(msg) };
 		}),

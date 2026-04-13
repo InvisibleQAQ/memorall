@@ -160,10 +160,10 @@ const WEBGPU_TRANSFORMER_MODELS: LFM2ModelDefinition[] = [
 		created: 1_704_720_000,
 	},
 	{
-		id: "onnx-community/LFM2-1.2B-Tool-ONNX",
+		id: "LiquidAI/LFM2.5-1.2B-Instruct-ONNX",
 		name: "LFM2 1.2B Tool (WebGPU)",
 		filename: "model.onnx",
-		size: 709 * 1024 * 1024,
+		size: 900 * 1024 * 1024,
 		aliases: ["LFM2-1.2B-Tool", "lfm2-1.2b-tool"],
 		created: 1_704_720_000,
 	},

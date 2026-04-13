@@ -15,9 +15,6 @@ export const RECOMMENDATION_TRANSFORMER_MODELS: string[] = [
 	"LiquidAI/LFM2-8B-A1B-ONNX",
 	"LiquidAI/LFM2-24B-A2B-ONNX",
 
-	// MiniThinky - lightweight reasoning-tuned Llama 3.2 derivative
-	"ngxson/MiniThinky-v2-1B-Llama-3.2",
-
 	// Ministral 3B - Mistral AI's latest model (December 2025)
 	"mistralai/Ministral-3-3B-Instruct-2512-ONNX",
 
@@ -43,7 +40,7 @@ export const RECOMMENDATION_TRANSFORMER_MODELS: string[] = [
 	"onnx-community/LFM2-350M-ONNX",
 	"onnx-community/LFM2-700M-ONNX",
 	"onnx-community/LFM2-1.2B-ONNX",
-	"onnx-community/LFM2-1.2B-Tool-ONNX",
+	"LiquidAI/LFM2.5-1.2B-Instruct-ONNX",
 
 	// SmolLM2 - Compact models (older generation)
 	"onnx-community/SmolLM2-135M-Instruct",
@@ -65,7 +62,7 @@ export const QUICK_TRANSFORMER_MODELS = [
 	},
 	{
 		model: "onnx-community/gemma-4-E2B-it-ONNX",
-		size: "3.4GB",
+		size: "4.8GB",
 		description: "💠 Gemma 4 E2B: Multimodal q4f16 WebGPU model",
 	},
 	{
@@ -82,11 +79,6 @@ export const QUICK_TRANSFORMER_MODELS = [
 		model: "LiquidAI/LFM2-24B-A2B-ONNX",
 		size: "13.5GB",
 		description: "🌊 LFM2 24B-A2B: Large mixture-of-experts q4f16 WebGPU model",
-	},
-	{
-		model: "ngxson/MiniThinky-v2-1B-Llama-3.2",
-		size: "700MB+",
-		description: "🧩 MiniThinky 1B: Small reasoning-tuned Llama 3.2 model",
 	},
 
 	// === MINISTRAL 3B (December 2025) ===
@@ -141,9 +133,9 @@ export const QUICK_TRANSFORMER_MODELS = [
 		description: "🌊 LFM2: High-quality model (WebGPU)",
 	},
 	{
-		model: "onnx-community/LFM2-1.2B-Tool-ONNX",
-		size: "709MB",
-		description: "🌊 LFM2: Tool-calling specialist (WebGPU)",
+		model: "LiquidAI/LFM2.5-1.2B-Instruct-ONNX",
+		size: "900MB",
+		description: "🌊 LFM2: specialist (WebGPU)",
 	},
 
 	// === PHI 4 MODELS ===

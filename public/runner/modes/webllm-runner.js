@@ -8,6 +8,7 @@ let WebLLMMod;
 let prebuiltAppConfig;
 const loadedModelsCache = new Map(); // Cache model metadata
 const activeOperations = new Map(); // Track active operations for abort support
+const IMAGE_EMBED_SIZE = 1921;
 
 // Query downloaded status via WebLLM engine APIs when available
 async function isDownloaded(modelId) {
@@ -58,6 +59,227 @@ async function ensureWebLLM() {
 
 // Stored progress callback for current load operation
 let currentProgressCallback = null;
+
+function deepEqual(left, right) {
+	if (left === right) {
+		return true;
+	}
+
+	if (typeof left !== typeof right || left === null || right === null) {
+		return false;
+	}
+
+	if (typeof left !== "object") {
+		return false;
+	}
+
+	if (Array.isArray(left) !== Array.isArray(right)) {
+		return false;
+	}
+
+	if (Array.isArray(left)) {
+		if (left.length !== right.length) {
+			return false;
+		}
+		for (let i = 0; i < left.length; i++) {
+			if (!deepEqual(left[i], right[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	const leftKeys = Object.keys(left);
+	const rightKeys = Object.keys(right);
+	if (leftKeys.length !== rightKeys.length) {
+		return false;
+	}
+
+	for (const key of leftKeys) {
+		if (!rightKeys.includes(key) || !deepEqual(left[key], right[key])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+function resolveMemoryContextTokens(memoryHint) {
+	if (!memoryHint || typeof memoryHint !== "object") {
+		return undefined;
+	}
+
+	const { availableGB, sizeGB, kvBytesPerToken, contextLength } = memoryHint;
+	const hasValidNumbers =
+		typeof availableGB === "number" &&
+		Number.isFinite(availableGB) &&
+		availableGB > 0 &&
+		typeof sizeGB === "number" &&
+		Number.isFinite(sizeGB) &&
+		sizeGB >= 0 &&
+		typeof kvBytesPerToken === "number" &&
+		Number.isFinite(kvBytesPerToken) &&
+		kvBytesPerToken > 0;
+
+	if (!hasValidNumbers) {
+		return undefined;
+	}
+
+	const availableForKV = availableGB / 1.2 - sizeGB;
+	if (availableForKV <= 0) {
+		return 0;
+	}
+
+	const maxTokens = Math.floor((availableForKV * 1024 ** 3) / kvBytesPerToken);
+	const roundedTokens = Math.max(0, Math.floor(maxTokens / 1024) * 1024);
+
+	if (
+		typeof contextLength === "number" &&
+		Number.isFinite(contextLength) &&
+		contextLength > 0
+	) {
+		return Math.min(roundedTokens, contextLength);
+	}
+
+	return roundedTokens;
+}
+
+function cloneConversation(conversation) {
+	const cloned = new conversation.constructor(
+		conversation.config,
+		conversation.isTextCompletion,
+	);
+	cloned.messages = conversation.messages.map((message) =>
+		Array.isArray(message) ? message.map((entry) => entry) : message,
+	);
+	cloned.function_string = conversation.function_string;
+	cloned.use_function_calling = conversation.use_function_calling;
+	cloned.override_system_message = conversation.override_system_message;
+	cloned.isLastMessageEmptyThinkingReplyHeader =
+		conversation.isLastMessageEmptyThinkingReplyHeader;
+	cloned.prompt = conversation.prompt;
+	return cloned;
+}
+
+function conversationsEqual(left, right) {
+	return (
+		left.function_string === right.function_string &&
+		left.use_function_calling === right.use_function_calling &&
+		left.override_system_message === right.override_system_message &&
+		left.isTextCompletion === right.isTextCompletion &&
+		deepEqual(left.messages, right.messages)
+	);
+}
+
+function buildConversationFromMessages(pipeline, messages, includeLastMsg = false) {
+	const conversation = new pipeline.conversation.constructor(
+		pipeline.conversation.config,
+		false,
+	);
+	const lastId = messages.length - 1;
+	if (messages[lastId].role !== "user" && messages[lastId].role !== "tool") {
+		throw new Error("The last message should be from the user or tool.");
+	}
+
+	const iterEnd = includeLastMsg ? messages.length : messages.length - 1;
+	for (let i = 0; i < iterEnd; i++) {
+		const message = messages[i];
+		if (message.role === "system") {
+			if (i !== 0) {
+				throw new Error("System message must be the first message.");
+			}
+			conversation.override_system_message = message.content;
+		} else if (message.role === "user") {
+			conversation.appendMessage("user", message.content, message.name);
+		} else if (message.role === "assistant") {
+			conversation.appendMessage("assistant", message.content, message.name);
+		} else if (message.role === "tool") {
+			conversation.appendMessage("tool", message.content);
+		} else {
+			throw new Error(`Unsupported role: ${message.role}`);
+		}
+	}
+
+	return conversation;
+}
+
+function countPromptTokens(tokenizer, prompts) {
+	let numPromptTokens = 0;
+
+	for (const prompt of prompts) {
+		if (typeof prompt === "string") {
+			numPromptTokens += tokenizer.encode(prompt).length;
+			continue;
+		}
+
+		for (const part of prompt) {
+			if (typeof part === "string") {
+				numPromptTokens += tokenizer.encode(part).length;
+			} else {
+				numPromptTokens += IMAGE_EMBED_SIZE;
+			}
+		}
+	}
+
+	return numPromptTokens;
+}
+
+function resolveWebLLMPromptBudget(engine, modelId, messages, requestBody) {
+	const pipeline = engine?.loadedModelIdToPipeline?.get?.(modelId);
+	if (!pipeline?.conversation || !pipeline?.tokenizer) {
+		return { promptLength: 0, maxContextTokens: undefined };
+	}
+
+	const oldConversation = pipeline.getConversationObject();
+	const newConversation = buildConversationFromMessages(pipeline, messages, false);
+	const reuseKVCache =
+		newConversation.messages.length > 0 &&
+		conversationsEqual(oldConversation, newConversation);
+	const workingConversation = reuseKVCache
+		? cloneConversation(oldConversation)
+		: newConversation;
+	const lastMessage = messages[messages.length - 1];
+
+	workingConversation.appendMessage(
+		lastMessage.role === "tool" ? "tool" : "user",
+		lastMessage.content,
+		lastMessage.role === "user" ? lastMessage.name : undefined,
+	);
+
+	if (requestBody?.extra_body?.enable_thinking === false) {
+		workingConversation.appendEmptyThinkingReplyHeader(
+			"assistant",
+			"<think>\n\n</think>\n\n",
+		);
+	} else {
+		workingConversation.appendReplyHeader("assistant");
+	}
+
+	const effectiveFilledKVCacheLength = reuseKVCache ? pipeline.filledKVCacheLength : 0;
+	const prompts =
+		effectiveFilledKVCacheLength > 0
+			? workingConversation.getPromptArrayLastRound()
+			: workingConversation.getPromptArray();
+	let promptLength = effectiveFilledKVCacheLength;
+
+	if (
+		effectiveFilledKVCacheLength === 0 &&
+		Array.isArray(workingConversation.config?.system_prefix_token_ids)
+	) {
+		promptLength += workingConversation.config.system_prefix_token_ids.length;
+	}
+
+	promptLength += countPromptTokens(pipeline.tokenizer, prompts);
+
+	return {
+		promptLength,
+		maxContextTokens:
+			typeof pipeline.contextWindowSize === "number" &&
+			pipeline.contextWindowSize > 0
+				? pipeline.contextWindowSize
+				: undefined,
+	};
+}
 
 /**
  * Load a WebLLM model
@@ -213,14 +435,8 @@ window.addEventListener("message", async (event) => {
 				break;
 			}
 			case "chat/completions": {
-				const {
-					messages,
-					model,
-					stream = false,
-					max_tokens = 512,
-					temperature = 0.8,
-					top_p = 0.9,
-				} = payload || {};
+				const { messages, model, stream = false, _memoryHint, ...requestBody } =
+					payload || {};
 
 				if (!messages) throw new Error("Messages are required");
 
@@ -235,13 +451,86 @@ window.addEventListener("message", async (event) => {
 
 				try {
 					await webllmManager.withModel(targetModel, async (engine) => {
+						const { promptLength, maxContextTokens } = resolveWebLLMPromptBudget(
+							engine,
+							targetModel,
+							messages,
+							requestBody,
+						);
+						const memoryContextTokens = resolveMemoryContextTokens(_memoryHint);
+						const maxTotalContextTokens =
+							typeof maxContextTokens === "number" &&
+							typeof memoryContextTokens === "number"
+								? Math.min(maxContextTokens, memoryContextTokens)
+								: typeof maxContextTokens === "number"
+									? maxContextTokens
+									: memoryContextTokens;
+						const requestedMaxTokens =
+							typeof requestBody.max_tokens === "number" &&
+							Number.isFinite(requestBody.max_tokens)
+								? requestBody.max_tokens
+								: typeof maxTotalContextTokens === "number"
+									? Math.max(0, maxTotalContextTokens - promptLength)
+									: undefined;
+						const effectiveMaxTokens =
+							typeof maxTotalContextTokens === "number" &&
+							typeof requestedMaxTokens === "number"
+								? Math.min(
+										requestedMaxTokens,
+										Math.max(0, maxTotalContextTokens - promptLength),
+									)
+								: requestedMaxTokens;
+
+						if (
+							typeof requestBody.max_tokens !== "number" &&
+							typeof effectiveMaxTokens === "number"
+						) {
+							console.log("[webllm-runner] auto max_tokens", {
+								auto: true,
+								max_tokens: effectiveMaxTokens,
+								promptLength,
+								maxContextTokens,
+								memoryContextTokens,
+								availableGB: _memoryHint?.availableGB,
+							});
+						}
+
+						if (
+							typeof requestedMaxTokens === "number" &&
+							typeof effectiveMaxTokens === "number" &&
+							effectiveMaxTokens < requestedMaxTokens
+						) {
+							console.log("[webllm-runner] clamped max_tokens", {
+								requested: requestedMaxTokens,
+								effective: effectiveMaxTokens,
+								promptLength,
+								maxContextTokens,
+								memoryContextTokens,
+								availableGB: _memoryHint?.availableGB,
+							});
+						}
+
+						if (
+							typeof maxTotalContextTokens === "number" &&
+							maxTotalContextTokens - promptLength <= 0
+						) {
+							throw new Error(
+								typeof memoryContextTokens === "number" &&
+								(typeof maxContextTokens !== "number" ||
+									memoryContextTokens <= maxContextTokens)
+									? `Prompt is too long for available device memory (promptLength=${promptLength}, memoryContextTokens=${memoryContextTokens}, availableGB=${_memoryHint?.availableGB ?? "unknown"})`
+									: `Prompt is too long for the model context window (promptLength=${promptLength}, maxContextTokens=${maxContextTokens})`,
+							);
+						}
+
 						const requestOptions = {
+							...requestBody,
 							messages,
 							model: targetModel,
-							temperature,
-							top_p,
-							max_tokens,
 							signal: abortController.signal,
+							...(typeof effectiveMaxTokens === "number"
+								? { max_tokens: effectiveMaxTokens }
+								: {}),
 						};
 
 						if (stream) {
@@ -249,18 +538,38 @@ window.addEventListener("message", async (event) => {
 								...requestOptions,
 								stream: true,
 							});
-							let lastChunk;
-
+							let pendingChunk = null;
 							for await (const chunk of completionStream) {
-								lastChunk = chunk;
 								if (abortController.signal.aborted) {
 									throw new Error("Operation aborted");
 								}
-								reply(src, origin, messageId, "chunk", chunk);
+
+								if (pendingChunk) {
+									reply(src, origin, messageId, "chunk", pendingChunk);
+								}
+
+								pendingChunk = chunk;
 							}
 
-							lastChunk.content = await engine.getMessage();
-							reply(src, origin, messageId, "end", lastChunk);
+							reply(
+								src,
+								origin,
+								messageId,
+								"end",
+								pendingChunk || {
+									id: `chatcmpl-${generateId()}`,
+									object: "chat.completion.chunk",
+									created: Math.floor(Date.now() / 1000),
+									model: targetModel,
+									choices: [
+										{
+											index: 0,
+											delta: {},
+											finish_reason: "stop",
+										},
+									],
+								},
+							);
 						} else {
 							const completion = await engine.chat.completions.create({
 								...requestOptions,

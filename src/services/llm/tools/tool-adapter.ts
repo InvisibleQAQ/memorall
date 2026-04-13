@@ -1,151 +1,427 @@
 import type {
-	ChatCompletionRequest,
-	ChatCompletionTool,
-	ChatCompletionMessageToolCall,
-	ChatCompletionResponse,
+	ChatCompletionChunk,
+	ChatCompletionChunkToolCall,
 	ChatCompletionMessageParam,
+	ChatCompletionMessageToolCall,
+	ChatCompletionRequest,
+	ChatCompletionResponse,
+	ChatCompletionTool,
 } from "@/types/openai";
 
-/**
- * Format tool parameters from OpenAI JSON Schema format
- */
-function formatToolParameters(parameters: Record<string, unknown>): string {
-	const props = parameters.properties as Record<string, unknown> | undefined;
-	if (!props) return "";
-
-	const required = (parameters.required as string[]) || [];
-	const params: string[] = [];
-
-	for (const [key, value] of Object.entries(props)) {
-		const prop = value as Record<string, unknown>;
-		let paramStr = key;
-		if (!required.includes(key)) paramStr += "?";
-		if (prop.description) paramStr += ` (${prop.description})`;
-		if (prop.enum && Array.isArray(prop.enum)) {
-			paramStr += ` [${prop.enum.join("|")}]`;
-		}
-		params.push(paramStr);
+function stringifyContent(
+	content: ChatCompletionMessageParam["content"],
+): string | ChatCompletionMessageParam["content"] {
+	if (typeof content === "string" || content == null) {
+		return content;
 	}
 
-	return params.join(", ");
+	if (Array.isArray(content) && content.every((part) => part.type === "text")) {
+		return content
+			.map((part) => (part.type === "text" ? part.text : ""))
+			.join("\n");
+	}
+
+	return content;
 }
 
-/**
- * Generate tool instructions for system prompt (Python function call format)
- */
-function generateToolInstructions(tools: ChatCompletionTool[]): string {
-	const toolList = tools
-		.map((tool) => {
-			const fn = tool.function;
-			const params = fn.parameters
-				? formatToolParameters(fn.parameters as Record<string, unknown>)
-				: "";
-			return `- ${fn.name}: ${fn.description || "No description"}${params ? `. Parameters: ${params}` : ""}`;
-		})
-		.join("\n");
-
-	return `Available tools:
-${toolList}
-
-To use a tool, respond with Python function call format in a single line:
-tool_name(param1="value1", param2="value2")
-
-Example:
-current_time(timezone="America/New_York")
-
-Important: Must respond with exactly one line function call and nothing else.
-`;
+function formatToolSchema(tool: ChatCompletionTool): Record<string, unknown> {
+	return {
+		name: tool.function.name,
+		description: tool.function.description || "",
+		parameters:
+			tool.function.parameters &&
+			Object.keys(tool.function.parameters).length > 0
+				? tool.function.parameters
+				: {
+						type: "object",
+						properties: {},
+						additionalProperties: false,
+					},
+	};
 }
 
-/**
- * Inject tools into system prompt for models without native support
- */
-export function injectToolsIntoSystemPrompt(
+function generateToolInstructions(request: ChatCompletionRequest): string {
+	const toolSchema = (request.tools || []).map(formatToolSchema);
+	const toolChoice =
+		request.tool_choice === undefined
+			? "auto"
+			: JSON.stringify(request.tool_choice);
+
+	return [
+		"You may answer normally in plain text, or call tools using a strict JSON object.",
+		"",
+		"Available tools:",
+		JSON.stringify(toolSchema, null, 2),
+		"",
+		`tool_choice: ${toolChoice}`,
+		"",
+		"If a tool is needed, reply with exactly one JSON object and nothing else:",
+		'{"tool_calls":[{"name":"tool_name","arguments":{"key":"value"}}]}',
+		"",
+		"Rules:",
+		"- Do not wrap the JSON in markdown or code fences.",
+		"- Use tool_calls only when a tool is actually needed.",
+		"- Arguments must be valid JSON.",
+		"- Multiple tool calls are allowed only when they are all required to continue.",
+	].join("\n");
+}
+
+export function normalizeMessagesForPromptTools(
+	messages: ChatCompletionMessageParam[],
+): ChatCompletionMessageParam[] {
+	const toolNameById = new Map<string, string>();
+
+	return messages.map((message) => {
+		if (message.role === "assistant" && message.tool_calls?.length) {
+			const toolCalls = message.tool_calls.map((toolCall) => {
+				toolNameById.set(toolCall.id, toolCall.function.name);
+
+				let parsedArguments: unknown = toolCall.function.arguments;
+				try {
+					parsedArguments = JSON.parse(toolCall.function.arguments);
+				} catch {
+					// Keep the raw string when arguments are not valid JSON.
+				}
+
+				return {
+					id: toolCall.id,
+					name: toolCall.function.name,
+					arguments: parsedArguments,
+				};
+			});
+
+			const textParts: string[] = [];
+			const content = stringifyContent(message.content);
+			if (typeof content === "string" && content.trim()) {
+				textParts.push(content.trim());
+			}
+
+			textParts.push("Tool calls made previously:");
+			textParts.push(JSON.stringify(toolCalls, null, 2));
+
+			return {
+				role: "assistant",
+				content: textParts.join("\n\n"),
+			};
+		}
+
+		if (message.role === "tool") {
+			const toolName = toolNameById.get(message.tool_call_id) || "unknown_tool";
+			return {
+				role: "user",
+				content: [
+					`Tool result for ${toolName} (${message.tool_call_id}):`,
+					message.content,
+					"Continue using this tool result.",
+				].join("\n\n"),
+			};
+		}
+
+		if (
+			(message.role === "system" || message.role === "assistant") &&
+			Array.isArray(message.content)
+		) {
+			const content = stringifyContent(message.content);
+			if (typeof content === "string") {
+				return {
+					...message,
+					content,
+				};
+			}
+		}
+
+		return message;
+	});
+}
+
+export function preparePromptToolRequest(
 	request: ChatCompletionRequest,
 ): ChatCompletionRequest {
-	if (!request.tools?.length) return request;
+	const normalizedMessages = normalizeMessagesForPromptTools(request.messages);
+	const messages = [...normalizedMessages];
 
-	const injectionPrompt = generateToolInstructions(request.tools);
+	if (request.tools?.length) {
+		const injectionPrompt = generateToolInstructions(request);
+		const systemIdx = messages.findIndex(
+			(message) => message.role === "system",
+		);
 
-	const messages = [...request.messages];
-	const systemIdx = messages.findIndex((m) => m.role === "system");
-
-	if (systemIdx >= 0) {
-		const existingContent = messages[systemIdx].content;
-		const contentStr =
-			typeof existingContent === "string"
-				? existingContent
-				: existingContent?.map((p) => ("text" in p ? p.text : "")).join("\n") ||
-					"";
-		messages[systemIdx] = {
-			role: "system",
-			content: `${injectionPrompt}\n\n---\n\n${contentStr}`,
-		} as ChatCompletionMessageParam;
-	} else {
-		messages.unshift({ role: "system", content: injectionPrompt });
+		if (systemIdx >= 0) {
+			const existingContent = stringifyContent(messages[systemIdx].content);
+			messages[systemIdx] = {
+				role: "system",
+				content:
+					typeof existingContent === "string" &&
+					existingContent.trim().length > 0
+						? `${injectionPrompt}\n\n---\n\n${existingContent}`
+						: injectionPrompt,
+			};
+		} else {
+			messages.unshift({ role: "system", content: injectionPrompt });
+		}
 	}
 
-	// Remove tools from request (now in prompt)
 	const { tools, tool_choice, parallel_tool_calls, ...rest } = request;
 	return { ...rest, messages };
 }
 
-/**
- * Parse tool call from model text output (Python function call format)
- */
-export function parseToolCallsFromText(
+export function injectToolsIntoSystemPrompt(
+	request: ChatCompletionRequest,
+): ChatCompletionRequest {
+	return preparePromptToolRequest(request);
+}
+
+function stripCodeFences(content: string): string {
+	const trimmed = content.trim();
+	if (!trimmed.startsWith("```")) {
+		return trimmed;
+	}
+
+	return trimmed
+		.replace(/^```(?:json)?\s*/i, "")
+		.replace(/\s*```$/, "")
+		.trim();
+}
+
+function extractBalancedJsonObject(content: string): string | null {
+	const trimmed = stripCodeFences(content);
+	if (!trimmed) {
+		return null;
+	}
+
+	if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+		return trimmed;
+	}
+
+	const toolCallsIndex = trimmed.indexOf('"tool_calls"');
+	if (toolCallsIndex < 0) {
+		return null;
+	}
+
+	let candidateStart = trimmed.lastIndexOf("{", toolCallsIndex);
+	while (candidateStart >= 0) {
+		let depth = 0;
+		let inString = false;
+		let escaped = false;
+
+		for (let index = candidateStart; index < trimmed.length; index += 1) {
+			const char = trimmed[index];
+			if (inString) {
+				if (escaped) {
+					escaped = false;
+					continue;
+				}
+				if (char === "\\") {
+					escaped = true;
+					continue;
+				}
+				if (char === '"') {
+					inString = false;
+				}
+				continue;
+			}
+
+			if (char === '"') {
+				inString = true;
+				continue;
+			}
+
+			if (char === "{") {
+				depth += 1;
+				continue;
+			}
+
+			if (char !== "}") {
+				continue;
+			}
+
+			depth -= 1;
+			if (depth === 0) {
+				const candidate = trimmed.slice(candidateStart, index + 1);
+				if (candidate.includes('"tool_calls"')) {
+					return candidate;
+				}
+				break;
+			}
+		}
+
+		candidateStart = trimmed.lastIndexOf("{", candidateStart - 1);
+	}
+
+	return null;
+}
+
+function parseArgumentsValue(value: unknown): unknown {
+	if (typeof value !== "string") {
+		return value ?? {};
+	}
+
+	try {
+		return JSON.parse(value);
+	} catch {
+		return value;
+	}
+}
+
+function normalizeParsedToolCalls(toolCallsValue: unknown) {
+	if (!Array.isArray(toolCallsValue) || toolCallsValue.length === 0) {
+		return null;
+	}
+
+	const toolCalls: ChatCompletionMessageToolCall[] = [];
+
+	for (const [index, item] of toolCallsValue.entries()) {
+		if (!item || typeof item !== "object") {
+			return null;
+		}
+
+		const rawToolCall = item as {
+			id?: string;
+			name?: string;
+			arguments?: unknown;
+			function?: {
+				name?: string;
+				arguments?: unknown;
+			};
+		};
+
+		const name = rawToolCall.name || rawToolCall.function?.name;
+		if (!name) {
+			return null;
+		}
+
+		const argumentsValue =
+			rawToolCall.arguments ?? rawToolCall.function?.arguments ?? {};
+
+		toolCalls.push({
+			id:
+				rawToolCall.id ||
+				`call_${Math.random().toString(36).slice(2, 11)}_${index}`,
+			type: "function",
+			function: {
+				name,
+				arguments: JSON.stringify(parseArgumentsValue(argumentsValue)),
+			},
+		});
+	}
+
+	return toolCalls;
+}
+
+function parseToolCallsFromJsonEnvelope(
 	content: string,
 ): ChatCompletionMessageToolCall[] | null {
-	if (!content) return null;
+	const jsonObject = extractBalancedJsonObject(content);
+	if (!jsonObject) {
+		return null;
+	}
 
-	// Match Python function call format: tool_name(param1="value1", param2="value2")
-	const toolCallMatch = content.match(/(\w+)\s*\(([^)]*)\)/);
-	if (!toolCallMatch) return null;
+	try {
+		const parsed = JSON.parse(jsonObject) as { tool_calls?: unknown };
+		return normalizeParsedToolCalls(parsed.tool_calls);
+	} catch {
+		return null;
+	}
+}
 
-	const [, toolName, paramString] = toolCallMatch;
-	const args: Record<string, unknown> = {};
+function parseLegacyPythonToolCalls(
+	content: string,
+): ChatCompletionMessageToolCall[] | null {
+	const candidates: string[] = [];
+	const trimmedContent = content.trim();
 
-	if (paramString.trim()) {
-		// Match parameters like param1="value1", param2=123
-		const paramMatches = paramString.matchAll(
-			/(\w+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^,\s]+))/g,
-		);
-		for (const match of paramMatches) {
-			const [, key, quotedValue, singleQuotedValue, unquotedValue] = match;
-			const value = quotedValue || singleQuotedValue || unquotedValue;
-
-			// Try to parse as number if it's unquoted and looks like a number
-			if (!quotedValue && !singleQuotedValue && /^\d+(\.\d+)?$/.test(value)) {
-				args[key] = Number(value);
-			} else {
-				args[key] = value;
-			}
+	const wrappedToolCalls = trimmedContent.matchAll(
+		/<\|tool_call_start\|>\s*([\s\S]*?)\s*<\|tool_call_end\|>/gi,
+	);
+	for (const match of wrappedToolCalls) {
+		if (match[1]) {
+			candidates.push(match[1].trim());
 		}
 	}
 
-	return [
-		{
-			id: `call_${Math.random().toString(36).slice(2, 11)}`,
-			type: "function",
-			function: {
-				name: toolName,
-				arguments: JSON.stringify(args),
+	if (candidates.length === 0) {
+		candidates.push(trimmedContent);
+	}
+
+	for (let trimmed of candidates) {
+		if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+			trimmed = trimmed.slice(1, -1).trim();
+		}
+
+		const toolCallMatch = trimmed.match(/^\s*(\w+)\s*\((.*)\)\s*$/s);
+		if (!toolCallMatch) {
+			continue;
+		}
+
+		const [, toolName, paramString] = toolCallMatch;
+		const args: Record<string, unknown> = {};
+
+		if (paramString.trim()) {
+			const paramMatches = paramString.matchAll(
+				/(\w+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^,\s]+))/g,
+			);
+			for (const match of paramMatches) {
+				const [, key, quotedValue, singleQuotedValue, unquotedValue] = match;
+				const value = quotedValue || singleQuotedValue || unquotedValue;
+
+				if (
+					!quotedValue &&
+					!singleQuotedValue &&
+					/^-?\d+(\.\d+)?$/.test(value)
+				) {
+					args[key] = Number(value);
+				} else if (
+					!quotedValue &&
+					!singleQuotedValue &&
+					/^(true|false)$/i.test(value)
+				) {
+					args[key] = value.toLowerCase() === "true";
+				} else {
+					args[key] = value;
+				}
+			}
+		}
+
+		return [
+			{
+				id: `call_${Math.random().toString(36).slice(2, 11)}`,
+				type: "function",
+				function: {
+					name: toolName,
+					arguments: JSON.stringify(args),
+				},
 			},
-		},
-	];
+		];
+	}
+
+	return null;
 }
 
-/**
- * Process response to extract tool calls (for prompt injection mode)
- */
+export function parseToolCallsFromText(
+	content: string,
+): ChatCompletionMessageToolCall[] | null {
+	if (!content) {
+		return null;
+	}
+
+	return (
+		parseToolCallsFromJsonEnvelope(content) ||
+		parseLegacyPythonToolCalls(content)
+	);
+}
+
 export function extractToolCallsFromResponse(
 	response: ChatCompletionResponse,
 ): ChatCompletionResponse {
 	const message = response.choices[0]?.message;
-	if (!message?.content) return response;
+	if (!message?.content) {
+		return response;
+	}
 
 	const toolCalls = parseToolCallsFromText(message.content);
-	if (!toolCalls) return response;
+	if (!toolCalls) {
+		return response;
+	}
 
 	return {
 		...response,
@@ -161,4 +437,111 @@ export function extractToolCallsFromResponse(
 			},
 		],
 	};
+}
+
+function toChunkToolCalls(
+	toolCalls: ChatCompletionMessageToolCall[],
+): ChatCompletionChunkToolCall[] {
+	return toolCalls.map((toolCall, index) => ({
+		index,
+		id: toolCall.id,
+		type: "function",
+		function: {
+			name: toolCall.function.name,
+			arguments: toolCall.function.arguments,
+		},
+	}));
+}
+
+type StreamClassification = "undecided" | "tool_candidate" | "text";
+
+export class PromptToolStreamTransformer {
+	private pendingChunks: ChatCompletionChunk[] = [];
+	private accumulatedText = "";
+	private classification: StreamClassification = "undecided";
+
+	private classify(): StreamClassification {
+		const trimmed = this.accumulatedText.trimStart();
+		if (!trimmed) {
+			return "undecided";
+		}
+
+		if (
+			trimmed.startsWith("{") ||
+			trimmed.startsWith("```") ||
+			trimmed.startsWith("<") ||
+			trimmed.startsWith("[")
+		) {
+			return "tool_candidate";
+		}
+
+		return "text";
+	}
+
+	ingest(chunk: ChatCompletionChunk): ChatCompletionChunk[] {
+		const choice = chunk.choices[0];
+		if (!choice) {
+			return [chunk];
+		}
+
+		const text = choice.delta.content ?? "";
+		if (text) {
+			this.accumulatedText += text;
+		}
+
+		if (this.classification === "text") {
+			return [chunk];
+		}
+
+		this.pendingChunks.push(chunk);
+		this.classification = this.classify();
+
+		if (this.classification === "text") {
+			const flushed = this.pendingChunks;
+			this.pendingChunks = [];
+			return flushed;
+		}
+
+		if (!choice.finish_reason) {
+			return [];
+		}
+
+		const toolCalls = parseToolCallsFromText(this.accumulatedText);
+		if (!toolCalls) {
+			const flushed = this.pendingChunks;
+			this.pendingChunks = [];
+			return flushed;
+		}
+
+		this.pendingChunks = [];
+		return [
+			{
+				id: chunk.id,
+				object: chunk.object,
+				created: chunk.created,
+				model: chunk.model,
+				choices: [
+					{
+						index: choice.index,
+						delta: {
+							role: "assistant",
+							tool_calls: toChunkToolCalls(toolCalls),
+						},
+						finish_reason: "tool_calls",
+					},
+				],
+				usage: chunk.usage,
+			},
+		];
+	}
+
+	flush(): ChatCompletionChunk[] {
+		if (this.pendingChunks.length === 0) {
+			return [];
+		}
+
+		const flushed = this.pendingChunks;
+		this.pendingChunks = [];
+		return flushed;
+	}
 }

@@ -95,16 +95,15 @@ export const YourModels: React.FC<YourModelsProps> = ({
 		loadDownloadedModel,
 		unloadDownloadedModel,
 		deleteDownloadedModel,
-	} =
-		useModelOperations({
-			setCurrent,
-			setLoading,
-			setQuickDownloadModel,
-			setDownloadProgress,
-			fetchDownloadedModels,
-			downloadedModels,
-			onModelLoaded,
-		});
+	} = useModelOperations({
+		setCurrent,
+		setLoading,
+		setQuickDownloadModel,
+		setDownloadProgress,
+		fetchDownloadedModels,
+		downloadedModels,
+		onModelLoaded,
+	});
 
 	// Ensure quickProvider is one of the allowed providers
 	useEffect(() => {

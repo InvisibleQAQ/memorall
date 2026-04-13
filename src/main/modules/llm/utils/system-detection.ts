@@ -92,7 +92,7 @@ async function detectGPU(): Promise<SystemSpecs["gpu"] | undefined> {
  */
 function estimateVRAM(renderer: string): number | undefined {
 	// Use the comprehensive GPU database
-	return estimateVRAM(renderer);
+	return getVRAM(renderer);
 }
 
 /**

@@ -20,6 +20,7 @@ let currentMessageContext = null;
 
 const DEFAULT_TRANSFORMER_DTYPE = "q4";
 const DEFAULT_MAX_NEW_TOKENS = 512;
+const UNKNOWN_MEMORY_AUTO_MAX_NEW_TOKENS = 1024;
 
 const GEMMA_THINK_START = "<think>";
 const GEMMA_THINK_END = "</think>";
@@ -63,14 +64,6 @@ const MODEL_RUNTIME_CONFIGS = new Map([
 			runtime: "causal",
 			dtype: "q4f16",
 			defaultMaxNewTokens: 4096,
-		},
-	],
-	[
-		"ngxson/MiniThinky-v2-1B-Llama-3.2",
-		{
-			runtime: "pipeline",
-			dtype: "q4",
-			defaultMaxNewTokens: 2048,
 		},
 	],
 ]);
@@ -188,6 +181,36 @@ function resolveMaxContextTokens(tokenizer, modelConfig) {
 			: undefined;
 
 	return tokenizerMax ?? modelMax;
+}
+
+function resolveMemoryContextTokens(memoryHint) {
+	if (!memoryHint || typeof memoryHint !== "object") {
+		return undefined;
+	}
+
+	const { availableGB, sizeGB, kvBytesPerToken } = memoryHint;
+	const hasValidNumbers =
+		typeof availableGB === "number" &&
+		Number.isFinite(availableGB) &&
+		availableGB > 0 &&
+		typeof sizeGB === "number" &&
+		Number.isFinite(sizeGB) &&
+		sizeGB >= 0 &&
+		typeof kvBytesPerToken === "number" &&
+		Number.isFinite(kvBytesPerToken) &&
+		kvBytesPerToken > 0;
+
+	if (!hasValidNumbers) {
+		return undefined;
+	}
+
+	const availableForKV = availableGB / 1.2 - sizeGB;
+	if (availableForKV <= 0) {
+		return 0;
+	}
+
+	const maxTokens = Math.floor((availableForKV * 1024 ** 3) / kvBytesPerToken);
+	return Math.max(0, Math.floor(maxTokens / 1024) * 1024);
 }
 
 function createProgressCallback(notifyProgress, getDtype) {
@@ -797,6 +820,7 @@ window.addEventListener("message", async (event) => {
 					temperature = 0,
 					top_p = 1,
 					top_k = 50,
+					_memoryHint,
 				} = payload || {};
 
 				if (!messages) throw new Error("Messages are required");
@@ -840,21 +864,38 @@ window.addEventListener("message", async (event) => {
 						}
 
 						const promptLength = getPromptLength(input);
-						const maxContextTokens = resolveMaxContextTokens(
+						const detectedMaxContextTokens = resolveMaxContextTokens(
 							currentTokenizer,
 							currentModel?.config,
 						);
+						const maxContextTokens =
+							typeof detectedMaxContextTokens === "number"
+								? detectedMaxContextTokens
+								: typeof _memoryHint?.contextLength === "number"
+									? _memoryHint.contextLength
+									: undefined;
+						const memoryContextTokens = resolveMemoryContextTokens(_memoryHint);
+						const maxTotalContextTokens =
+							typeof maxContextTokens === "number" &&
+							typeof memoryContextTokens === "number"
+								? Math.min(maxContextTokens, memoryContextTokens)
+								: typeof maxContextTokens === "number"
+									? maxContextTokens
+									: memoryContextTokens;
 						const maxNewTokensLimit =
-							typeof maxContextTokens === "number"
-								? Math.max(0, maxContextTokens - promptLength)
+							typeof maxTotalContextTokens === "number"
+								? Math.max(0, maxTotalContextTokens - promptLength)
 								: undefined;
 
+						const defaultAutoMaxTokens = _memoryHint
+							? defaultMaxNewTokens
+							: Math.min(defaultMaxNewTokens, UNKNOWN_MEMORY_AUTO_MAX_NEW_TOKENS);
 						const requestedMaxTokens =
 							typeof max_tokens === "number" && Number.isFinite(max_tokens)
 								? max_tokens
 								: typeof maxNewTokensLimit === "number"
-									? maxNewTokensLimit
-									: defaultMaxNewTokens;
+									? Math.min(defaultAutoMaxTokens, maxNewTokensLimit)
+									: defaultAutoMaxTokens;
 
 						if (typeof max_tokens !== "number" && typeof maxNewTokensLimit === "number") {
 							console.log("[transformer-runner] auto max_new_tokens", {
@@ -862,6 +903,9 @@ window.addEventListener("message", async (event) => {
 								max_new_tokens: requestedMaxTokens,
 								promptLength,
 								maxContextTokens,
+								memoryContextTokens,
+								availableGB: _memoryHint?.availableGB,
+								hasMemoryHint: Boolean(_memoryHint),
 							});
 						}
 
@@ -870,7 +914,33 @@ window.addEventListener("message", async (event) => {
 								? Math.min(requestedMaxTokens, maxNewTokensLimit)
 								: requestedMaxTokens;
 
+						if (
+							typeof requestedMaxTokens === "number" &&
+							typeof effectiveMaxNewTokens === "number" &&
+							effectiveMaxNewTokens < requestedMaxTokens
+						) {
+							console.log("[transformer-runner] clamped max_new_tokens", {
+								requested: requestedMaxTokens,
+								effective: effectiveMaxNewTokens,
+								promptLength,
+								maxContextTokens,
+								memoryContextTokens,
+								availableGB: _memoryHint?.availableGB,
+								hasMemoryHint: Boolean(_memoryHint),
+							});
+						}
+
 						if (typeof maxNewTokensLimit === "number" && maxNewTokensLimit <= 0) {
+							if (
+								typeof memoryContextTokens === "number" &&
+								(typeof maxContextTokens !== "number" ||
+									memoryContextTokens <= maxContextTokens)
+							) {
+								throw new Error(
+									`Prompt is too long for available device memory (promptLength=${promptLength}, memoryContextTokens=${memoryContextTokens}, availableGB=${_memoryHint?.availableGB ?? "unknown"})`,
+								);
+							}
+
 							throw new Error(
 								`Prompt is too long for the model context window (promptLength=${promptLength}, maxContextTokens=${maxContextTokens})`,
 							);

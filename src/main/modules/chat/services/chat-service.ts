@@ -3,7 +3,13 @@ import type {
 	ChatResult,
 	ChatStreamConfig,
 } from "@/services/background-jobs/handlers/process-chat";
-import type { ChatMessage } from "@/types/openai";
+import type {
+	ChatCompletionChunkToolCall,
+	ChatCompletionMessageToolCall,
+	ChatCompletionTool,
+	ChatCompletionToolChoiceOption,
+	ChatMessage,
+} from "@/types/openai";
 
 export type ChatMode = "normal" | "knowledge";
 
@@ -14,6 +20,9 @@ export interface ChatServiceOptions {
 	topicId?: string;
 	agentFlowId?: string;
 	streamConfig?: ChatStreamConfig;
+	tools?: ChatCompletionTool[];
+	tool_choice?: ChatCompletionToolChoiceOption;
+	parallel_tool_calls?: boolean;
 }
 
 export interface ChatAction {
@@ -36,6 +45,7 @@ export interface ChatStreamCallbacks {
 export interface ChatStreamResult {
 	content: string;
 	actions: ChatAction[];
+	toolCalls?: ChatCompletionMessageToolCall[];
 	failed: boolean;
 	error?: string;
 	usage?: {
@@ -44,6 +54,56 @@ export interface ChatStreamResult {
 		total_tokens: number;
 	};
 }
+
+type ToolCallAccumulator = Map<
+	number,
+	{
+		id: string;
+		type: "function";
+		function: {
+			name: string;
+			arguments: string;
+		};
+	}
+>;
+
+const accumulateChunkToolCalls = (
+	accumulator: ToolCallAccumulator,
+	toolCalls: ChatCompletionChunkToolCall[] | undefined,
+): void => {
+	if (!toolCalls?.length) {
+		return;
+	}
+
+	for (const toolCall of toolCalls) {
+		const existing = accumulator.get(toolCall.index);
+		if (existing) {
+			if (toolCall.id) {
+				existing.id = toolCall.id;
+			}
+			if (toolCall.function?.name) {
+				existing.function.name = toolCall.function.name;
+			}
+			if (toolCall.function?.arguments) {
+				existing.function.arguments += toolCall.function.arguments;
+			}
+			continue;
+		}
+
+		accumulator.set(toolCall.index, {
+			id: toolCall.id || `call_${toolCall.index}_${Date.now()}`,
+			type: "function",
+			function: {
+				name: toolCall.function?.name || "",
+				arguments: toolCall.function?.arguments || "",
+			},
+		});
+	}
+};
+
+const getAccumulatedToolCalls = (
+	accumulator: ToolCallAccumulator,
+): ChatCompletionMessageToolCall[] => Array.from(accumulator.values());
 
 const mergeActions = (
 	current: ChatAction[],
@@ -89,8 +149,17 @@ export class ChatService {
 		callbacks?: ChatStreamCallbacks,
 		signal?: AbortSignal,
 	): Promise<ChatStreamResult> {
-		const { messages, model, mode, topicId, agentFlowId, streamConfig } =
-			options;
+		const {
+			messages,
+			model,
+			mode,
+			topicId,
+			agentFlowId,
+			streamConfig,
+			tools,
+			tool_choice,
+			parallel_tool_calls,
+		} = options;
 
 		const abortController = new AbortController();
 		const jobId = `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -116,6 +185,9 @@ export class ChatService {
 					mode,
 					topicId,
 					agentFlowId,
+					tools,
+					tool_choice,
+					parallel_tool_calls,
 					streamConfig: streamConfig || {
 						minWordsToStream: 5,
 						streamToolCallsImmediately: true,
@@ -129,6 +201,7 @@ export class ChatService {
 			let streamFailed = false;
 			let streamError = "";
 			let usage: ChatStreamResult["usage"];
+			const toolCallAccumulator: ToolCallAccumulator = new Map();
 
 			if (!("stream" in result)) {
 				return {
@@ -166,6 +239,14 @@ export class ChatService {
 								...mergeActions(actions, chatResult.metadata.actions),
 							);
 						}
+						if (chatResult.metadata?.tool_calls?.length) {
+							for (const [
+								index,
+								toolCall,
+							] of chatResult.metadata.tool_calls.entries()) {
+								toolCallAccumulator.set(index, toolCall);
+							}
+						}
 						if (chatResult.metadata?.usage) {
 							usage = chatResult.metadata.usage;
 						}
@@ -180,6 +261,10 @@ export class ChatService {
 					const chatResult = progress.result as ChatResult;
 
 					if (chatResult.type === "chunk" && chatResult.chunk) {
+						accumulateChunkToolCalls(
+							toolCallAccumulator,
+							chatResult.chunk.choices[0]?.delta?.tool_calls,
+						);
 						// Handle streaming content chunks
 						const content = chatResult.chunk.choices[0]?.delta?.content;
 						if (content) {
@@ -210,6 +295,14 @@ export class ChatService {
 								...mergeActions(actions, chatResult.metadata.actions),
 							);
 						}
+						if (chatResult.metadata?.tool_calls?.length) {
+							for (const [
+								index,
+								toolCall,
+							] of chatResult.metadata.tool_calls.entries()) {
+								toolCallAccumulator.set(index, toolCall);
+							}
+						}
 						// Notify with the final cited content
 						callbacks?.onContent?.(currentContent);
 						callbacks?.onAction?.([...actions]);
@@ -221,6 +314,7 @@ export class ChatService {
 			return {
 				content: currentContent,
 				actions,
+				toolCalls: getAccumulatedToolCalls(toolCallAccumulator),
 				failed: streamFailed,
 				error: streamFailed ? streamError : undefined,
 				usage,

@@ -5,6 +5,10 @@ import type {
 	ChatCompletionRequest,
 	ChatMessage,
 	ChatCompletionChunk,
+	ChatCompletionChunkToolCall,
+	ChatCompletionMessageToolCall,
+	ChatCompletionTool,
+	ChatCompletionToolChoiceOption,
 } from "@/types/openai";
 import {
 	isCustomChunkPayload,
@@ -33,6 +37,9 @@ export interface ChatPayload {
 	topicId?: string; // For topic filtering in knowledge mode
 	agentFlowId?: string;
 	streamConfig?: ChatStreamConfig;
+	tools?: ChatCompletionTool[];
+	tool_choice?: ChatCompletionToolChoiceOption;
+	parallel_tool_calls?: boolean;
 }
 
 export type ChatResult =
@@ -55,6 +62,7 @@ export type ChatResult =
 					description: string;
 					metadata: Record<string, unknown>;
 				}>;
+				tool_calls?: ChatCompletionMessageToolCall[];
 				usage?: {
 					prompt_tokens: number;
 					completion_tokens: number;
@@ -136,6 +144,56 @@ type TokenUsage = {
 	total_tokens: number;
 };
 
+type ToolCallAccumulator = Map<
+	number,
+	{
+		id: string;
+		type: "function";
+		function: {
+			name: string;
+			arguments: string;
+		};
+	}
+>;
+
+const accumulateChunkToolCalls = (
+	accumulator: ToolCallAccumulator,
+	toolCalls: ChatCompletionChunkToolCall[] | undefined,
+): void => {
+	if (!toolCalls?.length) {
+		return;
+	}
+
+	for (const toolCall of toolCalls) {
+		const existing = accumulator.get(toolCall.index);
+		if (existing) {
+			if (toolCall.function?.name) {
+				existing.function.name = toolCall.function.name;
+			}
+			if (toolCall.function?.arguments) {
+				existing.function.arguments += toolCall.function.arguments;
+			}
+			if (toolCall.id) {
+				existing.id = toolCall.id;
+			}
+			continue;
+		}
+
+		accumulator.set(toolCall.index, {
+			id: toolCall.id || `call_${toolCall.index}_${Date.now()}`,
+			type: "function",
+			function: {
+				name: toolCall.function?.name || "",
+				arguments: toolCall.function?.arguments || "",
+			},
+		});
+	}
+};
+
+const getAccumulatedToolCalls = (
+	accumulator: ToolCallAccumulator,
+): ChatCompletionMessageToolCall[] => Array.from(accumulator.values());
+
 type KnowledgeStreamDeps = {
 	jobId: string;
 	model: string;
@@ -144,6 +202,7 @@ type KnowledgeStreamDeps = {
 	streamBuffer: StreamBuffer;
 	getProgress: () => number;
 	onUsage?: (usage: TokenUsage) => void;
+	onToolCalls?: (toolCalls: ChatCompletionChunkToolCall[] | undefined) => void;
 };
 
 type StreamBufferDeps = {
@@ -209,6 +268,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				deps.config.streamToolCallsImmediately &&
 				ChatHandler.hasToolCalls(delta)
 			) {
+				deps.onToolCalls?.(delta.tool_calls);
 				await deps.dependencies.updateJobProgress(deps.jobId, {
 					stage: "Tool call in progress...",
 					progress: deps.getProgress(),
@@ -293,8 +353,17 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		job: ChatJob,
 		dependencies: ProcessDependencies,
 	): Promise<ItemHandlerResult> {
-		const { messages, model, mode, topicId, agentFlowId, streamConfig } =
-			job.payload;
+		const {
+			messages,
+			model,
+			mode,
+			topicId,
+			agentFlowId,
+			streamConfig,
+			tools,
+			tool_choice,
+			parallel_tool_calls,
+		} = job.payload;
 
 		// Apply default stream config
 		const config: Required<ChatStreamConfig> = {
@@ -316,6 +385,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 		let currentContent = "";
 		const actions: FlowAction[] = [];
+		const toolCallAccumulator: ToolCallAccumulator = new Map();
 		const accumulatedUsage: TokenUsage = {
 			prompt_tokens: 0,
 			completion_tokens: 0,
@@ -443,6 +513,8 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					streamBuffer,
 					getProgress: responseProgress,
 					onUsage: addUsage,
+					onToolCalls: (toolCalls) =>
+						accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
 				});
 				const handleActions = ChatHandler.createKnowledgeHandleActions(
 					dependencies,
@@ -517,6 +589,9 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					model: model,
 					temperature: 0.3,
 					stream: true,
+					tools,
+					tool_choice,
+					parallel_tool_calls,
 				};
 
 				await dependencies.updateJobProgress(jobId, {
@@ -539,6 +614,8 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 							streamBuffer,
 							getProgress: () => Math.min(80, 20 + currentContent.length / 10),
 							onUsage: addUsage,
+							onToolCalls: (toolCalls) =>
+								accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
 						});
 						await ChatHandler.streamChatCompletions(stream, handleChunk);
 					}
@@ -555,6 +632,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				content: currentContent,
 				metadata: {
 					actions,
+					tool_calls: getAccumulatedToolCalls(toolCallAccumulator),
 					usage:
 						accumulatedUsage.total_tokens > 0 ? accumulatedUsage : undefined,
 				},

@@ -54,3 +54,11 @@ export const PROMPT_TOOL_SUPPORT: ToolCapabilityInfo = {
 	strictMode: false,
 	notes: "Tools injected as system prompt. Response parsing may fail.",
 };
+
+/** Prompt-based support with terminal streaming tool call synthesis */
+export const PROMPT_TOOL_SUPPORT_WITH_STREAMING: ToolCapabilityInfo = {
+	...PROMPT_TOOL_SUPPORT,
+	streamingToolCalls: true,
+	notes:
+		"Tools injected as system prompt. Only the terminal stream chunk may contain tool_calls.",
+};

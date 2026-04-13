@@ -32,86 +32,11 @@ import type {
 	RecommendationSet,
 	ModelRecommendation,
 } from "../types/system-specs";
-
-// ─── Memory estimation utilities ────────────────────────────────────────────
-//
-// Formula sources:
-//   Weights: from sizeGB (already quantized model size on disk)
-//   KV cache: vLLM formula — 2 (K+V) × nLayers × nKvHeads × headDim × precision
-//             kvBytesPerToken encodes the per-model architecture constant
-//   Buffer:  20% overhead for activations / runtime (vLLM recommendation)
-//   Feasible context: solved algebraically from available memory budget
-//
-// References:
-//   https://huggingface.co/spaces/oobabooga/accurate-gguf-vram-calculator
-//   https://huggingface.co/spaces/trl-lib/recommend-vllm-memory
-
-interface MemoryEstimate {
-	weightsGB: number;
-	kvCacheGB: number;
-	bufferGB: number;
-	totalGB: number;
-	/** Max context that actually fits in available memory (tokens) */
-	feasibleContext: number;
-	fit: "comfortable" | "tight" | "overflow";
-}
-
-/**
- * Returns the effective memory budget (GB) for models on this device.
- * WebGPU models consume VRAM; CPU models consume system RAM.
- */
-function getAvailableMemoryGB(specs: SystemSpecs, usesWebGPU: boolean): number {
-	if (usesWebGPU) {
-		if (specs.gpu?.estimatedVRAM) return specs.gpu.estimatedVRAM;
-		const byCategory: Record<string, number> = {
-			ultra: 12,
-			high: 8,
-			medium: 4,
-			low: 2,
-		};
-		return byCategory[specs.deviceCategory] ?? 4;
-	}
-	return specs.memoryGB * 0.4; // leave 60% for OS, browser, other apps
-}
-
-function computeMemoryEstimate(
-	sizeGB: number,
-	kvBytesPerToken: number,
-	contextTokens: number,
-	availableGB: number,
-): MemoryEstimate {
-	// KV cache is always fp16 regardless of weight quantization
-	const kvCacheGB = (kvBytesPerToken * contextTokens) / 1024 ** 3;
-	const bufferGB = (sizeGB + kvCacheGB) * 0.2;
-	const totalGB = sizeGB + kvCacheGB + bufferGB;
-
-	// Solve for max context that fits: availableGB = (sizeGB + kvCacheGB) × 1.2
-	let feasibleContext = contextTokens;
-	if (totalGB > availableGB) {
-		const availableForKV = availableGB / 1.2 - sizeGB;
-		if (availableForKV > 0) {
-			const maxTokens = Math.floor(
-				(availableForKV * 1024 ** 3) / kvBytesPerToken,
-			);
-			feasibleContext = Math.max(0, Math.floor(maxTokens / 1024) * 1024);
-		} else {
-			feasibleContext = 0;
-		}
-	}
-
-	const ratio = totalGB / availableGB;
-	const fit =
-		ratio <= 0.75 ? "comfortable" : ratio <= 0.95 ? "tight" : "overflow";
-
-	return {
-		weightsGB: sizeGB,
-		kvCacheGB,
-		bufferGB,
-		totalGB,
-		feasibleContext,
-		fit,
-	};
-}
+import {
+	getAvailableModelMemoryGB,
+	estimateModelMemory,
+	type ModelMemoryEstimate,
+} from "../utils/model-memory";
 
 function fmtGB(gb: number): string {
 	return gb < 1 ? `${(gb * 1024).toFixed(0)} MB` : `${gb.toFixed(1)} GB`;
@@ -146,7 +71,7 @@ const MemoryBar: React.FC<{
 };
 
 const FitBadge: React.FC<{
-	fit: MemoryEstimate["fit"];
+	fit: ModelMemoryEstimate["fit"];
 	className?: string;
 }> = ({ fit, className = "" }) => {
 	if (fit === "comfortable")
@@ -218,8 +143,8 @@ export const MagicSetup: React.FC<MagicSetupProps> = ({
 		return Object.fromEntries(
 			prefs.map((pref) => {
 				const m = recommendations[pref].primary;
-				const avail = getAvailableMemoryGB(specs, m.usesWebGPU);
-				const est = computeMemoryEstimate(
+				const avail = getAvailableModelMemoryGB(specs, m.usesWebGPU);
+				const est = estimateModelMemory(
 					m.sizeGB,
 					m.kvBytesPerToken,
 					m.contextLength,
@@ -227,14 +152,14 @@ export const MagicSetup: React.FC<MagicSetupProps> = ({
 				);
 				return [pref, { est, avail }];
 			}),
-		) as Record<ModelPreference, { est: MemoryEstimate; avail: number }>;
+		) as Record<ModelPreference, { est: ModelMemoryEstimate; avail: number }>;
 	}, [recommendations, specs]);
 
 	/** Memory estimate for the currently selected model. */
 	const selectedMemory = useMemo(() => {
 		if (!selectedModel || !specs) return null;
-		const avail = getAvailableMemoryGB(specs, selectedModel.usesWebGPU);
-		const est = computeMemoryEstimate(
+		const avail = getAvailableModelMemoryGB(specs, selectedModel.usesWebGPU);
+		const est = estimateModelMemory(
 			selectedModel.sizeGB,
 			selectedModel.kvBytesPerToken,
 			selectedModel.contextLength,
@@ -258,15 +183,15 @@ export const MagicSetup: React.FC<MagicSetupProps> = ({
 			if (sortBy === "size") return a.sizeGB - b.sizeGB;
 			// "fit" sort: comfortable → tight → overflow, then by total GB
 			const fitOrder = { comfortable: 0, tight: 1, overflow: 2 } as const;
-			const aAvail = getAvailableMemoryGB(specs, a.usesWebGPU);
-			const bAvail = getAvailableMemoryGB(specs, b.usesWebGPU);
-			const aEst = computeMemoryEstimate(
+			const aAvail = getAvailableModelMemoryGB(specs, a.usesWebGPU);
+			const bAvail = getAvailableModelMemoryGB(specs, b.usesWebGPU);
+			const aEst = estimateModelMemory(
 				a.sizeGB,
 				a.kvBytesPerToken,
 				a.contextLength,
 				aAvail,
 			);
-			const bEst = computeMemoryEstimate(
+			const bEst = estimateModelMemory(
 				b.sizeGB,
 				b.kvBytesPerToken,
 				b.contextLength,
@@ -461,7 +386,7 @@ export const MagicSetup: React.FC<MagicSetupProps> = ({
 
 							{specs.hasWebGPU &&
 								(() => {
-									const vramGB = getAvailableMemoryGB(specs, true);
+									const vramGB = getAvailableModelMemoryGB(specs, true);
 									return (
 										<div className="space-y-1.5">
 											<div className="flex justify-between text-xs">
@@ -828,7 +753,7 @@ export const MagicSetup: React.FC<MagicSetupProps> = ({
 													KV cache for full{" "}
 													{fmtCtx(selectedModel.contextLength)} context needs{" "}
 													{fmtGB(
-														computeMemoryEstimate(
+														estimateModelMemory(
 															selectedModel.sizeGB,
 															selectedModel.kvBytesPerToken,
 															selectedModel.contextLength,
@@ -945,11 +870,11 @@ export const MagicSetup: React.FC<MagicSetupProps> = ({
 											</div>
 										) : (
 											filteredAlternatives.map((altModel) => {
-												const altAvail = getAvailableMemoryGB(
+												const altAvail = getAvailableModelMemoryGB(
 													specs,
 													altModel.usesWebGPU,
 												);
-												const altEst = computeMemoryEstimate(
+												const altEst = estimateModelMemory(
 													altModel.sizeGB,
 													altModel.kvBytesPerToken,
 													altModel.contextLength,
