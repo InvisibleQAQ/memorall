@@ -251,9 +251,43 @@ export function useModelOperations({
 		[downloadedModels, setCurrent, setLoading, fetchDownloadedModels],
 	);
 
+	// Delete a specific downloaded model from local cache/storage
+	const deleteDownloadedModel = useCallback(
+		async (model: ModelInfo, provider: ServiceProvider) => {
+			setLoading(true);
+			const modelId = model.id;
+			try {
+				const serviceName = provider
+					? PROVIDER_TO_SERVICE[provider]
+					: undefined;
+				if (serviceName) {
+					await serviceManager.llmService.deleteModelFor(serviceName, modelId);
+				} else {
+					await serviceManager.llmService.deleteModel(modelId);
+				}
+
+				logInfo(`${modelId} deleted from local cache`);
+
+				const currentModel = await serviceManager.llmService.getCurrentModel();
+				if (currentModel?.modelId === modelId) {
+					await serviceManager.llmService.clearCurrentModel();
+					setCurrent(null);
+				}
+
+				await fetchDownloadedModels();
+			} catch (err) {
+				logError(`Error deleting ${modelId}:`, err);
+			} finally {
+				setLoading(false);
+			}
+		},
+		[setCurrent, setLoading, fetchDownloadedModels],
+	);
+
 	return {
 		handleQuickDownload,
 		loadDownloadedModel,
 		unloadDownloadedModel,
+		deleteDownloadedModel,
 	};
 }

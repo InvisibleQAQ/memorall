@@ -90,6 +90,46 @@ const UNSUPPORTED_BROWSER_MODELS = new Map([
 	],
 ]);
 
+const KNOWN_TRANSFORMER_LLM_ORGS = new Set([
+	"onnx-community",
+	"liquidai",
+	"huggingfacetb",
+	"ngxson",
+	"mistralai",
+	"webgpu",
+]);
+
+const KNOWN_TRANSFORMER_LLM_NAME_PATTERNS = [
+	/granite/i,
+	/gemma/i,
+	/lfm/i,
+	/minithinky/i,
+	/smollm/i,
+	/deepseek/i,
+	/qwen/i,
+	/phi/i,
+	/ministral/i,
+];
+
+function isKnownTransformerLLMModelId(modelId) {
+	if (!modelId || typeof modelId !== "string") {
+		return false;
+	}
+
+	if (MODEL_RUNTIME_CONFIGS.has(modelId) || UNSUPPORTED_BROWSER_MODELS.has(modelId)) {
+		return true;
+	}
+
+	const [org = "", repo = ""] = modelId.split("/");
+	if (KNOWN_TRANSFORMER_LLM_ORGS.has(org.toLowerCase())) {
+		return true;
+	}
+
+	return KNOWN_TRANSFORMER_LLM_NAME_PATTERNS.some(
+		(pattern) => pattern.test(repo) || pattern.test(modelId),
+	);
+}
+
 function cleanGemmaOutput(raw) {
 	return raw
 		.replace(/<\|?channel\|?>?\s*thought\s*/gi, GEMMA_THINK_START)
@@ -642,12 +682,18 @@ window.addEventListener("message", async (event) => {
 						const url = request.url;
 						// Extract model ID from HuggingFace URL pattern
 						const match = url.match(/huggingface\.co\/([^\/]+\/[^\/]+)/);
-						if (match) {
+						if (match && isKnownTransformerLLMModelId(match[1])) {
 							modelIds.add(match[1]);
 						}
 					});
 
 					const currentModelId = transformerManager.modelId;
+					if (currentModelId) {
+						modelIds.add(currentModelId);
+					}
+					for (const cachedModelId of loadedModelsCache.keys()) {
+						modelIds.add(cachedModelId);
+					}
 					const downloadedModels = Array.from(modelIds).map((modelId) => {
 						const isLoaded = currentModelId === modelId && transformerManager.isLoaded;
 						return {

@@ -13,6 +13,7 @@ const WASM_PATHS = {
 let Wllama;
 const loadedModelsCache = new Map();
 const activeOperations = new Map(); // Track active operations for abort support
+const WLLAMA_METADATA_PREFIX = "__metadata__";
 
 // Stored progress callback for current load operation
 let currentProgressCallback = null;
@@ -38,6 +39,61 @@ function parseModelName(model) {
 		modelId: model,
 		url: `https://huggingface.co/${parts[0]}/${parts[1]}/resolve/main/${parts[2]}`,
 	};
+}
+
+function normalizeWllamaCacheURL(url) {
+	return url.replace(/-\d{5}-of-\d{5}(?=\.gguf(?:[?#].*)?$)/i, "");
+}
+
+async function deleteWllamaModelFromCache(modelId) {
+	const { url } = parseModelName(modelId);
+	const targetURL = normalizeWllamaCacheURL(url);
+	const targetFilename = modelId.split("/").pop() || "";
+	const root = await navigator.storage.getDirectory();
+
+	let cacheDir;
+	try {
+		cacheDir = await root.getDirectoryHandle("cache");
+	} catch (error) {
+		return;
+	}
+
+	const entriesToDelete = new Set();
+
+	for await (const [name, handle] of cacheDir.entries()) {
+		if (handle.kind !== "file" || !name.startsWith(WLLAMA_METADATA_PREFIX)) {
+			continue;
+		}
+
+		const file = await handle.getFile();
+		const metadata = await new Response(file.stream()).json().catch(() => null);
+		const originalURL =
+			typeof metadata?.originalURL === "string" ? metadata.originalURL : "";
+
+		if (!originalURL) {
+			if (!targetFilename || !name.endsWith(`_${targetFilename}`)) {
+				continue;
+			}
+			entriesToDelete.add(name);
+			entriesToDelete.add(name.replace(WLLAMA_METADATA_PREFIX, ""));
+			continue;
+		}
+
+		if (normalizeWllamaCacheURL(originalURL) !== targetURL) {
+			continue;
+		}
+
+		entriesToDelete.add(name);
+		entriesToDelete.add(name.replace(WLLAMA_METADATA_PREFIX, ""));
+	}
+
+	await Promise.all(
+		Array.from(entriesToDelete).map(async (name) => {
+			try {
+				await cacheDir.removeEntry(name);
+			} catch (_) {}
+		}),
+	);
 }
 
 /**
@@ -382,6 +438,8 @@ window.addEventListener("message", async (event) => {
 				if (wllamaManager.modelId === model) {
 					await wllamaManager.unload();
 				}
+
+				await deleteWllamaModelFromCache(model);
 
 				loadedModelsCache.delete(model);
 				reply(src, origin, messageId, "complete", {

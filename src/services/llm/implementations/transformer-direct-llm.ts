@@ -76,6 +76,35 @@ interface TransformerInstance {
 	tokenizer: LoadedTransformerTokenizer;
 }
 
+async function deleteTransformerCacheEntries(modelId: string): Promise<void> {
+	const cacheNames = await caches.keys();
+	const candidateIds = new Set<string>([
+		modelId,
+		modelId.toLowerCase(),
+		modelId.replace(/^onnx-community\//i, ""),
+		modelId.replace(/^onnx-community\//i, "").toLowerCase(),
+	]);
+
+	for (const cacheName of cacheNames) {
+		if (!cacheName.toLowerCase().includes("transform")) {
+			continue;
+		}
+
+		const cache = await caches.open(cacheName);
+		const requests = await cache.keys();
+		await Promise.all(
+			requests
+				.filter((request) => {
+					const url = request.url.toLowerCase();
+					return Array.from(candidateIds).some(
+						(candidate) => candidate && url.includes(candidate.toLowerCase()),
+					);
+				})
+				.map((request) => cache.delete(request)),
+		);
+	}
+}
+
 function isTensorLike(
 	value: unknown,
 ): value is { dims?: unknown; slice?: unknown } {
@@ -367,8 +396,9 @@ export class TransformerDirectLLM implements BaseLLM {
 	}
 
 	async delete(modelId: string): Promise<void> {
-		// Local transformer models are streamed at runtime, so delete == unload
-		await this.unload(modelId);
+		const resolvedId = this.normalizeModelId(modelId);
+		await this.unload(resolvedId);
+		await deleteTransformerCacheEntries(resolvedId);
 	}
 
 	async getToolCapabilities(_model?: string): Promise<ToolCapabilityInfo> {

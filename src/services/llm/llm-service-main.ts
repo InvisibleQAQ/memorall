@@ -354,42 +354,16 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 			await this.restoreLocalServices();
 
 			// If there's a current model, ensure its service exists.
-			// If restoring that saved model fails, clear it and continue startup.
+			// Do not eagerly restore/load the model during startup.
+			// Actual requests already carry the selected model ID and lazy-load on demand.
+			// Matching proxy-mode behavior keeps offscreen initialization from blocking on model preload.
 			if (this.currentModel?.modelId) {
 				const serviceName = this.currentModel.serviceName;
-				const modelId = this.currentModel.modelId;
 
 				await this.ensureOnDemandService(
 					serviceName,
 					"create service for current model",
 				);
-
-				// Try restoring the saved model, but never let a failed download or load
-				// block the app from finishing startup.
-				if (this.has(serviceName)) {
-					try {
-						const models = await this.modelsFor(serviceName);
-						const isLoaded = models.data.some(
-							(model) => model.id === modelId && model.loaded,
-						);
-
-						if (!isLoaded) {
-							await this.serveFor(serviceName, modelId);
-						}
-					} catch (error) {
-						logWarn(`Failed to restore model for ${serviceName}:`, error);
-
-						if (
-							this.currentModel?.serviceName === serviceName &&
-							this.currentModel?.modelId === modelId
-						) {
-							await this.clearCurrentModel();
-							logWarn(
-								`Cleared stale startup model after restore failure: ${serviceName}/${modelId}`,
-							);
-						}
-					}
-				}
 			}
 		} finally {
 			this.isEnsuringServices = false;

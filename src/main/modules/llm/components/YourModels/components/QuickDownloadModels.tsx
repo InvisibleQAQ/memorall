@@ -13,6 +13,7 @@ import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.inte
 
 interface QuickDownloadModelsProps {
 	quickProvider: ServiceProvider;
+	downloadedModels: ModelInfo[];
 	downloadedOnly: ModelInfo[];
 	localModels: ModelInfo[];
 	loading: boolean;
@@ -30,6 +31,7 @@ interface QuickDownloadModelsProps {
 
 export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 	quickProvider,
+	downloadedModels,
 	downloadedOnly,
 	localModels,
 	loading,
@@ -84,8 +86,17 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 				})
 				.map((model) => {
 					const modelId = "repo" in model ? model.repo : model.model;
-					// Transformer models use "model" field directly
-					const displayId = "repo" in model ? model.repo : model.model;
+					const cacheModelId =
+						quickProvider === "wllama" && "repo" in model
+							? `${model.repo}/${model.filename}`
+							: modelId;
+					const downloadedEntry = downloadedModels.find(
+						(entry) =>
+							entry.provider === quickProvider &&
+							(entry.id === cacheModelId ||
+								entry.id === modelId ||
+								("repo" in model && entry.id.startsWith(model.repo + "/"))),
+					);
 					const isDownloaded =
 						(quickProvider as
 							| "wllama"
@@ -110,9 +121,8 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 								(quickProvider as "lmstudio" | "ollama" | "openai") === "ollama"
 								? localModels.some((m) => m.id === modelId)
 								: true // OpenAI models are always "available"
-							: "repo" in model
-								? downloadedOnly.some((m) => m.id.startsWith(model.repo + "/"))
-								: downloadedOnly.some((m) => m.id === modelId);
+							: downloadedEntry?.downloaded === true ||
+								downloadedEntry?.loaded === true;
 					const isLoaded =
 						(quickProvider as
 							| "wllama"
@@ -137,11 +147,7 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 									(model as (typeof QUICK_OPENAI_LLMS)[0]).model &&
 								current?.provider ===
 									(quickProvider as "lmstudio" | "ollama" | "openai")
-							: "repo" in model
-								? downloadedOnly.some(
-										(m) => m.id.startsWith(model.repo + "/") && m.loaded,
-									)
-								: downloadedOnly.some((m) => m.id === modelId && m.loaded);
+							: downloadedEntry?.loaded === true;
 					return (
 						<div
 							key={modelId}
@@ -243,7 +249,7 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 											? serviceManager.llmService.has("openai")
 												? t("model.use")
 												: t("model.connect")
-											: t("model.get")}
+											: t("model.download")}
 									</>
 								)}
 							</Button>

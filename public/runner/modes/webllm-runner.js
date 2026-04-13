@@ -310,6 +310,15 @@ window.addEventListener("message", async (event) => {
 					await webllmManager.unload();
 				}
 
+				if (
+					!WebLLMMod ||
+					typeof WebLLMMod.deleteModelAllInfoInCache !== "function"
+				) {
+					throw new Error("WebLLM cache deletion API is unavailable");
+				}
+
+				await WebLLMMod.deleteModelAllInfoInCache(model, prebuiltAppConfig);
+
 				loadedModelsCache.delete(model);
 				reply(src, origin, messageId, "complete", { status: "deleted", model });
 				break;

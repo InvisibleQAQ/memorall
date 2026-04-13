@@ -90,7 +90,12 @@ export const YourModels: React.FC<YourModelsProps> = ({
 		setQuickDownloadModel,
 	} = useDownloadProgress();
 
-	const { handleQuickDownload, loadDownloadedModel, unloadDownloadedModel } =
+	const {
+		handleQuickDownload,
+		loadDownloadedModel,
+		unloadDownloadedModel,
+		deleteDownloadedModel,
+	} =
 		useModelOperations({
 			setCurrent,
 			setLoading,
@@ -135,6 +140,7 @@ export const YourModels: React.FC<YourModelsProps> = ({
 				fetchDownloadedModels={fetchDownloadedModels}
 				loadDownloadedModel={loadDownloadedModel}
 				unloadDownloadedModel={unloadDownloadedModel}
+				deleteDownloadedModel={deleteDownloadedModel}
 				showDownloadMoreButton={showDownloadMoreButton}
 				onDownloadMore={onDownloadMore}
 			/>
@@ -214,6 +220,7 @@ export const YourModels: React.FC<YourModelsProps> = ({
 							) : (
 								<QuickDownloadModels
 									quickProvider={quickProvider}
+									downloadedModels={downloadedModels}
 									downloadedOnly={downloadedOnly}
 									localModels={localModels}
 									loading={loading}

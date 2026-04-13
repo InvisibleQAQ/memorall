@@ -11,21 +11,25 @@ export function useDownloadedModels() {
 	// Helper: determine if a model entry represents a downloaded model
 	const isDownloadedModel = useCallback((m: ModelInfo) => {
 		const anyModel = m as unknown as { downloaded?: boolean };
-		// For transformer models, ONLY check the downloaded field
-		if (m.provider === "transformer") {
-			return anyModel.downloaded === true;
-		}
-		// For wllama/webllm, check downloaded field first, then fallback to loaded/filename/size
-		if (anyModel.downloaded) return true;
-		if (m.loaded) return true;
-		if (m.filename || typeof m.size === "number") return true;
-		return false;
+		return anyModel.downloaded === true || m.loaded === true;
 	}, []);
 
 	// Fetch downloaded models from both services
 	const fetchDownloadedModels = useCallback(async () => {
 		setModelsLoading(true);
 		let allModels: ModelInfo[] = [];
+		const seenKeys = new Set<string>();
+
+		const appendModels = (models: ModelInfo[]) => {
+			for (const model of models) {
+				const key = `${model.provider || "unknown"}:${model.id}`;
+				if (seenKeys.has(key)) {
+					continue;
+				}
+				seenKeys.add(key);
+				allModels.push(model);
+			}
+		};
 
 		try {
 			// Try to get models from Wllama service
@@ -33,39 +37,29 @@ export function useDownloadedModels() {
 				const response = await serviceManager.llmService.modelsFor(
 					DEFAULT_SERVICES.WLLAMA,
 				);
-				allModels = [...allModels, ...response.data];
+				appendModels(response.data);
 			} catch (err) {
 				logInfo("Failed to fetch wllama models:", err);
 			}
 
 			// Try to get models from WebLLM service
-			if (serviceManager.llmService.has(DEFAULT_SERVICES.WEBLLM)) {
-				try {
-					const response = await serviceManager.llmService.modelsFor(
-						DEFAULT_SERVICES.WEBLLM,
-					);
-					const newModels = response.data.filter(
-						(model) => !allModels.some((existing) => existing.id === model.id),
-					);
-					allModels = [...allModels, ...newModels];
-				} catch (err) {
-					logInfo("Failed to fetch WebLLM models:", err);
-				}
+			try {
+				const response = await serviceManager.llmService.modelsFor(
+					DEFAULT_SERVICES.WEBLLM,
+				);
+				appendModels(response.data);
+			} catch (err) {
+				logInfo("Failed to fetch WebLLM models:", err);
 			}
 
 			// Try to get models from Transformer service
-			if (serviceManager.llmService.has(DEFAULT_SERVICES.TRANSFORMER)) {
-				try {
-					const response = await serviceManager.llmService.modelsFor(
-						DEFAULT_SERVICES.TRANSFORMER,
-					);
-					const newModels = response.data.filter(
-						(model) => !allModels.some((existing) => existing.id === model.id),
-					);
-					allModels = [...allModels, ...newModels];
-				} catch (err) {
-					logInfo("Failed to fetch Transformer models:", err);
-				}
+			try {
+				const response = await serviceManager.llmService.modelsFor(
+					DEFAULT_SERVICES.TRANSFORMER,
+				);
+				appendModels(response.data);
+			} catch (err) {
+				logInfo("Failed to fetch Transformer models:", err);
 			}
 
 			// Local providers do not contribute downloaded models list here

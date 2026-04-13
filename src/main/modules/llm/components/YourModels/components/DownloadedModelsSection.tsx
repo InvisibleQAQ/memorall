@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/main/components/ui/button";
 import { Badge } from "@/main/components/ui/badge";
-import { Loader2, Download, Play, Square, Bot } from "lucide-react";
+import { Loader2, Download, Play, Square, Bot, Trash2 } from "lucide-react";
 import type { ModelInfo } from "@/services/llm";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 import type { CurrentModel } from "@/main/hooks/use-current-model";
@@ -22,6 +22,10 @@ interface DownloadedModelsSectionProps {
 		model: ModelInfo,
 		provider: ServiceProvider,
 	) => Promise<void>;
+	deleteDownloadedModel: (
+		model: ModelInfo,
+		provider: ServiceProvider,
+	) => Promise<void>;
 	showDownloadMoreButton?: boolean;
 	onDownloadMore?: () => void;
 }
@@ -37,6 +41,7 @@ export const DownloadedModelsSection: React.FC<
 	fetchDownloadedModels,
 	loadDownloadedModel,
 	unloadDownloadedModel,
+	deleteDownloadedModel,
 	showDownloadMoreButton,
 	onDownloadMore,
 }) => {
@@ -110,6 +115,24 @@ export const DownloadedModelsSection: React.FC<
 							</div>
 						</div>
 						<div className="flex gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() =>
+									deleteDownloadedModel(
+										model,
+										model.provider as ServiceProvider,
+									)
+								}
+								disabled={loading}
+							>
+								{loading ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									<Trash2 className="w-4 h-4" />
+								)}
+								{t("model.delete")}
+							</Button>
 							{model.loaded &&
 							current?.modelId === model.id &&
 							(!model.provider || current.provider === model.provider) ? (
