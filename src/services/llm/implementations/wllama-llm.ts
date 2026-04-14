@@ -30,6 +30,7 @@ import {
 	buildRunnerMemoryHint,
 	type RunnerMemoryHint,
 } from "../utils/runner-memory-hints";
+import { getModel } from "../registry/model-registry";
 
 interface ServeRequest {
 	model: string;
@@ -143,14 +144,11 @@ export class WllamaLLM implements BaseLLM {
 	}
 
 	async getMaxModelTokens(model?: string): Promise<number> {
-		// Return a conservative estimate that works for most contexts
-		// The actual n_ctx is set to 65536 in the runner and auto-clamped to model max
-		// This value is used for chunking logic - we use a safe default
-		return 8192;
+		return getModel(model ?? "", "wllama")?.contextLength ?? 8192;
 	}
 
 	async getMaxResponseTokens(model?: string): Promise<number> {
-		return Math.round(8192 * 0.5);
+		return getModel(model ?? "", "wllama")?.defaultMaxNewTokens ?? 1024;
 	}
 
 	async models(): Promise<ModelsResponse> {

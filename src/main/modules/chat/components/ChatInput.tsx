@@ -44,6 +44,7 @@ export interface ChatInputProps {
 	onAttachedImagesChange: (images: File[]) => void;
 	attachedDocumentRefs: AttachedDocumentRef[];
 	onAttachedDocumentRefsChange: (refs: AttachedDocumentRef[]) => void;
+	isModelReady?: boolean;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -70,6 +71,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	onAttachedImagesChange,
 	attachedDocumentRefs,
 	onAttachedDocumentRefsChange,
+	isModelReady = true,
 }) => {
 	const { t } = useTranslation("chat");
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -280,8 +282,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 								value={inputValue}
 								onChange={handleInputChange}
 								onKeyDown={handleTextareaKeyDown}
-								placeholder={t("input.placeholder")}
-								disabled={isLoading}
+								placeholder={
+									isModelReady ? t("input.placeholder") : t("model.notLoaded")
+								}
+								disabled={isLoading || !isModelReady}
 								className="!border-0 !border-t-0 !shadow-none focus:!border-0 focus:!ring-0 focus:!ring-offset-0 focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0"
 							/>
 						</div>
@@ -306,7 +310,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 							isKnowledgeMode={isKnowledgeMode}
 							onAttachFileClick={handleAttachClick}
 							onAttachDocumentClick={handleOpenDocumentPicker}
-							canSubmit={!!inputValue.trim()}
+							canSubmit={!!inputValue.trim() && isModelReady}
 						/>
 					</PromptInput>
 				</div>

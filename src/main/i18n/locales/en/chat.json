@@ -120,7 +120,12 @@
 		"notLoaded": "No model loaded",
 		"loading": "Loading model...",
 		"noModels": "No models available",
-		"goToModels": "Go to Models"
+		"goToModels": "Go to Models",
+		"selectedNotLoadedTitle": "Selected model is not loaded",
+		"selectedNotLoadedDescription": "{{model}} is selected but not active in memory yet.",
+		"selectedProvider": "{{provider}}",
+		"loadHint": "Load it before sending a message.",
+		"loadSelected": "Load model"
 	},
 	"tooltips": {
 		"normalMode": "Normal chat mode - Simple conversation without knowledge context",

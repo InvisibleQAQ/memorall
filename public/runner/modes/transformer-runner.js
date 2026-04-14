@@ -1,6 +1,7 @@
 // Transformer Runner - Local LLM inference via HuggingFace Transformers.js with WebGPU
 import { reply, generateId, sendReady } from "../utils/common.js";
 import { ModelLifecycleManager } from "../utils/model-lifecycle.js";
+import { withGPULock } from "../utils/gpu-lock.js";
 
 // Scoped state
 let AutoTokenizer;
@@ -21,106 +22,84 @@ let currentMessageContext = null;
 const DEFAULT_TRANSFORMER_DTYPE = "q4";
 const DEFAULT_MAX_NEW_TOKENS = 512;
 const UNKNOWN_MEMORY_AUTO_MAX_NEW_TOKENS = 1024;
+const AUTO_MAX_NEW_TOKENS_FLOOR = 1024;
+const AUTO_MAX_NEW_TOKENS_SOFT_CAP = 2048;
 
 const GEMMA_THINK_START = "<think>";
 const GEMMA_THINK_END = "</think>";
 
-const MODEL_RUNTIME_CONFIGS = new Map([
-	[
-		"onnx-community/granite-4.0-micro-ONNX-web",
-		{
-			runtime: "causal",
-			dtype: "q4f16",
-			defaultMaxNewTokens: 1024,
-		},
-	],
-	[
-		"onnx-community/gemma-4-E2B-it-ONNX",
-		{
-			runtime: "gemma4",
-			dtype: "q4f16",
-			defaultMaxNewTokens: 512,
-		},
-	],
-	[
-		"LiquidAI/LFM2.5-1.2B-Thinking-ONNX",
-		{
-			runtime: "pipeline",
-			dtype: "q4",
-			defaultMaxNewTokens: 4096,
-		},
-	],
-	[
-		"LiquidAI/LFM2-8B-A1B-ONNX",
-		{
-			runtime: "causal",
-			dtype: "q4f16",
-			defaultMaxNewTokens: 4096,
-		},
-	],
-	[
-		"LiquidAI/LFM2-24B-A2B-ONNX",
-		{
-			runtime: "causal",
-			dtype: "q4f16",
-			defaultMaxNewTokens: 4096,
-		},
-	],
-]);
+let transformerRunnerCatalogPromise = null;
+let MODEL_RUNTIME_CONFIGS = new Map();
+let UNSUPPORTED_BROWSER_MODELS = new Map();
+let KNOWN_TRANSFORMER_MODEL_IDS = new Set();
 
-const UNSUPPORTED_BROWSER_MODELS = new Map([
-	[
-		"onnx-community/Phi-4-mini-instruct",
-		"onnx-community/Phi-4-mini-instruct does not expose the public browser-ready ONNX tokenizer files needed by this runtime. Use onnx-community/Phi-4-mini-instruct-ONNX-GQA instead.",
-	],
-	[
-		"onnx-community/gemma-3-1b-it-ONNX",
-		"onnx-community/gemma-3-1b-it-ONNX is not currently reliable in the bundled transformers.js runtime in the browser. Use another transformer model or a Wllama GGUF Gemma model instead.",
-	],
-	[
-		"onnx-community/gemma-3-270m-it",
-		"onnx-community/gemma-3-270m-it is not currently compatible with the bundled transformers.js runtime in the browser. Use a Wllama GGUF Gemma model or another transformer model such as Qwen3 or LFM2 instead.",
-	],
-]);
+function getTransformerRunnerConfigsUrl() {
+	return new URL("../configs/transformer-model-configs.json", import.meta.url);
+}
 
-const KNOWN_TRANSFORMER_LLM_ORGS = new Set([
-	"onnx-community",
-	"liquidai",
-	"huggingfacetb",
-	"ngxson",
-	"mistralai",
-	"webgpu",
-]);
+async function ensureTransformerRunnerCatalog() {
+	if (transformerRunnerCatalogPromise) {
+		return transformerRunnerCatalogPromise;
+	}
 
-const KNOWN_TRANSFORMER_LLM_NAME_PATTERNS = [
-	/granite/i,
-	/gemma/i,
-	/lfm/i,
-	/minithinky/i,
-	/smollm/i,
-	/deepseek/i,
-	/qwen/i,
-	/phi/i,
-	/ministral/i,
-];
+	transformerRunnerCatalogPromise = (async () => {
+		const response = await fetch(getTransformerRunnerConfigsUrl());
+		if (!response.ok) {
+			throw new Error(
+				`Failed to load transformer model configs: ${response.status} ${response.statusText}`,
+			);
+		}
+
+		const payload = await response.json();
+		const runtimeConfigs = new Map();
+		const unsupportedModels = new Map();
+		const knownModelIds = new Set();
+
+		for (const model of payload?.models ?? []) {
+			if (!model?.id) {
+				continue;
+			}
+
+			knownModelIds.add(model.id);
+
+			if (typeof model.unsupportedReason === "string" && model.unsupportedReason) {
+				unsupportedModels.set(model.id, model.unsupportedReason);
+				continue;
+			}
+
+			const runnerConfig = model.runnerConfig ?? {};
+			runtimeConfigs.set(model.id, {
+				runtime: runnerConfig.runtime ?? "causal",
+				dtype: runnerConfig.dtype ?? DEFAULT_TRANSFORMER_DTYPE,
+				defaultMaxNewTokens:
+					model.defaultMaxNewTokens ?? DEFAULT_MAX_NEW_TOKENS,
+				...(typeof runnerConfig.webgpuMaxContextTokens === "number"
+					? {
+							webgpuMaxContextTokens: runnerConfig.webgpuMaxContextTokens,
+						}
+					: {}),
+			});
+		}
+
+		MODEL_RUNTIME_CONFIGS = runtimeConfigs;
+		UNSUPPORTED_BROWSER_MODELS = unsupportedModels;
+		KNOWN_TRANSFORMER_MODEL_IDS = knownModelIds;
+	})();
+
+	try {
+		await transformerRunnerCatalogPromise;
+	} catch (error) {
+		transformerRunnerCatalogPromise = null;
+		throw error;
+	}
+}
 
 function isKnownTransformerLLMModelId(modelId) {
 	if (!modelId || typeof modelId !== "string") {
 		return false;
 	}
 
-	if (MODEL_RUNTIME_CONFIGS.has(modelId) || UNSUPPORTED_BROWSER_MODELS.has(modelId)) {
-		return true;
-	}
-
-	const [org = "", repo = ""] = modelId.split("/");
-	if (KNOWN_TRANSFORMER_LLM_ORGS.has(org.toLowerCase())) {
-		return true;
-	}
-
-	return KNOWN_TRANSFORMER_LLM_NAME_PATTERNS.some(
-		(pattern) => pattern.test(repo) || pattern.test(modelId),
-	);
+	return KNOWN_TRANSFORMER_MODEL_IDS.has(modelId);
 }
 
 function cleanGemmaOutput(raw) {
@@ -256,10 +235,18 @@ async function loadWithExecutionFallback({
 					`[transformer-runner] loading ${kind} model with dtype: ${dtype}, device: ${tryDevice}, threads: ${numThreads}`,
 				);
 
-				const loaded = await loadAttempt({
-					device: tryDevice,
-					numThreads,
-				});
+				const loaded =
+					tryDevice === "webgpu"
+						? await withGPULock(() =>
+								loadAttempt({
+									device: tryDevice,
+									numThreads,
+								}),
+							)
+						: await loadAttempt({
+								device: tryDevice,
+								numThreads,
+							});
 
 				console.log(
 					`[transformer-runner] ${kind} model loaded successfully with dtype: ${dtype}, device: ${tryDevice}, threads: ${numThreads}`,
@@ -521,7 +508,29 @@ function toRunnerErrorPayload(error, overrides = {}) {
 	};
 }
 
+function isRecoverableWebGPUExecutionError(error) {
+	const message = error instanceof Error ? error.message : String(error || "");
+	const normalized = message.toLowerCase();
+
+	return (
+		normalized.includes("failed to execute 'mapasync' on 'gpubuffer'") ||
+		normalized.includes("a valid external instance reference no longer exists") ||
+		normalized.includes("failed to download data from buffer") ||
+		normalized.includes("buffer_manager::download") ||
+		normalized.includes("device lost")
+	);
+}
+
+function roundTokenCount(value, step = 128) {
+	if (!Number.isFinite(value) || value <= 0) {
+		return 0;
+	}
+
+	return Math.max(step, Math.floor(value / step) * step);
+}
+
 async function ensureTransformers() {
+	await ensureTransformerRunnerCatalog();
 	if (transformers) return;
 	// Dynamically import transformers from local bundle
 	transformers = await import("../libs/transformers.js");
@@ -694,6 +703,7 @@ window.addEventListener("message", async (event) => {
 			}
 
 			case "models": {
+				await ensureTransformerRunnerCatalog();
 				// Check browser cache for transformer models
 				try {
 					const caches = await window.caches.open("transformers-cache");
@@ -830,8 +840,9 @@ window.addEventListener("message", async (event) => {
 					throw new Error("No model specified and no model loaded. Call serve first.");
 				}
 
-				try {
+				const executeChatCompletion = async () => {
 					await transformerManager.withModel(targetModel, async (bundle) => {
+						await withGPULock(async () => {
 						const {
 							model: currentModel,
 							tokenizer: currentTokenizer,
@@ -875,13 +886,26 @@ window.addEventListener("message", async (event) => {
 									? _memoryHint.contextLength
 									: undefined;
 						const memoryContextTokens = resolveMemoryContextTokens(_memoryHint);
+
+						// Hard WebGPU context ceiling from the runtime config.
+						// Overrides the tokenizer's theoretical model_max_length, which can be
+						// 128 K for Gemma 4 but causes GPU OOM long before that on consumer GPUs.
+						const runtimeCfg = getModelRuntimeConfig(targetModel);
+						const webgpuMaxContext =
+							bundle.device === "webgpu" &&
+							typeof runtimeCfg?.webgpuMaxContextTokens === "number"
+								? runtimeCfg.webgpuMaxContextTokens
+								: undefined;
+
+						const contextCandidates = [
+							maxContextTokens,
+							memoryContextTokens,
+							webgpuMaxContext,
+						].filter((v) => typeof v === "number");
 						const maxTotalContextTokens =
-							typeof maxContextTokens === "number" &&
-							typeof memoryContextTokens === "number"
-								? Math.min(maxContextTokens, memoryContextTokens)
-								: typeof maxContextTokens === "number"
-									? maxContextTokens
-									: memoryContextTokens;
+							contextCandidates.length > 0
+								? Math.min(...contextCandidates)
+								: undefined;
 						const maxNewTokensLimit =
 							typeof maxTotalContextTokens === "number"
 								? Math.max(0, maxTotalContextTokens - promptLength)
@@ -890,17 +914,34 @@ window.addEventListener("message", async (event) => {
 						const defaultAutoMaxTokens = _memoryHint
 							? defaultMaxNewTokens
 							: Math.min(defaultMaxNewTokens, UNKNOWN_MEMORY_AUTO_MAX_NEW_TOKENS);
+						const suggestedAutoMaxTokens =
+							typeof maxNewTokensLimit === "number"
+								? Math.min(
+										maxNewTokensLimit,
+										Math.max(
+											defaultAutoMaxTokens,
+											Math.min(
+												AUTO_MAX_NEW_TOKENS_SOFT_CAP,
+												roundTokenCount(maxNewTokensLimit * 0.5),
+											),
+											Math.min(
+												AUTO_MAX_NEW_TOKENS_FLOOR,
+												maxNewTokensLimit,
+											),
+										),
+									)
+								: defaultAutoMaxTokens;
 						const requestedMaxTokens =
 							typeof max_tokens === "number" && Number.isFinite(max_tokens)
 								? max_tokens
-								: typeof maxNewTokensLimit === "number"
-									? Math.min(defaultAutoMaxTokens, maxNewTokensLimit)
-									: defaultAutoMaxTokens;
+								: suggestedAutoMaxTokens;
 
 						if (typeof max_tokens !== "number" && typeof maxNewTokensLimit === "number") {
 							console.log("[transformer-runner] auto max_new_tokens", {
 								auto: true,
 								max_new_tokens: requestedMaxTokens,
+								defaultAutoMaxTokens,
+								suggestedAutoMaxTokens,
 								promptLength,
 								maxContextTokens,
 								memoryContextTokens,
@@ -932,6 +973,16 @@ window.addEventListener("message", async (event) => {
 
 						if (typeof maxNewTokensLimit === "number" && maxNewTokensLimit <= 0) {
 							if (
+								typeof webgpuMaxContext === "number" &&
+								promptLength > webgpuMaxContext
+							) {
+								throw new Error(
+									`Prompt is too long for WebGPU execution (promptLength=${promptLength}, webgpuMaxContextTokens=${webgpuMaxContext}). ` +
+									`Reduce the conversation history or retrieved context to fit within ${webgpuMaxContext} tokens.`,
+								);
+							}
+
+							if (
 								typeof memoryContextTokens === "number" &&
 								(typeof maxContextTokens !== "number" ||
 									memoryContextTokens <= maxContextTokens)
@@ -942,7 +993,7 @@ window.addEventListener("message", async (event) => {
 							}
 
 							throw new Error(
-								`Prompt is too long for the model context window (promptLength=${promptLength}, maxContextTokens=${maxContextTokens})`,
+								`Prompt is too long for the model context window (promptLength=${promptLength}, maxContextTokens=${maxTotalContextTokens ?? maxContextTokens})`,
 							);
 						}
 
@@ -1146,8 +1197,41 @@ window.addEventListener("message", async (event) => {
 
 							reply(src, origin, messageId, "complete", response);
 						}
+						}); // withGPULock
 					});
+				};
+
+				try {
+					await executeChatCompletion();
 				} catch (error) {
+					if (!stream && isRecoverableWebGPUExecutionError(error)) {
+						console.warn(
+							"[transformer-runner] recoverable WebGPU execution failure detected, unloading and retrying once:",
+							error,
+						);
+						try {
+							await transformerManager.unload();
+						} catch (unloadError) {
+							console.warn(
+								"[transformer-runner] failed to unload after WebGPU error:",
+								unloadError,
+							);
+						}
+
+						try {
+							await executeChatCompletion();
+							break;
+						} catch (retryError) {
+							error = retryError;
+						}
+					}
+
+					if (isRecoverableWebGPUExecutionError(error)) {
+						try {
+							await transformerManager.unload();
+						} catch {}
+					}
+
 					reply(src, origin, messageId, "error", {
 						error: {
 							message: `Chat completion failed: ${error.message}`,

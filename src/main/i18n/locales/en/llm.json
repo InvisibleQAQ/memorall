@@ -4,6 +4,20 @@
 		"title": "Current Model",
 		"description": "Currently active model for AI operations",
 		"provider": "Provider: {{provider}}",
+		"details": {
+			"tooltipLabel": "Show model details",
+			"provider": "Provider:",
+			"size": "Size:",
+			"context": "Max context:",
+			"output": "Max output:",
+			"memory": "Min memory:",
+			"release": "Release:",
+			"runtime": "Runtime:",
+			"dtype": "DType:",
+			"file": "File:",
+			"contextShort": "Context {{value}}",
+			"outputShort": "Output {{value}}"
+		},
 		"status": {
 			"active": "Active",
 			"configured": "Configured",

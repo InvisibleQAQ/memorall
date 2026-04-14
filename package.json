@@ -12,11 +12,11 @@
   },
   "scripts": {
     "postinstall": "patch-package",
-    "predev": "node tools/build-manifest.mjs && node tools/copy-bundled-assets.mjs && node tools/prepare-dev.mjs",
+    "predev": "node tools/build-manifest.mjs && node tools/copy-bundled-assets.mjs && node tools/generate-transformer-runner-configs.mjs && node tools/prepare-dev.mjs",
     "dev": "dotenv -e .env -- cross-env-shell \"extension dev --chromium-binary $CHROME_PATH\"",
     "start": "extension start",
     "extension:dev": "extension dev",
-    "prebuild": "node tools/build-manifest.mjs && node tools/copy-bundled-assets.mjs",
+    "prebuild": "node tools/build-manifest.mjs && node tools/copy-bundled-assets.mjs && node tools/generate-transformer-runner-configs.mjs",
     "build": "extension build",
     "preview": "extension preview",
     "watch": "extension dev --watch",

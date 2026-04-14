@@ -40,6 +40,7 @@ type PendingMeta = {
 export interface WorkerEmbeddingOptions {
 	modelName?: string;
 	runnerUrl?: string;
+	device?: "wasm" | "webgpu" | "auto";
 }
 
 export class WorkerEmbedding implements BaseEmbedding {
@@ -52,10 +53,12 @@ export class WorkerEmbedding implements BaseEmbedding {
 	private pendingMeta = new Map<string, PendingMeta>();
 	private url: string;
 	private modelName: string;
+	private device: NonNullable<WorkerEmbeddingOptions["device"]>;
 
 	constructor(options: WorkerEmbeddingOptions = {}) {
 		this.modelName = options.modelName || "nomic-ai/nomic-embed-text-v1.5";
 		this.name = this.modelName;
+		this.device = options.device || "wasm";
 		const baseUrl = options.runnerUrl || LLM_RUNNER_URLS?.embedding;
 		const url = new URL(
 			baseUrl,
@@ -63,6 +66,7 @@ export class WorkerEmbedding implements BaseEmbedding {
 		);
 		url.searchParams.set("mode", "embedding");
 		url.searchParams.set("model", this.modelName);
+		url.searchParams.set("device", this.device);
 		this.url = url.toString();
 	}
 
@@ -74,7 +78,9 @@ export class WorkerEmbedding implements BaseEmbedding {
 		}
 		this.loading = true;
 		try {
-			logInfo(`🔤 WorkerEmbedding initialize (model=${this.modelName})`);
+			logInfo(
+				`🔤 WorkerEmbedding initialize (model=${this.modelName}, device=${this.device})`,
+			);
 			logInfo(`🔤 WorkerEmbedding runner url: ${this.url}`);
 			await waitForDOMReady();
 			this.iframe = document.createElement("iframe");

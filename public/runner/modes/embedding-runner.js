@@ -1,9 +1,11 @@
 // Embedding Runner - Text embeddings via @huggingface/transformers
 import { reply, sendReady } from "../utils/common.js";
 import { ModelLifecycleManager } from "../utils/model-lifecycle.js";
+import { withGPULock } from "../utils/gpu-lock.js";
 
 // Read model from query params if provided
 const params = new URLSearchParams(self.location ? self.location.search : "");
+const requestedDevice = (params.get("device") || "wasm").toLowerCase();
 
 let HF;
 let defaultEmbeddingModel = params.get("model");
@@ -26,6 +28,18 @@ function nowMs() {
 
 function formatMs(ms) {
 	return `${Math.round(ms)}ms`;
+}
+
+function resolveEmbeddingDevice(hasWebGPU) {
+	if (requestedDevice === "webgpu") {
+		return hasWebGPU ? "webgpu" : "wasm";
+	}
+
+	if (requestedDevice === "auto") {
+		return hasWebGPU ? "webgpu" : "wasm";
+	}
+
+	return "wasm";
 }
 
 function createProgressLogger(context, notify) {
@@ -132,32 +146,49 @@ async function loadEmbeddingPipeline(modelName, notifyProgress) {
 
 	const hasWebGPU =
 		typeof navigator !== "undefined" && typeof navigator.gpu !== "undefined";
-	const device = hasWebGPU ? "webgpu" : "wasm";
+	const device = resolveEmbeddingDevice(hasWebGPU);
 	const progress_callback = createProgressLogger({ model: modelName }, notifyProgress);
 
 	console.log("[embedding-runner] creating pipeline", {
 		modelName,
+		requestedDevice,
 		device,
 		hasWebGPU,
 	});
 
-	const pipeline = await HF.pipeline("feature-extraction", modelName, {
-		device,
-		progress_callback,
-	});
+	const pipeline =
+		device === "webgpu"
+			? await withGPULock(() =>
+					HF.pipeline("feature-extraction", modelName, {
+						device,
+						progress_callback,
+					}),
+				)
+			: await HF.pipeline("feature-extraction", modelName, {
+					device,
+					progress_callback,
+				});
 
 	console.log("[embedding-runner] pipeline created", {
 		modelName,
 		device,
 		duration: formatMs(nowMs() - startedAt),
 	});
+	pipeline.__memorallDevice = device;
 
 	// Warmup
 	try {
 		const warmupStartedAt = nowMs();
-		await pipeline(["test"], { pooling: "mean", normalize: true });
+		if (device === "webgpu") {
+			await withGPULock(() =>
+				pipeline(["test"], { pooling: "mean", normalize: true }),
+			);
+		} else {
+			await pipeline(["test"], { pooling: "mean", normalize: true });
+		}
 		console.log("[embedding-runner] warmup done", {
 			modelName,
+			device,
 			duration: formatMs(nowMs() - warmupStartedAt),
 		});
 	} catch {}
@@ -265,10 +296,18 @@ window.addEventListener("message", async (event) => {
 				);
 
 				const response = await embeddingManager.withModel(targetModel, async (pipeline) => {
-					const result = await pipeline(processed, {
-						pooling: "mean",
-						normalize: true,
-					});
+					const result =
+						pipeline?.__memorallDevice === "webgpu"
+							? await withGPULock(() =>
+									pipeline(processed, {
+										pooling: "mean",
+										normalize: true,
+									}),
+								)
+							: await pipeline(processed, {
+									pooling: "mean",
+									normalize: true,
+								});
 					const list =
 						typeof result.tolist === "function" ? result.tolist() : result;
 					return {

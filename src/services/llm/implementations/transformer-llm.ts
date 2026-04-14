@@ -31,6 +31,7 @@ import {
 	buildRunnerMemoryHint,
 	type RunnerMemoryHint,
 } from "../utils/runner-memory-hints";
+import { getModel } from "../registry/model-registry";
 
 interface ServeRequest {
 	model: string;
@@ -88,8 +89,21 @@ type PendingRequest = {
 	signalId?: string;
 };
 
-const DEFAULT_MAX_MODEL_TOKENS = 8192;
-const DEFAULT_MAX_RESPONSE_TOKENS = 512;
+function getDefaultContextLength(modelId?: string): number {
+	if (!modelId) {
+		return 8192;
+	}
+
+	return getModel(modelId, "transformer")?.contextLength ?? 8192;
+}
+
+function getDefaultResponseTokens(modelId?: string): number {
+	if (!modelId) {
+		return 512;
+	}
+
+	return getModel(modelId, "transformer")?.defaultMaxNewTokens ?? 512;
+}
 
 /**
  * Iframe-based Transformer LLM implementation.
@@ -153,11 +167,11 @@ export class TransformerLLM implements BaseLLM {
 	}
 
 	async getMaxModelTokens(model?: string): Promise<number> {
-		return DEFAULT_MAX_MODEL_TOKENS;
+		return getDefaultContextLength(model);
 	}
 
 	async getMaxResponseTokens(model?: string): Promise<number> {
-		return DEFAULT_MAX_RESPONSE_TOKENS;
+		return getDefaultResponseTokens(model);
 	}
 
 	async models(): Promise<ModelsResponse> {

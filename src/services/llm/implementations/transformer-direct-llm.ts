@@ -20,6 +20,7 @@ import {
 } from "@huggingface/transformers";
 import { ensureWebGPUSupported } from "@/utils/webgpu";
 import { resolveTokenUsage } from "../utils/token-usage";
+import { getModel, getSupportedModels } from "../registry/model-registry";
 
 interface HFProgressEvent {
 	status?: string;
@@ -111,181 +112,34 @@ function isTensorLike(
 	return typeof value === "object" && value !== null;
 }
 
-interface LFM2ModelDefinition {
+interface TransformerDirectModelDefinition {
 	id: string;
 	name: string;
 	filename?: string;
 	size?: number;
-	aliases: string[];
 	created: number;
 }
 
 const DEFAULT_MAX_MODEL_TOKENS = 8192;
 const DEFAULT_MAX_RESPONSE_TOKENS = 512;
 
-const WEBGPU_TRANSFORMER_MODELS: LFM2ModelDefinition[] = [
-	// === MINISTRAL 3B (December 2025, Latest from Mistral AI) ===
-	// {
-	// 	id: "mistralai/Ministral-3-3B-Instruct-2512-ONNX",
-	// 	name: "Ministral 3B (WebGPU)",
-	// 	filename: "model.onnx",
-	// 	size: 1_500 * 1024 * 1024,
-	// 	aliases: ["Ministral-3B", "ministral-3b"],
-	// 	created: 1_733_000_000, // Dec 2025
-	// },
+function releaseDateToEpochSeconds(releaseDate: string): number {
+	const [year, month] = releaseDate.split("-").map(Number);
+	if (!year || !month) {
+		return Math.floor(Date.now() / 1000);
+	}
 
-	// LFM2 models - Liquid AI's efficient foundation models
-	{
-		id: "onnx-community/LFM2-350M-ONNX",
-		name: "LFM2 350M (WebGPU)",
-		filename: "model.onnx",
-		size: 200 * 1024 * 1024,
-		aliases: ["LFM2-350M", "lfm2-350m"],
-		created: 1_704_720_000,
-	},
-	{
-		id: "onnx-community/LFM2-700M-ONNX",
-		name: "LFM2 700M (WebGPU)",
-		filename: "model.onnx",
-		size: 410 * 1024 * 1024,
-		aliases: ["LFM2-700M", "lfm2-700m"],
-		created: 1_704_720_000,
-	},
-	{
-		id: "onnx-community/LFM2-1.2B-ONNX",
-		name: "LFM2 1.2B (WebGPU)",
-		filename: "model.onnx",
-		size: 709 * 1024 * 1024,
-		aliases: ["LFM2-1.2B", "lfm2-1.2b"],
-		created: 1_704_720_000,
-	},
-	{
-		id: "LiquidAI/LFM2.5-1.2B-Instruct-ONNX",
-		name: "LFM2 1.2B Tool (WebGPU)",
-		filename: "model.onnx",
-		size: 900 * 1024 * 1024,
-		aliases: ["LFM2-1.2B-Tool", "lfm2-1.2b-tool"],
-		created: 1_704_720_000,
-	},
+	return Math.floor(Date.UTC(year, month - 1, 1) / 1000);
+}
 
-	// === GEMMA 3 MODELS (March 2025, Google) ===
-	{
-		id: "onnx-community/gemma-3-1b-it-ONNX",
-		name: "Gemma 3 1B Instruct (WebGPU)",
+const WEBGPU_TRANSFORMER_MODELS: TransformerDirectModelDefinition[] =
+	getSupportedModels("transformer").map((model) => ({
+		id: model.id,
+		name: `${model.displayName} (WebGPU)`,
 		filename: "model.onnx",
-		size: 500 * 1024 * 1024,
-		aliases: ["gemma-3-1b", "gemma-3-1b-it"],
-		created: 1_741_000_000, // Mar 2025
-	},
-	{
-		id: "onnx-community/gemma-2b-it",
-		name: "Gemma 2B Instruct (WebGPU)",
-		filename: "model.onnx",
-		size: 1_500 * 1024 * 1024,
-		aliases: ["gemma-2b", "gemma-2b-it"],
-		created: 1_708_000_000,
-	},
-
-	// === QWEN 3 MODELS (April 2025) ===
-	{
-		id: "onnx-community/Qwen3-0.6B-ONNX",
-		name: "Qwen 3 0.6B (WebGPU)",
-		filename: "model.onnx",
-		size: 400 * 1024 * 1024,
-		aliases: ["Qwen3-0.6B", "qwen3-0.6b"],
-		created: 1_743_000_000, // Apr 2025
-	},
-
-	// Qwen2.5 models - Alibaba's multilingual chat models
-	{
-		id: "onnx-community/Qwen2.5-0.5B-Instruct",
-		name: "Qwen2.5 0.5B Instruct (WebGPU)",
-		filename: "model.onnx",
-		size: 320 * 1024 * 1024,
-		aliases: ["qwen2.5-0.5b", "Qwen2.5-0.5B-Instruct"],
-		created: 1_725_000_000,
-	},
-	{
-		id: "onnx-community/Qwen2.5-1.5B-Instruct",
-		name: "Qwen2.5 1.5B Instruct (WebGPU)",
-		filename: "model.onnx",
-		size: 980 * 1024 * 1024,
-		aliases: ["qwen2.5-1.5b", "Qwen2.5-1.5B-Instruct"],
-		created: 1_725_000_000,
-	},
-	{
-		id: "onnx-community/Qwen2.5-3B-Instruct",
-		name: "Qwen2.5 3B Instruct (WebGPU)",
-		filename: "model.onnx",
-		size: 1_950 * 1024 * 1024,
-		aliases: ["qwen2.5-3b", "Qwen2.5-3B-Instruct"],
-		created: 1_725_000_000,
-	},
-
-	// === DEEPSEEK-R1-DISTILL MODELS (January 2025) ===
-	{
-		id: "onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX",
-		name: "DeepSeek-R1 Qwen 1.5B (WebGPU)",
-		filename: "model.onnx",
-		size: 1_500 * 1024 * 1024,
-		aliases: ["DeepSeek-R1-1.5B", "deepseek-r1-1.5b"],
-		created: 1_737_000_000, // Jan 2025
-	},
-
-	// === SMOLLM3 MODELS (July 2025, HuggingFace) ===
-	{
-		id: "HuggingFaceTB/SmolLM3-3B-ONNX",
-		name: "SmolLM3 3B (WebGPU)",
-		filename: "model.onnx",
-		size: 1_800 * 1024 * 1024,
-		aliases: ["SmolLM3-3B", "smollm3-3b"],
-		created: 1_751_000_000, // Jul 2025
-	},
-
-	// SmolLM2 models - Hugging Face's small efficient models
-	{
-		id: "onnx-community/SmolLM2-135M-Instruct",
-		name: "SmolLM2 135M Instruct (WebGPU)",
-		filename: "model.onnx",
-		size: 90 * 1024 * 1024,
-		aliases: ["smollm2-135m", "SmolLM2-135M-Instruct"],
-		created: 1_730_000_000,
-	},
-	{
-		id: "onnx-community/SmolLM2-360M-Instruct",
-		name: "SmolLM2 360M Instruct (WebGPU)",
-		filename: "model.onnx",
-		size: 230 * 1024 * 1024,
-		aliases: ["smollm2-360m", "SmolLM2-360M-Instruct"],
-		created: 1_730_000_000,
-	},
-	{
-		id: "onnx-community/SmolLM2-1.7B-Instruct",
-		name: "SmolLM2 1.7B Instruct (WebGPU)",
-		filename: "model.onnx",
-		size: 1_100 * 1024 * 1024,
-		aliases: ["smollm2-1.7b", "SmolLM2-1.7B-Instruct"],
-		created: 1_730_000_000,
-	},
-
-	// Phi-3 models - Microsoft's efficient instruction-tuned models
-	{
-		id: "onnx-community/Phi-3-mini-4k-instruct",
-		name: "Phi-3 Mini 4K Instruct (WebGPU)",
-		filename: "model.onnx",
-		size: 2_300 * 1024 * 1024,
-		aliases: ["phi-3-mini", "phi3-mini", "Phi-3-mini-4k-instruct"],
-		created: 1_712_000_000,
-	},
-	{
-		id: "onnx-community/Phi-3.5-mini-instruct",
-		name: "Phi-3.5 Mini Instruct (WebGPU)",
-		filename: "model.onnx",
-		size: 2_400 * 1024 * 1024,
-		aliases: ["phi-3.5-mini", "phi35-mini", "Phi-3.5-mini-instruct"],
-		created: 1_723_000_000,
-	},
-];
+		size: Math.round(model.sizeGB * 1024 * 1024 * 1024),
+		created: releaseDateToEpochSeconds(model.releaseDate),
+	}));
 
 function normalizeContent(
 	content: ChatMessage["content"] | null | undefined,
@@ -336,11 +190,19 @@ export class TransformerDirectLLM implements BaseLLM {
 	}
 
 	async getMaxModelTokens(): Promise<number> {
-		return DEFAULT_MAX_MODEL_TOKENS;
+		return (
+			(this.activeModelId
+				? getModel(this.activeModelId, "transformer")?.contextLength
+				: undefined) ?? DEFAULT_MAX_MODEL_TOKENS
+		);
 	}
 
 	async getMaxResponseTokens(): Promise<number> {
-		return DEFAULT_MAX_RESPONSE_TOKENS;
+		return (
+			(this.activeModelId
+				? getModel(this.activeModelId, "transformer")?.defaultMaxNewTokens
+				: undefined) ?? DEFAULT_MAX_RESPONSE_TOKENS
+		);
 	}
 
 	async models(): Promise<ModelsResponse> {
@@ -730,38 +592,16 @@ export class TransformerDirectLLM implements BaseLLM {
 	}
 
 	private normalizeModelId(modelId: string): string {
+		const matched = getModel(modelId, "transformer");
+		if (matched) {
+			return matched.id;
+		}
+
 		if (modelId.includes("/")) {
-			if (modelId.includes("onnx-community")) {
-				return modelId;
-			}
-			const alias = modelId.split("/").pop() ?? modelId;
-			return this.matchKnownModel(alias);
-		}
-		return this.matchKnownModel(modelId);
-	}
-
-	private matchKnownModel(identifier: string): string {
-		const normalized = identifier
-			.replace(/\.(gguf|onnx)$/i, "")
-			.replace(/-GGUF$/i, "")
-			.replace(/-ONNX$/i, "")
-			.toLowerCase();
-
-		const match = WEBGPU_TRANSFORMER_MODELS.find((definition) => {
-			if (definition.id.toLowerCase() === identifier.toLowerCase()) {
-				return true;
-			}
-			return definition.aliases.some(
-				(alias) => alias.toLowerCase() === normalized,
-			);
-		});
-
-		if (match) {
-			return match.id;
+			return modelId;
 		}
 
-		// Fallback to the ONNX community repo naming convention
-		return `onnx-community/${identifier}`;
+		return `onnx-community/${modelId}`;
 	}
 
 	private async isModelCached(modelId: string): Promise<boolean> {

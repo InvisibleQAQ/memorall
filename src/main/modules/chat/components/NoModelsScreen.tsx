@@ -151,30 +151,37 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 		recommendation: ModelRecommendation,
 		preference: ModelPreference,
 	) => {
+		void preference;
 		const { config } = recommendation;
 
-		// Find the model config from the quick download lists and trigger download
 		if (config.provider === "transformer") {
 			const modelConfig = QUICK_TRANSFORMER_MODELS.find(
 				(m) => m.model === config.model,
-			);
-			if (modelConfig) {
-				await handleQuickDownload(modelConfig, config.provider);
-			}
+			) ?? {
+				model: config.model,
+				size: recommendation.size,
+				description: recommendation.displayName,
+			};
+			await handleQuickDownload(modelConfig, config.provider);
 		} else if (config.provider === "wllama") {
 			const modelConfig = QUICK_WALLAMA_LLMS.find(
 				(m) => m.repo === config.repo && m.filename === config.filename,
-			);
-			if (modelConfig) {
-				await handleQuickDownload(modelConfig, config.provider);
-			}
+			) ?? {
+				repo: config.repo,
+				filename: config.filename,
+				size: recommendation.size,
+				description: recommendation.displayName,
+			};
+			await handleQuickDownload(modelConfig, config.provider);
 		} else if (config.provider === "webllm") {
 			const modelConfig = QUICK_WEBLLM_LLMS.find(
 				(m) => m.model === config.model,
-			);
-			if (modelConfig) {
-				await handleQuickDownload(modelConfig, config.provider);
-			}
+			) ?? {
+				model: config.model,
+				size: recommendation.size,
+				description: recommendation.displayName,
+			};
+			await handleQuickDownload(modelConfig, config.provider);
 		}
 	};
 

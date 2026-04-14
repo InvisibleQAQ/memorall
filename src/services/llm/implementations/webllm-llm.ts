@@ -30,6 +30,7 @@ import {
 	buildRunnerMemoryHint,
 	type RunnerMemoryHint,
 } from "../utils/runner-memory-hints";
+import { getModel } from "../registry/model-registry";
 
 interface ServeRequest {
 	model: string;
@@ -151,11 +152,11 @@ export class WebLLMLLM implements BaseLLM {
 	}
 
 	async getMaxModelTokens(model?: string): Promise<number> {
-		return 4096;
+		return getModel(model ?? "", "webllm")?.contextLength ?? 4096;
 	}
 
 	async getMaxResponseTokens(model?: string): Promise<number> {
-		return Math.round(4096 * 0.5);
+		return getModel(model ?? "", "webllm")?.defaultMaxNewTokens ?? 2048;
 	}
 
 	async models(): Promise<ModelsResponse> {

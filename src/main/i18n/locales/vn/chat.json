@@ -119,7 +119,12 @@
 		"notLoaded": "Chưa tải mô hình",
 		"loading": "Đang tải mô hình...",
 		"noModels": "Không có mô hình nào",
-		"goToModels": "Đến Mô hình"
+		"goToModels": "Đến Mô hình",
+		"selectedNotLoadedTitle": "Mô hình đã chọn chưa được tải",
+		"selectedNotLoadedDescription": "{{model}} đã được chọn nhưng vẫn chưa hoạt động trong bộ nhớ.",
+		"selectedProvider": "{{provider}}",
+		"loadHint": "Hãy tải mô hình trước khi gửi tin nhắn.",
+		"loadSelected": "Tải mô hình"
 	},
 	"tooltips": {
 		"normalMode": "Chế độ trò chuyện thường - Đàm thoại đơn giản không có ngữ cảnh kiến thức",

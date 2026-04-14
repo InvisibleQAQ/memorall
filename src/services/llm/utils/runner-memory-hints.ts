@@ -1,6 +1,6 @@
 import { detectSystemSpecs } from "@/main/modules/llm/utils/system-detection";
 import { getAvailableModelMemoryGB } from "@/main/modules/llm/utils/model-memory";
-import { getModelRuntimeProfile } from "@/main/modules/llm/utils/model-recommendations";
+import { getModelRuntimeProfile } from "../registry/model-registry";
 
 export interface RunnerMemoryHint {
 	availableGB: number;

@@ -4,6 +4,20 @@
 		"title": "Mô hình hiện tại",
 		"description": "Mô hình đang hoạt động cho các tác vụ AI",
 		"provider": "Nhà cung cấp: {{provider}}",
+		"details": {
+			"tooltipLabel": "Hiển thị chi tiết mô hình",
+			"provider": "Nhà cung cấp:",
+			"size": "Kích thước:",
+			"context": "Ngữ cảnh tối đa:",
+			"output": "Đầu ra tối đa:",
+			"memory": "Bộ nhớ tối thiểu:",
+			"release": "Phát hành:",
+			"runtime": "Runtime:",
+			"dtype": "DType:",
+			"file": "Tệp:",
+			"contextShort": "Ngữ cảnh {{value}}",
+			"outputShort": "Đầu ra {{value}}"
+		},
 		"status": {
 			"active": "Đang hoạt động",
 			"configured": "Đã cấu hình",
