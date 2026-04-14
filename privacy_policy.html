@@ -430,6 +430,7 @@
       <nav class="site-nav" aria-label="Privacy policy sections">
         <a href="#summary">Summary</a>
         <a href="#details">Details</a>
+        <a href="#data-sharing">Sharing</a>
         <a href="#permissions">Permissions</a>
         <a href="#contact">Contact</a>
       </nav>
@@ -496,6 +497,10 @@
             <article class="policy-summary-card">
               <strong>Remote services</strong>
               <span>External AI providers or cloud features are used only when you explicitly configure or enable them.</span>
+            </article>
+            <article class="policy-summary-card">
+              <strong>No data selling or sharing</strong>
+              <span>Memorall does not sell, rent, or share your data with advertisers or third parties. Data only leaves the device through provider integrations you explicitly configure.</span>
             </article>
             <article class="policy-summary-card">
               <strong>Your control</strong>
@@ -578,7 +583,10 @@
               <a href="#data-collected">What Memorall may store</a>
               <a href="#local-processing">Local storage and processing</a>
               <a href="#network-requests">Network requests and third parties</a>
+              <a href="#data-sharing">Data sharing</a>
+              <a href="#data-security">Data security</a>
               <a href="#deletion">Deletion and retention control</a>
+              <a href="#childrens-privacy">Children's privacy</a>
               <a href="#changes-contact">Changes and contact</a>
             </div>
 
@@ -675,6 +683,78 @@
               </p>
             </article>
 
+            <article class="policy-block reveal" id="data-sharing">
+              <p class="section-label">Data Sharing</p>
+              <h2>How data is shared with third parties</h2>
+              <p>
+                Memorall does not sell, rent, trade, or otherwise transfer your personal information to third
+                parties. Data sharing only occurs in the following limited circumstances, all of which are
+                entirely under your control:
+              </p>
+              <ul class="policy-list">
+                <li>
+                  <strong>Remote AI providers (user-configured):</strong> if you explicitly configure an external
+                  AI provider such as OpenAI, Anthropic, Google, or another API-compatible service, the prompts,
+                  files, and context you submit through that provider are sent to and processed by that provider
+                  under their own terms of service and privacy policy. Memorall does not control how those
+                  providers handle your data.
+                </li>
+                <li>
+                  <strong>Model asset hosts (on demand):</strong> when you select a local-model workflow that
+                  requires downloadable assets, Memorall may connect to Hugging Face servers to fetch those files.
+                  No personal data beyond standard network request headers is sent in those requests.
+                </li>
+                <li>
+                  <strong>Optional authentication or sync (deployment-specific):</strong> if a deployment of
+                  Memorall enables optional cloud authentication or sync features and you choose to use them,
+                  account-related data may be transmitted to the configured backend for that deployment. This
+                  integration is disabled in default builds.
+                </li>
+                <li>
+                  <strong>No other sharing:</strong> outside the user-initiated paths above, Memorall does not
+                  share data with advertisers, analytics networks, data brokers, or any other third party.
+                </li>
+              </ul>
+              <p class="policy-note">
+                When you use a remote provider you are subject to that provider's own privacy policy. Review the
+                privacy terms of any provider you configure before sending sensitive information through it.
+              </p>
+            </article>
+
+            <article class="policy-block reveal" id="data-security">
+              <p class="section-label">Data Security</p>
+              <h2>How data is protected</h2>
+              <p>
+                Because Memorall's core data path is local-first, most sensitive data never leaves your device
+                and is therefore not exposed to server-side breaches. The following practices apply:
+              </p>
+              <ul class="policy-list">
+                <li>
+                  <strong>Browser security model:</strong> locally stored data is kept inside browser-managed
+                  storage (IndexedDB, OPFS, extension storage) which is isolated to the extension's origin and
+                  protected by the browser's built-in security sandbox.
+                </li>
+                <li>
+                  <strong>No Memorall-operated server storage:</strong> Memorall does not operate servers that
+                  store copies of your captured pages, chat history, documents, or memory objects. Data you store
+                  in the local-first path remains on your device.
+                </li>
+                <li>
+                  <strong>Transit security for remote paths:</strong> when data is sent to remote providers or
+                  optional cloud services that you have configured, those requests use HTTPS/TLS encryption in
+                  transit. The security posture of the remote endpoint is governed by that provider.
+                </li>
+                <li>
+                  <strong>API key handling:</strong> provider API keys and credentials you configure are stored
+                  locally in extension storage and are not transmitted to Memorall-operated infrastructure.
+                </li>
+                <li>
+                  <strong>No guarantees for remote providers:</strong> Memorall cannot guarantee the security
+                  practices of third-party AI providers or other external services you choose to connect.
+                </li>
+              </ul>
+            </article>
+
             <article class="policy-block reveal" id="deletion">
               <p class="section-label">Control</p>
               <h2>Deletion and retention control</h2>
@@ -699,17 +779,50 @@
               </ul>
             </article>
 
+            <article class="policy-block reveal" id="childrens-privacy">
+              <p class="section-label">Children's Privacy</p>
+              <h2>Children's privacy</h2>
+              <p>
+                Memorall is not directed at children under the age of 13 (or the applicable age of digital
+                consent in your jurisdiction). Memorall does not knowingly collect personal information from
+                children under 13. If you are a parent or guardian and believe that your child has provided
+                personal information through Memorall, please contact us using the details in the section below
+                so we can take appropriate action.
+              </p>
+            </article>
+
             <article class="policy-block reveal" id="changes-contact">
-              <p class="section-label">Updates</p>
+              <p class="section-label">Updates &amp; Contact</p>
               <h2>Changes and contact</h2>
               <p>
-                This privacy policy may be updated as the product evolves. Material wording should be updated on
-                this page so the public runner site stays aligned with the current product architecture.
+                <strong>Effective date:</strong> April 14, 2025. This policy was last updated on
+                <strong>April 14, 2026</strong>.
               </p>
               <p>
-                For questions, feedback, or suspected inaccuracies, open an issue on the Memorall repository or
-                review the source directly.
+                This privacy policy may be updated as the product evolves. When material changes are made, the
+                effective date above will be updated so the public page stays aligned with the current product
+                architecture. Continued use of the extension after an update constitutes acceptance of the
+                revised policy.
               </p>
+              <p>
+                For privacy questions, data-handling inquiries, or suspected inaccuracies, you can reach us by:
+              </p>
+              <ul class="policy-list">
+                <li>
+                  <strong>GitHub Issues:</strong> open an issue at
+                  <a href="https://github.com/zrg-team/memorall/issues" target="_blank" rel="noopener noreferrer">
+                    github.com/zrg-team/memorall/issues
+                  </a>
+                  — this is the primary support and contact channel.
+                </li>
+                <li>
+                  <strong>Source review:</strong> the full extension source is publicly available at
+                  <a href="https://github.com/zrg-team/memorall" target="_blank" rel="noopener noreferrer">
+                    github.com/zrg-team/memorall
+                  </a>
+                  so you can verify data-handling claims against the actual code.
+                </li>
+              </ul>
             </article>
           </div>
         </div>
