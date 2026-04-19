@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta
     name="description"
-    content="Memorall privacy policy explaining what user data is collected, how it is handled locally in the browser, how it is stored on-device, and when data can be shared."
+    content="Memorall privacy policy explaining what user data is collected, how it is handled locally in the browser, how it is stored on-device, and how user-configured OpenAI or OpenRouter requests are handled."
   >
   <title>Memorall - Privacy Policy</title>
   <link rel="apple-touch-icon" sizes="180x180" href="./images/apple-touch-icon.png">
@@ -483,12 +483,14 @@
       <div class="shell policy-hero-shell">
         <div class="hero-copy reveal is-visible">
           <div class="eyebrow">Privacy Policy</div>
-          <h1>User data stays in your browser unless you deliberately send it to a service you choose.</h1>
+          <h1>User data stays in your browser.</h1>
           <p class="hero-lead">
             Memorall is built around local browser storage. The extension stores the content you choose to
             save, your notes, chats, documents, and settings on your device using browser-managed storage.
             Memorall does not run its own server to collect this content, and it does not sell or share your
-            data with advertisers, analytics networks, or data brokers.
+            data with advertisers, analytics networks, or data brokers. If you provide your own OpenAI or
+            OpenRouter key, the prompts, files, or content you submit through that provider are handled by
+            that provider under its own policy.
           </p>
 
           <div class="policy-top-clarity" aria-label="Privacy policy summary for reviewers and users">
@@ -511,8 +513,8 @@
               </li>
               <li>
                 <strong>Sharing:</strong> Memorall does not sell, rent, or automatically share your data with
-                third parties. Data is only sent out if you personally enable and use an external provider or
-                download model assets from a third-party host.
+                third parties. If you use your own OpenAI or OpenRouter key, the content you submit through
+                that provider is handled by that provider.
               </li>
             </ul>
           </div>
@@ -556,7 +558,7 @@
             </article>
             <article class="policy-summary-card">
               <strong>Data sharing</strong>
-              <span>Memorall does not sell, rent, or automatically share your data. Data only leaves the device when you explicitly use an external provider or asset host.</span>
+              <span>Memorall does not sell, rent, or share your data with third parties, except that content you submit through your own OpenAI or OpenRouter key is handled by that provider.</span>
             </article>
             <article class="policy-summary-card">
               <strong>Your control</strong>
@@ -574,18 +576,18 @@
           <h2>The short version before the detailed breakdown.</h2>
           <p>
             This page explains exactly what Memorall collects, how that data is handled, where it is stored,
-            and when data can leave the browser. The default product path is local-first and keeps user data
-            on your device.
+            and how user-configured external LLM handling works. By default, your data remains on your
+            device in the browser.
           </p>
         </div>
 
         <div class="privacy-cards">
           <article class="privacy-card reveal">
             <p class="section-label">Local Core</p>
-            <h3>No required hosted account or Memorall cloud</h3>
+            <h3>No required hosted account or Memorall server</h3>
             <p>
               Memorall's core workflows do not require a Memorall account, Memorall-hosted database, or a
-              Memorall-operated cloud backend.
+              Memorall-operated server backend.
             </p>
           </article>
 
@@ -599,11 +601,12 @@
           </article>
 
           <article class="privacy-card reveal">
-            <p class="section-label">Optional Services</p>
-            <h3>External services are opt-in only</h3>
+            <p class="section-label">Data Sharing</p>
+            <h3>No third-party sharing by Memorall</h3>
             <p>
-              If you manually configure an external AI provider or another third-party service, only the data
-              you send through that connection leaves the browser and goes directly to that provider.
+              Memorall does not sell, rent, or share your saved user data with advertisers, analytics
+              networks, or unrelated third parties. If you use your own OpenAI or OpenRouter key, the
+              content submitted to that provider is handled by that provider.
             </p>
           </article>
 
@@ -623,11 +626,11 @@
       <div class="shell">
         <div class="section-heading reveal">
           <p class="section-label">Policy Details</p>
-          <h2>What gets stored, processed, and optionally sent out.</h2>
+          <h2>What gets stored, processed, and handled by external LLM providers.</h2>
           <p>
             The details below are organized around the questions required by privacy reviews: what Memorall
             collects, how it handles that data locally, how it stores data on-device, and the limited
-            situations where user-initiated network requests can happen.
+            case where user-configured OpenAI or OpenRouter requests are handled by those providers.
           </p>
         </div>
 
@@ -640,7 +643,7 @@
               <a href="#overview">Overview</a>
               <a href="#data-collected">What Memorall may store</a>
               <a href="#local-processing">Local storage and processing</a>
-              <a href="#network-requests">Network requests and third parties</a>
+              <a href="#network-requests">External LLM handling</a>
               <a href="#data-sharing">Data sharing</a>
               <a href="#data-security">Data security</a>
               <a href="#deletion">Deletion and retention control</a>
@@ -649,8 +652,9 @@
             </div>
 
             <p class="policy-nav-note">
-              Memorall does not automatically share user data. If you manually connect a third-party provider,
-              anything you send through that connection is handled under that provider's own privacy policy.
+              Memorall does not automatically share user data. If you provide your own OpenAI or OpenRouter
+              key, the prompts, files, or content you submit through that provider are handled under that
+              provider's own privacy policy.
             </p>
           </aside>
 
@@ -660,13 +664,13 @@
               <h2>Overview</h2>
               <p>
                 Memorall is built around a local-first browser workflow. The extension can capture pages,
-                manage documents, store chats, and build memory context without sending that content to a
+                manage documents, store chats, and build memory context without uploading that content to a
                 Memorall-operated remote server.
               </p>
               <p>
-                The default data path is local storage on your device. Any external data transfer only happens
-                when you explicitly choose to use a third-party integration or download model assets that a
-                local workflow requires.
+                The default data path is local storage on your device. If you provide your own OpenAI or
+                OpenRouter key and submit prompts, files, or other content through that provider, that
+                submitted content is handled by that provider rather than by Memorall.
               </p>
             </article>
 
@@ -728,36 +732,42 @@
                   pages, notes, chats, files, or graph data to Memorall-operated servers as part of the default
                   product flow.
                 </li>
+                <li>
+                  <strong>User-configured external LLMs:</strong> if you add your own OpenAI or OpenRouter key,
+                  content submitted to that provider is processed through that provider's service instead of the
+                  default local-only path.
+                </li>
               </ul>
             </article>
 
             <article class="policy-block reveal" id="network-requests">
-              <p class="section-label">Network Requests</p>
-              <h2>When network requests and third parties can be involved</h2>
+              <p class="section-label">External LLMs</p>
+              <h2>When OpenAI or OpenRouter can handle your submitted content</h2>
               <p>
-                Memorall does not automatically send your workspace content to third parties. Network requests
-                happen only in the limited cases below.
+                Memorall does not automatically share your saved workspace content with third parties. The main
+                exception is when you choose to use your own external LLM provider key.
               </p>
               <ul class="policy-list">
                 <li>
-                  <strong>Model downloads:</strong> Memorall may connect to Hugging Face hosts when you choose a
-                  local model workflow that needs downloadable model assets. These requests are for model files,
-                  not for uploading your private workspace content.
+                  <strong>User-provided OpenAI key:</strong> if you enter your own OpenAI API key and submit a
+                  prompt, file, or other content through the OpenAI integration, that submitted content is
+                  handled by OpenAI under OpenAI's own terms and privacy policy.
                 </li>
                 <li>
-                  <strong>Remote AI providers:</strong> if you explicitly configure and use a remote AI provider,
-                  the prompts, files, and related context you send through that provider may leave the browser and
-                  be processed by that provider.
+                  <strong>User-provided OpenRouter key:</strong> if you enter your own OpenRouter API key and
+                  submit a prompt, file, or other content through the OpenRouter integration, that submitted
+                  content is handled by OpenRouter under OpenRouter's own terms and privacy policy.
                 </li>
                 <li>
-                  <strong>Optional auth or sync:</strong> if a deployment enables optional authentication or cloud
-                  features, related account or sync traffic may go to the configured backend for that deployment.
+                  <strong>Local-first default:</strong> if you do not configure and use your own external LLM
+                  key, Memorall's privacy posture remains local-first and your saved user data remains in
+                  browser-managed local storage.
                 </li>
               </ul>
 
               <p class="policy-note">
-                The local-only path keeps data in your browser. If you turn on a third-party service, review
-                that service's privacy policy separately before sending sensitive data through it.
+                Before using OpenAI or OpenRouter with your own key, review that provider's privacy policy and
+                terms because content submitted through that provider is handled by that provider.
               </p>
             </article>
 
@@ -766,8 +776,10 @@
               <h2>How data is shared with third parties</h2>
               <p>
                 Memorall does not sell, rent, trade, or otherwise disclose your personal information to
-                advertisers, analytics networks, data brokers, or unrelated third parties. Data sharing only
-                happens in the limited situations below, and those situations are initiated by your choices:
+                advertisers, analytics networks, data brokers, or unrelated third parties. Memorall also does
+                not maintain a hosted Memorall database containing your local workspace content. The only
+                provider-handling case described on this page is when you choose to use your own OpenAI or
+                OpenRouter key:
               </p>
               <ul class="policy-list">
                 <li>
@@ -775,31 +787,20 @@
                   containing your saved pages, chats, notes, or documents from the default local-first path.
                 </li>
                 <li>
-                  <strong>Remote AI providers (user-configured):</strong> if you explicitly configure an external
-                  AI provider such as OpenAI, Anthropic, Google, or another API-compatible service, the prompts,
-                  files, and context you submit through that provider are sent to and processed by that provider
-                  under their own terms of service and privacy policy. Memorall does not control how those
-                  providers handle your data.
+                  <strong>OpenAI or OpenRouter with your own key:</strong> if you provide your own OpenAI or
+                  OpenRouter API key and submit prompts, files, or related content through that provider, that
+                  submitted content is handled by that provider under that provider's own terms and privacy
+                  policy. Memorall does not control how OpenAI or OpenRouter handle that submitted content.
                 </li>
                 <li>
-                  <strong>Model asset hosts (on demand):</strong> when you select a local-model workflow that
-                  requires downloadable assets, Memorall may connect to Hugging Face servers to fetch those files.
-                  No personal data beyond standard network request headers is sent in those requests.
-                </li>
-                <li>
-                  <strong>Optional authentication or sync (deployment-specific):</strong> if a deployment of
-                  Memorall enables optional cloud authentication or sync features and you choose to use them,
-                  account-related data may be transmitted to the configured backend for that deployment. This
-                  integration is disabled in default builds.
-                </li>
-                <li>
-                  <strong>No other sharing:</strong> outside the user-initiated paths above, Memorall does not
+                  <strong>No other sharing:</strong> outside the user-configured OpenAI or OpenRouter path above,
+                  Memorall does not
                   share data with advertisers, analytics networks, data brokers, or any other third party.
                 </li>
               </ul>
               <p class="policy-note">
-                When you use a remote provider you are subject to that provider's own privacy policy. Review the
-                privacy terms of any provider you configure before sending sensitive information through it.
+                Using your own OpenAI or OpenRouter key means the submitted content for that request is handled
+                by that provider, not by Memorall.
               </p>
             </article>
 
@@ -822,17 +823,17 @@
                   in the local-first path remains on your device.
                 </li>
                 <li>
-                  <strong>Transit security for remote paths:</strong> when data is sent to remote providers or
-                  optional cloud services that you have configured, those requests use HTTPS/TLS encryption in
-                  transit. The security posture of the remote endpoint is governed by that provider.
+                  <strong>Transit security for OpenAI or OpenRouter requests:</strong> when you use your own
+                  OpenAI or OpenRouter key, requests to that provider use the provider's network path and
+                  transport security. The security posture of that remote endpoint is governed by that provider.
                 </li>
                 <li>
-                  <strong>API key handling:</strong> provider API keys and credentials you configure are stored
+                  <strong>API key handling:</strong> OpenAI or OpenRouter API keys you configure are stored
                   locally in extension storage and are not transmitted to Memorall-operated infrastructure.
                 </li>
                 <li>
-                  <strong>No guarantees for remote providers:</strong> Memorall cannot guarantee the security
-                  practices of third-party AI providers or other external services you choose to connect.
+                  <strong>No guarantees for external providers:</strong> Memorall cannot guarantee the security
+                  practices of OpenAI or OpenRouter.
                 </li>
               </ul>
             </article>
@@ -854,9 +855,9 @@
                   typically removes its locally stored data, subject to browser behavior.
                 </li>
                 <li>
-                  <strong>External services:</strong> if data was sent to a remote provider or optional cloud
-                  service, retention on that service is governed by that service rather than by local browser
-                  storage alone.
+                  <strong>External LLM providers:</strong> if you submitted data through your own OpenAI or
+                  OpenRouter key, retention on that provider is governed by that provider rather than by local
+                  browser storage alone.
                 </li>
               </ul>
             </article>
@@ -975,7 +976,7 @@
             <span class="feature-tag">contextMenus</span>
             <h3>Capture from the right-click menu</h3>
             <p>
-              Adds shortcut actions so you can send page or selection context into Memorall from the browser UI.
+              Adds shortcut actions so you can capture page or selection context into Memorall from the browser UI.
             </p>
             <div class="feature-meta">
               <span>Quick capture</span>
@@ -1000,11 +1001,11 @@
             <h3>Run background tasks and fetch required assets</h3>
             <p>
               Offscreen processing supports heavier background work, while host access covers PDF handling and
-              Hugging Face model downloads when those workflows are enabled.
+              other asset or integration requests required by enabled features.
             </p>
             <div class="feature-meta">
               <span>PDF support</span>
-              <span>Model asset fetches</span>
+              <span>Enabled feature access</span>
             </div>
           </article>
         </div>
