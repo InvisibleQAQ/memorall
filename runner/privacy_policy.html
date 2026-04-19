@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta
     name="description"
-    content="Memorall privacy policy covering local-first storage, optional remote providers, optional auth and sync, browser permissions, and user data controls."
+    content="Memorall privacy policy explaining what user data is collected, how it is handled locally in the browser, how it is stored on-device, and when data can be shared."
   >
   <title>Memorall - Privacy Policy</title>
   <link rel="apple-touch-icon" sizes="180x180" href="./images/apple-touch-icon.png">
@@ -202,6 +202,35 @@
 
     .policy-summary-panel {
       margin-top: 1rem;
+    }
+
+    .policy-top-clarity {
+      margin-top: 1rem;
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--policy-border);
+      border-radius: 14px;
+      background: var(--policy-surface);
+    }
+
+    .policy-top-clarity p {
+      margin: 0 0 0.75rem;
+      color: var(--policy-text-soft);
+      line-height: 1.7;
+    }
+
+    .policy-top-clarity ul {
+      margin: 0;
+      padding-left: 1.25rem;
+    }
+
+    .policy-top-clarity li {
+      margin: 0.45rem 0;
+      color: var(--policy-text-soft);
+      line-height: 1.7;
+    }
+
+    .policy-top-clarity strong {
+      color: var(--policy-text);
     }
 
     .policy-summary-panel h2,
@@ -454,12 +483,39 @@
       <div class="shell policy-hero-shell">
         <div class="hero-copy reveal is-visible">
           <div class="eyebrow">Privacy Policy</div>
-          <h1>Local first when possible. Explicit when data leaves the browser.</h1>
+          <h1>User data stays in your browser unless you deliberately send it to a service you choose.</h1>
           <p class="hero-lead">
-            Memorall is designed so core capture, storage, retrieval, and many model workflows can stay in
-            the browser. Optional remote providers, authentication, and sync features are user-controlled
-            choices rather than mandatory parts of the core experience.
+            Memorall is built around local browser storage. The extension stores the content you choose to
+            save, your notes, chats, documents, and settings on your device using browser-managed storage.
+            Memorall does not run its own server to collect this content, and it does not sell or share your
+            data with advertisers, analytics networks, or data brokers.
           </p>
+
+          <div class="policy-top-clarity" aria-label="Privacy policy summary for reviewers and users">
+            <p>
+              <strong>Clear summary:</strong> this page covers the four points reviewers usually look for:
+              what data is collected, how it is handled, how it is stored, and how it is shared.
+            </p>
+            <ul class="policy-list">
+              <li>
+                <strong>Collection:</strong> Memorall only stores data that you create, import, attach, or
+                explicitly save while using the extension.
+              </li>
+              <li>
+                <strong>Handling:</strong> core processing happens locally inside the browser extension on
+                your device.
+              </li>
+              <li>
+                <strong>Storage:</strong> saved data remains in browser-managed local storage on your device,
+                such as IndexedDB, OPFS, and extension storage.
+              </li>
+              <li>
+                <strong>Sharing:</strong> Memorall does not sell, rent, or automatically share your data with
+                third parties. Data is only sent out if you personally enable and use an external provider or
+                download model assets from a third-party host.
+              </li>
+            </ul>
+          </div>
 
           <div class="hero-actions">
             <a class="btn btn-primary" href="./index.html">Back To Home</a>
@@ -474,9 +530,9 @@
           </div>
 
           <div class="hero-proof">
-            <span>Core data can stay local</span>
-            <span>Remote providers are opt-in</span>
-            <span>Optional auth and sync</span>
+            <span>Stored locally on your device</span>
+            <span>No Memorall server copy</span>
+            <span>No ads or analytics sharing</span>
             <span>User-controlled deletion</span>
           </div>
         </div>
@@ -487,20 +543,20 @@
 
           <div class="policy-summary-grid">
             <article class="policy-summary-card">
-              <strong>Default posture</strong>
-              <span>Core memory, chats, and documents can stay on-device in browser-local storage.</span>
+              <strong>Data collection</strong>
+              <span>Memorall stores the content you intentionally save, create, import, or configure in the extension.</span>
             </article>
             <article class="policy-summary-card">
-              <strong>Downloads</strong>
-              <span>Model assets may be fetched when you choose local model workflows that require them.</span>
+              <strong>Data handling</strong>
+              <span>Core capture, note-taking, memory, and document workflows are handled locally inside the browser.</span>
             </article>
             <article class="policy-summary-card">
-              <strong>Remote services</strong>
-              <span>External AI providers or cloud features are used only when you explicitly configure or enable them.</span>
+              <strong>Data storage</strong>
+              <span>Saved data remains in browser-local storage on your device, including IndexedDB, OPFS, and extension storage.</span>
             </article>
             <article class="policy-summary-card">
-              <strong>No data selling or sharing</strong>
-              <span>Memorall does not sell, rent, or share your data with advertisers or third parties. Data only leaves the device through provider integrations you explicitly configure.</span>
+              <strong>Data sharing</strong>
+              <span>Memorall does not sell, rent, or automatically share your data. Data only leaves the device when you explicitly use an external provider or asset host.</span>
             </article>
             <article class="policy-summary-card">
               <strong>Your control</strong>
@@ -517,36 +573,37 @@
           <p class="section-label">Quick Summary</p>
           <h2>The short version before the detailed breakdown.</h2>
           <p>
-            This page explains what Memorall may store, how local-first processing works, when network
-            requests can happen, and what browser permissions support those flows.
+            This page explains exactly what Memorall collects, how that data is handled, where it is stored,
+            and when data can leave the browser. The default product path is local-first and keeps user data
+            on your device.
           </p>
         </div>
 
         <div class="privacy-cards">
           <article class="privacy-card reveal">
             <p class="section-label">Local Core</p>
-            <h3>No required hosted account</h3>
+            <h3>No required hosted account or Memorall cloud</h3>
             <p>
-              Memorall's core local-first workflows can run without forcing a hosted account, hosted database,
-              or remote model API.
+              Memorall's core workflows do not require a Memorall account, Memorall-hosted database, or a
+              Memorall-operated cloud backend.
             </p>
           </article>
 
           <article class="privacy-card reveal">
             <p class="section-label">Stored Context</p>
-            <h3>Work stays attached to your project</h3>
+            <h3>Data is stored locally on your device</h3>
             <p>
-              Saved pages, chat context, graph data, notes, and imported documents can remain in browser-local
-              storage and related local surfaces.
+              Saved pages, chat context, graph data, notes, imported documents, and settings are stored in
+              browser-local storage and related on-device storage surfaces.
             </p>
           </article>
 
           <article class="privacy-card reveal">
             <p class="section-label">Optional Services</p>
-            <h3>Remote providers are a separate choice</h3>
+            <h3>External services are opt-in only</h3>
             <p>
-              If you connect external AI providers or optional auth and sync services, data sent through those
-              services follows that specific integration path rather than the local-only path.
+              If you manually configure an external AI provider or another third-party service, only the data
+              you send through that connection leaves the browser and goes directly to that provider.
             </p>
           </article>
 
@@ -568,8 +625,9 @@
           <p class="section-label">Policy Details</p>
           <h2>What gets stored, processed, and optionally sent out.</h2>
           <p>
-            The details below are organized around the actual product shape in this repository: local-first
-            storage and model paths, plus optional remote providers and optional authentication or sync layers.
+            The details below are organized around the questions required by privacy reviews: what Memorall
+            collects, how it handles that data locally, how it stores data on-device, and the limited
+            situations where user-initiated network requests can happen.
           </p>
         </div>
 
@@ -591,8 +649,8 @@
             </div>
 
             <p class="policy-nav-note">
-              If you enable a remote provider or optional cloud feature, the prompts, files, or metadata you
-              send through that path may be processed under that provider's own terms and privacy policy.
+              Memorall does not automatically share user data. If you manually connect a third-party provider,
+              anything you send through that connection is handled under that provider's own privacy policy.
             </p>
           </aside>
 
@@ -601,19 +659,24 @@
               <p class="section-label">Overview</p>
               <h2>Overview</h2>
               <p>
-                Memorall is built around a local-first browser workflow. The core experience can capture pages,
-                manage documents, store chats, and build memory context without requiring every workflow to pass
-                through a remote server.
+                Memorall is built around a local-first browser workflow. The extension can capture pages,
+                manage documents, store chats, and build memory context without sending that content to a
+                Memorall-operated remote server.
               </p>
               <p>
-                Some features are optional rather than mandatory. That includes remote AI providers and optional
-                authentication or cloud-sync style integrations when they are configured for a deployment.
+                The default data path is local storage on your device. Any external data transfer only happens
+                when you explicitly choose to use a third-party integration or download model assets that a
+                local workflow requires.
               </p>
             </article>
 
             <article class="policy-block reveal" id="data-collected">
               <p class="section-label">Stored Data</p>
-              <h2>What Memorall may store</h2>
+              <h2>What Memorall collects and stores</h2>
+              <p>
+                Memorall does not collect a background profile about you. It stores the information below only
+                when you create it, import it, attach it, configure it, or explicitly save it in the extension.
+              </p>
               <ul class="policy-list">
                 <li>
                   <strong>Captured web content:</strong> pages, selected text, screenshots, page metadata, and
@@ -635,6 +698,11 @@
                   <strong>Configuration data:</strong> model settings, provider configuration state, and other
                   product preferences needed to restore your setup.
                 </li>
+                <li>
+                  <strong>What Memorall does not automatically collect:</strong> Memorall does not run its own
+                  analytics pipeline for your saved content, does not sell browsing data, and does not create a
+                  server-side copy of your local workspace by default.
+                </li>
               </ul>
             </article>
 
@@ -655,16 +723,26 @@
                   <strong>No mandatory sign-in for the core path:</strong> the local-first core does not require
                   every user to create an account before using the product.
                 </li>
+                <li>
+                  <strong>No Memorall-hosted storage for core data:</strong> Memorall does not upload your saved
+                  pages, notes, chats, files, or graph data to Memorall-operated servers as part of the default
+                  product flow.
+                </li>
               </ul>
             </article>
 
             <article class="policy-block reveal" id="network-requests">
               <p class="section-label">Network Requests</p>
               <h2>When network requests and third parties can be involved</h2>
+              <p>
+                Memorall does not automatically send your workspace content to third parties. Network requests
+                happen only in the limited cases below.
+              </p>
               <ul class="policy-list">
                 <li>
                   <strong>Model downloads:</strong> Memorall may connect to Hugging Face hosts when you choose a
-                  local model workflow that needs downloadable model assets.
+                  local model workflow that needs downloadable model assets. These requests are for model files,
+                  not for uploading your private workspace content.
                 </li>
                 <li>
                   <strong>Remote AI providers:</strong> if you explicitly configure and use a remote AI provider,
@@ -678,8 +756,8 @@
               </ul>
 
               <p class="policy-note">
-                Remote providers and optional cloud services are not the same as the local-only path. If you turn
-                them on, you should review the privacy terms of those services separately.
+                The local-only path keeps data in your browser. If you turn on a third-party service, review
+                that service's privacy policy separately before sending sensitive data through it.
               </p>
             </article>
 
@@ -687,11 +765,15 @@
               <p class="section-label">Data Sharing</p>
               <h2>How data is shared with third parties</h2>
               <p>
-                Memorall does not sell, rent, trade, or otherwise transfer your personal information to third
-                parties. Data sharing only occurs in the following limited circumstances, all of which are
-                entirely under your control:
+                Memorall does not sell, rent, trade, or otherwise disclose your personal information to
+                advertisers, analytics networks, data brokers, or unrelated third parties. Data sharing only
+                happens in the limited situations below, and those situations are initiated by your choices:
               </p>
               <ul class="policy-list">
+                <li>
+                  <strong>No Memorall server copy:</strong> Memorall does not maintain its own hosted database
+                  containing your saved pages, chats, notes, or documents from the default local-first path.
+                </li>
                 <li>
                   <strong>Remote AI providers (user-configured):</strong> if you explicitly configure an external
                   AI provider such as OpenAI, Anthropic, Google, or another API-compatible service, the prompts,
@@ -726,7 +808,7 @@
               <h2>How data is protected</h2>
               <p>
                 Because Memorall's core data path is local-first, most sensitive data never leaves your device
-                and is therefore not exposed to server-side breaches. The following practices apply:
+                and is therefore not exposed to Memorall server-side storage. The following practices apply:
               </p>
               <ul class="policy-list">
                 <li>
@@ -795,8 +877,8 @@
               <p class="section-label">Updates &amp; Contact</p>
               <h2>Changes and contact</h2>
               <p>
-                <strong>Effective date:</strong> April 14, 2025. This policy was last updated on
-                <strong>April 14, 2026</strong>.
+                <strong>Effective date:</strong> April 19, 2026. This policy was last updated on
+                <strong>April 19, 2026</strong>.
               </p>
               <p>
                 This privacy policy may be updated as the product evolves. When material changes are made, the
