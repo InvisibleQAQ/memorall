@@ -116,6 +116,13 @@
 			"answer": "Generating answer"
 		}
 	},
+	"smartSelect": {
+		"title": "Smart Select context",
+		"label": "Smart Select",
+		"viewFull": "View full",
+		"dialogTitle": "Smart Select Content",
+		"dismiss": "Dismiss"
+	},
 	"model": {
 		"notLoaded": "No model loaded",
 		"loading": "Loading model...",

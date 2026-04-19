@@ -216,6 +216,26 @@ async function handleConvertToKnowledge(
 	}
 }
 
+async function handleSmartSelector(tab: chrome.tabs.Tab): Promise<void> {
+	if (!tab.id) return;
+
+	try {
+		if (isRestrictedUrl(tab.url)) {
+			logError("❌ Cannot access this page type");
+			return;
+		}
+
+		const response = await chrome.tabs.sendMessage(tab.id, {
+			type: BACKGROUND_EVENTS.ACTIVATE_SMART_SELECTOR,
+			tabId: tab.id,
+			url: tab.url,
+		});
+		logInfo("📨 Content script response to ACTIVATE_SMART_SELECTOR:", response);
+	} catch (error) {
+		logError("❌ Failed to activate smart selector:", error);
+	}
+}
+
 async function handleOpenPlatform(tab: chrome.tabs.Tab): Promise<void> {
 	try {
 		if (isRestrictedUrl(tab.url)) {
@@ -276,6 +296,7 @@ export function registerContextMenuHandler(): void {
 		if (id === MENU_IDS.SAVE_PAGE) return handleSavePage(info, tab);
 		if (id === MENU_IDS.CONVERT_TO_KNOWLEDGE)
 			return handleConvertToKnowledge(info, tab);
+		if (id === MENU_IDS.SMART_SELECTOR) return handleSmartSelector(tab);
 		if (id === MENU_IDS.OPEN_PLATFORM) return handleOpenPlatform(tab);
 	});
 }

@@ -16,12 +16,23 @@ interface SmartSelectOverlayTexts {
 	smartSelectText: string;
 	smartSelectCleanHtml: string;
 	smartSelectHtml: string;
+	smartSelectChooseAction?: string;
+	smartSelectStoreToDocument?: string;
+	smartSelectOpenChat?: string;
+	smartSelectOpenFullChat?: string;
 }
+
+export type SmartSelectAction =
+	| "open-chat"
+	| "store-to-document"
+	| "open-full-chat";
 
 interface SmartSelectOverlayProps {
 	onSelectContext: (item: EmbeddedContextItem) => void;
+	onAction?: (item: EmbeddedContextItem, action: SmartSelectAction) => void;
 	onCancel: () => void;
 	texts: SmartSelectOverlayTexts;
+	mode?: "chat" | "standalone";
 }
 
 const SMART_SELECT_CONTAINER_ID = "memorall-smart-select-container";
@@ -78,8 +89,10 @@ const describeElementText = (element: Element): string => {
 
 const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 	onSelectContext,
+	onAction,
 	onCancel,
 	texts,
+	mode = "chat",
 }) => {
 	const [hoveredElement, setHoveredElement] = useState<Element | null>(null);
 	const [selectedElement, setSelectedElement] = useState<Element | null>(null);
@@ -88,6 +101,9 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 		x: number;
 		y: number;
 	} | null>(null);
+	const [pendingItem, setPendingItem] = useState<EmbeddedContextItem | null>(
+		null,
+	);
 
 	const updateHighlight = useCallback((element: Element | null) => {
 		setHighlightRect(element ? element.getBoundingClientRect() : null);
@@ -200,44 +216,49 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 	}, [chooserPoint]);
 
 	const handleChoose = useCallback(
-		(mode: "text" | "clean_html" | "html") => {
+		(format: "text" | "clean_html" | "html") => {
 			if (!selectedElement) {
 				return;
 			}
 
 			const descriptor = describeElement(selectedElement);
 
-			if (mode === "text") {
-				onSelectContext(
-					createEmbeddedContextItem({
-						kind: "smart_text",
-						label: `${texts.smartSelectText}: ${describeElementText(selectedElement)}`,
-						content: extractElementTextContent(selectedElement),
-					}),
-				);
-				return;
-			}
-
-			if (mode === "clean_html") {
-				onSelectContext(
-					createEmbeddedContextItem({
-						kind: "smart_clean_html",
-						label: `${texts.smartSelectCleanHtml}: ${descriptor}`,
-						content: extractElementCleanHTML(selectedElement),
-					}),
-				);
-				return;
-			}
-
-			onSelectContext(
-				createEmbeddedContextItem({
+			let item: EmbeddedContextItem;
+			if (format === "text") {
+				item = createEmbeddedContextItem({
+					kind: "smart_text",
+					label: `${texts.smartSelectText}: ${describeElementText(selectedElement)}`,
+					content: extractElementTextContent(selectedElement),
+				});
+			} else if (format === "clean_html") {
+				item = createEmbeddedContextItem({
+					kind: "smart_clean_html",
+					label: `${texts.smartSelectCleanHtml}: ${descriptor}`,
+					content: extractElementCleanHTML(selectedElement),
+				});
+			} else {
+				item = createEmbeddedContextItem({
 					kind: "smart_html",
 					label: `${texts.smartSelectHtml}: ${descriptor}`,
 					content: extractElementOuterHTML(selectedElement),
-				}),
-			);
+				});
+			}
+
+			if (mode === "standalone") {
+				setPendingItem(item);
+			} else {
+				onSelectContext(item);
+			}
 		},
-		[onSelectContext, selectedElement, texts],
+		[mode, onSelectContext, selectedElement, texts],
+	);
+
+	const handleAction = useCallback(
+		(action: SmartSelectAction) => {
+			if (!pendingItem) return;
+			onAction?.(pendingItem, action);
+		},
+		[onAction, pendingItem],
 	);
 
 	return (
@@ -334,63 +355,135 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 						pointerEvents: "auto",
 					}}
 				>
-					<div
-						style={{
-							fontSize: "12px",
-							fontWeight: 700,
-							color: "#475569",
-							marginBottom: "8px",
-						}}
-					>
-						{texts.smartSelectChooseFormat}
-					</div>
-					<div
-						style={{
-							fontSize: "12px",
-							color: "#0f172a",
-							backgroundColor: "#f8fafc",
-							borderRadius: "8px",
-							padding: "8px 10px",
-							marginBottom: "8px",
-							wordBreak: "break-word",
-						}}
-					>
-						{describeElement(selectedElement)}
-					</div>
-					<div style={{ display: "grid", gap: "8px" }}>
-						<button
-							type="button"
-							onClick={() => handleChoose("text")}
-							style={choiceButtonStyle}
-						>
-							{texts.smartSelectText}
-						</button>
-						<button
-							type="button"
-							onClick={() => handleChoose("clean_html")}
-							style={choiceButtonStyle}
-						>
-							{texts.smartSelectCleanHtml}
-						</button>
-						<button
-							type="button"
-							onClick={() => handleChoose("html")}
-							style={choiceButtonStyle}
-						>
-							{texts.smartSelectHtml}
-						</button>
-						<button
-							type="button"
-							onClick={onCancel}
-							style={{
-								...choiceButtonStyle,
-								backgroundColor: "#fee2e2",
-								color: "#991b1b",
-							}}
-						>
-							{texts.smartSelectCancel}
-						</button>
-					</div>
+					{!pendingItem ? (
+						<>
+							<div
+								style={{
+									fontSize: "12px",
+									fontWeight: 700,
+									color: "#475569",
+									marginBottom: "8px",
+								}}
+							>
+								{texts.smartSelectChooseFormat}
+							</div>
+							<div
+								style={{
+									fontSize: "12px",
+									color: "#0f172a",
+									backgroundColor: "#f8fafc",
+									borderRadius: "8px",
+									padding: "8px 10px",
+									marginBottom: "8px",
+									wordBreak: "break-word",
+								}}
+							>
+								{describeElement(selectedElement)}
+							</div>
+							<div style={{ display: "grid", gap: "8px" }}>
+								<button
+									type="button"
+									onClick={() => handleChoose("text")}
+									style={choiceButtonStyle}
+								>
+									{texts.smartSelectText}
+								</button>
+								<button
+									type="button"
+									onClick={() => handleChoose("clean_html")}
+									style={choiceButtonStyle}
+								>
+									{texts.smartSelectCleanHtml}
+								</button>
+								<button
+									type="button"
+									onClick={() => handleChoose("html")}
+									style={choiceButtonStyle}
+								>
+									{texts.smartSelectHtml}
+								</button>
+								<button
+									type="button"
+									onClick={onCancel}
+									style={{
+										...choiceButtonStyle,
+										backgroundColor: "#fee2e2",
+										color: "#991b1b",
+									}}
+								>
+									{texts.smartSelectCancel}
+								</button>
+							</div>
+						</>
+					) : (
+						<>
+							<div
+								style={{
+									fontSize: "12px",
+									fontWeight: 700,
+									color: "#475569",
+									marginBottom: "8px",
+								}}
+							>
+								{texts.smartSelectChooseAction ?? "Choose action"}
+							</div>
+							<div
+								style={{
+									fontSize: "12px",
+									color: "#0f172a",
+									backgroundColor: "#f8fafc",
+									borderRadius: "8px",
+									padding: "8px 10px",
+									marginBottom: "8px",
+									wordBreak: "break-word",
+								}}
+							>
+								{pendingItem.label}
+							</div>
+							<div style={{ display: "grid", gap: "8px" }}>
+								<button
+									type="button"
+									onClick={() => handleAction("store-to-document")}
+									style={choiceButtonStyle}
+								>
+									{texts.smartSelectStoreToDocument ?? "Store to document"}
+								</button>
+								<button
+									type="button"
+									onClick={() => handleAction("open-chat")}
+									style={{
+										...choiceButtonStyle,
+										backgroundColor: "#f0fdf4",
+										color: "#15803d",
+									}}
+								>
+									{texts.smartSelectOpenChat ?? "Open chat"}
+								</button>
+								<button
+									type="button"
+									onClick={() => handleAction("open-full-chat")}
+									style={{
+										...choiceButtonStyle,
+										backgroundColor: "#faf5ff",
+										color: "#7c3aed",
+									}}
+								>
+									{texts.smartSelectOpenFullChat ?? "Open full chat"}
+								</button>
+								<button
+									type="button"
+									onClick={onCancel}
+									style={{
+										...choiceButtonStyle,
+										backgroundColor: "#fee2e2",
+										color: "#991b1b",
+									}}
+								>
+									{texts.smartSelectCancel}
+								</button>
+							</div>
+						</>
+					)}
 				</div>
 			)}
 		</div>
@@ -433,8 +526,49 @@ export function createSmartSelectOverlay(
 	root.render(
 		<SmartSelectOverlay
 			texts={texts}
+			mode="chat"
 			onSelectContext={(item) => {
 				onSelectContext(item);
+				cleanup();
+			}}
+			onCancel={() => {
+				onCancel();
+				cleanup();
+			}}
+		/>,
+	);
+
+	return cleanup;
+}
+
+export function createStandaloneSmartSelectOverlay(
+	onAction: (item: EmbeddedContextItem, action: SmartSelectAction) => void,
+	onCancel: () => void,
+	texts: SmartSelectOverlayTexts,
+): () => void {
+	activeOverlayCleanup?.();
+
+	const container = document.createElement("div");
+	container.id = SMART_SELECT_CONTAINER_ID;
+	document.body.appendChild(container);
+
+	const root = createRoot(container);
+	const cleanup = () => {
+		root.unmount();
+		container.remove();
+		if (activeOverlayCleanup === cleanup) {
+			activeOverlayCleanup = null;
+		}
+	};
+
+	activeOverlayCleanup = cleanup;
+	root.render(
+		<SmartSelectOverlay
+			texts={texts}
+			mode="standalone"
+			onSelectContext={() => {}}
+			onAction={(item, action) => {
+				onAction(item, action);
 				cleanup();
 			}}
 			onCancel={() => {

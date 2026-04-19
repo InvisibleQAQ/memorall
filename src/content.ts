@@ -18,6 +18,15 @@ import {
 } from "./embedded";
 import { createEmbeddedContextItem } from "./embedded/context-items";
 import { createEmbeddedChatModal } from "./embedded/pages/EmbeddedChat";
+import {
+	createStandaloneSmartSelectOverlay,
+	type SmartSelectAction,
+} from "./embedded/components/SmartSelectOverlay";
+import { createFolderPickerOverlay } from "./embedded/components/FolderPickerOverlay";
+import {
+	loadLanguageFromStorage,
+	EMBEDDED_TRANSLATIONS,
+} from "./embedded/language";
 import type {
 	BackgroundMessage,
 	EmbeddedContextItem,
@@ -391,6 +400,10 @@ const messageListener = (
 			handleShowImageSelector(message, sendResponse);
 			return true;
 
+		case BACKGROUND_EVENTS.ACTIVATE_SMART_SELECTOR:
+			void handleActivateSmartSelector(sendResponse);
+			return true;
+
 		default:
 			sendResponse({ success: false, error: "Unknown message type" });
 			return true;
@@ -682,6 +695,82 @@ async function handleShowChatModal(
 			success: false,
 			error:
 				error instanceof Error ? error.message : "Failed to show chat modal",
+		});
+	}
+}
+
+// Handle ACTIVATE_SMART_SELECTOR message - launch standalone smart selector from context menu
+async function handleActivateSmartSelector(
+	sendResponse: (response: MessageResponse) => void,
+): Promise<void> {
+	try {
+		const existing = document.getElementById("memorall-smart-select-container");
+		if (existing) existing.remove();
+
+		const language = await loadLanguageFromStorage();
+		const t = EMBEDDED_TRANSLATIONS[language].contextSection;
+
+		createStandaloneSmartSelectOverlay(
+			(item, action: SmartSelectAction) => {
+				if (action === "open-chat") {
+					const existingModal = document.getElementById(
+						"memorall-embedded-chat-modal",
+					);
+					if (existingModal) existingModal.remove();
+
+					createEmbeddedChatModal({
+						mode: "general",
+						pageUrl: window.location.href,
+						pageTitle: document.title,
+						contextOptions: [item],
+						onClose: () => {},
+					});
+				} else if (action === "open-full-chat") {
+					void sendMessageToBackground({
+						type: BACKGROUND_EVENTS.OPEN_FULL_CHAT_WITH_CONTEXT,
+						context: JSON.stringify(item),
+					});
+				} else {
+					createFolderPickerOverlay(
+						item,
+						{
+							smartSelectStoreToDocument:
+								t.smartSelectStoreToDocument ?? "Store to document",
+							saveFolder: t.saveFolder,
+							saveFileName: t.saveFileName,
+							saveToDocuments: t.saveToDocuments,
+							savingToDocuments: t.savingToDocuments,
+							smartSelectCancel: t.smartSelectCancel,
+						},
+						() => {},
+						() => {},
+					);
+				}
+			},
+			() => {},
+			{
+				smartSelect: t.smartSelect,
+				smartSelectInstruction: t.smartSelectInstruction,
+				smartSelectCancel: t.smartSelectCancel,
+				smartSelectChooseFormat: t.smartSelectChooseFormat,
+				smartSelectText: t.smartSelectText,
+				smartSelectCleanHtml: t.smartSelectCleanHtml,
+				smartSelectHtml: t.smartSelectHtml,
+				smartSelectChooseAction: t.smartSelectChooseAction,
+				smartSelectStoreToDocument: t.smartSelectStoreToDocument,
+				smartSelectOpenChat: t.smartSelectOpenChat,
+				smartSelectOpenFullChat: t.smartSelectOpenFullChat,
+			},
+		);
+
+		sendResponse({ success: true });
+	} catch (error) {
+		sendResponse({
+			success: false,
+			error:
+				error instanceof Error
+					? error.message
+					: "Failed to activate smart selector",
 		});
 	}
 }

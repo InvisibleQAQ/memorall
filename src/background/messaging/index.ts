@@ -104,6 +104,36 @@ function handleOpenSavePage(sendResponse: SendResponse): true {
 	return true;
 }
 
+function handleOpenFullChatWithContext(
+	msg: BackgroundMessage,
+	sendResponse: SendResponse,
+): true {
+	(async () => {
+		try {
+			if (msg.context) {
+				chrome.storage?.session?.set?.({ smartSelectContext: msg.context });
+			}
+			try {
+				await chrome.runtime.openOptionsPage?.();
+			} catch {
+				const optionsUrl = chrome.runtime.getURL("standalone.html");
+				const existing = await chrome.tabs.query({ url: optionsUrl });
+				if (existing.length > 0) {
+					await chrome.tabs.update(existing[0].id!, { active: true });
+					await chrome.windows.update(existing[0].windowId!, { focused: true });
+				} else {
+					await chrome.tabs.create({ url: optionsUrl, active: true });
+				}
+			}
+			sendResponse({ success: true });
+		} catch (error) {
+			logError("❌ Failed to open full chat with context:", error);
+			sendResponse({ success: false, error: "Failed to open full chat" });
+		}
+	})();
+	return true;
+}
+
 function collectDocumentFolderPaths(
 	nodes: Array<{
 		type: "file" | "folder";
@@ -372,6 +402,9 @@ export function registerMessageHandler(onPopupOpened: () => void): void {
 
 		if (type === BACKGROUND_EVENTS.OPEN_SAVE_PAGE)
 			return handleOpenSavePage(sendResponse);
+
+		if (type === BACKGROUND_EVENTS.OPEN_FULL_CHAT_WITH_CONTEXT)
+			return handleOpenFullChatWithContext(msg, sendResponse);
 
 		if (type === BACKGROUND_EVENTS.SAVE_CONTENT_WITH_TOPIC)
 			return handleSaveContentWithTopic(msg, sender.tab?.id, sendResponse);

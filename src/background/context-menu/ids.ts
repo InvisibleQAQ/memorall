@@ -11,4 +11,5 @@ export const MENU_IDS = {
 	ACTIVITY_DIVIDER: "activity-divider",
 	OPEN_PLATFORM: "open-platform",
 	OPEN_DOCUMENTS: "open-documents",
+	SMART_SELECTOR: "smart-selector",
 } as const;

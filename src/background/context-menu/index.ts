@@ -10,6 +10,7 @@ type MenuTexts = {
 	savePage: string;
 	convertToKnowledge: string;
 	recall: string;
+	smartSelector: string;
 	openPlatform: string;
 	openDocuments: string;
 };
@@ -19,6 +20,7 @@ const TEXTS: Record<Language, MenuTexts> = {
 		savePage: "💾 Save page",
 		convertToKnowledge: "✨ Convert to knowledge",
 		recall: "🧠 Recall",
+		smartSelector: "🎯 Smart Selector",
 		openPlatform: "🚀 Open platform",
 		openDocuments: "📄 Open documents",
 	},
@@ -26,6 +28,7 @@ const TEXTS: Record<Language, MenuTexts> = {
 		savePage: "💾 Lưu trang",
 		convertToKnowledge: "✨ Chuyển thành kiến thức",
 		recall: "🧠 Gợi nhớ",
+		smartSelector: "🎯 Chọn thông minh",
 		openPlatform: "🚀 Mở nền tảng",
 		openDocuments: "📄 Mở tài liệu",
 	},
@@ -53,6 +56,11 @@ export function createContextMenus(language: Language): void {
 	chrome.contextMenus.create({
 		id: MENU_IDS.RECALL,
 		title: t.recall,
+		contexts: ["page", "selection"],
+	});
+	chrome.contextMenus.create({
+		id: MENU_IDS.SMART_SELECTOR,
+		title: t.smartSelector,
 		contexts: ["page", "selection"],
 	});
 	chrome.contextMenus.create({
@@ -88,6 +96,9 @@ export async function updateContextMenuText(language: Language): Promise<void> {
 			title: t.convertToKnowledge,
 		});
 		await chrome.contextMenus.update(MENU_IDS.RECALL, { title: t.recall });
+		await chrome.contextMenus.update(MENU_IDS.SMART_SELECTOR, {
+			title: t.smartSelector,
+		});
 		await chrome.contextMenus.update(MENU_IDS.OPEN_PLATFORM, {
 			title: t.openPlatform,
 		});

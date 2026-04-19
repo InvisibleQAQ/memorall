@@ -153,11 +153,15 @@ export const useChat = (model: string) => {
 		e: React.FormEvent,
 		attachedImages: File[] = [],
 		attachedDocumentRefs: AttachedDocumentRef[] = [],
+		contextPrefix?: string,
 	) => {
 		e.preventDefault();
 		if (!inputValue.trim() || isLoading || !model) return;
 
-		const userMessageContent = inputValue.trim();
+		const rawInput = inputValue.trim();
+		const userMessageContent = contextPrefix
+			? `${contextPrefix}\n\n---\n\n${rawInput}`
+			: rawInput;
 		setInputValue("");
 		setStatus("submitted");
 		setLoading(true);

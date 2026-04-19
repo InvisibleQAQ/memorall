@@ -115,6 +115,13 @@
 			"answer": "Tạo câu trả lời"
 		}
 	},
+	"smartSelect": {
+		"title": "Ngữ cảnh chọn thông minh",
+		"label": "Chọn thông minh",
+		"viewFull": "Xem đầy đủ",
+		"dialogTitle": "Nội dung chọn thông minh",
+		"dismiss": "Bỏ qua"
+	},
 	"model": {
 		"notLoaded": "Chưa tải mô hình",
 		"loading": "Đang tải mô hình...",
