@@ -34,6 +34,15 @@ export const message = pgTable(
 	},
 	(table) => [
 		index("messages_conversation_idx").on(table.conversationId),
+		index("messages_conversation_created_idx").on(
+			table.conversationId,
+			table.createdAt,
+		),
+		index("messages_conversation_type_created_idx").on(
+			table.conversationId,
+			table.type,
+			table.createdAt,
+		),
 		index("messages_role_idx").on(table.role),
 		index("messages_topic_idx").on(table.topicId),
 	],

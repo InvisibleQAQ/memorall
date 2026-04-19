@@ -18,7 +18,6 @@ import {
 	useChat,
 } from "@/main/modules/chat/components";
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
-import { groupMessagesBySeparators } from "@/main/modules/chat/utils/message-grouping";
 import type { AttachedDocumentRef } from "@/types/chat";
 
 interface ActivityChatPanelProps {
@@ -42,13 +41,14 @@ export const ActivityChatPanel: React.FC<ActivityChatPanelProps> = ({
 		setSelectedTopic,
 		selectedAgentFlowId,
 		setSelectedAgentFlowId,
-		messages,
+		messageGroups,
 		isLoading,
 		abortController,
 		inProgressMessage,
 		handleSubmit,
 		handleStop,
 		insertSeparator,
+		loadMessageGroup,
 		deleteMessages,
 	} = useChat(model);
 	const [attachedImages, setAttachedImages] = useState<File[]>([]);
@@ -63,28 +63,34 @@ export const ActivityChatPanel: React.FC<ActivityChatPanelProps> = ({
 		}
 	}, [isOpen, initialMessage, setInputValue]);
 
-	// Memoized message groups
-	const { groups, inprogressGroup, completedGroupsIds } = useMemo(() => {
-		const groupResponse = groupMessagesBySeparators(messages);
-		return {
-			groups: groupResponse.groups,
-			inprogressGroup: groupResponse.inprogressGroup,
-			completedGroupsIds: groupResponse.completedGroupsIds.join(","),
-		};
-	}, [messages]);
+	const completedGroups = useMemo(
+		() => messageGroups.filter((group) => !group.isLatest),
+		[messageGroups],
+	);
+	const latestGroup = useMemo(
+		() => messageGroups.find((group) => group.isLatest) ?? null,
+		[messageGroups],
+	);
+	const completedGroupsIds = useMemo(
+		() =>
+			completedGroups
+				.map((group) => `${group.id}:${group.isLoaded ? "loaded" : "empty"}`)
+				.join(","),
+		[completedGroups],
+	);
 
 	// Memoized completed components
 	const completedMessageGroups = useMemo(() => {
-		return groups.map((group) => (
+		return completedGroups.map((group) => (
 			<MessageGroup
 				key={group.id}
 				group={group}
-				isLoading={false}
 				inProgressMessage={null}
 				defaultCollapsed={true}
+				onLoadMessages={loadMessageGroup}
 			/>
 		));
-	}, [completedGroupsIds]);
+	}, [completedGroupsIds, completedGroups, loadMessageGroup]);
 
 	if (!isOpen) return null;
 
@@ -120,13 +126,13 @@ export const ActivityChatPanel: React.FC<ActivityChatPanelProps> = ({
 							<ConversationContent className="max-w-full px-4 space-y-6">
 								{completedMessageGroups}
 
-								{inprogressGroup ? (
+								{latestGroup ? (
 									<MessageGroup
-										key={inprogressGroup.id}
-										group={inprogressGroup}
-										isLoading={true}
+										key={latestGroup.id}
+										group={latestGroup}
 										inProgressMessage={inProgressMessage}
 										defaultCollapsed={false}
+										onLoadMessages={loadMessageGroup}
 									/>
 								) : undefined}
 							</ConversationContent>

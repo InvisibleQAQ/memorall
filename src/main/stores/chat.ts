@@ -1,18 +1,37 @@
 import { create } from "zustand";
 import {
+	and,
+	asc,
+	desc,
+	eq,
+	gt,
+	lt,
+	ne,
+} from "drizzle-orm";
+import {
 	type Message,
 	type Conversation,
 	type NewConversation,
 } from "@/services/database/types";
 import { serviceManager } from "@/services";
-import { eq, desc, asc } from "drizzle-orm";
 import { logError } from "@/utils/logger";
 import { v4 } from "@/utils/uuid";
 import type { ChatMode } from "@/main/modules/chat/services/chat-service";
 
+export interface ChatMessageGroup {
+	id: string;
+	previousSeparator: Message | null;
+	separator: Message | null;
+	messages: Message[];
+	isLatest: boolean;
+	isLoaded: boolean;
+	isLoading: boolean;
+}
+
 interface ChatStore {
 	// State
 	messages: Message[];
+	messageGroups: ChatMessageGroup[];
 	currentConversation: Conversation | null;
 	isLoading: boolean;
 	chatMode: ChatMode;
@@ -24,6 +43,7 @@ interface ChatStore {
 	updateMessage: (id: string, message: Partial<Message>) => void;
 	finalizeMessage: (id: string, message: Partial<Message>) => Promise<void>;
 	loadConversation: (id: string) => Promise<void>;
+	loadMessageGroup: (groupId: string) => Promise<void>;
 	createNewConversation: (title?: string) => Promise<Conversation>;
 	ensureMainConversation: () => Promise<Conversation>;
 	clearMessages: () => void;
@@ -39,10 +59,10 @@ interface ChatStore {
 
 /**
  * Sanitize a value so it is safe to store in a Postgres jsonb column.
- * - undefined → null (undefined is not valid JSON)
- * - Date → ISO string
- * - BigInt → string
- * - functions / symbols → null
+ * - undefined -> null (undefined is not valid JSON)
+ * - Date -> ISO string
+ * - BigInt -> string
+ * - functions / symbols -> null
  * - circular references are broken (replaced with null)
  */
 function sanitizeForJson(value: unknown, seen = new WeakSet()): unknown {
@@ -63,7 +83,7 @@ function sanitizeForJson(value: unknown, seen = new WeakSet()): unknown {
 	}
 
 	if (type === "object") {
-		if (seen.has(value as object)) return null; // break circular ref
+		if (seen.has(value as object)) return null;
 		seen.add(value as object);
 		const result: Record<string, unknown> = {};
 		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
@@ -75,254 +95,442 @@ function sanitizeForJson(value: unknown, seen = new WeakSet()): unknown {
 	return null;
 }
 
-export const useChatStore = create<ChatStore>((set, get) => ({
-	messages: [],
-	currentConversation: null,
+const buildLatestGroupId = (previousSeparator: Message | null) =>
+	`group:latest:${previousSeparator?.id ?? "root"}`;
+
+const buildCompletedGroupId = (separator: Message) => `group:${separator.id}`;
+
+const createLatestGroup = (
+	previousSeparator: Message | null,
+	messages: Message[] = [],
+): ChatMessageGroup => ({
+	id: buildLatestGroupId(previousSeparator),
+	previousSeparator,
+	separator: null,
+	messages,
+	isLatest: true,
+	isLoaded: true,
 	isLoading: false,
-	chatMode: "knowledge",
-	selectedTopic: "default",
-	selectedAgentFlowId: null,
+});
 
-	addMessage: async (messageData) => {
-		let conversationId = messageData.conversationId;
-		if (!conversationId && !get().currentConversation) {
-			const conversation = await get().createNewConversation();
-			conversationId = conversation.id;
-		} else if (get().currentConversation) {
-			conversationId = get().currentConversation!.id;
-		}
+const createGroupsFromSeparators = (
+	separators: Message[],
+): ChatMessageGroup[] => {
+	const groups: ChatMessageGroup[] = [];
+	let previousSeparator: Message | null = null;
 
-		// Generate ID first, then spread messageData, ensuring we don't use a duplicate ID
-		const messageId = messageData.id || v4();
+	for (const separator of separators) {
+		groups.push({
+			id: buildCompletedGroupId(separator),
+			previousSeparator,
+			separator,
+			messages: [],
+			isLatest: false,
+			isLoaded: false,
+			isLoading: false,
+		});
+		previousSeparator = separator;
+	}
 
-		const message = {
-			...messageData,
-			id: messageId,
-			timestamp: new Date(),
-			conversationId,
-		} as Message;
-		if (!message.role || !message.conversationId) {
-			throw new Error("Message must have a role and conversationId");
-		}
+	groups.push(createLatestGroup(previousSeparator));
+	return groups;
+};
 
-		// Add to local state immediately
-		set((state) => ({
-			messages: [...state.messages, message],
-		}));
+const getLatestGroup = (
+	groups: ChatMessageGroup[],
+): ChatMessageGroup | undefined => groups.find((group) => group.isLatest);
 
-		// Save to database with conflict handling
-		try {
-			await serviceManager.databaseService.use(({ db, schema }) =>
-				db.insert(schema.messages).values(message).onConflictDoNothing(),
-			);
-		} catch (error) {
-			logError("Failed to save message to database:", error);
-		}
+const replaceGroup = (
+	groups: ChatMessageGroup[],
+	groupId: string,
+	updater: (group: ChatMessageGroup) => ChatMessageGroup,
+) => groups.map((group) => (group.id === groupId ? updater(group) : group));
 
-		return message;
-	},
+const replaceMessageInGroups = (
+	groups: ChatMessageGroup[],
+	messageId: string,
+	message: Partial<Message>,
+) =>
+	groups.map((group) => ({
+		...group,
+		messages: group.messages.map((current) =>
+			current.id === messageId ? { ...current, ...message } : current,
+		),
+	}));
 
-	updateMessage: (id, message) => {
-		set((state) => ({
-			messages: state.messages.map((msg) =>
-				msg.id === id ? { ...msg, ...message } : msg,
-			),
-		}));
-	},
+export const useChatStore = create<ChatStore>((set, get) => {
+	const querySeparators = async (conversationId: string) =>
+		serviceManager.databaseService.use(({ db, schema }) =>
+			db
+				.select()
+				.from(schema.messages)
+				.where(
+					and(
+						eq(schema.messages.conversationId, conversationId),
+						eq(schema.messages.type, "separator"),
+					),
+				)
+				.orderBy(asc(schema.messages.createdAt)),
+		);
 
-	finalizeMessage: async (id, inputMessage) => {
-		const message = get().messages.find((msg) => msg.id === id);
-		try {
-			// Clean content to avoid UTF-8 issues
-			const cleanContent = (
-				inputMessage.content ||
-				message?.content ||
-				""
-			).replace(
-				/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu,
-				"",
-			);
+	const queryGroupMessages = async (
+		conversationId: string,
+		group: Pick<ChatMessageGroup, "previousSeparator" | "separator">,
+	) => {
+		return serviceManager.databaseService.use(({ db, schema }) => {
+			const conditions = [
+				eq(schema.messages.conversationId, conversationId),
+				ne(schema.messages.type, "separator"),
+			];
 
-			const mergedMetadata = sanitizeForJson({
-				...(message?.metadata || {}),
-				...(inputMessage?.metadata || {}),
-			}) as Record<string, unknown>;
+			if (group.previousSeparator) {
+				conditions.push(
+					gt(schema.messages.createdAt, group.previousSeparator.createdAt),
+				);
+			}
 
-			const updatedMessage = {
-				...message,
-				...inputMessage,
-				role: inputMessage.role || message?.role || "user",
-				content: cleanContent,
-				metadata: mergedMetadata,
-			};
+			if (group.separator) {
+				conditions.push(lt(schema.messages.createdAt, group.separator.createdAt));
+			}
 
-			// Update database
-			await serviceManager.databaseService.use(({ db, schema }) =>
-				db
-					.update(schema.messages)
-					.set(updatedMessage)
-					.where(eq(schema.messages.id, id)),
-			);
+			return db
+				.select()
+				.from(schema.messages)
+				.where(and(...conditions))
+				.orderBy(asc(schema.messages.createdAt));
+		});
+	};
 
-			// Update store state
+	const hydrateConversation = async (conversation: Conversation) => {
+		const separators = await querySeparators(conversation.id);
+		const initialGroups = createGroupsFromSeparators(separators);
+		const latestGroup = getLatestGroup(initialGroups) ?? createLatestGroup(null);
+		const latestMessages = await queryGroupMessages(conversation.id, latestGroup);
+		const messageGroups = initialGroups.map((group) =>
+			group.isLatest
+				? {
+						...group,
+						messages: latestMessages,
+						isLoaded: true,
+					}
+				: group,
+		);
+
+		set({
+			currentConversation: conversation,
+			messageGroups,
+			messages: latestMessages,
+		});
+
+		return conversation;
+	};
+
+	return {
+		messages: [],
+		messageGroups: [createLatestGroup(null)],
+		currentConversation: null,
+		isLoading: false,
+		chatMode: "knowledge",
+		selectedTopic: "default",
+		selectedAgentFlowId: null,
+
+		addMessage: async (messageData) => {
+			let conversationId = messageData.conversationId;
+			if (!conversationId && !get().currentConversation) {
+				const conversation = await get().createNewConversation();
+				conversationId = conversation.id;
+			} else if (get().currentConversation) {
+				conversationId = get().currentConversation!.id;
+			}
+
+			const messageId = messageData.id || v4();
+			const now = messageData.createdAt ?? new Date();
+
+			const message = {
+				...messageData,
+				id: messageId,
+				conversationId,
+				type: messageData.type ?? "text",
+				createdAt: now,
+				updatedAt: messageData.updatedAt ?? now,
+			} as Message;
+
+			if (!message.role || !message.conversationId) {
+				throw new Error("Message must have a role and conversationId");
+			}
+
+			set((state) => {
+				const existingLatestGroup =
+					getLatestGroup(state.messageGroups) ?? createLatestGroup(null);
+
+				if (message.type === "separator") {
+					const groupsWithoutLatest = state.messageGroups.filter(
+						(group) => !group.isLatest,
+					);
+					const completedGroup: ChatMessageGroup = {
+						...existingLatestGroup,
+						id: buildCompletedGroupId(message),
+						separator: message,
+						isLatest: false,
+					};
+					const nextLatestGroup = createLatestGroup(message);
+
+					return {
+						messages: [],
+						messageGroups: [
+							...groupsWithoutLatest,
+							completedGroup,
+							nextLatestGroup,
+						],
+					};
+				}
+
+				const nextLatestGroup: ChatMessageGroup = {
+					...existingLatestGroup,
+					messages: [...existingLatestGroup.messages, message],
+				};
+				const nextGroups =
+					state.messageGroups.length === 0
+						? [nextLatestGroup]
+						: replaceGroup(state.messageGroups, existingLatestGroup.id, () =>
+								nextLatestGroup,
+							);
+
+				return {
+					messages: [...state.messages, message],
+					messageGroups: nextGroups,
+				};
+			});
+
+			try {
+				await serviceManager.databaseService.use(({ db, schema }) =>
+					db.insert(schema.messages).values(message).onConflictDoNothing(),
+				);
+			} catch (error) {
+				logError("Failed to save message to database:", error);
+			}
+
+			return message;
+		},
+
+		updateMessage: (id, message) => {
 			set((state) => ({
 				messages: state.messages.map((msg) =>
-					msg.id === id ? { ...msg, ...updatedMessage } : msg,
+					msg.id === id ? { ...msg, ...message } : msg,
+				),
+				messageGroups: replaceMessageInGroups(state.messageGroups, id, message),
+			}));
+		},
+
+		finalizeMessage: async (id, inputMessage) => {
+			const message = get().messages.find((msg) => msg.id === id);
+			try {
+				const cleanContent = (
+					inputMessage.content ||
+					message?.content ||
+					""
+				).replace(
+					/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu,
+					"",
+				);
+
+				const mergedMetadata = sanitizeForJson({
+					...(message?.metadata || {}),
+					...(inputMessage?.metadata || {}),
+				}) as Record<string, unknown>;
+
+				const updatedMessage = {
+					...message,
+					...inputMessage,
+					role: inputMessage.role || message?.role || "user",
+					content: cleanContent,
+					metadata: mergedMetadata,
+				};
+
+				await serviceManager.databaseService.use(({ db, schema }) =>
+					db
+						.update(schema.messages)
+						.set(updatedMessage)
+						.where(eq(schema.messages.id, id)),
+				);
+
+				set((state) => ({
+					messages: state.messages.map((msg) =>
+						msg.id === id ? { ...msg, ...updatedMessage } : msg,
+					),
+					messageGroups: replaceMessageInGroups(
+						state.messageGroups,
+						id,
+						updatedMessage,
+					),
+				}));
+			} catch (error) {
+				logError("Failed to finalize message in database:", error);
+			}
+		},
+
+		createNewConversation: async (title?: string) => {
+			try {
+				const newConversation: NewConversation = {
+					title: title || "Main Chat",
+					metadata: {
+						createdAt: new Date().toISOString(),
+					},
+				};
+
+				const conversation = await serviceManager.databaseService.use(
+					async ({ db, schema }) => {
+						const [created] = await db
+							.insert(schema.conversations)
+							.values(newConversation)
+							.returning();
+						return created;
+					},
+				);
+
+				set({
+					currentConversation: conversation,
+					messageGroups: [createLatestGroup(null)],
+					messages: [],
+				});
+				return conversation;
+			} catch (error) {
+				logError("Failed to create conversation:", error);
+				throw error;
+			}
+		},
+
+		ensureMainConversation: async () => {
+			try {
+				const existing = await serviceManager.databaseService.use(
+					({ db, schema }) =>
+						db
+							.select()
+							.from(schema.conversations)
+							.orderBy(desc(schema.conversations.createdAt))
+							.limit(1),
+				);
+
+				if (existing.length > 0) {
+					return await hydrateConversation(existing[0]);
+				}
+
+				return await get().createNewConversation("Main Chat");
+			} catch (error) {
+				logError("Failed to ensure main conversation:", error);
+				throw error;
+			}
+		},
+
+		loadConversation: async (id: string) => {
+			try {
+				const conversation = await serviceManager.databaseService.use(
+					async ({ db, schema }) => {
+						const [conv] = await db
+							.select()
+							.from(schema.conversations)
+							.where(eq(schema.conversations.id, id));
+						return conv;
+					},
+				);
+
+				if (!conversation) {
+					throw new Error("Conversation not found");
+				}
+
+				await hydrateConversation(conversation);
+			} catch (error) {
+				logError("Failed to load conversation:", error);
+				throw error;
+			}
+		},
+
+		loadMessageGroup: async (groupId: string) => {
+			const state = get();
+			const conversationId = state.currentConversation?.id;
+			const group = state.messageGroups.find((item) => item.id === groupId);
+
+			if (
+				!conversationId ||
+				!group ||
+				group.isLatest ||
+				group.isLoaded ||
+				group.isLoading
+			) {
+				return;
+			}
+
+			set((current) => ({
+				messageGroups: replaceGroup(current.messageGroups, groupId, (currentGroup) =>
+					currentGroup.isLoading
+						? currentGroup
+						: { ...currentGroup, isLoading: true },
 				),
 			}));
-		} catch (error) {
-			logError("Failed to finalize message in database:", error);
-		}
-	},
 
-	createNewConversation: async (title?: string) => {
-		try {
-			const newConversation: NewConversation = {
-				title: title || "Main Chat",
-				metadata: {
-					createdAt: new Date().toISOString(),
-				},
-			};
-
-			// Get or create the conversation
-			const conversation = await serviceManager.databaseService.use(
-				async ({ db, schema }) => {
-					const [created] = await db
-						.insert(schema.conversations)
-						.values(newConversation)
-						.returning();
-					return created;
-				},
-			);
-
-			set({ currentConversation: conversation });
-			return conversation;
-		} catch (error) {
-			logError("Failed to create conversation:", error);
-			throw error;
-		}
-	},
-
-	ensureMainConversation: async () => {
-		try {
-			// Pick the most recent conversation if exists; otherwise create one
-			const existing = await serviceManager.databaseService.use(
-				({ db, schema }) =>
-					db
-						.select()
-						.from(schema.conversations)
-						.orderBy(desc(schema.conversations.createdAt))
-						.limit(1),
-			);
-			const messages = await serviceManager.databaseService.use(
-				({ db, schema }) =>
-					db
-						.select()
-						.from(schema.messages)
-						.orderBy(asc(schema.messages.updatedAt)),
-			);
-
-			if (existing.length > 0) {
-				set({ currentConversation: existing[0], messages });
-				return existing[0];
+			try {
+				const messages = await queryGroupMessages(conversationId, group);
+				set((current) => ({
+					messageGroups: replaceGroup(current.messageGroups, groupId, () => ({
+						...group,
+						messages,
+						isLoaded: true,
+						isLoading: false,
+					})),
+				}));
+			} catch (error) {
+				logError("Failed to load message group:", error);
+				set((current) => ({
+					messageGroups: replaceGroup(current.messageGroups, groupId, (item) => ({
+						...item,
+						isLoading: false,
+					})),
+				}));
 			}
+		},
 
-			return await get().createNewConversation("Main Chat");
-		} catch (error) {
-			logError("Failed to ensure main conversation:", error);
-			throw error;
-		}
-	},
-
-	loadConversation: async (id: string) => {
-		try {
-			// Load conversation
-			const conversation = await serviceManager.databaseService.use(
-				async ({ db, schema }) => {
-					const [conv] = await db
-						.select()
-						.from(schema.conversations)
-						.where(eq(schema.conversations.id, id));
-					return conv;
-				},
-			);
-
-			if (!conversation) {
-				throw new Error("Conversation not found");
-			}
-
-			// Load messages
-			const messages = await serviceManager.databaseService.use(
-				({ db, schema }) =>
-					db
-						.select()
-						.from(schema.messages)
-						.where(eq(schema.messages.conversationId, id))
-						.orderBy(schema.messages.createdAt),
-			);
-
+		clearMessages: () => {
 			set({
-				currentConversation: conversation,
-				messages,
+				messages: [],
+				messageGroups: [createLatestGroup(null)],
+				currentConversation: null,
 			});
-		} catch (error) {
-			logError("Failed to load conversation:", error);
-			throw error;
-		}
-	},
+		},
 
-	clearMessages: () => {
-		set({
-			messages: [],
-			currentConversation: null,
-		});
-	},
-
-	deleteMessages: async () => {
-		await serviceManager.databaseService.use(({ db, schema }) =>
-			db.delete(schema.messages),
-		);
-		set({
-			messages: [],
-			currentConversation: null,
-		});
-	},
-
-	setLoading: (loading: boolean) => {
-		set({ isLoading: loading });
-	},
-
-	setChatMode: (mode: ChatMode) => {
-		set({ chatMode: mode });
-	},
-
-	setSelectedTopic: (topicId: string) => {
-		set({ selectedTopic: topicId });
-	},
-
-	setSelectedAgentFlowId: (flowId: string | null) => {
-		set({ selectedAgentFlowId: flowId });
-	},
-
-	syncWithDB: async () => {
-		try {
-			if (!get().currentConversation) return;
-
-			const conversationId = get().currentConversation!.id;
-
-			// Load latest messages from DB
-			const messages = await serviceManager.databaseService.use(
-				({ db, schema }) =>
-					db
-						.select()
-						.from(schema.messages)
-						.where(eq(schema.messages.conversationId, conversationId))
-						.orderBy(schema.messages.createdAt),
+		deleteMessages: async () => {
+			await serviceManager.databaseService.use(({ db, schema }) =>
+				db.delete(schema.messages),
 			);
+			set({
+				messages: [],
+				messageGroups: [createLatestGroup(null)],
+				currentConversation: null,
+			});
+		},
 
-			set({ messages });
-		} catch (error) {
-			logError("Failed to sync with database:", error);
-		}
-	},
-}));
+		setLoading: (loading: boolean) => {
+			set({ isLoading: loading });
+		},
+
+		setChatMode: (mode: ChatMode) => {
+			set({ chatMode: mode });
+		},
+
+		setSelectedTopic: (topicId: string) => {
+			set({ selectedTopic: topicId });
+		},
+
+		setSelectedAgentFlowId: (flowId: string | null) => {
+			set({ selectedAgentFlowId: flowId });
+		},
+
+		syncWithDB: async () => {
+			try {
+				if (!get().currentConversation) return;
+				await get().loadConversation(get().currentConversation!.id);
+			} catch (error) {
+				logError("Failed to sync with database:", error);
+			}
+		},
+	};
+});

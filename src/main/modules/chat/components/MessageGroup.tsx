@@ -3,29 +3,41 @@ import React, { useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { MessageRenderer } from "./MessageRenderer";
-import type { MessageGroup as MessageGroupType } from "../utils/message-grouping";
 import type { InProgressMessage } from "../hooks/use-chat";
+import type { ChatMessageGroup } from "@/main/stores/chat";
 
 interface MessageGroupProps {
-	group: MessageGroupType;
-	isLoading?: boolean;
+	group: ChatMessageGroup;
 	inProgressMessage?: InProgressMessage | null;
 	defaultCollapsed?: boolean;
 	selectedTopic?: string;
+	onLoadMessages?: (groupId: string) => Promise<void>;
 }
 
 export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
-	({ group, inProgressMessage, defaultCollapsed = false, selectedTopic }) => {
+	({
+		group,
+		inProgressMessage,
+		defaultCollapsed = false,
+		selectedTopic,
+		onLoadMessages,
+	}) => {
 		const { t } = useTranslation("chat");
 		const [isCollapsed, setIsCollapsed] = useState(
 			defaultCollapsed && !group.isLatest,
 		);
 
-		const showCollapseControls = group.messages.length > 1 && !group.isLatest;
+		const showCollapseControls = !group.isLatest;
 
-		const toggleCollapsed = useCallback(() => {
+		const toggleCollapsed = useCallback(async () => {
+			if (!group.isLoaded && !group.isLatest) {
+				await onLoadMessages?.(group.id);
+				setIsCollapsed(false);
+				return;
+			}
+
 			setIsCollapsed((prev) => !prev);
-		}, []);
+		}, [group.id, group.isLatest, group.isLoaded, onLoadMessages]);
 
 		const separatorHeaderDate = useMemo(
 			() =>
@@ -97,7 +109,6 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 
 		return (
 			<div className="message-group">
-				{/* Group Header - only show for collapsible groups */}
 				{showCollapseControls && (
 					<div
 						className="flex items-center gap-2 py-2 mb-2 cursor-pointer hover:bg-accent/50 rounded-md px-2 -mx-2 transition-colors duration-150"
@@ -117,7 +128,11 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 							)}
 						</div>
 						<span className="text-xs text-muted-foreground flex-1">
-							{t("messages.count", { count: group.messages.length })}
+							{group.isLoading
+								? "Loading messages..."
+								: !group.isLoaded
+									? "Load messages"
+									: t("messages.count", { count: group.messages.length })}
 							{separatorHeaderDate && (
 								<span className="ml-2">• {separatorHeaderDate}</span>
 							)}
@@ -125,18 +140,13 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 					</div>
 				)}
 
-				{/* Messages - conditionally render to avoid unnecessary processing */}
-				{!isCollapsed && (
+				{!isCollapsed && group.isLoaded && (
 					<div className="space-y-2">
-						{/* Completed messages */}
 						{messageComponents}
-
-						{/* In-progress message - only when provided */}
 						{inProgressMessageComponent}
 					</div>
 				)}
 
-				{/* Separator - always show if it exists */}
 				{group.separator && (
 					<div className="my-4 flex items-center">
 						<div className="flex-1 border-t border-gray-300"></div>

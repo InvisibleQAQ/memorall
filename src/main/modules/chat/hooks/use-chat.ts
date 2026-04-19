@@ -60,6 +60,7 @@ export const useChat = (model: string) => {
 
 	// State selectors - only re-render when specific value changes
 	const messages = useChatStore((state) => state.messages);
+	const messageGroups = useChatStore((state) => state.messageGroups);
 	const isLoading = useChatStore((state) => state.isLoading);
 	const selectedTopic = useChatStore((state) => state.selectedTopic);
 	const selectedAgentFlowId = useChatStore(
@@ -77,6 +78,7 @@ export const useChat = (model: string) => {
 	const ensureMainConversation = useChatStore(
 		(state) => state.ensureMainConversation,
 	);
+	const loadMessageGroup = useChatStore((state) => state.loadMessageGroup);
 	const deleteMessages = useChatStore((state) => state.deleteMessages);
 
 	const isKnowledgeMode =
@@ -473,12 +475,14 @@ export const useChat = (model: string) => {
 		selectedAgentFlowId,
 		setSelectedAgentFlowId,
 		messages,
+		messageGroups,
 		isLoading,
 		abortController,
 		inProgressMessage,
 		handleSubmit,
 		handleStop,
 		insertSeparator,
+		loadMessageGroup,
 		deleteMessages,
 	} as const;
 };

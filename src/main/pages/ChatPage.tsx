@@ -18,7 +18,6 @@ import {
 	useSmartSelectContext,
 } from "@/main/modules/chat/components";
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
-import { groupMessagesBySeparators } from "@/main/modules/chat/utils/message-grouping";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import { AgentSettingsPanel } from "@/main/modules/chat/components/AgentSettingsPanel";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
@@ -73,13 +72,14 @@ export const ChatPage: React.FC = () => {
 		setSelectedTopic,
 		selectedAgentFlowId,
 		setSelectedAgentFlowId,
-		messages,
+		messageGroups,
 		isLoading,
 		abortController,
 		inProgressMessage,
 		handleSubmit,
 		handleStop,
 		insertSeparator,
+		loadMessageGroup,
 		deleteMessages,
 	} = useChat(model);
 
@@ -107,29 +107,35 @@ export const ChatPage: React.FC = () => {
 		wasInProgressRef.current = isNow;
 	}, [inProgressMessage, refreshRuntimeSessions]);
 
-	// Memoized message groups - split into completed and latest
-	const { groups, inprogressGroup, completedGroupsIds } = useMemo(() => {
-		const groupResponse = groupMessagesBySeparators(messages);
-		return {
-			groups: groupResponse.groups,
-			inprogressGroup: groupResponse.inprogressGroup,
-			completedGroupsIds: groupResponse.completedGroupsIds.join(","),
-		};
-	}, [messages]);
+	const completedGroups = useMemo(
+		() => messageGroups.filter((group) => !group.isLatest),
+		[messageGroups],
+	);
+	const latestGroup = useMemo(
+		() => messageGroups.find((group) => group.isLatest) ?? null,
+		[messageGroups],
+	);
+	const completedGroupsIds = useMemo(
+		() =>
+			completedGroups
+				.map((group) => `${group.id}:${group.isLoaded ? "loaded" : "empty"}`)
+				.join(","),
+		[completedGroups],
+	);
 
 	// Memoized completed components - only re-render when completed groups actually change
 	const completedMessageGroups = useMemo(() => {
-		return groups.map((group) => (
+		return completedGroups.map((group) => (
 			<MessageGroup
 				key={group.id}
 				group={group}
-				isLoading={false}
 				inProgressMessage={null}
 				defaultCollapsed={true}
 				selectedTopic={selectedTopic}
+				onLoadMessages={loadMessageGroup}
 			/>
 		));
-	}, [completedGroupsIds, selectedTopic]); // Only re-render when completed groups change
+	}, [completedGroupsIds, completedGroups, loadMessageGroup, selectedTopic]);
 
 	// Fetch topics when knowledge mode is selected
 	useEffect(() => {
@@ -244,14 +250,14 @@ export const ChatPage: React.FC = () => {
 						{/* Completed groups - memoized components, never re-render during streaming */}
 						{completedMessageGroups}
 
-						{inprogressGroup ? (
+						{latestGroup ? (
 							<MessageGroup
-								key={inprogressGroup.id}
-								group={inprogressGroup}
-								isLoading={true}
+								key={latestGroup.id}
+								group={latestGroup}
 								inProgressMessage={inProgressMessage}
 								defaultCollapsed={false}
 								selectedTopic={selectedTopic}
+								onLoadMessages={loadMessageGroup}
 							/>
 						) : undefined}
 					</ConversationContent>
