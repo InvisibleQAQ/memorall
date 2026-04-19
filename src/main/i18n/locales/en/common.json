@@ -305,6 +305,10 @@
 				"name": "Planner",
 				"description": "Forces structured planning with item-by-item completion tracking. Agent must check all items before finishing."
 			},
+			"multiAgentFeature": {
+				"name": "Multi-Agent Delegation",
+				"description": "Allow this agent to delegate focused subtasks to a selected set of existing child agents."
+			},
 			"languageTutorFeature": {
 				"name": "Language Tutor",
 				"description": "Interactive language tutor that builds a learner profile, runs structured lessons with Q&A, scores answers, and tracks progress in the knowledge graph."

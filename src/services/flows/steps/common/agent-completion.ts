@@ -12,7 +12,7 @@ import {
 	isCustomChunkPayload,
 	normalizeLangGraphStreamChunk,
 } from "@/services/flows/utils/langgraph-stream";
-import type { ToolName } from "../../graph/graph.base";
+import { GraphBase, type GraphTool } from "../../graph/graph.base";
 
 export const AGENT_COMPLETION_STEP_NAME = "agent-completion" as const;
 
@@ -27,7 +27,7 @@ export interface AgentCompletionStepInput {
 	 * Tools accumulated in graph state by feature steps (e.g. fs-feature).
 	 * These are merged with config.tools so both base tools and feature tools run.
 	 */
-	tools?: `${ToolName}`[];
+	tools?: GraphTool[];
 }
 
 export interface AgentCompletionStepOutput {
@@ -41,7 +41,7 @@ export interface AgentCompletionStepConfig {
 	 * Base tools always available to the agent regardless of feature steps.
 	 * Merged (union) with input.tools at runtime.
 	 */
-	tools?: `${ToolName}`[];
+	tools?: GraphTool[];
 }
 
 // ============================================================================
@@ -60,12 +60,14 @@ const definition = defineStep<
 
 		// Merge config base tools with state-accumulated feature tools.
 		// Deduplicate so the same tool isn't registered twice in AgentGraph.
-		const mergedTools: `${ToolName}`[] = [
-			...new Set([...(config?.tools ?? []), ...(input.tools ?? [])]),
-		];
+		const allTools = GraphBase.chat.addTool(
+			[],
+			...(config?.tools ?? []),
+			...(input.tools ?? []),
+		);
 
 		const agentGraph = new AgentGraph(services, {
-			tools: mergedTools.length > 0 ? mergedTools : undefined,
+			tools: allTools.length > 0 ? allTools : undefined,
 		});
 
 		const stream = await agentGraph.stream(

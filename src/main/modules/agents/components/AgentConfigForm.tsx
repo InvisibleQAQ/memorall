@@ -28,12 +28,14 @@ import {
 } from "@/main/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { KnowledgeRAGPredefinedConfig } from "@/services/flows/graph/knowledge-rag/state";
+import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import type { AgentConfigSummary } from "../types";
 import { HoverBadgeList } from "./AgentHoverInfo";
 import {
 	getAgentFeatureDescription,
 	getAgentFeatureDisplayName,
 } from "../utils/feature-display";
+import { SkillsSection } from "./SkillsSection";
 
 interface AgentConfigFormProps {
 	className?: string;
@@ -48,6 +50,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 	const {
 		draftConfig,
 		draftFeatures,
+		draftMultiAgentAccessibleAgentIds,
 		featureDefinitions,
 		availableTools,
 		currentGraphType,
@@ -121,6 +124,11 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 				}
 			} else if (!draftFeatures[feature.name]) {
 				continue;
+			} else if (
+				feature.name === MULTI_AGENT_FEATURE_NAME &&
+				draftMultiAgentAccessibleAgentIds.length === 0
+			) {
+				continue;
 			}
 
 			for (const tool of feature.tools) {
@@ -135,7 +143,13 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 				(tool) => !availableToolSet.has(tool),
 			),
 		];
-	}, [availableTools, draftConfig, draftFeatures, featureDefinitions]);
+	}, [
+		availableTools,
+		draftConfig,
+		draftFeatures,
+		draftMultiAgentAccessibleAgentIds,
+		featureDefinitions,
+	]);
 	const enabledFeatureLabels =
 		summary?.enabledFeatureLabels ?? fallbackEnabledFeatureLabels;
 	const enabledToolNames =
@@ -432,6 +446,8 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 					})}
 				</div>
 			</div>
+
+			<SkillsSection />
 		</div>
 	);
 };

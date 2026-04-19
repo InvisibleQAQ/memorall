@@ -5,7 +5,7 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
-import { GraphBase, type ToolName } from "@/services/flows/graph/graph.base";
+import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 
@@ -14,11 +14,11 @@ export const NODEJS_SANDBOX_FEATURE_NAME = STEP_NAME;
 
 export interface NodejsSandboxFeatureInput {
 	messages: ChatCompletionMessageParam[];
-	tools: `${ToolName}`[];
+	tools: GraphTool[];
 }
 
 export interface NodejsSandboxFeatureOutput {
-	tools?: `${ToolName}`[];
+	tools?: GraphTool[];
 	messages?: ChatCompletionMessageParam[];
 }
 

@@ -5,7 +5,7 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
-import { GraphBase, type ToolName } from "@/services/flows/graph/graph.base";
+import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import type { ActiveWebSessionInfo } from "@/services/web-browser";
 import type { AllServices } from "@/services/flows/interfaces/tool";
@@ -15,11 +15,11 @@ export const TRAVEL_PLANNER_FEATURE_NAME = STEP_NAME;
 
 export interface TravelPlannerFeatureInput {
 	messages: ChatCompletionMessageParam[];
-	tools: `${ToolName}`[];
+	tools: GraphTool[];
 }
 
 export interface TravelPlannerFeatureOutput {
-	tools?: `${ToolName}`[];
+	tools?: GraphTool[];
 	messages?: ChatCompletionMessageParam[];
 }
 

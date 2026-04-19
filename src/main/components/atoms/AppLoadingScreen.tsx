@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "../ui/card";
-import { TextGenerateEffect } from "../ui/shadcn-io/text-generate-effect";
 import { Progress } from "../ui/progress";
 import {
 	Brain,
@@ -10,10 +9,12 @@ import {
 	MessageSquare,
 	CheckCircle2,
 	Loader2,
+	RefreshCw,
 } from "lucide-react";
 import { serviceManager } from "@/services";
 import type { InitializationProgress } from "@/services/service-manager";
 import TypingText from "../ui/shadcn-io/typing-text";
+import { isPopupSurface } from "@/utils/dom";
 
 interface LoadingStep {
 	id: string;
@@ -50,6 +51,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 	uiProgress = 0,
 }) => {
 	const { t } = useTranslation("common");
+	const isPopup = isPopupSurface();
 
 	// Create loading steps with translations
 	const LOADING_STEPS: LoadingStep[] = [
@@ -152,36 +154,170 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 		return `${minutes}m ${remainingSeconds}s`;
 	};
 
+	const progressToUse = Math.round(uiProgress || serviceProgress.progress);
+	const activeStep =
+		LOADING_STEPS.find((step) => getStepStatus(step.id).isCurrent) ??
+		LOADING_STEPS[LOADING_STEPS.length - 1];
+
 	if (error) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-background px-4">
-				<Card className="w-[480px] border-destructive">
-					<CardContent className="p-6">
+			<div
+				className={`flex items-center justify-center bg-background ${
+					isPopup ? "h-full min-h-0 px-3 py-3" : "min-h-screen px-4"
+				}`}
+			>
+				<Card
+					className={`border-destructive ${
+						isPopup ? "w-full max-w-none shadow-lg" : "w-[480px]"
+					}`}
+				>
+					<CardContent className={isPopup ? "p-4" : "p-6"}>
 						<div className="text-center">
-							<div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center overflow-hidden">
+							<div
+								className={`mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center overflow-hidden ${
+									isPopup ? "h-12 w-12" : "h-16 w-16"
+								}`}
+							>
 								<img
 									src="/logo.png"
 									alt="Memorall Logo"
-									className="w-14 h-14 object-contain opacity-50"
+									className={`object-contain opacity-50 ${
+										isPopup ? "h-10 w-10" : "h-14 w-14"
+									}`}
 								/>
 							</div>
-							<h2 className="text-xl font-semibold text-foreground mb-2">
+							<h2
+								className={`font-semibold text-foreground mb-2 ${
+									isPopup ? "text-lg" : "text-xl"
+								}`}
+							>
 								{t("appLoading.error.title")}
 							</h2>
 							<p className="text-sm text-muted-foreground mb-6 break-words">
 								{error}
 							</p>
-							<div className="space-y-3">
+							<div className={isPopup ? "space-y-2" : "space-y-3"}>
 								<button
 									onClick={onRetry}
-									className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+									className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium inline-flex items-center justify-center gap-2"
 								>
+									<RefreshCw className="w-4 h-4" />
 									{t("appLoading.error.tryAgain")}
 								</button>
 								<p className="text-xs text-muted-foreground">
 									{t("appLoading.error.consoleHelp")}
 								</p>
 							</div>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
+	if (isPopup) {
+		return (
+			<div className="h-full min-h-0 bg-background p-3">
+				<Card className="relative h-full overflow-hidden border-0 shadow-xl">
+					<div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-br from-primary/14 via-primary/5 to-transparent" />
+					<CardContent className="relative flex h-full flex-col gap-4 p-4">
+						<div className="flex items-start gap-3">
+							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/15">
+								<img
+									src="/logo.png"
+									alt="Memorall Logo"
+									className="h-9 w-9 object-contain"
+								/>
+							</div>
+							<div className="min-w-0 flex-1">
+								<div className="label-mono text-[11px] text-primary/80">
+									Memorall
+								</div>
+								<h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
+									{t("appLoading.title")}
+								</h2>
+								<p className="mt-1 text-xs leading-5 text-muted-foreground">
+									{activeStep?.description ?? t("appLoading.subtitle")}
+								</p>
+							</div>
+							<div className="rounded-full border border-border bg-background/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+								{progressToUse}%
+							</div>
+						</div>
+
+						<div className="space-y-2.5 rounded-2xl border border-border/80 bg-background/80 p-3">
+							<div className="flex items-center justify-between gap-3">
+								<div className="min-w-0">
+									<div className="text-sm font-medium text-foreground">
+										{serviceProgress.step}
+									</div>
+									<div className="text-[11px] text-muted-foreground">
+										{t("appLoading.elapsed", {
+											time: formatElapsedTime(elapsedTime),
+										})}
+									</div>
+								</div>
+								<Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+							</div>
+							<Progress
+								value={progressToUse}
+								className="h-1.5 rounded-full bg-muted/70"
+							/>
+						</div>
+
+						<div className="grid gap-2">
+							{LOADING_STEPS.map((step, index) => {
+								const { isCompleted, isCurrent } = getStepStatus(step.id);
+
+								return (
+									<div
+										key={step.id}
+										className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-300 ${
+											isCompleted
+												? "border-emerald-200 bg-emerald-50/90 dark:border-emerald-900 dark:bg-emerald-950/30"
+												: isCurrent
+													? "border-primary/25 bg-primary/5 shadow-sm"
+													: "border-border/70 bg-muted/20"
+										}`}
+									>
+										<div
+											className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+												isCompleted
+													? "bg-emerald-500 text-white"
+													: isCurrent
+														? "bg-primary text-primary-foreground"
+														: "bg-muted text-muted-foreground"
+											}`}
+										>
+											{isCompleted ? (
+												<CheckCircle2 className="h-4 w-4" />
+											) : isCurrent ? (
+												<Loader2 className="h-4 w-4 animate-spin" />
+											) : (
+												step.icon
+											)}
+										</div>
+										<div className="min-w-0 flex-1">
+											<div className="flex items-center justify-between gap-2">
+												<div className="truncate text-sm font-medium text-foreground">
+													{step.title}
+												</div>
+												<div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+													0{index + 1}
+												</div>
+											</div>
+											<div className="truncate text-xs text-muted-foreground">
+												{step.description}
+											</div>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+
+						<div className="mt-auto flex items-center justify-between rounded-xl border border-dashed border-border/80 bg-muted/15 px-3 py-2 text-[11px] text-muted-foreground">
+							<span>{t("appLoading.firstLaunch")}</span>
+							<span>{activeStep?.title}</span>
 						</div>
 					</CardContent>
 				</Card>
@@ -231,11 +367,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 									{serviceProgress.step}
 								</span>
 								<span className="text-sm text-muted-foreground">
-									{Math.round(uiProgress || serviceProgress.progress)}%
+									{progressToUse}%
 								</span>
 							</div>
 							<Progress
-								value={uiProgress || serviceProgress.progress}
+								value={progressToUse}
 								className="h-2 transition-all duration-300"
 							/>
 						</div>

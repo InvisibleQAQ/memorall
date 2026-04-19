@@ -19,6 +19,7 @@ import { Label } from "@/main/components/ui/label";
 import { Switch } from "@/main/components/ui/switch";
 import { Textarea } from "@/main/components/ui/textarea";
 import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import {
 	getAgentFeatureDescription,
 	getAgentFeatureDisplayName,
@@ -53,10 +54,15 @@ export const AgentFeatureDetailModal =
 		const { t } = useTranslation(["chat", "common"]);
 		const {
 			draftConfig,
+			draftMultiAgentAccessibleAgentIds,
 			featureDefinitions,
 			availableTools,
+			availableAgents,
+			currentFlowId,
 			updateField,
 			toggleTool,
+			toggleAccessibleAgent,
+			setAccessibleAgents,
 		} = useAgentConfigStore();
 
 		const feature = featureDefinitions.find(
@@ -224,6 +230,111 @@ export const AgentFeatureDetailModal =
 			}
 
 			if (feature.type === "catalog") {
+				if (feature.name === MULTI_AGENT_FEATURE_NAME) {
+					const selectableAgents = availableAgents.filter(
+						(agent) => agent.id !== currentFlowId,
+					);
+					const selectedCount = draftMultiAgentAccessibleAgentIds.filter((id) =>
+						selectableAgents.some((agent) => agent.id === id),
+					).length;
+
+					return (
+						<div className="space-y-4">
+							<div className="space-y-1">
+								<p className="text-sm font-semibold">
+									{t("agentSettings.featureAccessibleAgents")}
+								</p>
+								<p className="text-xs text-muted-foreground">
+									{t("agentSettings.agentSelectionHint")}
+								</p>
+							</div>
+
+							<div className="flex items-center justify-between gap-2">
+								<Badge
+									variant="secondary"
+									className="rounded-full px-1.5 py-0 text-[10px] font-normal"
+								>
+									{selectedCount}/{selectableAgents.length}
+								</Badge>
+								<div className="flex gap-0.5">
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+										onClick={() =>
+											setAccessibleAgents(
+												selectableAgents.map((agent) => agent.id),
+											)
+										}
+									>
+										{t("agentSettings.enableAll")}
+									</Button>
+									<span className="my-auto text-[10px] text-border">·</span>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+										onClick={() => setAccessibleAgents([])}
+									>
+										{t("agentSettings.disableAll")}
+									</Button>
+								</div>
+							</div>
+
+							{selectableAgents.length === 0 ? (
+								<div className="rounded-lg border border-dashed px-3 py-4 text-xs text-muted-foreground">
+									{t("agentSettings.noAccessibleAgents")}
+								</div>
+							) : (
+								<div className="grid grid-cols-1 gap-1.5">
+									{selectableAgents.map((agent) => {
+										const isEnabled =
+											draftMultiAgentAccessibleAgentIds.includes(agent.id);
+										return (
+											<div
+												key={agent.id}
+												onClick={() => toggleAccessibleAgent(agent.id)}
+												className={cn(
+													"group flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 transition-colors",
+													isEnabled
+														? "border-primary/25 bg-primary/5 hover:bg-primary/8"
+														: "border-border/50 bg-background/50 hover:bg-muted/40",
+												)}
+											>
+												<div className="min-w-0 flex-1">
+													<p
+														className={cn(
+															"truncate text-[11px] font-medium leading-tight",
+															isEnabled
+																? "text-foreground"
+																: "text-foreground/70",
+														)}
+													>
+														{agent.name}
+													</p>
+													<p className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground">
+														{agent.description?.trim() || agent.id}
+													</p>
+												</div>
+												<Switch
+													checked={isEnabled}
+													onCheckedChange={() =>
+														toggleAccessibleAgent(agent.id)
+													}
+													onClick={(event) => event.stopPropagation()}
+													className="pointer-events-none shrink-0 scale-[0.8]"
+												/>
+											</div>
+										);
+									})}
+								</div>
+							)}
+						</div>
+					);
+				}
+
 				return (
 					<div className="space-y-4">
 						<div className="space-y-2">

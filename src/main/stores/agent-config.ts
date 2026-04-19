@@ -10,8 +10,10 @@ import { DEFAULT_AGENT_SYSTEM_PROMPT } from "@/services/flows/graph/agent/state"
 import { DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT } from "@/services/flows/graph/knowledge-rag/state";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import { logError } from "@/utils/logger";
 import type { FeatureCatalogMetadata } from "@/services/flows/flow-builder-catalog";
+import type { Flow } from "@/services/database/types";
 
 // ---------------------------------------------------------------------------
 // Feature definition types
@@ -241,6 +243,19 @@ const getCatalogFeatureNames = (
 ): string[] =>
 	featureDefinitions.filter((f) => f.type === "catalog").map((f) => f.name);
 
+const getMultiAgentAccessibleAgentIds = (
+	unifiedConfig: UnifiedFlowConfig,
+): string[] => {
+	const step = unifiedConfig.steps.find(
+		(candidate) => candidate.name === MULTI_AGENT_FEATURE_NAME,
+	);
+	return Array.isArray(step?.config?.accessibleAgentIds)
+		? step.config.accessibleAgentIds.filter(
+				(value): value is string => typeof value === "string",
+			)
+		: [];
+};
+
 const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 	const graphType: GraphType =
 		unifiedConfig.graphType === "agent" ? "agent" : "knowledge-rag";
@@ -276,6 +291,8 @@ const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 	return {
 		graphType,
 		featureDefinitions,
+		multiAgentAccessibleAgentIds:
+			getMultiAgentAccessibleAgentIds(unifiedConfig),
 		config: {
 			...DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
 			graphType,
@@ -306,6 +323,7 @@ const applyLegacyDraftToUnified = (
 	baseConfig: UnifiedFlowConfig,
 	draftConfig: KnowledgeRAGPredefinedConfig,
 	draftFeatures: FeatureFlags,
+	draftMultiAgentAccessibleAgentIds: string[],
 ): UnifiedFlowConfig => {
 	const graphType: GraphType =
 		draftConfig.graphType === "agent" ? "agent" : "knowledge-rag";
@@ -379,6 +397,13 @@ const applyLegacyDraftToUnified = (
 				nextStep.enabled = Boolean(draftFeatures[step.name]);
 			}
 
+			if (step.name === MULTI_AGENT_FEATURE_NAME) {
+				nextStep.config = {
+					...(nextStep.config ?? {}),
+					accessibleAgentIds: [...draftMultiAgentAccessibleAgentIds],
+				};
+			}
+
 			if (nextStep.config && Object.keys(nextStep.config).length === 0) {
 				nextStep.config = undefined;
 			}
@@ -397,6 +422,9 @@ interface AgentConfigState {
 	/** All features for the current graph. Single source of truth for the UI. */
 	featureDefinitions: AgentFeatureDefinition[];
 	availableTools: string[];
+	availableAgents: Flow[];
+	savedMultiAgentAccessibleAgentIds: string[];
+	draftMultiAgentAccessibleAgentIds: string[];
 	currentFlowId: string | null;
 	currentGraphType: GraphType;
 	isLegacyConfig: boolean;
@@ -417,6 +445,8 @@ interface AgentConfigState {
 	setGraphType: (graphType: GraphType) => void;
 	toggleFeature: (featureName: string) => void;
 	toggleTool: (toolName: string) => void;
+	toggleAccessibleAgent: (agentId: string) => void;
+	setAccessibleAgents: (agentIds: string[]) => void;
 	save: () => Promise<void>;
 	convertToUnified: () => Promise<void>;
 	revert: () => void;
@@ -428,15 +458,24 @@ const computeDirty = (
 	draft: KnowledgeRAGPredefinedConfig,
 	savedFeatures: FeatureFlags,
 	draftFeatures: FeatureFlags,
+	savedMultiAgentAccessibleAgentIds: string[],
+	draftMultiAgentAccessibleAgentIds: string[],
 ): boolean =>
 	JSON.stringify(saved) !== JSON.stringify(draft) ||
-	JSON.stringify(savedFeatures) !== JSON.stringify(draftFeatures);
+	JSON.stringify(savedFeatures) !== JSON.stringify(draftFeatures) ||
+	JSON.stringify(savedMultiAgentAccessibleAgentIds) !==
+		JSON.stringify(draftMultiAgentAccessibleAgentIds);
 
 export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 	const persistUnifiedConfig = async () => {
 		set({ isSaving: true, error: null });
 		try {
-			const { draftConfig, draftFeatures, savedUnifiedConfig } = get();
+			const {
+				draftConfig,
+				draftFeatures,
+				draftMultiAgentAccessibleAgentIds,
+				savedUnifiedConfig,
+			} = get();
 			const targetFlowId = get().currentFlowId;
 			const baseConfig =
 				savedUnifiedConfig &&
@@ -449,6 +488,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				baseConfig,
 				draftConfig,
 				draftFeatures,
+				draftMultiAgentAccessibleAgentIds,
 			);
 
 			if (targetFlowId) {
@@ -467,6 +507,9 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				savedConfig: { ...draftConfig },
 				savedUnifiedConfig: unifiedConfig,
 				savedFeatures: { ...draftFeatures },
+				savedMultiAgentAccessibleAgentIds: [
+					...draftMultiAgentAccessibleAgentIds,
+				],
 				isDirty: false,
 				isSaving: false,
 				isLegacyConfig: false,
@@ -489,6 +532,9 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 		draftFeatures: {},
 		featureDefinitions: [],
 		availableTools: [],
+		availableAgents: [],
+		savedMultiAgentAccessibleAgentIds: [],
+		draftMultiAgentAccessibleAgentIds: [],
 		currentFlowId: null,
 		currentGraphType: "knowledge-rag",
 		isLegacyConfig: false,
@@ -520,6 +566,10 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				const flowRef = targetFlowId
 					? { flowId: targetFlowId }
 					: { predefinedFlow: "knowledge-rag" as const };
+				const availableAgents =
+					await serviceManager.flowBuilderService.listPredefinedFlows(
+						"knowledge-rag",
+					);
 				const storageFormat =
 					await serviceManager.flowBuilderService.getFlowConfigStorageFormat(
 						flowRef,
@@ -552,6 +602,9 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 						draftFeatures: { ...defaultFeatures, ...featureFlags },
 						featureDefinitions,
 						availableTools: toolRegistry.getRegisteredToolNames(),
+						availableAgents,
+						savedMultiAgentAccessibleAgentIds: [],
+						draftMultiAgentAccessibleAgentIds: [],
 						currentFlowId: targetFlowId ?? null,
 						currentGraphType: graphType,
 						isDirty: false,
@@ -573,6 +626,13 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					draftFeatures: { ...derivedState.features },
 					featureDefinitions: derivedState.featureDefinitions,
 					availableTools: toolRegistry.getRegisteredToolNames(),
+					availableAgents,
+					savedMultiAgentAccessibleAgentIds: [
+						...derivedState.multiAgentAccessibleAgentIds,
+					],
+					draftMultiAgentAccessibleAgentIds: [
+						...derivedState.multiAgentAccessibleAgentIds,
+					],
 					currentFlowId: targetFlowId ?? null,
 					currentGraphType: derivedState.graphType,
 					isDirty: false,
@@ -597,6 +657,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					draft,
 					get().savedFeatures,
 					get().draftFeatures,
+					get().savedMultiAgentAccessibleAgentIds,
+					get().draftMultiAgentAccessibleAgentIds,
 				),
 			});
 		},
@@ -608,9 +670,14 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				.map((f) => f.name);
 			const defaultFeatures = createDefaultFeatureFlags(catalogNames);
 			const draft = { ...get().draftConfig, graphType };
+			const draftMultiAgentAccessibleAgentIds =
+				graphType === "knowledge-rag"
+					? get().draftMultiAgentAccessibleAgentIds
+					: [];
 			set({
 				draftConfig: draft,
 				draftFeatures: defaultFeatures,
+				draftMultiAgentAccessibleAgentIds,
 				featureDefinitions,
 				currentGraphType: graphType,
 				isDirty: computeDirty(
@@ -618,6 +685,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					draft,
 					get().savedFeatures,
 					defaultFeatures,
+					get().savedMultiAgentAccessibleAgentIds,
+					draftMultiAgentAccessibleAgentIds,
 				),
 			});
 		},
@@ -634,6 +703,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					get().draftConfig,
 					get().savedFeatures,
 					next,
+					get().savedMultiAgentAccessibleAgentIds,
+					get().draftMultiAgentAccessibleAgentIds,
 				),
 			});
 		},
@@ -651,6 +722,41 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					draft,
 					get().savedFeatures,
 					get().draftFeatures,
+					get().savedMultiAgentAccessibleAgentIds,
+					get().draftMultiAgentAccessibleAgentIds,
+				),
+			});
+		},
+
+		toggleAccessibleAgent: (agentId) => {
+			const current = get().draftMultiAgentAccessibleAgentIds;
+			const next = current.includes(agentId)
+				? current.filter((value) => value !== agentId)
+				: [...current, agentId];
+			set({
+				draftMultiAgentAccessibleAgentIds: next,
+				isDirty: computeDirty(
+					get().savedConfig,
+					get().draftConfig,
+					get().savedFeatures,
+					get().draftFeatures,
+					get().savedMultiAgentAccessibleAgentIds,
+					next,
+				),
+			});
+		},
+
+		setAccessibleAgents: (agentIds) => {
+			const next = [...new Set(agentIds)];
+			set({
+				draftMultiAgentAccessibleAgentIds: next,
+				isDirty: computeDirty(
+					get().savedConfig,
+					get().draftConfig,
+					get().savedFeatures,
+					get().draftFeatures,
+					get().savedMultiAgentAccessibleAgentIds,
+					next,
 				),
 			});
 		},
@@ -677,6 +783,9 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 			set({
 				draftConfig: { ...savedConfig },
 				draftFeatures: { ...get().savedFeatures },
+				draftMultiAgentAccessibleAgentIds: [
+					...get().savedMultiAgentAccessibleAgentIds,
+				],
 				featureDefinitions: buildFeatureDefinitions(graphType),
 				currentGraphType: graphType,
 				isDirty: false,
@@ -689,6 +798,9 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 			set({
 				draftConfig: derivedState.config,
 				draftFeatures: derivedState.features,
+				draftMultiAgentAccessibleAgentIds: [
+					...derivedState.multiAgentAccessibleAgentIds,
+				],
 				featureDefinitions: derivedState.featureDefinitions,
 				currentGraphType: derivedState.graphType,
 				isDirty: computeDirty(
@@ -696,6 +808,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					derivedState.config,
 					get().savedFeatures,
 					derivedState.features,
+					get().savedMultiAgentAccessibleAgentIds,
+					derivedState.multiAgentAccessibleAgentIds,
 				),
 			});
 		},

@@ -51,6 +51,9 @@
 		"deleteChat": "Delete Chat",
 		"moreActions": "More actions",
 		"insertSeparator": "Insert separator",
+		"current_time": "Current Time",
+		"load_skill": "Load Skill",
+		"send_message_to_agent": "Message Child Agent",
 		"query_analysis": "Query Analysis",
 		"knowledge_retrieval": "Knowledge Retrieval",
 		"knowledge_graph": "Knowledge Graph",
@@ -174,9 +177,13 @@
 		"hideDetail": "Hide",
 		"detail": "Detail",
 		"featureTools": "Tools",
+		"featureAccessibleAgents": "Accessible child agents",
+		"noAccessibleAgents": "No child agents selected.",
+		"agentSelectionHint": "Select which existing agents this preset may delegate tasks to.",
 		"featureSystemPrompt": "System Prompt (Read-only)",
 		"toolDescriptions": {
 			"current_time": "Get the current date and time",
+			"load_skill": "Load a skill by name for specialized instructions",
 			"js_execute": "Execute JavaScript code in a sandboxed environment",
 			"calculator": "Perform basic mathematical calculations",
 			"knowledge_graph": "Query the knowledge graph for relationships and entities",
@@ -185,7 +192,8 @@
 			"doc_edit": "Edit existing document files",
 			"doc_search": "Search through documents for content",
 			"doc_move": "Move or rename document files",
-			"doc_remove": "Remove document files from the file system"
+			"doc_remove": "Remove document files from the file system",
+			"send_message_to_agent": "Send a focused message to a selected child agent"
 		},
 		"cancel": "Cancel",
 		"saved": "Saved",

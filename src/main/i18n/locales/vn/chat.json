@@ -51,6 +51,9 @@
 		"deleteChat": "Xóa cuộc trò chuyện",
 		"moreActions": "Thêm hành động",
 		"insertSeparator": "Chèn dấu phân cách",
+		"current_time": "Thời gian hiện tại",
+		"load_skill": "Tải skill",
+		"send_message_to_agent": "Nhắn tác nhân con",
 		"query_analysis": "Phân tích truy vấn",
 		"knowledge_retrieval": "Truy xuất kiến thức",
 		"context_graph": "Biểu đồ ngữ cảnh",
@@ -173,9 +176,13 @@
 		"hideDetail": "Ẩn",
 		"detail": "Chi tiết",
 		"featureTools": "Công cụ",
+		"featureAccessibleAgents": "Tác nhân con có thể truy cập",
+		"noAccessibleAgents": "Chưa chọn tác nhân con nào.",
+		"agentSelectionHint": "Chọn các tác nhân hiện có mà preset này được phép ủy quyền công việc.",
 		"featureSystemPrompt": "Lời nhắc hệ thống (Chỉ đọc)",
 		"toolDescriptions": {
 			"current_time": "Lấy ngày và giờ hiện tại",
+			"load_skill": "Tải một skill theo tên để nhận hướng dẫn chuyên biệt",
 			"js_execute": "Thực thi mã JavaScript trong môi trường cách ly",
 			"calculator": "Thực hiện các phép tính cơ bản",
 			"knowledge_graph": "Truy vấn đồ thị tri thức để tìm quan hệ và thực thể",
@@ -184,7 +191,8 @@
 			"doc_edit": "Chỉnh sửa tệp tài liệu hiện có",
 			"doc_search": "Tìm kiếm nội dung trong tài liệu",
 			"doc_move": "Di chuyển hoặc đổi tên tệp tài liệu",
-			"doc_remove": "Xóa tệp tài liệu khỏi hệ thống tệp"
+			"doc_remove": "Xóa tệp tài liệu khỏi hệ thống tệp",
+			"send_message_to_agent": "Gửi một tin nhắn tập trung tới tác nhân con đã chọn"
 		},
 		"cancel": "Hủy",
 		"saved": "Đã lưu",

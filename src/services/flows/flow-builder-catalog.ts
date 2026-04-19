@@ -82,6 +82,12 @@ import {
 	FINANCE_TRACKER_FEATURE_SYSTEM_PROMPT,
 	FINANCE_TRACKER_FEATURE_TOOLS,
 } from "./steps/features/finance-tracker-feature";
+import {
+	MULTI_AGENT_FEATURE_DESCRIPTION,
+	MULTI_AGENT_FEATURE_NAME,
+	MULTI_AGENT_FEATURE_SYSTEM_PROMPT,
+	MULTI_AGENT_FEATURE_TOOLS,
+} from "./steps/features/multi-agent-feature";
 
 /**
  * Flow Builder Catalog
@@ -857,6 +863,53 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...SHOPPING_ASSISTANT_FEATURE_TOOLS],
 			systemPrompt: SHOPPING_ASSISTANT_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-multi-agent-feature",
+		name: MULTI_AGENT_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+			{
+				name: "topicId",
+				type: "string",
+				required: false,
+				description: "Current topic ID passed to delegated child agents",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with multi-agent delegation instructions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description: "Tools extended with configured child-agent delegation.",
+			},
+		],
+		metadata: {
+			description: MULTI_AGENT_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.multiAgentFeature.description",
+			displayName: "Multi-Agent Delegation",
+			nameKey: "flowBuilder.features.multiAgentFeature.name",
+			tools: [...MULTI_AGENT_FEATURE_TOOLS],
+			systemPrompt: MULTI_AGENT_FEATURE_SYSTEM_PROMPT,
+			customizable: true,
 		} satisfies FeatureCatalogMetadata,
 	},
 	{

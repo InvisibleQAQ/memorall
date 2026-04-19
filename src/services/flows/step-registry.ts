@@ -54,6 +54,12 @@ export interface StepMeta {
 	 * when constructing a fresh flow config for its graph type.
 	 */
 	enabledByDefault?: boolean;
+	/**
+	 * When set, resolveStepOrder() automatically injects this step immediately
+	 * after the named step in every graph's stepOrder (if not already present).
+	 * The step does not need to be listed in any graph's stepOrder.
+	 */
+	injectAfter?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +193,20 @@ export class StepRegistryManager {
 	/** Check if a step is registered. */
 	hasStep(stepName: string): boolean {
 		return this.entries.has(stepName);
+	}
+
+	/** Returns all steps that declare injectAfter, keyed by the anchor step name. */
+	getInjectableSteps(): Map<string, string[]> {
+		const map = new Map<string, string[]>();
+		for (const [name, entry] of this.entries) {
+			const anchor = entry.meta?.injectAfter;
+			if (anchor) {
+				const list = map.get(anchor) ?? [];
+				list.push(name);
+				map.set(anchor, list);
+			}
+		}
+		return map;
 	}
 }
 

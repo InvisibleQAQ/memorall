@@ -59,3 +59,5 @@ import "./fs/fs-remove";
 import "./fs/fs-ls";
 
 import "./planner";
+import "./load-skill";
+import "./send-message-to-agent";

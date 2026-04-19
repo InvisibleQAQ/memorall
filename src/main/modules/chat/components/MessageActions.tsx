@@ -14,6 +14,9 @@ import {
 	Globe,
 	TerminalSquare,
 	Target,
+	Clock3,
+	ScrollText,
+	Bot,
 	type LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +38,11 @@ import { fsActionRenderer } from "./tools/FileSystem";
 import { terminalToolRenderer } from "./tools/TerminalTool";
 import { plannerToolRenderer } from "./tools/PlannerTool";
 import { ToolItemRawIO } from "./tools/ToolCommon";
+import {
+	currentTimeToolRenderer,
+	loadSkillToolRenderer,
+	sendMessageToAgentToolRenderer,
+} from "./tools/UtilityAgentTools";
 
 const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["search", "query", "retrieval", "retrieve"], icon: Search },
@@ -49,7 +57,18 @@ const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["process", "execute", "run"], icon: Zap },
 ];
 
+const EXACT_ICON_MAPPINGS: Record<string, LucideIcon> = {
+	current_time: Clock3,
+	load_skill: ScrollText,
+	send_message_to_agent: Bot,
+};
+
 const getActionIcon = (name: string): LucideIcon => {
+	const exact = EXACT_ICON_MAPPINGS[name];
+	if (exact) {
+		return exact;
+	}
+
 	const lower = name.toLowerCase();
 	return (
 		ICON_MAPPINGS.find(({ keywords }) =>
@@ -109,6 +128,9 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	planner_check_item: plannerToolRenderer,
 	planner_add_item: plannerToolRenderer,
 	planner_remove_item: plannerToolRenderer,
+	current_time: currentTimeToolRenderer,
+	load_skill: loadSkillToolRenderer,
+	send_message_to_agent: sendMessageToAgentToolRenderer,
 };
 
 interface ActionContentProps {

@@ -1,10 +1,11 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { PromptInput } from "@/main/components/ui/shadcn-io/ai/prompt-input";
 import {
-	PromptInput,
-	PromptInputTextarea,
-} from "@/main/components/ui/shadcn-io/ai/prompt-input";
+	MentionRichTextarea,
+	type MentionRichTextareaHandle,
+} from "@/main/modules/chat/components/input/MentionRichTextarea";
 import { TooltipProvider } from "@/main/components/ui/tooltip";
 import type { ChatStatus, AttachedDocumentRef } from "@/types/chat";
 import type { DocumentFile } from "@/types/document-library";
@@ -12,7 +13,9 @@ import { documentFileSystemService } from "@/services/filesystem/document-filesy
 import { AttachmentList } from "@/main/modules/chat/components/input/AttachmentList";
 import {
 	collectFiles,
+	documentFileToMentionItem,
 	MentionPopup,
+	type MentionItem,
 } from "@/main/modules/chat/components/input/MentionPopup";
 import { ChatInputControls } from "@/main/modules/chat/components/input/ChatInputControls";
 
@@ -75,34 +78,70 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
 	const { t } = useTranslation("chat");
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const textareaRef = useRef<MentionRichTextareaHandle>(null);
 	const isKnowledgeMode = selectedAgentFlowId !== "chat";
 
 	const [mentionQuery, setMentionQuery] = useState<string | null>(null);
 	const mentionAtIndexRef = useRef<number>(-1);
-	const [mentionFiles, setMentionFiles] = useState<DocumentFile[]>([]);
+	const [mentionDocFiles, setMentionDocFiles] = useState<DocumentFile[]>([]);
+	const [mentionSkillItems, setMentionSkillItems] = useState<MentionItem[]>([]);
 	const [mentionHighlight, setMentionHighlight] = useState(0);
 	const isMentionOpen = mentionQuery !== null;
 
 	useEffect(() => {
 		if (!isMentionOpen) return;
-		documentFileSystemService
-			.getTree()
-			.then((tree) => setMentionFiles(collectFiles(tree)))
-			.catch(() => setMentionFiles([]));
+		Promise.all([
+			documentFileSystemService.getTree().catch(() => []),
+			import("@/services/filesystem/skill-filesystem")
+				.then((m) => m.skillFileSystemService.listSkills())
+				.catch(() => []),
+		]).then(([tree, skills]) => {
+			setMentionDocFiles(collectFiles(tree));
+			setMentionSkillItems(
+				skills.map((s) => ({
+					id: `skill:${s.name}`,
+					name: s.name,
+					kind: "skill" as const,
+					description: s.description,
+				})),
+			);
+		});
 	}, [isMentionOpen]);
 
-	const filteredMentionFiles = useMemo(() => {
+	const filteredMentionItems = useMemo((): MentionItem[] => {
 		if (mentionQuery === null) return [];
-		const q = mentionQuery.toLowerCase();
-		return mentionFiles
-			.filter((f) => !q || f.name.toLowerCase().includes(q))
-			.slice(0, 8);
-	}, [mentionFiles, mentionQuery]);
+
+		// Support namespace prefixes: @skill:query or @doc:query
+		let q = mentionQuery.toLowerCase();
+		let kindFilter: "skill" | "document" | null = null;
+		if (q.startsWith("skill:")) {
+			kindFilter = "skill";
+			q = q.slice("skill:".length);
+		} else if (q.startsWith("doc:")) {
+			kindFilter = "document";
+			q = q.slice("doc:".length);
+		}
+
+		const docItems =
+			kindFilter === "skill"
+				? []
+				: mentionDocFiles
+						.filter((f) => !q || f.name.toLowerCase().includes(q))
+						.map(documentFileToMentionItem);
+
+		const skillItems =
+			kindFilter === "document"
+				? []
+				: mentionSkillItems.filter(
+						(s) => !q || s.name.toLowerCase().includes(q),
+					);
+
+		return [...skillItems, ...docItems].slice(0, 8);
+	}, [mentionDocFiles, mentionSkillItems, mentionQuery]);
 
 	useEffect(() => {
 		setMentionHighlight(0);
-	}, [filteredMentionFiles.length]);
+	}, [filteredMentionItems.length]);
 
 	const handleAttachClick = () => {
 		fileInputRef.current?.click();
@@ -110,9 +149,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 	const handleOpenDocumentPicker = () => {
 		setMentionQuery("");
-		requestAnimationFrame(() => {
-			textareaRef.current?.focus();
-		});
+		requestAnimationFrame(() => textareaRef.current?.focus());
 	};
 
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,11 +196,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 		);
 	};
 
-	const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-		const value = e.target.value;
+	const handleInputChange = (value: string, cursorPos: number) => {
 		setInputValue(value);
 
-		const cursorPos = e.target.selectionStart ?? value.length;
 		const textBefore = value.slice(0, cursorPos);
 		const lastAt = textBefore.lastIndexOf("@");
 
@@ -179,33 +214,42 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 		setMentionQuery(null);
 	};
 
-	const handleSelectMention = (file: DocumentFile) => {
-		onAttachedDocumentRefsChange([
-			...attachedDocumentRefs,
-			{
-				path: file.path,
-				mimeType: file.mimeType,
-				name: file.name,
-				docType: file.type,
-			},
-		]);
-
+	const handleSelectMention = (item: MentionItem) => {
 		const atIdx = mentionAtIndexRef.current;
 		const queryLen = mentionQuery?.length ?? 0;
-		setInputValue(
-			inputValue.slice(0, atIdx) + inputValue.slice(atIdx + 1 + queryLen),
-		);
 		setMentionQuery(null);
+
+		const prefix =
+			item.kind === "skill" ? `@skill:${item.name} ` : `@doc:${item.name} `;
+		const newValue =
+			inputValue.slice(0, atIdx) +
+			prefix +
+			inputValue.slice(atIdx + 1 + queryLen);
+		const cursorAfter = atIdx + prefix.length;
+
+		// Signal where the cursor should land before the DOM re-renders
+		textareaRef.current?.setPendingCursor(cursorAfter);
+		setInputValue(newValue);
+
+		if (item.kind === "document") {
+			onAttachedDocumentRefsChange([
+				...attachedDocumentRefs,
+				{
+					path: item.id,
+					mimeType: "",
+					name: item.name,
+					docType: item.docType ?? "other",
+				},
+			]);
+		}
 	};
 
-	const handleTextareaKeyDown = (
-		e: React.KeyboardEvent<HTMLTextAreaElement>,
-	) => {
-		if (isMentionOpen && filteredMentionFiles.length > 0) {
+	const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+		if (isMentionOpen && filteredMentionItems.length > 0) {
 			if (e.key === "ArrowDown") {
 				e.preventDefault();
 				setMentionHighlight((h) =>
-					Math.min(h + 1, filteredMentionFiles.length - 1),
+					Math.min(h + 1, filteredMentionItems.length - 1),
 				);
 				return;
 			}
@@ -218,7 +262,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 			if (e.key === "Enter") {
 				e.preventDefault();
-				handleSelectMention(filteredMentionFiles[mentionHighlight]);
+				handleSelectMention(filteredMentionItems[mentionHighlight]);
 				return;
 			}
 
@@ -228,12 +272,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 				return;
 			}
 		}
-
-		if (e.key === "Enter" && !e.shiftKey) {
-			e.preventDefault();
-			const form = e.currentTarget.form;
-			if (form) form.requestSubmit();
-		}
+		// Enter-to-submit is handled inside MentionRichTextarea itself
 	};
 
 	const handleSubmitWithImages = (e: React.FormEvent) => {
@@ -258,7 +297,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 					<MentionPopup
 						isOpen={isMentionOpen}
-						files={filteredMentionFiles}
+						items={filteredMentionItems}
 						highlightIndex={mentionHighlight}
 						title={t("mention.documents")}
 						searchText={mentionQuery ?? ""}
@@ -277,7 +316,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 								/>
 							)}
 
-							<PromptInputTextarea
+							<MentionRichTextarea
 								ref={textareaRef}
 								value={inputValue}
 								onChange={handleInputChange}

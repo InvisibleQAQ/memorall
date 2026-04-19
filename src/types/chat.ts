@@ -37,6 +37,12 @@ export type ComplexContentPart =
 /** Stored in messages.complexContent (jsonb) when the message has multipart content */
 export type ComplexContent = ComplexContentPart[];
 
+/** A skill selected from the mention popup — content is injected directly into the message */
+export interface AttachedSkillRef {
+	name: string;
+	description: string;
+}
+
 /** A reference to a file already stored in the document filesystem */
 export interface AttachedDocumentRef {
 	/** Relative path in document filesystem (e.g. /myphoto.png) */

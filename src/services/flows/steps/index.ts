@@ -24,6 +24,7 @@ import "./knowledge-retrieval/context-to-system";
 import "./common/chat-completion";
 import "./common/agent-completion";
 import "./common/add-system";
+import "./common/add-skill-context";
 
 // Feature steps
 import "./features/context-smart-retrieve";
@@ -40,3 +41,4 @@ import "./features/meal-planner-feature";
 import "./features/daily-briefing-feature";
 import "./features/job-application-feature";
 import "./features/planner-feature";
+import "./features/multi-agent-feature";

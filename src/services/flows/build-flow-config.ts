@@ -92,12 +92,21 @@ function resolveStepOrder(graphType: FlowGraphType): string[] {
 		.filter((s) => !s.graphTypes || s.graphTypes.includes(graphType))
 		.map((s) => s.name);
 
+	const injectableMap = stepRegistry.getInjectableSteps();
+
 	const result: string[] = [];
 	for (const slot of slots) {
 		if (slot === FEATURE_SLOT) {
 			result.push(...featureNames);
 		} else {
 			result.push(slot);
+			// Inject any steps that declared injectAfter this slot
+			const toInject = injectableMap.get(slot) ?? [];
+			for (const name of toInject) {
+				if (!result.includes(name)) {
+					result.push(name);
+				}
+			}
 		}
 	}
 

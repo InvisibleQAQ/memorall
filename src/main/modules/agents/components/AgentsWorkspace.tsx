@@ -15,6 +15,7 @@ import {
 	getDefaultSystemPromptForGraph,
 } from "@/main/stores/agent-config";
 import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -110,6 +111,7 @@ export const AgentsWorkspace: React.FC = () => {
 	const {
 		draftConfig,
 		draftFeatures,
+		draftMultiAgentAccessibleAgentIds,
 		featureDefinitions,
 		availableTools,
 		currentGraphType,
@@ -323,6 +325,11 @@ export const AgentsWorkspace: React.FC = () => {
 				}
 			} else if (!draftFeatures[feature.name]) {
 				continue;
+			} else if (
+				feature.name === MULTI_AGENT_FEATURE_NAME &&
+				draftMultiAgentAccessibleAgentIds.length === 0
+			) {
+				continue;
 			}
 
 			for (const tool of feature.tools) {
@@ -368,6 +375,7 @@ export const AgentsWorkspace: React.FC = () => {
 		draftConfig.systemPrompt,
 		draftConfig.tools,
 		draftFeatures,
+		draftMultiAgentAccessibleAgentIds,
 		featureDefinitions,
 		selectedPreset,
 		t,

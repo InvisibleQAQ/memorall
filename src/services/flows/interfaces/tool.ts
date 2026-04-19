@@ -61,6 +61,11 @@ export interface BaseTool {
 	execute: (input: unknown) => Promise<ToolResultValue>;
 }
 
+export interface ToolBinding<TName extends string = string, TConfig = unknown> {
+	name: TName;
+	config?: TConfig;
+}
+
 // Typed tool interface for implementation
 export interface Tool<TInput> extends Omit<BaseTool, "schema" | "execute"> {
 	schema: z.ZodSchema<TInput>;
@@ -68,9 +73,17 @@ export interface Tool<TInput> extends Omit<BaseTool, "schema" | "execute"> {
 }
 
 // Factory function type for creating tools with services bound
-export type ToolFactory<TInput, TServices = void> = TServices extends void
-	? () => Tool<TInput>
-	: (services: TServices) => Tool<TInput>;
+export type ToolFactory<
+	TInput,
+	TServices = void,
+	TConfig = void,
+> = TServices extends void
+	? TConfig extends void
+		? () => Tool<TInput>
+		: (services: undefined, config: TConfig) => Tool<TInput>
+	: TConfig extends void
+		? (services: TServices) => Tool<TInput>
+		: (services: TServices, config: TConfig) => Tool<TInput>;
 
 // ============================================================================
 // Utility types for deriving combined services from tool names

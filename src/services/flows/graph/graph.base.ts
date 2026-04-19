@@ -14,7 +14,7 @@ import {
 	toolRegistry,
 	convertToolsToOpenAI,
 } from "@/services/flows/tool-registry";
-import type { BaseTool } from "@/services/flows/interfaces/tool";
+import type { BaseTool, ToolBinding } from "@/services/flows/interfaces/tool";
 import { logWarn } from "@/utils/logger";
 import {
 	FLOW_RUN_LIFECYCLE_CONFIG_KEY,
@@ -33,10 +33,14 @@ export interface CombinedTool {
 	tool: ChatCompletionTool;
 }
 
+export interface ConfiguredGraphTool<TConfig = unknown>
+	extends ToolBinding<ToolName, TConfig> {}
+export type GraphTool = ToolName | ConfiguredGraphTool;
+
 export interface BaseStateBase {
 	messages: ChatCompletionMessageParam[];
 	response?: string;
-	tools: ToolName[];
+	tools: GraphTool[];
 }
 
 export type SystemPlacement = "append" | "top" | "replace";
@@ -146,11 +150,31 @@ export const BaseAnnotation = {
 		value: (x, y) => y ?? x,
 		default: () => "",
 	}),
-	tools: Annotation<ToolName[]>({
+	tools: Annotation<GraphTool[]>({
 		value: (x, y) => y ?? x,
 		default: () => [],
 	}),
 };
+
+function addTool(current: ToolName[], ...tools: ToolName[]): ToolName[];
+function addTool(current: GraphTool[], ...tools: GraphTool[]): GraphTool[];
+function addTool(current: GraphTool[], ...tools: GraphTool[]): GraphTool[] {
+	const next = [...current];
+	for (const tool of tools) {
+		const name = typeof tool === "string" ? tool : tool.name;
+		const existingIndex = next.findIndex((candidate) => {
+			const candidateName =
+				typeof candidate === "string" ? candidate : candidate.name;
+			return candidateName === name;
+		});
+		if (existingIndex >= 0) {
+			next[existingIndex] = tool;
+			continue;
+		}
+		next.push(tool);
+	}
+	return next;
+}
 // Proper LangGraph types
 type CompiledGraph<T> = ReturnType<
 	StateGraph<T, T, unknown, string | typeof START | typeof END>["compile"]
@@ -257,6 +281,8 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 	}
 
 	static chat = {
+		getToolName: (tool: GraphTool): ToolName =>
+			(typeof tool === "string" ? tool : tool.name) as ToolName,
 		systemMessage: (
 			messages: ChatCompletionMessageParam[],
 			systemContent: string,
@@ -297,20 +323,22 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 				(message) =>
 					message.role === "tool" && message.tool_call_id === toolCallId,
 			),
-		addTool: (current: ToolName[], ...names: ToolName[]): ToolName[] => [
-			...current,
-			...names.filter((n) => !current.includes(n)),
-		],
-		removeTool: (current: ToolName[], ...names: ToolName[]): ToolName[] =>
-			current.filter((n) => !names.includes(n)),
+		addTool,
+		removeTool: (current: GraphTool[], ...names: ToolName[]): GraphTool[] =>
+			current.filter(
+				(tool) => !names.includes(GraphBase.chat.getToolName(tool)),
+			),
 		replaceTool: (
-			current: ToolName[],
+			current: GraphTool[],
 			oldName: ToolName,
-			newName: ToolName,
-		): ToolName[] => current.map((n) => (n === oldName ? newName : n)),
-		clearTools: (): ToolName[] => [],
+			newTool: GraphTool,
+		): GraphTool[] =>
+			current.map((tool) =>
+				GraphBase.chat.getToolName(tool) === oldName ? newTool : tool,
+			),
+		clearTools: (): GraphTool[] => [],
 		combineTools: (
-			toolNames: readonly ToolName[],
+			toolNames: readonly GraphTool[],
 			services?: unknown,
 		): CombinedTool[] => {
 			const executors = toolRegistry.getTools(toolNames, services);

@@ -304,6 +304,10 @@
 				"name": "Lập kế hoạch",
 				"description": "Buộc lập kế hoạch có cấu trúc với theo dõi hoàn thành từng mục. Agent phải kiểm tra tất cả các mục trước khi kết thúc."
 			},
+			"multiAgentFeature": {
+				"name": "Ủy quyền đa tác nhân",
+				"description": "Cho phép tác nhân này ủy quyền các tác vụ hẹp cho một nhóm tác nhân con hiện có đã được chọn."
+			},
 			"languageTutorFeature": {
 				"name": "Gia sư ngôn ngữ",
 				"description": "Gia sư ngôn ngữ tương tác: xây dựng hồ sơ người học, chạy bài học có cấu trúc với hỏi đáp, chấm điểm câu trả lời và theo dõi tiến trình trong đồ thị tri thức."

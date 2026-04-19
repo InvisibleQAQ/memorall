@@ -8,7 +8,7 @@ import {
 import {
 	GraphBase,
 	type CombinedTool,
-	type ToolName,
+	type GraphTool,
 } from "@/services/flows/graph/graph.base";
 import type { CombinedServices } from "@/services/flows/interfaces/tool";
 import { extractToolResult } from "@/services/flows/interfaces/tool";
@@ -28,7 +28,7 @@ type AgentServices = CombinedServices<typeof DEFAULT_TOOL_NAMES, "llm">;
 
 type AgentGraphConfig = {
 	systemPrompt?: string;
-	tools?: `${ToolName}`[];
+	tools?: GraphTool[];
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -82,9 +82,11 @@ export class AgentGraph extends GraphBase<
 			this.systemPrompt = config.systemPrompt;
 		}
 
-		const tools = new Set(config.tools || [...DEFAULT_TOOL_NAMES]);
 		// Create bound tools with services
-		this.combinedTools = this.chat.combineTools([...tools], services);
+		this.combinedTools = this.chat.combineTools(
+			config.tools || [...DEFAULT_TOOL_NAMES],
+			services,
+		);
 		this.executorMap = new Map(
 			this.combinedTools.map((t) => [t.executor.name, t]),
 		);
@@ -399,7 +401,7 @@ chatFlowRegistry.register("agent", (services, config) => {
 	const systemPrompt =
 		(addSystemStep?.config?.content as string | undefined) || undefined;
 	const tools =
-		(agentCompletionStep?.config?.tools as `${ToolName}`[] | undefined) ?? [];
+		(agentCompletionStep?.config?.tools as GraphTool[] | undefined) ?? [];
 
 	const graph = new AgentGraph(services, {
 		systemPrompt,

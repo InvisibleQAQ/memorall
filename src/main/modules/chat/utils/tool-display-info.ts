@@ -10,6 +10,10 @@ export const TOOL_DISPLAY_INFO: Record<
 		description: "Get the current date and time",
 		descriptionKey: "agentSettings.toolDescriptions.current_time",
 	},
+	load_skill: {
+		description: "Load a skill by name for specialized instructions",
+		descriptionKey: "agentSettings.toolDescriptions.load_skill",
+	},
 	js_execute: {
 		description: "Execute JavaScript code in a sandboxed environment",
 		descriptionKey: "agentSettings.toolDescriptions.js_execute",
@@ -45,5 +49,9 @@ export const TOOL_DISPLAY_INFO: Record<
 	doc_remove: {
 		description: "Remove document files from the file system",
 		descriptionKey: "agentSettings.toolDescriptions.doc_remove",
+	},
+	send_message_to_agent: {
+		description: "Send a focused message to a selected child agent",
+		descriptionKey: "agentSettings.toolDescriptions.send_message_to_agent",
 	},
 };
