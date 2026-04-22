@@ -1,13 +1,5 @@
 import { create } from "zustand";
-import {
-	and,
-	asc,
-	desc,
-	eq,
-	gt,
-	lt,
-	ne,
-} from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, ne } from "drizzle-orm";
 import {
 	type Message,
 	type Conversation,
@@ -190,7 +182,9 @@ export const useChatStore = create<ChatStore>((set, get) => {
 			}
 
 			if (group.separator) {
-				conditions.push(lt(schema.messages.createdAt, group.separator.createdAt));
+				conditions.push(
+					lt(schema.messages.createdAt, group.separator.createdAt),
+				);
 			}
 
 			return db
@@ -204,8 +198,12 @@ export const useChatStore = create<ChatStore>((set, get) => {
 	const hydrateConversation = async (conversation: Conversation) => {
 		const separators = await querySeparators(conversation.id);
 		const initialGroups = createGroupsFromSeparators(separators);
-		const latestGroup = getLatestGroup(initialGroups) ?? createLatestGroup(null);
-		const latestMessages = await queryGroupMessages(conversation.id, latestGroup);
+		const latestGroup =
+			getLatestGroup(initialGroups) ?? createLatestGroup(null);
+		const latestMessages = await queryGroupMessages(
+			conversation.id,
+			latestGroup,
+		);
 		const messageGroups = initialGroups.map((group) =>
 			group.isLatest
 				? {
@@ -292,8 +290,10 @@ export const useChatStore = create<ChatStore>((set, get) => {
 				const nextGroups =
 					state.messageGroups.length === 0
 						? [nextLatestGroup]
-						: replaceGroup(state.messageGroups, existingLatestGroup.id, () =>
-								nextLatestGroup,
+						: replaceGroup(
+								state.messageGroups,
+								existingLatestGroup.id,
+								() => nextLatestGroup,
 							);
 
 				return {
@@ -461,10 +461,13 @@ export const useChatStore = create<ChatStore>((set, get) => {
 			}
 
 			set((current) => ({
-				messageGroups: replaceGroup(current.messageGroups, groupId, (currentGroup) =>
-					currentGroup.isLoading
-						? currentGroup
-						: { ...currentGroup, isLoading: true },
+				messageGroups: replaceGroup(
+					current.messageGroups,
+					groupId,
+					(currentGroup) =>
+						currentGroup.isLoading
+							? currentGroup
+							: { ...currentGroup, isLoading: true },
 				),
 			}));
 
@@ -481,10 +484,14 @@ export const useChatStore = create<ChatStore>((set, get) => {
 			} catch (error) {
 				logError("Failed to load message group:", error);
 				set((current) => ({
-					messageGroups: replaceGroup(current.messageGroups, groupId, (item) => ({
-						...item,
-						isLoading: false,
-					})),
+					messageGroups: replaceGroup(
+						current.messageGroups,
+						groupId,
+						(item) => ({
+							...item,
+							isLoading: false,
+						}),
+					),
 				}));
 			}
 		},

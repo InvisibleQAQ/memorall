@@ -29,13 +29,16 @@ import {
 import { cn } from "@/lib/utils";
 import type { KnowledgeRAGPredefinedConfig } from "@/services/flows/graph/knowledge-rag/state";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
-import type { AgentConfigSummary } from "../types";
+import { MCP_FEATURE_NAME } from "@/services/flows/steps/features/mcp-feature";
 import { HoverBadgeList } from "./AgentHoverInfo";
+import { SkillsSection } from "./SkillsSection";
+import { MCPServersEditor } from "./MCPServersEditor";
+
 import {
 	getAgentFeatureDescription,
 	getAgentFeatureDisplayName,
 } from "../utils/feature-display";
-import { SkillsSection } from "./SkillsSection";
+import type { AgentConfigSummary } from "../types";
 
 interface AgentConfigFormProps {
 	className?: string;
@@ -51,6 +54,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 		draftConfig,
 		draftFeatures,
 		draftMultiAgentAccessibleAgentIds,
+		draftMCPServers,
 		featureDefinitions,
 		availableTools,
 		currentGraphType,
@@ -60,6 +64,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 		updateField,
 		setGraphType,
 		toggleFeature,
+		setMCPServers,
 		convertToUnified,
 	} = useAgentConfigStore();
 	const defaultSystemPrompt = React.useMemo(
@@ -416,14 +421,18 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 									<div className="flex items-center justify-between gap-3">
 										{feature.type === "catalog" ? (
 											<Badge variant="secondary" className="text-[10px]">
-												{t("agentSettings.toolCount", {
-													count: feature.tools.length,
-												})}
+												{feature.name === MCP_FEATURE_NAME
+													? t("agentSettings.toolCount", {
+															count: draftMCPServers.length,
+														})
+													: t("agentSettings.toolCount", {
+															count: feature.tools.length,
+														})}
 											</Badge>
 										) : (
 											<span />
 										)}
-										{hasDetail ? (
+										{hasDetail && feature.name !== MCP_FEATURE_NAME ? (
 											<Button
 												type="button"
 												variant="ghost"
@@ -439,6 +448,23 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 												{t("agentSettings.detail")}
 											</Button>
 										) : null}
+									</div>
+								) : null}
+
+								{feature.name === MCP_FEATURE_NAME && enabled ? (
+									<p className="text-[11px] leading-relaxed text-muted-foreground">
+										Add MCP servers through the guided dialog. Local stdio MCP
+										servers should be exposed as HTTP or SSE before connecting
+										from the browser.
+									</p>
+								) : null}
+
+								{feature.name === MCP_FEATURE_NAME && enabled ? (
+									<div className="border-t border-border/40 pt-3">
+										<MCPServersEditor
+											servers={draftMCPServers}
+											onChange={setMCPServers}
+										/>
 									</div>
 								) : null}
 							</div>

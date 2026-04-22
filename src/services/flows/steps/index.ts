@@ -42,3 +42,4 @@ import "./features/daily-briefing-feature";
 import "./features/job-application-feature";
 import "./features/planner-feature";
 import "./features/multi-agent-feature";
+import "./features/mcp-feature";

@@ -11,7 +11,10 @@ import {
 	type GraphTool,
 } from "@/services/flows/graph/graph.base";
 import type { CombinedServices } from "@/services/flows/interfaces/tool";
-import { extractToolResult } from "@/services/flows/interfaces/tool";
+import {
+	extractToolResult,
+	parseToolInput,
+} from "@/services/flows/interfaces/tool";
 import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { formatYAML } from "@/utils/yaml";
@@ -275,6 +278,7 @@ export class AgentGraph extends GraphBase<
 			content: string;
 			images: ReturnType<typeof extractToolResult>["images"];
 			toolCall: (typeof lastMessage.tool_calls)[number];
+			toolMetadata?: Record<string, unknown>;
 		}> = [];
 
 		logInfo("[TOOL EXECUTE] Start tool call", lastMessage.tool_calls);
@@ -298,7 +302,12 @@ export class AgentGraph extends GraphBase<
 					toolCall.id,
 					content,
 				);
-				toolResults.push({ toolName, content, images: [], toolCall });
+				toolResults.push({
+					toolName,
+					content,
+					images: [],
+					toolCall,
+				});
 				continue;
 			}
 
@@ -306,7 +315,7 @@ export class AgentGraph extends GraphBase<
 				const args = JSON.parse(toolCall.function.arguments);
 
 				// Validate and execute the tool (services already bound via factory)
-				const validatedArgs = combined.executor.schema.parse(args);
+				const validatedArgs = parseToolInput(combined.executor.schema, args);
 				const rawResult = await combined.executor.execute(validatedArgs);
 				const { content, images } = extractToolResult(rawResult);
 				logInfo("[TOOL EXECUTE] Tool call result", toolCall, content);
@@ -317,7 +326,13 @@ export class AgentGraph extends GraphBase<
 					toolCall.id,
 					content,
 				);
-				toolResults.push({ toolName, content, images, toolCall });
+				toolResults.push({
+					toolName,
+					content,
+					images,
+					toolCall,
+					toolMetadata: combined.executor.metadata,
+				});
 			} catch (error) {
 				const errorMessage =
 					error instanceof Error ? error.message : "Unknown error";
@@ -329,7 +344,13 @@ export class AgentGraph extends GraphBase<
 					toolCall.id,
 					content,
 				);
-				toolResults.push({ toolName, content, images: [], toolCall });
+				toolResults.push({
+					toolName,
+					content,
+					images: [],
+					toolCall,
+					toolMetadata: combined.executor.metadata,
+				});
 			}
 		}
 
@@ -343,6 +364,9 @@ export class AgentGraph extends GraphBase<
 				typeof structured?.description === "string"
 					? structured.description
 					: result.content;
+			const mcpMetadata = isObject(result.toolMetadata?.mcp)
+				? result.toolMetadata.mcp
+				: undefined;
 
 			let rawArgs: Record<string, unknown> = {};
 			try {
@@ -360,6 +384,10 @@ export class AgentGraph extends GraphBase<
 				metadata: {
 					tool: result.toolName,
 					tool_call: result.toolCall,
+					...(result.toolMetadata
+						? { tool_metadata: result.toolMetadata }
+						: {}),
+					...(mcpMetadata ? { mcp: mcpMetadata } : {}),
 					...(structured || {}),
 					...(result.images.length > 0 ? { images: result.images } : {}),
 				},

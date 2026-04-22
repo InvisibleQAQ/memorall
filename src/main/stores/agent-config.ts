@@ -11,6 +11,10 @@ import { DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT } from "@/services/flows/graph/know
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
+import {
+	MCP_FEATURE_NAME,
+	type MCPServerConfig,
+} from "@/services/flows/steps/features/mcp-feature";
 import { logError } from "@/utils/logger";
 import type { FeatureCatalogMetadata } from "@/services/flows/flow-builder-catalog";
 import type { Flow } from "@/services/database/types";
@@ -256,6 +260,15 @@ const getMultiAgentAccessibleAgentIds = (
 		: [];
 };
 
+const getMCPServers = (unifiedConfig: UnifiedFlowConfig): MCPServerConfig[] => {
+	const step = unifiedConfig.steps.find(
+		(candidate) => candidate.name === MCP_FEATURE_NAME,
+	);
+	return Array.isArray(step?.config?.servers)
+		? (step.config.servers as MCPServerConfig[])
+		: [];
+};
+
 const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 	const graphType: GraphType =
 		unifiedConfig.graphType === "agent" ? "agent" : "knowledge-rag";
@@ -293,6 +306,7 @@ const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 		featureDefinitions,
 		multiAgentAccessibleAgentIds:
 			getMultiAgentAccessibleAgentIds(unifiedConfig),
+		mcpServers: getMCPServers(unifiedConfig),
 		config: {
 			...DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
 			graphType,
@@ -324,6 +338,7 @@ const applyLegacyDraftToUnified = (
 	draftConfig: KnowledgeRAGPredefinedConfig,
 	draftFeatures: FeatureFlags,
 	draftMultiAgentAccessibleAgentIds: string[],
+	draftMCPServers: MCPServerConfig[],
 ): UnifiedFlowConfig => {
 	const graphType: GraphType =
 		draftConfig.graphType === "agent" ? "agent" : "knowledge-rag";
@@ -404,6 +419,13 @@ const applyLegacyDraftToUnified = (
 				};
 			}
 
+			if (step.name === MCP_FEATURE_NAME) {
+				nextStep.config = {
+					...(nextStep.config ?? {}),
+					servers: [...draftMCPServers],
+				};
+			}
+
 			if (nextStep.config && Object.keys(nextStep.config).length === 0) {
 				nextStep.config = undefined;
 			}
@@ -425,6 +447,8 @@ interface AgentConfigState {
 	availableAgents: Flow[];
 	savedMultiAgentAccessibleAgentIds: string[];
 	draftMultiAgentAccessibleAgentIds: string[];
+	savedMCPServers: MCPServerConfig[];
+	draftMCPServers: MCPServerConfig[];
 	currentFlowId: string | null;
 	currentGraphType: GraphType;
 	isLegacyConfig: boolean;
@@ -447,6 +471,7 @@ interface AgentConfigState {
 	toggleTool: (toolName: string) => void;
 	toggleAccessibleAgent: (agentId: string) => void;
 	setAccessibleAgents: (agentIds: string[]) => void;
+	setMCPServers: (servers: MCPServerConfig[]) => void;
 	save: () => Promise<void>;
 	convertToUnified: () => Promise<void>;
 	revert: () => void;
@@ -460,11 +485,14 @@ const computeDirty = (
 	draftFeatures: FeatureFlags,
 	savedMultiAgentAccessibleAgentIds: string[],
 	draftMultiAgentAccessibleAgentIds: string[],
+	savedMCPServers: MCPServerConfig[],
+	draftMCPServers: MCPServerConfig[],
 ): boolean =>
 	JSON.stringify(saved) !== JSON.stringify(draft) ||
 	JSON.stringify(savedFeatures) !== JSON.stringify(draftFeatures) ||
 	JSON.stringify(savedMultiAgentAccessibleAgentIds) !==
-		JSON.stringify(draftMultiAgentAccessibleAgentIds);
+		JSON.stringify(draftMultiAgentAccessibleAgentIds) ||
+	JSON.stringify(savedMCPServers) !== JSON.stringify(draftMCPServers);
 
 export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 	const persistUnifiedConfig = async () => {
@@ -474,6 +502,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				draftConfig,
 				draftFeatures,
 				draftMultiAgentAccessibleAgentIds,
+				draftMCPServers,
 				savedUnifiedConfig,
 			} = get();
 			const targetFlowId = get().currentFlowId;
@@ -489,6 +518,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				draftConfig,
 				draftFeatures,
 				draftMultiAgentAccessibleAgentIds,
+				draftMCPServers,
 			);
 
 			if (targetFlowId) {
@@ -510,6 +540,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				savedMultiAgentAccessibleAgentIds: [
 					...draftMultiAgentAccessibleAgentIds,
 				],
+				savedMCPServers: [...draftMCPServers],
 				isDirty: false,
 				isSaving: false,
 				isLegacyConfig: false,
@@ -535,6 +566,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 		availableAgents: [],
 		savedMultiAgentAccessibleAgentIds: [],
 		draftMultiAgentAccessibleAgentIds: [],
+		savedMCPServers: [],
+		draftMCPServers: [],
 		currentFlowId: null,
 		currentGraphType: "knowledge-rag",
 		isLegacyConfig: false,
@@ -605,6 +638,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 						availableAgents,
 						savedMultiAgentAccessibleAgentIds: [],
 						draftMultiAgentAccessibleAgentIds: [],
+						savedMCPServers: [],
+						draftMCPServers: [],
 						currentFlowId: targetFlowId ?? null,
 						currentGraphType: graphType,
 						isDirty: false,
@@ -633,6 +668,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					draftMultiAgentAccessibleAgentIds: [
 						...derivedState.multiAgentAccessibleAgentIds,
 					],
+					savedMCPServers: [...derivedState.mcpServers],
+					draftMCPServers: [...derivedState.mcpServers],
 					currentFlowId: targetFlowId ?? null,
 					currentGraphType: derivedState.graphType,
 					isDirty: false,
@@ -659,6 +696,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					get().draftFeatures,
 					get().savedMultiAgentAccessibleAgentIds,
 					get().draftMultiAgentAccessibleAgentIds,
+					get().savedMCPServers,
+					get().draftMCPServers,
 				),
 			});
 		},
@@ -687,6 +726,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					defaultFeatures,
 					get().savedMultiAgentAccessibleAgentIds,
 					draftMultiAgentAccessibleAgentIds,
+					get().savedMCPServers,
+					get().draftMCPServers,
 				),
 			});
 		},
@@ -705,6 +746,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					next,
 					get().savedMultiAgentAccessibleAgentIds,
 					get().draftMultiAgentAccessibleAgentIds,
+					get().savedMCPServers,
+					get().draftMCPServers,
 				),
 			});
 		},
@@ -724,6 +767,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					get().draftFeatures,
 					get().savedMultiAgentAccessibleAgentIds,
 					get().draftMultiAgentAccessibleAgentIds,
+					get().savedMCPServers,
+					get().draftMCPServers,
 				),
 			});
 		},
@@ -742,6 +787,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					get().draftFeatures,
 					get().savedMultiAgentAccessibleAgentIds,
 					next,
+					get().savedMCPServers,
+					get().draftMCPServers,
 				),
 			});
 		},
@@ -756,6 +803,25 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					get().savedFeatures,
 					get().draftFeatures,
 					get().savedMultiAgentAccessibleAgentIds,
+					next,
+					get().savedMCPServers,
+					get().draftMCPServers,
+				),
+			});
+		},
+
+		setMCPServers: (servers) => {
+			const next = [...servers];
+			set({
+				draftMCPServers: next,
+				isDirty: computeDirty(
+					get().savedConfig,
+					get().draftConfig,
+					get().savedFeatures,
+					get().draftFeatures,
+					get().savedMultiAgentAccessibleAgentIds,
+					get().draftMultiAgentAccessibleAgentIds,
+					get().savedMCPServers,
 					next,
 				),
 			});
@@ -786,6 +852,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				draftMultiAgentAccessibleAgentIds: [
 					...get().savedMultiAgentAccessibleAgentIds,
 				],
+				draftMCPServers: [...get().savedMCPServers],
 				featureDefinitions: buildFeatureDefinitions(graphType),
 				currentGraphType: graphType,
 				isDirty: false,
@@ -801,6 +868,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				draftMultiAgentAccessibleAgentIds: [
 					...derivedState.multiAgentAccessibleAgentIds,
 				],
+				draftMCPServers: [...derivedState.mcpServers],
 				featureDefinitions: derivedState.featureDefinitions,
 				currentGraphType: derivedState.graphType,
 				isDirty: computeDirty(
@@ -810,6 +878,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					derivedState.features,
 					get().savedMultiAgentAccessibleAgentIds,
 					derivedState.multiAgentAccessibleAgentIds,
+					get().savedMCPServers,
+					derivedState.mcpServers,
 				),
 			});
 		},

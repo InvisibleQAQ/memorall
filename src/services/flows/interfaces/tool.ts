@@ -53,11 +53,42 @@ export const extractToolResult = (
 	return { content: value.content, images: value.images ?? [] };
 };
 
+export type JsonSchema = Record<string, unknown>;
+
+export interface JsonToolSchema {
+	kind: "json-schema";
+	jsonSchema: JsonSchema;
+	parse: (input: unknown) => unknown;
+}
+
+export type ToolSchema = z.ZodSchema | JsonToolSchema;
+
+export const jsonToolSchema = (
+	jsonSchema: JsonSchema,
+	parse: (input: unknown) => unknown = (input) => input,
+): JsonToolSchema => ({
+	kind: "json-schema",
+	jsonSchema,
+	parse,
+});
+
+export const isJsonToolSchema = (
+	schema: ToolSchema,
+): schema is JsonToolSchema =>
+	typeof schema === "object" &&
+	schema !== null &&
+	"kind" in schema &&
+	schema.kind === "json-schema";
+
+export const parseToolInput = <T>(schema: ToolSchema, input: unknown): T =>
+	schema.parse(input) as T;
+
 // Base tool interface for runtime storage (no generic constraints)
 export interface BaseTool {
 	name: string;
 	description: string;
-	schema: z.ZodSchema;
+	schema: ToolSchema;
+	metadata?: Record<string, unknown>;
 	execute: (input: unknown) => Promise<ToolResultValue>;
 }
 

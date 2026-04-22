@@ -15,6 +15,9 @@ import {
 	convertToolsToOpenAI,
 } from "@/services/flows/tool-registry";
 import type { BaseTool, ToolBinding } from "@/services/flows/interfaces/tool";
+
+const isRawBaseTool = (tool: unknown): tool is BaseTool =>
+	typeof tool === "object" && tool !== null && "execute" in tool;
 import { logWarn } from "@/utils/logger";
 import {
 	FLOW_RUN_LIFECYCLE_CONFIG_KEY,
@@ -35,7 +38,7 @@ export interface CombinedTool {
 
 export interface ConfiguredGraphTool<TConfig = unknown>
 	extends ToolBinding<ToolName, TConfig> {}
-export type GraphTool = ToolName | ConfiguredGraphTool;
+export type GraphTool = ToolName | ConfiguredGraphTool | BaseTool;
 
 export interface BaseStateBase {
 	messages: ChatCompletionMessageParam[];
@@ -156,17 +159,18 @@ export const BaseAnnotation = {
 	}),
 };
 
+const getGraphToolName = (tool: GraphTool): string =>
+	typeof tool === "string" ? tool : tool.name;
+
 function addTool(current: ToolName[], ...tools: ToolName[]): ToolName[];
 function addTool(current: GraphTool[], ...tools: GraphTool[]): GraphTool[];
 function addTool(current: GraphTool[], ...tools: GraphTool[]): GraphTool[] {
 	const next = [...current];
 	for (const tool of tools) {
-		const name = typeof tool === "string" ? tool : tool.name;
-		const existingIndex = next.findIndex((candidate) => {
-			const candidateName =
-				typeof candidate === "string" ? candidate : candidate.name;
-			return candidateName === name;
-		});
+		const name = getGraphToolName(tool);
+		const existingIndex = next.findIndex(
+			(candidate) => getGraphToolName(candidate) === name,
+		);
 		if (existingIndex >= 0) {
 			next[existingIndex] = tool;
 			continue;
@@ -282,7 +286,7 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 
 	static chat = {
 		getToolName: (tool: GraphTool): ToolName =>
-			(typeof tool === "string" ? tool : tool.name) as ToolName,
+			getGraphToolName(tool) as ToolName,
 		systemMessage: (
 			messages: ChatCompletionMessageParam[],
 			systemContent: string,
@@ -341,12 +345,20 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 			toolNames: readonly GraphTool[],
 			services?: unknown,
 		): CombinedTool[] => {
-			const executors = toolRegistry.getTools(toolNames, services);
-			const openaiTools = convertToolsToOpenAI(executors);
-			return executors.map((executor, i) => ({
-				executor,
-				tool: openaiTools[i],
-			}));
+			return toolNames.map((tool): CombinedTool => {
+				if (isRawBaseTool(tool)) {
+					return { executor: tool, tool: convertToolsToOpenAI([tool])[0] };
+				}
+				const executor =
+					typeof tool === "string"
+						? toolRegistry.getToolByName(tool, services)
+						: toolRegistry.getToolByName(
+								(tool as ConfiguredGraphTool).name,
+								services,
+								(tool as ConfiguredGraphTool).config,
+							);
+				return { executor, tool: convertToolsToOpenAI([executor])[0] };
+			});
 		},
 	};
 

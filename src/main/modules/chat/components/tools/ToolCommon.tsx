@@ -21,6 +21,47 @@ export const getStructuredToolPayload = (
 	}
 };
 
+export type MCPActionMetadata = {
+	serverName: string;
+	originalToolName?: string;
+};
+
+export const getMCPActionMetadata = (
+	item: MessageActionItem,
+): MCPActionMetadata | null => {
+	if (!isRecord(item.metadata)) {
+		return null;
+	}
+
+	const directMcp = item.metadata.mcp;
+	if (isRecord(directMcp) && typeof directMcp.serverName === "string") {
+		return {
+			serverName: directMcp.serverName,
+			originalToolName:
+				typeof directMcp.originalToolName === "string"
+					? directMcp.originalToolName
+					: undefined,
+		};
+	}
+
+	const toolMetadata = item.metadata.tool_metadata;
+	if (!isRecord(toolMetadata) || !isRecord(toolMetadata.mcp)) {
+		return null;
+	}
+
+	if (typeof toolMetadata.mcp.serverName !== "string") {
+		return null;
+	}
+
+	return {
+		serverName: toolMetadata.mcp.serverName,
+		originalToolName:
+			typeof toolMetadata.mcp.originalToolName === "string"
+				? toolMetadata.mcp.originalToolName
+				: undefined,
+	};
+};
+
 const hasOwnKeys = (value: Record<string, unknown>): boolean =>
 	Object.keys(value).length > 0;
 

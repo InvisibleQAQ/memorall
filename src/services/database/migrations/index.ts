@@ -25,6 +25,10 @@ import {
 	up as addPredefinedFlowUp,
 	down as addPredefinedFlowDown,
 } from "./007_add_predefined_flow_and_flow_configs";
+import {
+	up as addMessageQueryIndexesUp,
+	down as addMessageQueryIndexesDown,
+} from "./008_add_message_query_indexes";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -89,6 +93,14 @@ export const migrations: Migration[] = [
 		description: "Add predefined_flow column to flows and flow_configs table",
 		up: addPredefinedFlowUp,
 		down: addPredefinedFlowDown,
+	},
+	{
+		id: "add_message_query_indexes",
+		version: 8,
+		description:
+			"Add conversation/time indexes for separator-first message loading",
+		up: addMessageQueryIndexesUp,
+		down: addMessageQueryIndexesDown,
 	},
 	// Example of how to add future migrations:
 	// {

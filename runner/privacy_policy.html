@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta
     name="description"
-    content="Memorall privacy policy explaining what user data is collected, how it is handled locally in the browser, how it is stored on-device, and how user-configured OpenAI or OpenRouter requests are handled."
+    content="Memorall privacy policy explaining user data collection, password and credential handling, local browser storage, data sharing, and user-configured OpenAI or OpenRouter requests."
   >
   <title>Memorall - Privacy Policy</title>
   <link rel="apple-touch-icon" sizes="180x180" href="./images/apple-touch-icon.png">
@@ -484,19 +484,72 @@
         <div class="hero-copy reveal is-visible">
           <div class="eyebrow">Privacy Policy</div>
           <h1>User data stays in your browser.</h1>
+          <div class="policy-top-clarity" aria-label="Top password and credential privacy notice">
+            <p>
+              <strong>Reviewer notice:</strong> Memorall's privacy policy now explicitly covers password
+              collection, credential handling, credential storage, credential usage, data sharing, and
+              deletion. Passwords and credentials saved by Memorall are stored in browser-managed extension
+              storage and encrypted with the user's passkey. Optional account passwords are used only for
+              configured authentication, saved provider credentials are used only for configured provider
+              requests, and web page password field values are redacted before storage.
+            </p>
+          </div>
           <p class="hero-lead">
             Memorall is built around local browser storage. The extension stores the content you choose to
             save, your notes, chats, documents, and settings on your device using browser-managed storage.
             Memorall does not run its own server to collect this content, and it does not sell or share your
-            data with advertisers, analytics networks, or data brokers. If you provide your own OpenAI or
-            OpenRouter key, the prompts, files, or content you submit through that provider are handled by
-            that provider under its own policy.
+            data with advertisers, analytics networks, or data brokers. Passwords, passkeys, API keys, and
+            other credentials are only used for the feature you configure, such as optional Supabase sign-in
+            or user-provided OpenAI/OpenRouter access. If you provide your own OpenAI or OpenRouter key, the
+            prompts, files, or content you submit through that provider are handled by that provider under
+            its own policy.
           </p>
 
           <div class="policy-top-clarity" aria-label="Privacy policy summary for reviewers and users">
             <p>
-              <strong>Clear summary:</strong> this page covers the four points reviewers usually look for:
-              what data is collected, how it is handled, how it is stored, and how it is shared.
+              <strong>Important password and credential summary:</strong> Memorall may handle passwords,
+              passkeys, API keys, access tokens, and similar credentials only when you type them into the
+              extension to enable authentication, encryption, or an external provider integration.
+            </p>
+            <ul class="policy-list">
+              <li>
+                <strong>Password collection and use:</strong> passwords and credentials saved by Memorall are
+                stored in browser-managed extension storage and encrypted with the user's passkey. Optional
+                account passwords are submitted only to the configured Supabase authentication service for
+                sign-in or sign-up. Memorall does not sell passwords, use them for advertising, or use them
+                for unrelated analytics.
+              </li>
+              <li>
+                <strong>Web page password fields:</strong> when Memorall observes browser page activity,
+                password fields and other sensitive form fields are redacted before storage. Memorall stores a
+                redaction marker instead of the actual password or secret value.
+              </li>
+              <li>
+                <strong>Passkeys and master passkeys:</strong> passkeys entered to protect provider
+                configuration are used locally to encrypt or decrypt saved passwords, API keys, tokens, and
+                other provider credentials stored in the browser.
+              </li>
+              <li>
+                <strong>API keys and secrets:</strong> OpenAI, OpenRouter, local model server keys, MCP
+                headers, and similar secrets are stored in browser-managed extension storage and encrypted
+                with the user's passkey when you choose to save them. They are used only to make requests to
+                the provider or service you configured.
+              </li>
+              <li>
+                <strong>Credential sharing:</strong> Memorall does not transmit passwords or saved provider
+                credentials to Memorall-operated infrastructure. Credentials are shared only with the
+                authentication or provider service you intentionally configure and use.
+              </li>
+              <li>
+                <strong>Deletion:</strong> you can remove saved credentials from the extension, clear browser
+                extension storage, or uninstall Memorall to remove locally stored extension data, subject to
+                browser behavior and any separate provider account-retention rules.
+              </li>
+            </ul>
+
+            <p>
+              <strong>General user data summary:</strong> this page covers what data is collected, how it is
+              handled, how it is stored, and how it is shared.
             </p>
             <ul class="policy-list">
               <li>
@@ -642,6 +695,7 @@
             <div class="policy-nav-list">
               <a href="#overview">Overview</a>
               <a href="#data-collected">What Memorall may store</a>
+              <a href="#credentials-passwords">Passwords and credentials</a>
               <a href="#local-processing">Local storage and processing</a>
               <a href="#network-requests">External LLM handling</a>
               <a href="#data-sharing">Data sharing</a>
@@ -703,9 +757,70 @@
                   product preferences needed to restore your setup.
                 </li>
                 <li>
+                  <strong>Passwords, passkeys, API keys, and other credentials:</strong> optional account
+                  passwords, master passkeys, provider API keys, bearer tokens, local server keys, MCP headers,
+                  and similar secrets may be handled when you enter them to enable sign-in, encryption, or a
+                  provider integration.
+                </li>
+                <li>
                   <strong>What Memorall does not automatically collect:</strong> Memorall does not run its own
                   analytics pipeline for your saved content, does not sell browsing data, and does not create a
                   server-side copy of your local workspace by default.
+                </li>
+              </ul>
+            </article>
+
+            <article class="policy-block reveal" id="credentials-passwords">
+              <p class="section-label">Passwords &amp; Credentials</p>
+              <h2>How passwords, passkeys, API keys, and secrets are handled</h2>
+              <p>
+                Chrome Web Store policy treats passwords and credentials as sensitive user data. Memorall only
+                handles these values when you provide them directly to enable a feature. They are not sold,
+                rented, shared with advertisers, or used to build advertising profiles.
+              </p>
+              <ul class="policy-list">
+                <li>
+                  <strong>Optional account password:</strong> passwords and credentials saved by Memorall are
+                  stored in browser-managed extension storage and encrypted with the user's passkey. If
+                  Supabase authentication is configured for a deployment and you choose to sign in or sign up,
+                  the email address and password you enter are sent to that configured Supabase authentication
+                  service for account creation, sign-in, session management, and password verification.
+                  Memorall does not use that password for unrelated product analytics or advertising.
+                </li>
+                <li>
+                  <strong>Passwords entered on web pages:</strong> if page activity capture is enabled,
+                  Memorall checks password fields and other sensitive input patterns such as token, API key,
+                  authorization, credit card, PIN, OTP, and private key fields. The actual entered value is
+                  redacted before storage, and Memorall stores only a redaction marker for that sensitive field.
+                </li>
+                <li>
+                  <strong>Passkey and master passkey:</strong> passkeys entered in Memorall are used to protect
+                  locally saved provider configuration, including encrypting and decrypting saved passwords,
+                  API keys, tokens, and provider keys in browser-managed storage. The passkey is not transmitted
+                  to Memorall-operated servers.
+                </li>
+                <li>
+                  <strong>API keys and provider secrets:</strong> OpenAI API keys, OpenRouter API keys, local
+                  model server keys, MCP authorization headers, bearer tokens, and similar secrets are used
+                  only to call the provider, local service, or server that you configured.
+                </li>
+                <li>
+                  <strong>Storage:</strong> saved passwords, provider credentials, API keys, tokens, and
+                  encrypted credential records are kept in browser-managed extension storage on your device and
+                  encrypted with the user's passkey unless the specific third-party authentication or provider
+                  flow requires its own server-side session handling.
+                </li>
+                <li>
+                  <strong>Sharing:</strong> passwords and credentials are not sent to Memorall-operated
+                  infrastructure. Account passwords are sent to the configured Supabase authentication service
+                  when you use optional sign-in. API keys and tokens are sent only to the provider, local
+                  endpoint, or MCP server you configure when a request needs that credential.
+                </li>
+                <li>
+                  <strong>Retention and deletion:</strong> locally saved credentials can be removed from the
+                  extension, cleared through browser extension storage controls, or removed by uninstalling the
+                  extension. Data submitted to Supabase, OpenAI, OpenRouter, or another configured provider is
+                  retained according to that provider's own policy.
                 </li>
               </ul>
             </article>
@@ -736,6 +851,11 @@
                   <strong>User-configured external LLMs:</strong> if you add your own OpenAI or OpenRouter key,
                   content submitted to that provider is processed through that provider's service instead of the
                   default local-only path.
+                </li>
+                <li>
+                  <strong>Credential handling:</strong> saved provider credentials are used by the extension to
+                  restore authentication and make the requests you initiate. They are not sent to Memorall
+                  servers.
                 </li>
               </ul>
             </article>
@@ -793,9 +913,15 @@
                   policy. Memorall does not control how OpenAI or OpenRouter handle that submitted content.
                 </li>
                 <li>
+                  <strong>Optional Supabase authentication:</strong> if a deployment enables Supabase
+                  authentication and you choose to sign in or sign up, your email address, password, and
+                  authentication session data are handled by the configured Supabase project for account
+                  authentication.
+                </li>
+                <li>
                   <strong>No other sharing:</strong> outside the user-configured OpenAI or OpenRouter path above,
-                  Memorall does not
-                  share data with advertisers, analytics networks, data brokers, or any other third party.
+                  optional Supabase authentication, and other user-configured provider requests, Memorall does
+                  not share data with advertisers, analytics networks, data brokers, or any other third party.
                 </li>
               </ul>
               <p class="policy-note">
@@ -832,8 +958,16 @@
                   locally in extension storage and are not transmitted to Memorall-operated infrastructure.
                 </li>
                 <li>
+                  <strong>Password and passkey handling:</strong> passwords and credentials saved by Memorall
+                  are stored in browser-managed extension storage and encrypted with the user's passkey.
+                  Optional account passwords are sent only to the configured authentication provider for
+                  sign-in or sign-up. Passkeys used to protect local provider configuration are handled locally
+                  for encryption and decryption.
+                </li>
+                <li>
                   <strong>No guarantees for external providers:</strong> Memorall cannot guarantee the security
-                  practices of OpenAI or OpenRouter.
+                  practices of Supabase, OpenAI, OpenRouter, local model servers, MCP servers, or other
+                  user-configured providers.
                 </li>
               </ul>
             </article>
@@ -859,6 +993,11 @@
                   OpenRouter key, retention on that provider is governed by that provider rather than by local
                   browser storage alone.
                 </li>
+                <li>
+                  <strong>Authentication providers:</strong> if you used optional Supabase authentication,
+                  account and password-related records are retained by that configured provider according to
+                  its own policy and account controls.
+                </li>
               </ul>
             </article>
 
@@ -878,8 +1017,8 @@
               <p class="section-label">Updates &amp; Contact</p>
               <h2>Changes and contact</h2>
               <p>
-                <strong>Effective date:</strong> April 19, 2026. This policy was last updated on
-                <strong>April 19, 2026</strong>.
+                <strong>Effective date:</strong> April 23, 2026. This policy was last updated on
+                <strong>April 23, 2026</strong>.
               </p>
               <p>
                 This privacy policy may be updated as the product evolves. When material changes are made, the

@@ -9,6 +9,7 @@ import {
 } from "@/services/background-jobs/bridges/types";
 import { openExtensionPopup } from "@/background/core/notifications";
 import { relayJobNotificationToContent } from "./relay";
+import type { BackgroundMessage } from "@/embedded/types";
 
 // ── Individual handlers ───────────────────────────────────────────────────────
 
@@ -404,7 +405,10 @@ export function registerMessageHandler(onPopupOpened: () => void): void {
 			return handleOpenSavePage(sendResponse);
 
 		if (type === BACKGROUND_EVENTS.OPEN_FULL_CHAT_WITH_CONTEXT)
-			return handleOpenFullChatWithContext(msg, sendResponse);
+			return handleOpenFullChatWithContext(
+				msg as unknown as BackgroundMessage,
+				sendResponse,
+			);
 
 		if (type === BACKGROUND_EVENTS.SAVE_CONTENT_WITH_TOPIC)
 			return handleSaveContentWithTopic(msg, sender.tab?.id, sendResponse);

@@ -88,6 +88,11 @@ import {
 	MULTI_AGENT_FEATURE_SYSTEM_PROMPT,
 	MULTI_AGENT_FEATURE_TOOLS,
 } from "./steps/features/multi-agent-feature";
+import {
+	MCP_FEATURE_DESCRIPTION,
+	MCP_FEATURE_NAME,
+	MCP_FEATURE_TOOLS,
+} from "./steps/features/mcp-feature";
 
 /**
  * Flow Builder Catalog
@@ -909,6 +914,47 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			nameKey: "flowBuilder.features.multiAgentFeature.name",
 			tools: [...MULTI_AGENT_FEATURE_TOOLS],
 			systemPrompt: MULTI_AGENT_FEATURE_SYSTEM_PROMPT,
+			customizable: true,
+		} satisfies FeatureCatalogMetadata,
+	},
+	{
+		id: "step-mcp-feature",
+		name: MCP_FEATURE_NAME,
+		type: "feature",
+		graphTypes: ["knowledge-rag"],
+		inputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				required: true,
+				description: "Current chat messages",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				required: true,
+				description: "Current available tools",
+			},
+		],
+		outputs: [
+			{
+				name: "messages",
+				type: "Message[]",
+				description: "Messages with MCP tool instructions.",
+			},
+			{
+				name: "tools",
+				type: "Tool[]",
+				description: "Tools extended with dynamically loaded MCP tools.",
+			},
+		],
+		metadata: {
+			description: MCP_FEATURE_DESCRIPTION,
+			descriptionKey: "flowBuilder.features.mcpFeature.description",
+			displayName: "MCP Servers",
+			nameKey: "flowBuilder.features.mcpFeature.name",
+			tools: [...MCP_FEATURE_TOOLS],
+			systemPrompt: "",
 			customizable: true,
 		} satisfies FeatureCatalogMetadata,
 	},

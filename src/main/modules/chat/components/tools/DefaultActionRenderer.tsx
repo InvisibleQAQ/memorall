@@ -7,7 +7,38 @@ import {
 	isMermaidOnly,
 	TaskMermaidDiagram,
 } from "./TaskMermaidDiagram";
-import { ToolItemRawIO } from "./ToolCommon";
+import {
+	ToolDetail,
+	ToolDetailsGrid,
+	ToolItemRawIO,
+	getMCPActionMetadata,
+} from "./ToolCommon";
+import { Badge } from "@/main/components/ui/badge";
+
+const MCPToolInfo: React.FC<{
+	serverName: string;
+	originalToolName?: string;
+}> = ({ serverName, originalToolName }) => (
+	<div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
+		<div className="mb-2 flex items-center gap-2">
+			<Badge
+				variant="outline"
+				className="border-sky-500/30 bg-sky-500/10 text-[10px] text-sky-700"
+			>
+				MCP
+			</Badge>
+			<span className="text-xs font-medium text-muted-foreground">
+				Model Context Protocol tool
+			</span>
+		</div>
+		<ToolDetailsGrid>
+			<ToolDetail label="Server" value={serverName} mono />
+			{originalToolName ? (
+				<ToolDetail label="MCP Tool" value={originalToolName} mono />
+			) : null}
+		</ToolDetailsGrid>
+	</div>
+);
 
 const isToolResultImages = (value: unknown): value is ToolResultImage[] =>
 	Array.isArray(value) &&
@@ -70,9 +101,11 @@ export const defaultActionRenderer: ActionRenderer = (item, isOpen) => {
 	if (!isOpen) return null;
 
 	const trimmedDesc = item.description?.trim() || "";
+	const mcpMetadata = getMCPActionMetadata(item);
 	if (isMermaidOnly(trimmedDesc)) {
 		return (
 			<div className="space-y-3">
+				{mcpMetadata ? <MCPToolInfo {...mcpMetadata} /> : null}
 				<ToolResultImages metadata={item.metadata} />
 				<TaskMermaidDiagram
 					chart={extractMermaidContent(trimmedDesc)}
@@ -85,6 +118,7 @@ export const defaultActionRenderer: ActionRenderer = (item, isOpen) => {
 
 	return (
 		<div className="space-y-3">
+			{mcpMetadata ? <MCPToolInfo {...mcpMetadata} /> : null}
 			<ToolResultImages metadata={item.metadata} />
 			<div className="w-full overflow-hidden whitespace-pre-wrap break-words">
 				{item.description}

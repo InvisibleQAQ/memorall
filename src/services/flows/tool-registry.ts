@@ -1,10 +1,12 @@
 import z from "zod";
 import type {
 	BaseTool,
+	ToolSchema,
 	ToolBinding,
 	ToolFactory,
 	ToolResultValue,
 } from "./interfaces/tool";
+import { isJsonToolSchema, parseToolInput } from "./interfaces/tool";
 import type { ChatCompletionTool } from "@/types/openai";
 
 // Global tool type registry for smart type inference
@@ -21,7 +23,6 @@ type StoredFactory = (services: unknown, config?: unknown) => BaseTool;
 type ToolConfig<T extends keyof ToolTypeRegistry> =
 	ToolTypeRegistry[T] extends { config: infer C } ? C : void;
 type ToolSpecifier = string | ToolBinding<string, unknown>;
-
 type JsonSchema = Record<string, unknown>;
 
 const isOptionalSchema = (schema: z.ZodTypeAny): boolean => {
@@ -52,7 +53,11 @@ const unwrapSchema = (schema: z.ZodTypeAny): z.ZodTypeAny => {
 	return schema;
 };
 
-const toJsonSchema = (schema: z.ZodTypeAny): JsonSchema => {
+const toJsonSchema = (schema: ToolSchema): Record<string, unknown> => {
+	if (isJsonToolSchema(schema)) {
+		return schema.jsonSchema;
+	}
+
 	const unwrapped = unwrapSchema(schema);
 
 	if (unwrapped instanceof z.ZodString) {
@@ -107,7 +112,7 @@ const toJsonSchema = (schema: z.ZodTypeAny): JsonSchema => {
 	return { type: "object", properties: {} };
 };
 
-const toOpenAIToolParameters = (schema: z.ZodTypeAny): JsonSchema =>
+const toOpenAIToolParameters = (schema: ToolSchema): Record<string, unknown> =>
 	toJsonSchema(schema);
 
 /**
@@ -224,7 +229,10 @@ export class ToolRegistryManager {
 		config?: ToolConfig<T>,
 	): Promise<ToolResultValue> {
 		const tool = this.getTool(toolName, services, config);
-		const validatedArgs = tool.schema.parse(args);
+		const validatedArgs = parseToolInput<ToolTypeRegistry[T]["input"]>(
+			tool.schema,
+			args,
+		);
 		return tool.execute(validatedArgs);
 	}
 }
