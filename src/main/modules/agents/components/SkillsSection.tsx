@@ -1,21 +1,23 @@
-import React, { useCallback, useEffect, useState } from "react";
-import {
-	BookOpen,
-	ChevronRight,
-	Github,
-	Pencil,
-	Plus,
-	Trash2,
-} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ExternalLink, Github, Pencil, Plus, Trash2 } from "lucide-react";
 import {
 	skillFileSystemService,
+	type Skill,
 	type SkillSummary,
 } from "@/services/filesystem/skill-filesystem";
+import { useAgentConfigStore } from "@/main/stores/agent-config";
+import { Badge } from "@/main/components/ui/badge";
 import { Button } from "@/main/components/ui/button";
 import { Input } from "@/main/components/ui/input";
 import { Label } from "@/main/components/ui/label";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@/main/components/ui/tabs";
 import { Textarea } from "@/main/components/ui/textarea";
-import { Badge } from "@/main/components/ui/badge";
 import {
 	Dialog,
 	DialogContent,
@@ -34,14 +36,9 @@ import {
 	AlertDialogTitle,
 } from "@/main/components/ui/alert-dialog";
 
-// ---------------------------------------------------------------------------
-// Skill editor dialog
-// ---------------------------------------------------------------------------
-
 interface SkillEditorDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	/** Undefined means create mode */
 	initial?: { name: string; description: string; body: string };
 	onSave: (name: string, description: string, body: string) => Promise<void>;
 }
@@ -52,6 +49,7 @@ const SkillEditorDialog: React.FC<SkillEditorDialogProps> = ({
 	initial,
 	onSave,
 }) => {
+	const { t } = useTranslation(["agents", "common"]);
 	const [name, setName] = useState(initial?.name ?? "");
 	const [description, setDescription] = useState(initial?.description ?? "");
 	const [body, setBody] = useState(initial?.body ?? "");
@@ -59,7 +57,6 @@ const SkillEditorDialog: React.FC<SkillEditorDialogProps> = ({
 	const [saving, setSaving] = useState(false);
 	const isEdit = initial !== undefined;
 
-	// Reset fields when dialog opens
 	useEffect(() => {
 		if (open) {
 			setName(initial?.name ?? "");
@@ -72,7 +69,7 @@ const SkillEditorDialog: React.FC<SkillEditorDialogProps> = ({
 	const handleSave = async () => {
 		const trimmedName = name.trim();
 		if (!trimmedName) {
-			setError("Name is required");
+			setError(t("skills.editor.nameRequired", { ns: "agents" }));
 			return;
 		}
 		setSaving(true);
@@ -81,7 +78,11 @@ const SkillEditorDialog: React.FC<SkillEditorDialogProps> = ({
 			await onSave(trimmedName, description.trim(), body.trim());
 			onOpenChange(false);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to save skill");
+			setError(
+				err instanceof Error
+					? err.message
+					: t("skills.editor.saveFailed", { ns: "agents" }),
+			);
 		} finally {
 			setSaving(false);
 		}
@@ -91,47 +92,56 @@ const SkillEditorDialog: React.FC<SkillEditorDialogProps> = ({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-lg">
 				<DialogHeader>
-					<DialogTitle>{isEdit ? "Edit Skill" : "New Skill"}</DialogTitle>
+					<DialogTitle>
+						{isEdit
+							? t("skills.editor.editTitle", { ns: "agents" })
+							: t("skills.editor.newTitle", { ns: "agents" })}
+					</DialogTitle>
 				</DialogHeader>
-
 				<div className="space-y-4">
 					<div className="space-y-1.5">
-						<Label className="text-xs">Name</Label>
+						<Label className="text-xs">
+							{t("skills.editor.nameLabel", { ns: "agents" })}
+						</Label>
 						<Input
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							placeholder="e.g. code-review"
+							placeholder={t("skills.editor.namePlaceholder", { ns: "agents" })}
 							disabled={isEdit}
-							className="h-8 text-sm font-mono"
+							className="h-8 font-mono text-sm"
 						/>
 						<p className="text-[11px] text-muted-foreground">
-							Lowercase letters, numbers, and hyphens. Used as file name.
+							{t("skills.editor.nameHint", { ns: "agents" })}
 						</p>
 					</div>
-
 					<div className="space-y-1.5">
-						<Label className="text-xs">Description</Label>
+						<Label className="text-xs">
+							{t("skills.editor.descriptionLabel", { ns: "agents" })}
+						</Label>
 						<Input
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
-							placeholder="One-line description shown in mentions"
+							placeholder={t("skills.editor.descriptionPlaceholder", {
+								ns: "agents",
+							})}
 							className="h-8 text-sm"
 						/>
 					</div>
-
 					<div className="space-y-1.5">
-						<Label className="text-xs">Content (Markdown)</Label>
+						<Label className="text-xs">
+							{t("skills.editor.contentLabel", { ns: "agents" })}
+						</Label>
 						<Textarea
 							value={body}
 							onChange={(e) => setBody(e.target.value)}
-							placeholder="Write the skill instructions here..."
+							placeholder={t("skills.editor.contentPlaceholder", {
+								ns: "agents",
+							})}
 							className="min-h-[180px] resize-y font-mono text-xs"
 						/>
 					</div>
-
 					{error ? <p className="text-xs text-destructive">{error}</p> : null}
 				</div>
-
 				<DialogFooter>
 					<Button
 						type="button"
@@ -140,7 +150,7 @@ const SkillEditorDialog: React.FC<SkillEditorDialogProps> = ({
 						onClick={() => onOpenChange(false)}
 						disabled={saving}
 					>
-						Cancel
+						{t("buttons.cancel", { ns: "common" })}
 					</Button>
 					<Button
 						type="button"
@@ -148,17 +158,15 @@ const SkillEditorDialog: React.FC<SkillEditorDialogProps> = ({
 						onClick={() => void handleSave()}
 						disabled={saving}
 					>
-						{saving ? "Saving…" : "Save"}
+						{saving
+							? t("skills.editor.saving", { ns: "agents" })
+							: t("buttons.save", { ns: "common" })}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);
 };
-
-// ---------------------------------------------------------------------------
-// GitHub import dialog
-// ---------------------------------------------------------------------------
 
 interface GithubImportDialogProps {
 	open: boolean;
@@ -171,6 +179,7 @@ const GithubImportDialog: React.FC<GithubImportDialogProps> = ({
 	onOpenChange,
 	onImport,
 }) => {
+	const { t } = useTranslation(["agents", "common"]);
 	const [url, setUrl] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [importing, setImporting] = useState(false);
@@ -191,7 +200,11 @@ const GithubImportDialog: React.FC<GithubImportDialogProps> = ({
 			await onImport(trimmed);
 			onOpenChange(false);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to import");
+			setError(
+				err instanceof Error
+					? err.message
+					: t("skills.import.importFailed", { ns: "agents" }),
+			);
 		} finally {
 			setImporting(false);
 		}
@@ -203,28 +216,26 @@ const GithubImportDialog: React.FC<GithubImportDialogProps> = ({
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<Github size={16} />
-						Import from GitHub
+						{t("skills.import.title", { ns: "agents" })}
 					</DialogTitle>
 				</DialogHeader>
-
 				<div className="space-y-3">
 					<div className="space-y-1.5">
-						<Label className="text-xs">GitHub File URL</Label>
+						<Label className="text-xs">
+							{t("skills.import.urlLabel", { ns: "agents" })}
+						</Label>
 						<Input
 							value={url}
 							onChange={(e) => setUrl(e.target.value)}
-							placeholder="https://github.com/user/repo/blob/main/skill.md"
-							className="h-8 text-sm font-mono"
+							placeholder={t("skills.import.urlPlaceholder", { ns: "agents" })}
+							className="h-8 font-mono text-sm"
 						/>
 						<p className="text-[11px] text-muted-foreground">
-							Paste a GitHub file URL or raw.githubusercontent.com URL pointing
-							to a <code>.md</code> skill file.
+							{t("skills.import.urlHint", { ns: "agents" })}
 						</p>
 					</div>
-
 					{error ? <p className="text-xs text-destructive">{error}</p> : null}
 				</div>
-
 				<DialogFooter>
 					<Button
 						type="button"
@@ -233,7 +244,7 @@ const GithubImportDialog: React.FC<GithubImportDialogProps> = ({
 						onClick={() => onOpenChange(false)}
 						disabled={importing}
 					>
-						Cancel
+						{t("buttons.cancel", { ns: "common" })}
 					</Button>
 					<Button
 						type="button"
@@ -241,7 +252,9 @@ const GithubImportDialog: React.FC<GithubImportDialogProps> = ({
 						onClick={() => void handleImport()}
 						disabled={importing || !url.trim()}
 					>
-						{importing ? "Importing…" : "Import"}
+						{importing
+							? t("skills.import.importing", { ns: "agents" })
+							: t("buttons.import", { ns: "common" })}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
@@ -249,25 +262,392 @@ const GithubImportDialog: React.FC<GithubImportDialogProps> = ({
 	);
 };
 
-// ---------------------------------------------------------------------------
-// SkillsSection
-// ---------------------------------------------------------------------------
+interface SkillPreviewDialogProps {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	skill: SkillSummary | null;
+}
+
+const SkillPreviewDialog: React.FC<SkillPreviewDialogProps> = ({
+	open,
+	onOpenChange,
+	skill,
+}) => {
+	const { t } = useTranslation(["agents", "common"]);
+	const [loadedSkill, setLoadedSkill] = useState<Skill | null>(null);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!open || !skill) {
+			setLoadedSkill(null);
+			setLoading(false);
+			setError(null);
+			return;
+		}
+
+		let cancelled = false;
+		setLoading(true);
+		setError(null);
+		setLoadedSkill(null);
+
+		void skillFileSystemService
+			.readSkill(skill.name)
+			.then((fullSkill) => {
+				if (!cancelled) {
+					setLoadedSkill(fullSkill);
+				}
+			})
+			.catch((err) => {
+				if (!cancelled) {
+					setError(
+						err instanceof Error
+							? err.message
+							: t("skills.preview.loadFailed", { ns: "agents" }),
+					);
+				}
+			})
+			.finally(() => {
+				if (!cancelled) {
+					setLoading(false);
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [open, skill, t]);
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="flex max-h-[min(88dvh,900px)] w-[calc(100vw-1rem)] max-w-[960px] flex-col gap-0 overflow-hidden p-0 sm:w-[min(94vw,960px)]">
+				<DialogHeader className="border-b px-5 pb-4 pt-5">
+					<DialogTitle className="flex items-center justify-between gap-3">
+						<span className="truncate font-mono text-sm">
+							{skill?.name ?? t("skills.preview.title", { ns: "agents" })}
+						</span>
+						{skill?.origin === "default" ? (
+							<Badge variant="secondary" className="shrink-0">
+								{t("skills.preview.readOnly", { ns: "agents" })}
+							</Badge>
+						) : null}
+					</DialogTitle>
+				</DialogHeader>
+				<div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+					{skill?.description ? (
+						<p className="text-sm leading-relaxed text-muted-foreground">
+							{skill.description}
+						</p>
+					) : null}
+
+					{skill?.origin === "default" ? (
+						<div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+							{skill.publisher ? (
+								<Badge variant="outline">{skill.publisher}</Badge>
+							) : null}
+							{skill.collection ? (
+								<Badge variant="outline">{skill.collection}</Badge>
+							) : null}
+							{skill.sourceUrl ? (
+								<a
+									href={skill.sourceUrl}
+									target="_blank"
+									rel="noreferrer"
+									className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+								>
+									<ExternalLink size={12} />
+									{t("skills.preview.source", { ns: "agents" })}
+								</a>
+							) : null}
+						</div>
+					) : null}
+
+					{loading ? (
+						<p className="text-sm text-muted-foreground">
+							{t("skills.preview.loading", { ns: "agents" })}
+						</p>
+					) : error ? (
+						<p className="text-sm text-destructive">{error}</p>
+					) : (
+						<pre className="overflow-x-auto rounded-2xl border border-border/60 bg-muted/25 p-4 text-xs leading-relaxed text-foreground whitespace-pre-wrap">
+							{loadedSkill?.body ?? ""}
+						</pre>
+					)}
+				</div>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
+interface ManageSkillsDialogProps {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	defaultSkills: SkillSummary[];
+	customSkills: SkillSummary[];
+	enabledSkillNameSet: Set<string>;
+	searchQuery: string;
+	onSearchQueryChange: (value: string) => void;
+	onOpenCreate: () => void;
+	onOpenEdit: (skill: SkillSummary) => void;
+	onOpenPreview: (skill: SkillSummary) => void;
+	onToggleSkill: (skillName: string) => void;
+	onDelete: (name: string) => void;
+	onImport: () => void;
+}
+
+const matchesSkillQuery = (skill: SkillSummary, query: string): boolean => {
+	if (!query) return true;
+
+	const normalizedQuery = query.trim().toLowerCase();
+	if (!normalizedQuery) return true;
+
+	return [
+		skill.name,
+		skill.description,
+		skill.publisher,
+		skill.collection,
+		skill.repo,
+	]
+		.filter(Boolean)
+		.some((value) => value!.toLowerCase().includes(normalizedQuery));
+};
+
+const ManageSkillsDialog: React.FC<ManageSkillsDialogProps> = ({
+	open,
+	onOpenChange,
+	defaultSkills,
+	customSkills,
+	enabledSkillNameSet,
+	searchQuery,
+	onSearchQueryChange,
+	onOpenCreate,
+	onOpenEdit,
+	onOpenPreview,
+	onToggleSkill,
+	onDelete,
+	onImport,
+}) => {
+	const { t } = useTranslation(["agents", "common"]);
+	const filteredDefaultSkills = useMemo(
+		() =>
+			defaultSkills.filter((skill) => matchesSkillQuery(skill, searchQuery)),
+		[defaultSkills, searchQuery],
+	);
+	const filteredCustomSkills = useMemo(
+		() => customSkills.filter((skill) => matchesSkillQuery(skill, searchQuery)),
+		[customSkills, searchQuery],
+	);
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="flex max-h-[min(88dvh,820px)] w-[calc(100vw-1rem)] max-w-[920px] flex-col gap-0 overflow-hidden p-0 sm:w-[min(94vw,920px)]">
+				<DialogHeader className="border-b px-5 pb-4 pt-5">
+					<DialogTitle>{t("skills.manageTitle", { ns: "agents" })}</DialogTitle>
+				</DialogHeader>
+
+				<div className="border-b px-5 py-4">
+					<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+						<Input
+							value={searchQuery}
+							onChange={(event) => onSearchQueryChange(event.target.value)}
+							placeholder={t("skills.searchPlaceholder", { ns: "agents" })}
+							className="h-9"
+						/>
+						<div className="flex flex-wrap items-center gap-2">
+							<Badge variant="secondary">
+								{t("skills.defaultCount", {
+									ns: "agents",
+									count: defaultSkills.length,
+								})}
+							</Badge>
+							<Badge variant="outline">
+								{t("skills.customCount", {
+									ns: "agents",
+									count: customSkills.length,
+								})}
+							</Badge>
+						</div>
+					</div>
+					<p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+						{t("skills.defaultHint", { ns: "agents" })}
+					</p>
+				</div>
+
+				<Tabs defaultValue="default" className="flex min-h-0 flex-1 flex-col">
+					<div className="px-5 pt-4">
+						<TabsList className="grid h-9 w-full grid-cols-2">
+							<TabsTrigger value="default" className="text-xs">
+								{t("skills.defaultTab", { ns: "agents" })}
+							</TabsTrigger>
+							<TabsTrigger value="custom" className="text-xs">
+								{t("skills.customTab", { ns: "agents" })}
+							</TabsTrigger>
+						</TabsList>
+					</div>
+
+					<TabsContent
+						value="default"
+						className="mt-0 min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-4"
+					>
+						<div className="space-y-2">
+							{filteredDefaultSkills.length === 0 ? (
+								<p className="py-8 text-center text-sm text-muted-foreground">
+									{t("skills.emptyDefault", { ns: "agents" })}
+								</p>
+							) : (
+								filteredDefaultSkills.map((skill) => (
+									<div
+										key={skill.name}
+										className="flex items-start gap-3 rounded-2xl border border-border/60 bg-muted/25 px-4 py-3"
+									>
+										<div className="min-w-0 flex-1 space-y-2">
+											<div className="flex flex-wrap items-center gap-2">
+												<span className="font-mono text-xs font-semibold">
+													{skill.name}
+												</span>
+												{skill.publisher ? (
+													<Badge variant="outline">{skill.publisher}</Badge>
+												) : null}
+												{skill.collection ? (
+													<Badge variant="outline">{skill.collection}</Badge>
+												) : null}
+											</div>
+											<p className="text-xs leading-relaxed text-muted-foreground">
+												{skill.description}
+											</p>
+										</div>
+										<Button
+											type="button"
+											variant={
+												enabledSkillNameSet.has(skill.name)
+													? "secondary"
+													: "default"
+											}
+											size="sm"
+											className="shrink-0"
+											onClick={() => onToggleSkill(skill.name)}
+										>
+											{enabledSkillNameSet.has(skill.name)
+												? t("skills.disableAction", { ns: "agents" })
+												: t("skills.enableAction", { ns: "agents" })}
+										</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											className="shrink-0"
+											onClick={() => onOpenPreview(skill)}
+										>
+											{t("skills.preview.action", { ns: "agents" })}
+										</Button>
+									</div>
+								))
+							)}
+						</div>
+					</TabsContent>
+
+					<TabsContent
+						value="custom"
+						className="mt-0 min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-4"
+					>
+						<div className="space-y-2">
+							{filteredCustomSkills.length === 0 ? (
+								<p className="py-8 text-center text-sm text-muted-foreground">
+									{customSkills.length === 0
+										? t("skills.emptyCustom", { ns: "agents" })
+										: t("skills.emptyFilteredCustom", { ns: "agents" })}
+								</p>
+							) : (
+								filteredCustomSkills.map((skill) => (
+									<div
+										key={skill.name}
+										className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2"
+									>
+										<div className="min-w-0 flex-1">
+											<p className="truncate font-mono text-xs font-medium">
+												{skill.name}
+											</p>
+											{skill.description ? (
+												<p className="truncate text-[11px] text-muted-foreground">
+													{skill.description}
+												</p>
+											) : null}
+										</div>
+										<div className="flex shrink-0 items-center gap-1">
+											<Button
+												type="button"
+												variant={
+													enabledSkillNameSet.has(skill.name)
+														? "secondary"
+														: "outline"
+												}
+												size="sm"
+												className="h-7 px-2 text-[11px]"
+												onClick={() => onToggleSkill(skill.name)}
+											>
+												{enabledSkillNameSet.has(skill.name)
+													? t("skills.disableAction", { ns: "agents" })
+													: t("skills.enableAction", { ns: "agents" })}
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+												onClick={() => onOpenEdit(skill)}
+											>
+												<Pencil size={11} />
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+												onClick={() => onDelete(skill.name)}
+											>
+												<Trash2 size={11} />
+											</Button>
+										</div>
+									</div>
+								))
+							)}
+						</div>
+					</TabsContent>
+				</Tabs>
+
+				<DialogFooter className="border-t px-5 py-4 sm:justify-between">
+					<Button type="button" variant="outline" size="sm" onClick={onImport}>
+						<Github size={12} className="mr-1.5" />
+						{t("skills.import.title", { ns: "agents" })}
+					</Button>
+					<Button type="button" size="sm" onClick={onOpenCreate}>
+						<Plus size={12} className="mr-1.5" />
+						{t("skills.editor.newTitle", { ns: "agents" })}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+};
 
 export const SkillsSection: React.FC = () => {
+	const { t } = useTranslation(["agents", "common"]);
 	const [skills, setSkills] = useState<SkillSummary[]>([]);
 	const [loading, setLoading] = useState(true);
+	const draftEnabledSkillNames = useAgentConfigStore(
+		(state) => state.draftEnabledSkillNames,
+	);
+	const toggleSkill = useAgentConfigStore((state) => state.toggleSkill);
 
-	// Editor dialog state
+	const [manageOpen, setManageOpen] = useState(false);
 	const [editorOpen, setEditorOpen] = useState(false);
 	const [editorInitial, setEditorInitial] = useState<
 		{ name: string; description: string; body: string } | undefined
 	>(undefined);
-
-	// GitHub import dialog
 	const [importOpen, setImportOpen] = useState(false);
-
-	// Delete confirmation
+	const [previewSkill, setPreviewSkill] = useState<SkillSummary | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+	const [searchQuery, setSearchQuery] = useState("");
 
 	const loadSkills = useCallback(async () => {
 		setLoading(true);
@@ -284,8 +664,42 @@ export const SkillsSection: React.FC = () => {
 		void loadSkills();
 	}, [loadSkills]);
 
+	const defaultSkills = useMemo(
+		() => skills.filter((skill) => skill.origin === "default"),
+		[skills],
+	);
+	const customSkills = useMemo(
+		() =>
+			skills
+				.filter((skill) => skill.origin !== "default")
+				.sort((a, b) => a.name.localeCompare(b.name)),
+		[skills],
+	);
+	const enabledSkillNameSet = useMemo(
+		() => new Set(draftEnabledSkillNames),
+		[draftEnabledSkillNames],
+	);
+	const enabledSkills = useMemo(
+		() =>
+			skills
+				.filter((skill) => enabledSkillNameSet.has(skill.name))
+				.sort((a, b) => {
+					if (a.origin !== b.origin) {
+						return a.origin === "default" ? -1 : 1;
+					}
+					return a.name.localeCompare(b.name);
+				}),
+		[enabledSkillNameSet, skills],
+	);
+	const visibleEnabledSkills = enabledSkills.slice(0, 6);
+	const hiddenSkillCount = Math.max(
+		enabledSkills.length - visibleEnabledSkills.length,
+		0,
+	);
+
 	const handleOpenCreate = () => {
 		setEditorInitial(undefined);
+		setManageOpen(false);
 		setEditorOpen(true);
 	};
 
@@ -297,10 +711,16 @@ export const SkillsSection: React.FC = () => {
 				description: full.description,
 				body: full.body,
 			});
+			setManageOpen(false);
 			setEditorOpen(true);
 		} catch {
 			// skill may have been deleted
 		}
+	};
+
+	const handleOpenPreview = (skill: SkillSummary) => {
+		setManageOpen(false);
+		setPreviewSkill(skill);
 	};
 
 	const handleSave = async (
@@ -324,123 +744,101 @@ export const SkillsSection: React.FC = () => {
 	};
 
 	return (
-		<div className="space-y-3 rounded-2xl glass p-4 sm:p-5">
-			{/* Header */}
-			<div className="flex items-start justify-between gap-3">
-				<div className="flex items-start gap-3">
-					<div className="rounded-xl bg-muted p-2.5 text-muted-foreground">
-						<BookOpen size={16} />
-					</div>
-					<div className="space-y-1">
-						<Label className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-							Skills
-						</Label>
-						<p className="text-sm font-semibold">
-							{loading
-								? "…"
-								: `${skills.length} skill${skills.length !== 1 ? "s" : ""}`}
-						</p>
-					</div>
-				</div>
+		<>
+			<div className="flex min-h-[32px] items-center gap-3">
+				<span className="w-12 shrink-0 text-sm text-muted-foreground">
+					{t("skills.label", { ns: "agents" })}
+				</span>
 
-				<div className="flex items-center gap-1.5">
-					<Button
+				<div className="flex flex-wrap items-center gap-1.5">
+					{loading ? (
+						<span className="text-[11px] text-muted-foreground/50">…</span>
+					) : enabledSkills.length === 0 ? (
+						<span className="text-[11px] text-muted-foreground">
+							{t("skills.noneEnabled", { ns: "agents" })}
+						</span>
+					) : (
+						<>
+							{visibleEnabledSkills.map((skill) => (
+								<button
+									key={skill.name}
+									type="button"
+									onClick={() => setManageOpen(true)}
+									className="flex items-center rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted"
+								>
+									{skill.name}
+								</button>
+							))}
+							{hiddenSkillCount > 0 ? (
+								<span className="rounded-lg border border-dashed border-border/60 px-2.5 py-1 text-[11px] text-muted-foreground">
+									+{hiddenSkillCount}
+								</span>
+							) : null}
+						</>
+					)}
+					<button
 						type="button"
-						variant="ghost"
-						size="sm"
-						className="h-7 rounded-lg px-2 text-[10px]"
-						onClick={() => setImportOpen(true)}
+						onClick={() => setManageOpen(true)}
+						className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
 					>
-						<Github size={10} className="mr-1" />
-						GitHub
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						className="h-7 rounded-lg px-2 text-[10px]"
-						onClick={handleOpenCreate}
-					>
-						<Plus size={10} className="mr-1" />
-						New
-					</Button>
+						<Plus size={12} />
+						{t("skills.manageAction", { ns: "agents" })}
+					</button>
 				</div>
 			</div>
 
-			{/* Skill list */}
-			{skills.length > 0 ? (
-				<div className="space-y-1.5">
-					{skills.map((skill) => (
-						<div
-							key={skill.name}
-							className="flex items-center gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-sm"
-						>
-							<span className="font-mono text-xs font-medium flex-1 truncate">
-								{skill.name}
-							</span>
-							{skill.description ? (
-								<span className="truncate max-w-[140px] text-[11px] text-muted-foreground">
-									{skill.description}
-								</span>
-							) : null}
-							<div className="flex items-center gap-1 shrink-0">
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-									onClick={() => void handleOpenEdit(skill)}
-								>
-									<Pencil size={11} />
-								</Button>
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-									onClick={() => setDeleteTarget(skill.name)}
-								>
-									<Trash2 size={11} />
-								</Button>
-							</div>
-						</div>
-					))}
-				</div>
-			) : (
-				<p className="text-[11px] text-muted-foreground">
-					No skills yet. Create one or import from GitHub. Skills are loaded by
-					the agent on demand via the{" "}
-					<Badge variant="outline" className="px-1 py-0 font-mono text-[10px]">
-						load_skill
-					</Badge>{" "}
-					tool, or injected directly when mentioned with <code>@</code>.
-				</p>
-			)}
+			<ManageSkillsDialog
+				open={manageOpen}
+				onOpenChange={(open) => {
+					setManageOpen(open);
+					if (!open) {
+						setSearchQuery("");
+					}
+				}}
+				defaultSkills={defaultSkills}
+				customSkills={customSkills}
+				enabledSkillNameSet={enabledSkillNameSet}
+				searchQuery={searchQuery}
+				onSearchQueryChange={setSearchQuery}
+				onOpenCreate={handleOpenCreate}
+				onOpenEdit={(skill) => void handleOpenEdit(skill)}
+				onOpenPreview={handleOpenPreview}
+				onToggleSkill={toggleSkill}
+				onDelete={(name) => setDeleteTarget(name)}
+				onImport={() => {
+					setManageOpen(false);
+					setImportOpen(true);
+				}}
+			/>
 
-			{/* Hint row */}
-			{skills.length > 0 ? (
-				<p className="text-[11px] text-muted-foreground">
-					Mention a skill with <code>@skill-name</code> to inject it directly,
-					or let the agent load it automatically with{" "}
-					<Badge variant="outline" className="px-1 py-0 font-mono text-[10px]">
-						load_skill
-					</Badge>
-					.
-				</p>
-			) : null}
-
-			{/* Dialogs */}
 			<SkillEditorDialog
 				open={editorOpen}
-				onOpenChange={setEditorOpen}
+				onOpenChange={(open) => {
+					setEditorOpen(open);
+					if (!open) setManageOpen(true);
+				}}
 				initial={editorInitial}
 				onSave={handleSave}
 			/>
 
 			<GithubImportDialog
 				open={importOpen}
-				onOpenChange={setImportOpen}
+				onOpenChange={(open) => {
+					setImportOpen(open);
+					if (!open) setManageOpen(true);
+				}}
 				onImport={handleImport}
+			/>
+
+			<SkillPreviewDialog
+				open={previewSkill !== null}
+				onOpenChange={(open) => {
+					if (!open) {
+						setPreviewSkill(null);
+						setManageOpen(true);
+					}
+				}}
+				skill={previewSkill}
 			/>
 
 			<AlertDialog
@@ -451,22 +849,29 @@ export const SkillsSection: React.FC = () => {
 			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Delete skill</AlertDialogTitle>
+						<AlertDialogTitle>
+							{t("skills.delete.title", { ns: "agents" })}
+						</AlertDialogTitle>
 						<AlertDialogDescription>
-							Delete <strong>{deleteTarget}</strong>? This cannot be undone.
+							{t("skills.delete.description", {
+								ns: "agents",
+								name: deleteTarget,
+							})}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogCancel>
+							{t("buttons.cancel", { ns: "common" })}
+						</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={() => deleteTarget && void handleDelete(deleteTarget)}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							Delete
+							{t("skills.delete.confirm", { ns: "agents" })}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-		</div>
+		</>
 	);
 };

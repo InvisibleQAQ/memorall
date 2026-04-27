@@ -31,7 +31,9 @@ interface Output {
 }
 
 type Services = Record<string, never>;
-type Config = Record<string, never>;
+interface Config {
+	enabledSkillNames?: string[];
+}
 
 // ============================================================================
 // HELPERS
@@ -73,7 +75,7 @@ const patchUserMessageText = (
 
 const definition = defineStep<Input, Output, Services, Config>({
 	name: ADD_SKILL_CONTEXT_STEP_NAME,
-	execute: async ({ input }) => {
+	execute: async ({ input, config }) => {
 		let skills;
 		try {
 			skills = await skillFileSystemService.listSkills();
@@ -82,11 +84,27 @@ const definition = defineStep<Input, Output, Services, Config>({
 			return { output: {} };
 		}
 
+		const enabledSkillNames = Array.isArray(config?.enabledSkillNames)
+			? config.enabledSkillNames.filter(
+					(value): value is string =>
+						typeof value === "string" && value.length > 0,
+				)
+			: [];
+		const enabledSkillNameSet = new Set(enabledSkillNames);
+		const availableSkills =
+			enabledSkillNameSet.size > 0
+				? skills.filter((skill) => enabledSkillNameSet.has(skill.name))
+				: [];
+
+		if (availableSkills.length === 0) {
+			return { output: { messages: input.messages, tools: input.tools ?? [] } };
+		}
+
 		const updatedTools: GraphTool[] = [
 			...new Set([...(input.tools ?? []), "load_skill" as `${ToolName}`]),
 		];
 
-		const skillNameSet = new Set(skills.map((s) => s.name));
+		const skillNameSet = new Set(availableSkills.map((s) => s.name));
 
 		// --- Resolve @mentions in the last user message ---
 		const lastUserIdx = input.messages.findLastIndex((m) => m.role === "user");
@@ -148,7 +166,7 @@ const definition = defineStep<Input, Output, Services, Config>({
 		}
 
 		// --- Append skills index for lazy-loadable (non-mentioned) skills ---
-		const remainingSkills = skills.filter(
+		const remainingSkills = availableSkills.filter(
 			(s) => !mentionedNames.includes(s.name),
 		);
 
@@ -188,7 +206,15 @@ export const createAddSkillContextStep: StepFactoryFromSpec<Spec> = (
 stepRegistry.register(ADD_SKILL_CONTEXT_STEP_NAME, createAddSkillContextStep, {
 	description:
 		"Inject @mentioned skills into the user message and append available skill names to the system prompt for lazy loading",
-	configParams: [],
+	configParams: [
+		{
+			key: "enabledSkillNames",
+			type: "array",
+			default: [],
+			description:
+				"Skill names enabled for this flow. Only these skills are exposed to the agent.",
+		},
+	],
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: true,
 	injectAfter: "add-system",

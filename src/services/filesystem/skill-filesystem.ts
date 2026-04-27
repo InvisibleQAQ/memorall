@@ -1,4 +1,8 @@
 import fs, { initializeFs } from "@/services/filesystem/fs";
+import {
+	listDefaultSkills,
+	readDefaultSkill,
+} from "@/services/filesystem/default-skills";
 import { logError, logInfo } from "@/utils/logger";
 
 const SKILLS_FS_ROOT = "/home/documents/skills";
@@ -8,6 +12,13 @@ export interface SkillSummary {
 	name: string;
 	description: string;
 	path: string;
+	category?: string;
+	publisher?: string;
+	collection?: string;
+	repo?: string;
+	sourceUrl?: string;
+	origin?: "custom" | "default";
+	readOnly?: boolean;
 }
 
 export interface Skill extends SkillSummary {
@@ -127,16 +138,21 @@ export class SkillFileSystem {
 	 * List all skills (reads only frontmatter — efficient for large skill sets).
 	 */
 	async listSkills(): Promise<SkillSummary[]> {
-		await this.initialize();
+		const defaultSkills = listDefaultSkills();
+		const results = new Map<string, SkillSummary>();
+
+		try {
+			await this.initialize();
+		} catch {
+			return defaultSkills;
+		}
 
 		let entries: string[];
 		try {
 			entries = await fs.promises.readdir(SKILLS_FS_ROOT);
 		} catch {
-			return [];
+			return defaultSkills;
 		}
-
-		const results: SkillSummary[] = [];
 
 		for (const entry of entries) {
 			if (!entry.endsWith(".md")) continue;
@@ -146,44 +162,59 @@ export class SkillFileSystem {
 				const text = new TextDecoder().decode(raw);
 				const { meta } = parseFrontmatter(text);
 				const name = meta.name ?? filenameToName(entry);
-				results.push({
+				results.set(name, {
 					name,
 					description: meta.description ?? "",
 					path: `${SKILLS_LOGICAL_ROOT}/${entry}`,
+					origin: "custom",
+					readOnly: false,
 				});
 			} catch (err) {
 				logError(`Failed to read skill ${entry}:`, err);
 			}
 		}
 
-		return results;
+		for (const skill of defaultSkills) {
+			if (!results.has(skill.name)) {
+				results.set(skill.name, skill);
+			}
+		}
+
+		return [...results.values()];
 	}
 
 	/**
 	 * Read a full skill by name (includes body content).
 	 */
 	async readSkill(name: string): Promise<Skill> {
-		await this.initialize();
-
-		const path = this.fsPath(name);
-		let raw: Uint8Array;
-
 		try {
-			raw = await fs.promises.readFile(path);
+			await this.initialize();
 		} catch {
+			const defaultSkill = await readDefaultSkill(name);
+			if (defaultSkill) return defaultSkill;
 			throw new Error(`Skill not found: ${name}`);
 		}
 
-		const text = new TextDecoder().decode(raw);
-		const { meta, body } = parseFrontmatter(text);
-		const resolvedName = meta.name ?? name;
+		const path = this.fsPath(name);
+		try {
+			const raw = await fs.promises.readFile(path);
+			const text = new TextDecoder().decode(raw);
+			const { meta, body } = parseFrontmatter(text);
+			const resolvedName = meta.name ?? name;
 
-		return {
-			name: resolvedName,
-			description: meta.description ?? "",
-			body,
-			path: this.logicalPath(name),
-		};
+			return {
+				name: resolvedName,
+				description: meta.description ?? "",
+				body,
+				path: this.logicalPath(name),
+				origin: "custom",
+				readOnly: false,
+			};
+		} catch {
+			const defaultSkill = await readDefaultSkill(name);
+			if (defaultSkill) return defaultSkill;
+			throw new Error(`Skill not found: ${name}`);
+		}
 	}
 
 	/**
@@ -210,6 +241,8 @@ export class SkillFileSystem {
 			name,
 			description,
 			path: this.logicalPath(name),
+			origin: "custom",
+			readOnly: false,
 		};
 	}
 

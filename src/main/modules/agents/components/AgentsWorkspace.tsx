@@ -1,10 +1,9 @@
 import React from "react";
 import { useBeforeUnload } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { RotateCcw, Save, Undo2 } from "lucide-react";
+import { AlertTriangle, RotateCcw, Save, Trash2, Undo2 } from "lucide-react";
 import { CreateFlowDialog } from "@/main/modules/flow-builder/components";
 import { Button } from "@/main/components/ui/button";
-import { TruncatedHoverText } from "./AgentHoverInfo";
 import { AgentPresetList } from "./AgentPresetList";
 import { AgentPresetOverview } from "./AgentPresetOverview";
 import { AgentConfigForm } from "./AgentConfigForm";
@@ -509,11 +508,8 @@ export const AgentsWorkspace: React.FC = () => {
 				configSummary={configSummary}
 				hasMetadataChanges={hasMetadataChanges}
 				hasConfigChanges={hasConfigChanges}
-				canDeletePreset={canDeleteSelectedPreset}
-				isDeleting={isDeleting}
 				scrollMode={isDesktop ? "contained" : "page"}
 				onMetadataChange={updateMetadataField}
-				onDeletePreset={handleDeletePreset}
 			/>
 		</section>
 	);
@@ -526,30 +522,6 @@ export const AgentsWorkspace: React.FC = () => {
 			)}
 		>
 			<div className={cn("flex flex-col", isDesktop ? "h-full min-h-0" : "")}>
-				<div className="border-b bg-gradient-to-r from-background via-background to-muted/30 px-4 py-4 sm:px-5">
-					<div className="grid min-h-[76px] grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-						<div className="min-w-0 space-y-1.5">
-							<p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-								{t("config.eyebrow")}
-							</p>
-							<TruncatedHoverText
-								as="h2"
-								text={t("config.title")}
-								className="text-lg font-semibold"
-							/>
-							<TruncatedHoverText
-								as="p"
-								text={t("config.subtitle")}
-								className="text-sm text-muted-foreground"
-							/>
-						</div>
-						<Badge variant="outline" className="shrink-0">
-							{hasConfigChanges
-								? t("workspace.configUnsaved")
-								: t("workspace.configSaved")}
-						</Badge>
-					</div>
-				</div>
 				{selectedPreset ? (
 					<div
 						className={cn(isDesktop ? "flex-1 min-h-0 overflow-y-auto" : "")}
@@ -590,6 +562,50 @@ export const AgentsWorkspace: React.FC = () => {
 						</div>
 
 						<div className="flex flex-wrap items-center gap-2">
+							<AlertDialog>
+								<AlertDialogTrigger asChild>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+										disabled={
+											!selectedPresetId ||
+											!canDeleteSelectedPreset ||
+											isDeleting
+										}
+									>
+										<Trash2 size={14} className="mr-1.5" />
+										{t("actions.delete")}
+									</Button>
+								</AlertDialogTrigger>
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
+										<AlertDialogDescription>
+											{t("delete.description", {
+												name: metadataDraft.name || t("overview.untitled"),
+											})}
+										</AlertDialogDescription>
+									</AlertDialogHeader>
+									{!canDeleteSelectedPreset ? (
+										<div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+											<AlertTriangle size={16} className="mt-0.5 shrink-0" />
+											<span>{t("delete.lastPresetHint")}</span>
+										</div>
+									) : null}
+									<AlertDialogFooter>
+										<AlertDialogCancel>{t("actions.cancel")}</AlertDialogCancel>
+										<AlertDialogAction
+											onClick={handleDeletePreset}
+											disabled={!canDeleteSelectedPreset || isDeleting}
+										>
+											{t("actions.delete")}
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+
 							<AlertDialog>
 								<AlertDialogTrigger asChild>
 									<Button

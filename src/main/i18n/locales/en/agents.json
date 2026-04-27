@@ -98,5 +98,139 @@
 	"confirm": {
 		"discardSelection": "You have unsaved changes. Discard them and switch presets?",
 		"leavePage": "You have unsaved changes on this agent preset. Leave this page and discard them?"
+	},
+	"skills": {
+		"label": "Skills",
+		"addSkill": "Add skill",
+		"manageAction": "Browse",
+		"enableAction": "Enable",
+		"disableAction": "Disable",
+		"manageTitle": "Manage Skills",
+		"noSkills": "No skills yet.",
+		"noneEnabled": "No skills enabled.",
+		"defaultTab": "Defaults",
+		"customTab": "Custom",
+		"defaultCount": "{{count}} defaults",
+		"customCount": "{{count}} custom",
+		"defaultHint": "Published defaults are read-only, sourced from public skill repositories, filtered to avoid Python-backed skills, and loaded lazily from their upstream SKILL.md files.",
+		"searchPlaceholder": "Search skills by name, description, or source",
+		"emptyDefault": "No default skills matched your search.",
+		"emptyCustom": "No custom skills yet.",
+		"emptyFilteredCustom": "No custom skills matched your search.",
+		"editor": {
+			"newTitle": "New Skill",
+			"editTitle": "Edit Skill",
+			"nameLabel": "Name",
+			"nameHint": "Lowercase letters, numbers, and hyphens. Used as file name.",
+			"namePlaceholder": "e.g. code-review",
+			"descriptionLabel": "Description",
+			"descriptionPlaceholder": "One-line description shown in mentions",
+			"contentLabel": "Content (Markdown)",
+			"contentPlaceholder": "Write the skill instructions here...",
+			"nameRequired": "Name is required",
+			"saveFailed": "Failed to save skill",
+			"saving": "Saving…"
+		},
+		"import": {
+			"title": "Import from GitHub",
+			"urlLabel": "GitHub File URL",
+			"urlPlaceholder": "https://github.com/user/repo/blob/main/skill.md",
+			"urlHint": "Paste a GitHub file URL or raw.githubusercontent.com URL pointing to a .md skill file.",
+			"importFailed": "Failed to import",
+			"importing": "Importing…"
+		},
+		"delete": {
+			"title": "Delete skill",
+			"description": "Delete \"{{name}}\"? This cannot be undone.",
+			"confirm": "Delete"
+		},
+		"preview": {
+			"title": "Skill Preview",
+			"action": "Preview",
+			"readOnly": "Published default",
+			"source": "Source",
+			"loading": "Loading skill content…",
+			"loadFailed": "Failed to load skill content"
+		}
+	},
+	"mcps": {
+		"label": "MCPs",
+		"manage": "Manage",
+		"manageTitle": "Manage MCP Servers",
+		"editor": {
+			"bridgeHint": "Browser MCP access supports HTTP or SSE. For local stdio MCP servers, copy a predefined supergateway command, run it in a terminal, then add the exposed local URL here.",
+			"serverCount": "{{count}} server",
+			"serverCount_plural": "{{count}} servers",
+			"predefinedAction": "+ Predefine MCPs",
+			"addServer": "Add server",
+			"empty": "No MCP servers configured.",
+			"unnamed": "Unnamed server",
+			"deleteServer": "Delete MCP server",
+			"detailTitle": "MCP server detail",
+			"detailDescription": "Edit the selected server connection.",
+			"addTitle": "Add MCP server",
+			"addDescription": "Add an HTTP or SSE MCP endpoint exposed by a remote server or local supergateway bridge.",
+			"nameLabel": "Server name",
+			"namePlaceholder": "my-mcp-server",
+			"transportLabel": "Transport",
+			"urlLabel": "URL",
+			"httpUrlPlaceholder": "http://localhost:3000/mcp",
+			"sseUrlPlaceholder": "http://localhost:3000/sse",
+			"headersLabel": "Headers (optional)",
+			"headersPlaceholder": "Authorization: Bearer token\nX-Api-Key: abc123"
+		},
+		"predefined": {
+			"filesystem": {
+				"name": "Filesystem",
+				"port": "Local HTTP on port 8000"
+			},
+			"git": {
+				"name": "Git",
+				"port": "Local HTTP on port 8001"
+			},
+			"github": {
+				"name": "GitHub",
+				"port": "Local HTTP on port 8002"
+			},
+			"postgres": {
+				"name": "Postgres",
+				"port": "Local HTTP on port 8003"
+			},
+			"sqlite": {
+				"name": "SQLite",
+				"port": "Local HTTP on port 8004"
+			},
+			"puppeteer": {
+				"name": "Puppeteer",
+				"port": "Local HTTP on port 8005"
+			},
+			"braveSearch": {
+				"name": "Brave Search",
+				"port": "Local HTTP on port 8006"
+			},
+			"memory": {
+				"name": "Memory",
+				"port": "Local HTTP on port 8007"
+			},
+			"sequentialThinking": {
+				"name": "Sequential Thinking",
+				"port": "Local HTTP on port 8008"
+			},
+			"fetch": {
+				"name": "Fetch",
+				"port": "Local HTTP on port 8009"
+			}
+		}
+	},
+	"instructions": {
+		"label": "Instructions",
+		"placeholder": "Describe your agent's role and behavior…"
+	},
+	"advanced": {
+		"label": "Advanced settings"
+	},
+	"featuresSection": {
+		"showMore": "Show {{count}} more",
+		"showLess": "Show less"
 	}
 }

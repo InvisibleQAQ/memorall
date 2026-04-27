@@ -1,15 +1,23 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-	ChevronDown,
-	ChevronUp,
+	Brain,
+	Check,
 	Copy,
+	Database,
+	FileSearch,
+	FolderOpen,
+	GitBranch,
+	Github,
 	Globe,
 	Info,
+	MemoryStick,
 	Plus,
+	Search,
 	Server,
 	Terminal,
 	Trash2,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/main/components/ui/button";
 import {
 	Dialog,
@@ -24,11 +32,7 @@ import { Label } from "@/main/components/ui/label";
 import { Badge } from "@/main/components/ui/badge";
 import { Textarea } from "@/main/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type {
-	MCPHTTPServerConfig,
-	MCPServerConfig,
-	MCPSSEServerConfig,
-} from "@/services/flows/steps/features/mcp-feature";
+import type { MCPServerConfig } from "@/services/flows/steps/features/mcp-feature";
 
 interface MCPServersEditorProps {
 	servers: MCPServerConfig[];
@@ -36,263 +40,153 @@ interface MCPServersEditorProps {
 	className?: string;
 }
 
-type MCPServerPreset =
-	| "local-http"
-	| "local-sse"
-	| "manual-http"
-	| "manual-sse";
+interface PredefinedMCPCommand {
+	id: string;
+	icon: React.ComponentType<{ size?: number; className?: string }>;
+	command: string;
+}
 
-const LOCAL_HTTP_URL = "http://127.0.0.1:8000/mcp";
-const LOCAL_SSE_URL = "http://127.0.0.1:8000/sse";
-const LOCAL_SERVER_STDIO_EXAMPLE =
-	"npx -y @modelcontextprotocol/server-filesystem .";
+const DEFAULT_HTTP_URL = "http://127.0.0.1:8000/mcp";
+
+const predefinedMCPCommands: PredefinedMCPCommand[] = [
+	{
+		id: "filesystem",
+		icon: FolderOpen,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-filesystem ." --outputTransport streamableHttp --port 8000',
+	},
+	{
+		id: "git",
+		icon: GitBranch,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-git ." --outputTransport streamableHttp --port 8001',
+	},
+	{
+		id: "github",
+		icon: Github,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-github" --outputTransport streamableHttp --port 8002',
+	},
+	{
+		id: "postgres",
+		icon: Database,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-postgres postgresql://user:password@localhost:5432/db" --outputTransport streamableHttp --port 8003',
+	},
+	{
+		id: "sqlite",
+		icon: Database,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-sqlite ./data.db" --outputTransport streamableHttp --port 8004',
+	},
+	{
+		id: "puppeteer",
+		icon: Globe,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-puppeteer" --outputTransport streamableHttp --port 8005',
+	},
+	{
+		id: "braveSearch",
+		icon: Search,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-brave-search" --outputTransport streamableHttp --port 8006',
+	},
+	{
+		id: "memory",
+		icon: MemoryStick,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-memory" --outputTransport streamableHttp --port 8007',
+	},
+	{
+		id: "sequentialThinking",
+		icon: Brain,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-sequential-thinking" --outputTransport streamableHttp --port 8008',
+	},
+	{
+		id: "fetch",
+		icon: FileSearch,
+		command:
+			'npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-fetch" --outputTransport streamableHttp --port 8009',
+	},
+];
+
+const serializeHeaders = (headers?: Record<string, string>): string =>
+	Object.entries(headers ?? {})
+		.map(([key, value]) => `${key}: ${value}`)
+		.join("\n");
 
 const parseHeaders = (text: string): Record<string, string> => {
 	const result: Record<string, string> = {};
 	for (const line of text.split("\n")) {
 		const colon = line.indexOf(":");
 		if (colon > 0) {
-			result[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
+			const key = line.slice(0, colon).trim();
+			const value = line.slice(colon + 1).trim();
+			if (key) {
+				result[key] = value;
+			}
 		}
 	}
 	return result;
 };
 
-const createServerFromPreset = (preset: MCPServerPreset): MCPServerConfig => {
-	switch (preset) {
-		case "local-http":
-			return {
-				type: "http",
-				name: "local-filesystem",
-				url: LOCAL_HTTP_URL,
-				headers: {},
-			};
-		case "local-sse":
-			return {
-				type: "sse",
-				name: "local-filesystem",
-				url: LOCAL_SSE_URL,
-				headers: {},
-			};
-		case "manual-http":
-			return {
-				type: "http",
-				name: "",
-				url: "",
-				headers: {},
-			};
-		case "manual-sse":
-		default:
-			return {
-				type: "sse",
-				name: "",
-				url: "",
-				headers: {},
-			};
-	}
-};
-
-const getLocalBridgeScript = (preset: MCPServerPreset): string | null => {
-	switch (preset) {
-		case "local-http":
-			return `npx -y supergateway --stdio "${LOCAL_SERVER_STDIO_EXAMPLE}" --outputTransport streamableHttp --port 8000`;
-		case "local-sse":
-			return `npx -y supergateway --stdio "${LOCAL_SERVER_STDIO_EXAMPLE}" --port 8000 --baseUrl http://127.0.0.1:8000 --ssePath /sse --messagePath /message`;
-		default:
-			return null;
-	}
-};
-
-const presetOptions: Array<{
-	id: MCPServerPreset;
-	title: string;
-	description: string;
-	badge: string;
-}> = [
-	{
-		id: "local-http",
-		title: "Local bridge",
-		description:
-			"Recommended. Run a local stdio MCP server through npx and connect over HTTP.",
-		badge: "HTTP",
-	},
-	{
-		id: "local-sse",
-		title: "Local bridge (SSE)",
-		description:
-			"Fallback for legacy SSE MCP endpoints exposed from a local bridge.",
-		badge: "SSE",
-	},
-	{
-		id: "manual-http",
-		title: "Remote HTTP",
-		description: "Connect directly to a remote Streamable HTTP MCP endpoint.",
-		badge: "HTTP",
-	},
-	{
-		id: "manual-sse",
-		title: "Remote SSE",
-		description: "Connect directly to a remote SSE MCP endpoint.",
-		badge: "SSE",
-	},
-];
-
-interface ServerRowProps {
-	server: MCPServerConfig;
-	index: number;
-	onUpdate: (index: number, server: MCPServerConfig) => void;
-	onRemove: (index: number) => void;
-}
-
-const ServerRow: React.FC<ServerRowProps> = ({
-	server,
-	index,
-	onUpdate,
-	onRemove,
-}) => {
-	const [expanded, setExpanded] = useState(index === 0 || server.name === "");
-
-	const headersText = Object.entries(server.headers ?? {})
-		.map(([key, value]) => `${key}: ${value}`)
-		.join("\n");
-
-	return (
-		<div className="rounded-xl border border-border/60 bg-background/60 p-3">
-			<div className="flex items-center gap-2">
-				<Server size={13} className="shrink-0 text-muted-foreground" />
-				<Input
-					value={server.name}
-					onChange={(event) =>
-						onUpdate(index, { ...server, name: event.target.value })
-					}
-					placeholder="Server name (unique)"
-					className="h-7 flex-1 rounded-lg border-border/60 text-xs font-medium"
-				/>
-				<select
-					value={server.type}
-					onChange={(event) =>
-						onUpdate(index, {
-							...server,
-							type: event.target.value as MCPServerConfig["type"],
-						})
-					}
-					className="h-7 shrink-0 rounded-lg border border-input bg-background px-2 text-[10px] font-medium uppercase"
-				>
-					<option value="http">HTTP</option>
-					<option value="sse">SSE</option>
-				</select>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="h-7 w-7 rounded-lg"
-					onClick={() => setExpanded((value) => !value)}
-				>
-					{expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-				</Button>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="h-7 w-7 rounded-lg text-destructive hover:text-destructive"
-					onClick={() => onRemove(index)}
-				>
-					<Trash2 size={12} />
-				</Button>
-			</div>
-
-			{expanded ? (
-				<div className="mt-3 space-y-2 border-t border-border/40 pt-3">
-					<div>
-						<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-							URL
-						</Label>
-						<Input
-							value={server.url}
-							onChange={(event) =>
-								onUpdate(index, { ...server, url: event.target.value })
-							}
-							placeholder={
-								server.type === "http"
-									? "http://localhost:3000/mcp"
-									: "http://localhost:3000/sse"
-							}
-							className="mt-1 h-8 rounded-lg font-mono text-xs"
-						/>
-					</div>
-					<div>
-						<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-							Headers (Name: Value, one per line)
-						</Label>
-						<Textarea
-							value={headersText}
-							onChange={(event) =>
-								onUpdate(index, {
-									...server,
-									headers: parseHeaders(event.target.value),
-								})
-							}
-							placeholder={"Authorization: Bearer token\nX-Api-Key: abc123"}
-							rows={3}
-							className="mt-1 min-h-[88px] rounded-lg font-mono text-xs"
-						/>
-					</div>
-				</div>
-			) : null}
-		</div>
-	);
-};
+const createEmptyServer = (): MCPServerConfig => ({
+	type: "http",
+	name: "",
+	url: DEFAULT_HTTP_URL,
+	headers: {},
+});
 
 export const MCPServersEditor: React.FC<MCPServersEditorProps> = ({
 	servers,
 	onChange,
 	className,
 }) => {
-	const [dialogOpen, setDialogOpen] = useState(false);
-	const [preset, setPreset] = useState<MCPServerPreset>("local-http");
-	const [draftServer, setDraftServer] = useState<MCPServerConfig>(
-		createServerFromPreset("local-http"),
-	);
+	const { t } = useTranslation(["agents"]);
+	const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+	const [addDialogOpen, setAddDialogOpen] = useState(false);
+	const [commandListOpen, setCommandListOpen] = useState(false);
+	const [draftServer, setDraftServer] =
+		useState<MCPServerConfig>(createEmptyServer);
 	const [headersDraft, setHeadersDraft] = useState("");
-	const [copiedScript, setCopiedScript] = useState(false);
+	const [copiedCommandId, setCopiedCommandId] = useState<string | null>(null);
+
+	const selectedServer =
+		selectedIndex === null ? null : (servers[selectedIndex] ?? null);
 
 	useEffect(() => {
-		setHeadersDraft(
-			Object.entries(draftServer.headers ?? {})
-				.map(([key, value]) => `${key}: ${value}`)
-				.join("\n"),
-		);
-	}, [draftServer]);
+		if (selectedIndex !== null && !servers[selectedIndex]) {
+			setSelectedIndex(null);
+		}
+	}, [selectedIndex, servers]);
 
-	const recommendedScript = useMemo(
-		() => getLocalBridgeScript(preset),
-		[preset],
-	);
+	useEffect(() => {
+		if (addDialogOpen) {
+			setHeadersDraft(serializeHeaders(draftServer.headers));
+		}
+	}, [addDialogOpen, draftServer]);
 
-	const handleUpdate = (index: number, updated: MCPServerConfig) => {
+	const updateServer = (index: number, server: MCPServerConfig) => {
 		const next = [...servers];
-		next[index] = updated;
+		next[index] = server;
 		onChange(next);
 	};
 
-	const handleRemove = (index: number) => {
+	const removeServer = (index: number) => {
 		onChange(servers.filter((_, itemIndex) => itemIndex !== index));
+		if (selectedIndex === index) {
+			setSelectedIndex(null);
+		}
 	};
 
-	const openAddDialog = (nextPreset: MCPServerPreset = "local-http") => {
-		setPreset(nextPreset);
-		setDraftServer(createServerFromPreset(nextPreset));
-		setCopiedScript(false);
-		setDialogOpen(true);
+	const openAddDialog = () => {
+		setDraftServer(createEmptyServer());
+		setHeadersDraft("");
+		setAddDialogOpen(true);
 	};
 
-	const applyPreset = (nextPreset: MCPServerPreset) => {
-		setPreset(nextPreset);
-		setDraftServer(createServerFromPreset(nextPreset));
-		setCopiedScript(false);
-	};
-
-	const handleAddServer = () => {
+	const addServer = () => {
 		const normalizedName = draftServer.name.trim();
 		const normalizedUrl = draftServer.url.trim();
 
@@ -309,259 +203,293 @@ export const MCPServersEditor: React.FC<MCPServersEditorProps> = ({
 				headers: parseHeaders(headersDraft),
 			},
 		]);
-		setDialogOpen(false);
+		setAddDialogOpen(false);
 	};
 
-	const handleCopyScript = async () => {
-		if (!recommendedScript || !navigator.clipboard?.writeText) {
+	const copyPredefinedCommand = async (command: PredefinedMCPCommand) => {
+		if (!navigator.clipboard?.writeText) {
 			return;
 		}
 
-		await navigator.clipboard.writeText(recommendedScript);
-		setCopiedScript(true);
-		window.setTimeout(() => setCopiedScript(false), 1500);
+		await navigator.clipboard.writeText(command.command);
+		setCopiedCommandId(command.id);
+		window.setTimeout(() => setCopiedCommandId(null), 1500);
 	};
 
 	return (
-		<div className={cn("space-y-3", className)}>
-			<div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-				<Info size={10} className="shrink-0" />
-				<span>
-					Browser MCP access only supports HTTP or SSE. Local stdio servers need
-					a bridge.
-				</span>
+		<div className={cn("space-y-4", className)}>
+			<div className="flex items-start gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+				<Info size={12} className="mt-0.5 shrink-0" />
+				<span>{t("mcps.editor.bridgeHint")}</span>
 			</div>
 
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<Badge variant="secondary" className="text-[10px]">
+					{t("mcps.editor.serverCount", { count: servers.length })}
+				</Badge>
+				<div className="flex flex-wrap items-center gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="h-7 rounded-lg px-2 text-[10px]"
+						onClick={() => setCommandListOpen((value) => !value)}
+					>
+						<Terminal size={10} className="mr-1" />
+						{t("mcps.editor.predefinedAction")}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="h-7 rounded-lg px-2 text-[10px]"
+						onClick={openAddDialog}
+					>
+						<Plus size={10} className="mr-1" />
+						{t("mcps.editor.addServer")}
+					</Button>
+				</div>
+			</div>
+
+			{commandListOpen ? (
+				<div className="grid gap-2 sm:grid-cols-2">
+					{predefinedMCPCommands.map((command) => {
+						const Icon = command.icon;
+						const copied = copiedCommandId === command.id;
+
+						return (
+							<button
+								key={command.id}
+								type="button"
+								title={command.command}
+								onClick={() => void copyPredefinedCommand(command)}
+								className="group relative flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-left transition-colors hover:border-border hover:bg-muted/40"
+							>
+								<span className="flex min-w-0 items-center gap-2">
+									<span className="rounded-lg bg-muted p-1.5 text-muted-foreground">
+										<Icon size={13} />
+									</span>
+									<span className="min-w-0">
+										<span className="block truncate text-xs font-semibold">
+											{t(`mcps.predefined.${command.id}.name`)}
+										</span>
+										<span className="block truncate text-[10px] text-muted-foreground">
+											{t(`mcps.predefined.${command.id}.port`)}
+										</span>
+									</span>
+								</span>
+								{copied ? (
+									<Check size={13} className="shrink-0 text-emerald-600" />
+								) : (
+									<Copy size={13} className="shrink-0 text-muted-foreground" />
+								)}
+								<span className="pointer-events-none absolute left-0 top-[calc(100%+0.375rem)] z-50 hidden w-[min(560px,calc(100vw-2rem))] rounded-lg border border-border bg-popover px-3 py-2 font-mono text-[10px] leading-relaxed text-popover-foreground shadow-lg group-hover:block group-focus-visible:block">
+									{command.command}
+								</span>
+							</button>
+						);
+					})}
+				</div>
+			) : null}
+
 			{servers.length === 0 ? (
-				<p className="py-1 text-[11px] text-muted-foreground">
-					No MCP servers configured.
-				</p>
+				<div className="rounded-xl border border-dashed border-border/70 px-3 py-6 text-center text-xs text-muted-foreground">
+					{t("mcps.editor.empty")}
+				</div>
 			) : (
-				<div className="space-y-2">
+				<div className="divide-y rounded-xl border border-border/60 bg-background/60">
 					{servers.map((server, index) => (
-						<ServerRow
+						<div
 							key={`${server.name}-${index}`}
-							server={server as MCPHTTPServerConfig | MCPSSEServerConfig}
-							index={index}
-							onUpdate={handleUpdate}
-							onRemove={handleRemove}
-						/>
+							className="flex items-center gap-2 px-3 py-2"
+						>
+							<button
+								type="button"
+								onClick={() => setSelectedIndex(index)}
+								className="flex min-w-0 flex-1 items-center gap-2 text-left"
+							>
+								<Server size={13} className="shrink-0 text-muted-foreground" />
+								<span className="min-w-0 flex-1">
+									<span className="block truncate text-xs font-semibold">
+										{server.name || t("mcps.editor.unnamed")}
+									</span>
+									<span className="block truncate font-mono text-[10px] text-muted-foreground">
+										{server.url}
+									</span>
+								</span>
+								<Badge variant="outline" className="shrink-0 text-[10px]">
+									{server.type.toUpperCase()}
+								</Badge>
+							</button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="h-7 w-7 shrink-0 rounded-lg text-destructive hover:text-destructive"
+								onClick={() => removeServer(index)}
+								aria-label={t("mcps.editor.deleteServer")}
+							>
+								<Trash2 size={12} />
+							</Button>
+						</div>
 					))}
 				</div>
 			)}
 
-			<div className="flex items-center gap-2">
-				<Badge variant="secondary" className="text-[10px]">
-					{servers.length} server{servers.length !== 1 ? "s" : ""}
-				</Badge>
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					className="h-7 rounded-lg px-2 text-[10px]"
-					onClick={() => openAddDialog("local-http")}
-				>
-					<Plus size={10} className="mr-1" />
-					Add server
-				</Button>
-			</div>
+			<Dialog
+				open={selectedServer !== null}
+				onOpenChange={(open) => !open && setSelectedIndex(null)}
+			>
+				{selectedServer && selectedIndex !== null ? (
+					<DialogContent className="sm:max-w-[560px]">
+						<DialogHeader>
+							<DialogTitle>{t("mcps.editor.detailTitle")}</DialogTitle>
+							<DialogDescription>
+								{t("mcps.editor.detailDescription")}
+							</DialogDescription>
+						</DialogHeader>
 
-			<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-				<DialogContent className="flex max-h-[min(90dvh,760px)] w-[calc(100vw-1rem)] max-w-[760px] flex-col gap-0 overflow-hidden rounded-2xl border-border/60 p-0 shadow-2xl sm:w-[min(94vw,760px)]">
-					<DialogHeader className="border-b px-5 pt-5 pb-4">
-						<DialogTitle className="text-base">Add MCP server</DialogTitle>
-						<DialogDescription className="text-xs leading-relaxed">
-							Choose a guided preset for local MCP setup or enter a remote
-							server manually.
+						<ServerFields
+							server={selectedServer}
+							headersText={serializeHeaders(selectedServer.headers)}
+							onChange={(server) => updateServer(selectedIndex, server)}
+						/>
+
+						<DialogFooter>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => setSelectedIndex(null)}
+							>
+								{t("actions.cancel")}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				) : null}
+			</Dialog>
+
+			<Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+				<DialogContent className="sm:max-w-[560px]">
+					<DialogHeader>
+						<DialogTitle>{t("mcps.editor.addTitle")}</DialogTitle>
+						<DialogDescription>
+							{t("mcps.editor.addDescription")}
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="space-y-5 overflow-y-auto px-5 py-4">
-						<div className="grid gap-2 sm:grid-cols-2">
-							{presetOptions.map((option) => {
-								const selected = option.id === preset;
-								return (
-									<button
-										type="button"
-										key={option.id}
-										onClick={() => applyPreset(option.id)}
-										className={cn(
-											"rounded-xl border p-3 text-left transition-colors",
-											selected
-												? "border-primary bg-primary/5"
-												: "border-border/60 bg-background/60 hover:border-border",
-										)}
-									>
-										<div className="flex items-start justify-between gap-3">
-											<div className="space-y-1">
-												<p className="text-sm font-semibold">{option.title}</p>
-												<p className="text-[11px] leading-relaxed text-muted-foreground">
-													{option.description}
-												</p>
-											</div>
-											<Badge variant={selected ? "default" : "outline"}>
-												{option.badge}
-											</Badge>
-										</div>
-									</button>
-								);
-							})}
-						</div>
+					<ServerFields
+						server={draftServer}
+						headersText={headersDraft}
+						onHeadersChange={setHeadersDraft}
+						onChange={setDraftServer}
+					/>
 
-						{recommendedScript ? (
-							<div className="space-y-3 rounded-xl border border-emerald-400/40 bg-emerald-500/5 p-4">
-								<div className="flex items-start justify-between gap-3">
-									<div className="flex items-start gap-3">
-										<div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-700">
-											<Terminal size={15} />
-										</div>
-										<div className="space-y-1">
-											<p className="text-sm font-semibold">
-												Recommended local bridge script
-											</p>
-											<p className="text-[11px] leading-relaxed text-muted-foreground">
-												Run this in your terminal first. It exposes a local
-												stdio MCP server as a browser-safe endpoint using{" "}
-												<code>supergateway</code>.
-											</p>
-										</div>
-									</div>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										className="h-7 rounded-lg px-2 text-[10px]"
-										onClick={() => void handleCopyScript()}
-									>
-										<Copy size={10} className="mr-1" />
-										{copiedScript ? "Copied" : "Copy"}
-									</Button>
-								</div>
-
-								<Textarea
-									value={recommendedScript}
-									readOnly
-									rows={3}
-									className="min-h-[92px] rounded-lg border-border/60 bg-background/80 font-mono text-[11px]"
-								/>
-
-								<div className="grid gap-3 sm:grid-cols-2">
-									<div className="rounded-lg border border-border/50 bg-background/70 p-3">
-										<div className="flex items-center gap-2 text-xs font-medium">
-											<Globe size={12} />
-											Connect this URL
-										</div>
-										<p className="mt-2 font-mono text-[11px] text-muted-foreground">
-											{preset === "local-http" ? LOCAL_HTTP_URL : LOCAL_SSE_URL}
-										</p>
-									</div>
-									<div className="rounded-lg border border-border/50 bg-background/70 p-3">
-										<p className="text-xs font-medium">
-											Replace the stdio command
-										</p>
-										<p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-											Swap{" "}
-											<code className="font-mono">
-												{LOCAL_SERVER_STDIO_EXAMPLE}
-											</code>{" "}
-											with your own local MCP server command if you are not
-											using the filesystem server.
-										</p>
-									</div>
-								</div>
-							</div>
-						) : null}
-
-						<div className="grid gap-4 sm:grid-cols-2">
-							<div>
-								<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-									Server name
-								</Label>
-								<Input
-									value={draftServer.name}
-									onChange={(event) =>
-										setDraftServer((current) => ({
-											...current,
-											name: event.target.value,
-										}))
-									}
-									placeholder="my-mcp-server"
-									className="mt-1 h-9 rounded-lg text-xs"
-								/>
-							</div>
-							<div>
-								<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-									Transport
-								</Label>
-								<select
-									value={draftServer.type}
-									onChange={(event) =>
-										setDraftServer((current) => ({
-											...current,
-											type: event.target.value as MCPServerConfig["type"],
-										}))
-									}
-									className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-xs font-medium uppercase"
-								>
-									<option value="http">HTTP</option>
-									<option value="sse">SSE</option>
-								</select>
-							</div>
-						</div>
-
-						<div>
-							<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-								URL
-							</Label>
-							<Input
-								value={draftServer.url}
-								onChange={(event) =>
-									setDraftServer((current) => ({
-										...current,
-										url: event.target.value,
-									}))
-								}
-								placeholder={
-									draftServer.type === "http"
-										? "http://localhost:3000/mcp"
-										: "http://localhost:3000/sse"
-								}
-								className="mt-1 h-9 rounded-lg font-mono text-xs"
-							/>
-						</div>
-
-						<div>
-							<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-								Headers (optional)
-							</Label>
-							<Textarea
-								value={headersDraft}
-								onChange={(event) => setHeadersDraft(event.target.value)}
-								placeholder={"Authorization: Bearer token\nX-Api-Key: abc123"}
-								rows={4}
-								className="mt-1 min-h-[108px] rounded-lg font-mono text-xs"
-							/>
-						</div>
-					</div>
-
-					<DialogFooter className="border-t px-5 py-4">
+					<DialogFooter>
 						<Button
 							type="button"
 							variant="outline"
-							onClick={() => setDialogOpen(false)}
+							onClick={() => setAddDialogOpen(false)}
 						>
-							Cancel
+							{t("actions.cancel")}
 						</Button>
 						<Button
 							type="button"
-							onClick={handleAddServer}
+							onClick={addServer}
 							disabled={!draftServer.name.trim() || !draftServer.url.trim()}
 						>
-							Add server
+							{t("mcps.editor.addServer")}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+		</div>
+	);
+};
+
+interface ServerFieldsProps {
+	server: MCPServerConfig;
+	headersText: string;
+	onChange: (server: MCPServerConfig) => void;
+	onHeadersChange?: (value: string) => void;
+}
+
+const ServerFields: React.FC<ServerFieldsProps> = ({
+	server,
+	headersText,
+	onChange,
+	onHeadersChange,
+}) => {
+	const { t } = useTranslation(["agents"]);
+
+	const handleHeadersChange = (value: string) => {
+		onHeadersChange?.(value);
+		onChange({ ...server, headers: parseHeaders(value) });
+	};
+
+	return (
+		<div className="space-y-4">
+			<div className="grid gap-4 sm:grid-cols-2">
+				<div>
+					<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+						{t("mcps.editor.nameLabel")}
+					</Label>
+					<Input
+						value={server.name}
+						onChange={(event) =>
+							onChange({ ...server, name: event.target.value })
+						}
+						placeholder={t("mcps.editor.namePlaceholder")}
+						className="mt-1 h-9 rounded-lg text-xs"
+					/>
+				</div>
+				<div>
+					<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+						{t("mcps.editor.transportLabel")}
+					</Label>
+					<select
+						value={server.type}
+						onChange={(event) =>
+							onChange({
+								...server,
+								type: event.target.value as MCPServerConfig["type"],
+							})
+						}
+						className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-xs font-medium uppercase"
+					>
+						<option value="http">HTTP</option>
+						<option value="sse">SSE</option>
+					</select>
+				</div>
+			</div>
+
+			<div>
+				<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+					{t("mcps.editor.urlLabel")}
+				</Label>
+				<Input
+					value={server.url}
+					onChange={(event) => onChange({ ...server, url: event.target.value })}
+					placeholder={
+						server.type === "http"
+							? t("mcps.editor.httpUrlPlaceholder")
+							: t("mcps.editor.sseUrlPlaceholder")
+					}
+					className="mt-1 h-9 rounded-lg font-mono text-xs"
+				/>
+			</div>
+
+			<div>
+				<Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+					{t("mcps.editor.headersLabel")}
+				</Label>
+				<Textarea
+					value={headersText}
+					onChange={(event) => handleHeadersChange(event.target.value)}
+					placeholder={t("mcps.editor.headersPlaceholder")}
+					rows={4}
+					className="mt-1 min-h-[108px] rounded-lg font-mono text-xs"
+				/>
+			</div>
 		</div>
 	);
 };

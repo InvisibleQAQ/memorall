@@ -98,5 +98,139 @@
 	"confirm": {
 		"discardSelection": "Bạn có thay đổi chưa lưu. Bỏ chúng và chuyển preset?",
 		"leavePage": "Bạn có thay đổi chưa lưu trên preset này. Rời trang và bỏ các thay đổi đó?"
+	},
+	"skills": {
+		"label": "Kỹ năng",
+		"addSkill": "Thêm kỹ năng",
+		"manageAction": "Duyệt",
+		"enableAction": "Bật",
+		"disableAction": "Tắt",
+		"manageTitle": "Quản lý Kỹ năng",
+		"noSkills": "Chưa có kỹ năng nào.",
+		"noneEnabled": "Chưa bật kỹ năng nào.",
+		"defaultTab": "Mặc định",
+		"customTab": "Tùy chỉnh",
+		"defaultCount": "{{count}} mặc định",
+		"customCount": "{{count}} tùy chỉnh",
+		"defaultHint": "Các kỹ năng mặc định là chỉ đọc, được lấy từ các kho kỹ năng công khai, đã lọc để tránh kỹ năng dựa trên Python, và chỉ được tải khi mở nội dung SKILL.md nguồn.",
+		"searchPlaceholder": "Tìm kỹ năng theo tên, mô tả hoặc nguồn",
+		"emptyDefault": "Không có kỹ năng mặc định nào khớp tìm kiếm.",
+		"emptyCustom": "Chưa có kỹ năng tùy chỉnh nào.",
+		"emptyFilteredCustom": "Không có kỹ năng tùy chỉnh nào khớp tìm kiếm.",
+		"editor": {
+			"newTitle": "Kỹ năng mới",
+			"editTitle": "Chỉnh sửa Kỹ năng",
+			"nameLabel": "Tên",
+			"nameHint": "Chữ thường, số và dấu gạch ngang. Dùng làm tên tệp.",
+			"namePlaceholder": "vd. code-review",
+			"descriptionLabel": "Mô tả",
+			"descriptionPlaceholder": "Mô tả một dòng hiển thị trong mentions",
+			"contentLabel": "Nội dung (Markdown)",
+			"contentPlaceholder": "Viết hướng dẫn kỹ năng ở đây...",
+			"nameRequired": "Tên là bắt buộc",
+			"saveFailed": "Lưu kỹ năng thất bại",
+			"saving": "Đang lưu…"
+		},
+		"import": {
+			"title": "Nhập từ GitHub",
+			"urlLabel": "URL tệp GitHub",
+			"urlPlaceholder": "https://github.com/user/repo/blob/main/skill.md",
+			"urlHint": "Dán URL tệp GitHub hoặc raw.githubusercontent.com trỏ đến tệp .md kỹ năng.",
+			"importFailed": "Nhập thất bại",
+			"importing": "Đang nhập…"
+		},
+		"delete": {
+			"title": "Xóa kỹ năng",
+			"description": "Xóa \"{{name}}\"? Không thể hoàn tác.",
+			"confirm": "Xóa"
+		},
+		"preview": {
+			"title": "Xem trước Kỹ năng",
+			"action": "Xem trước",
+			"readOnly": "Mặc định công khai",
+			"source": "Nguồn",
+			"loading": "Đang tải nội dung kỹ năng…",
+			"loadFailed": "Tải nội dung kỹ năng thất bại"
+		}
+	},
+	"mcps": {
+		"label": "MCPs",
+		"manage": "Quản lý",
+		"manageTitle": "Quản lý MCP Servers",
+		"editor": {
+			"bridgeHint": "MCP trên trình duyệt hỗ trợ HTTP hoặc SSE. Với MCP stdio chạy cục bộ, hãy sao chép một lệnh supergateway có sẵn, chạy trong terminal, rồi thêm URL cục bộ được mở ra tại đây.",
+			"serverCount": "{{count}} server",
+			"serverCount_plural": "{{count}} servers",
+			"predefinedAction": "+ MCP dựng sẵn",
+			"addServer": "Thêm server",
+			"empty": "Chưa cấu hình MCP server nào.",
+			"unnamed": "Server chưa đặt tên",
+			"deleteServer": "Xóa MCP server",
+			"detailTitle": "Chi tiết MCP server",
+			"detailDescription": "Chỉnh kết nối server đã chọn.",
+			"addTitle": "Thêm MCP server",
+			"addDescription": "Thêm endpoint MCP HTTP hoặc SSE từ server remote hoặc bridge supergateway cục bộ.",
+			"nameLabel": "Tên server",
+			"namePlaceholder": "my-mcp-server",
+			"transportLabel": "Transport",
+			"urlLabel": "URL",
+			"httpUrlPlaceholder": "http://localhost:3000/mcp",
+			"sseUrlPlaceholder": "http://localhost:3000/sse",
+			"headersLabel": "Headers (không bắt buộc)",
+			"headersPlaceholder": "Authorization: Bearer token\nX-Api-Key: abc123"
+		},
+		"predefined": {
+			"filesystem": {
+				"name": "Filesystem",
+				"port": "HTTP cục bộ ở port 8000"
+			},
+			"git": {
+				"name": "Git",
+				"port": "HTTP cục bộ ở port 8001"
+			},
+			"github": {
+				"name": "GitHub",
+				"port": "HTTP cục bộ ở port 8002"
+			},
+			"postgres": {
+				"name": "Postgres",
+				"port": "HTTP cục bộ ở port 8003"
+			},
+			"sqlite": {
+				"name": "SQLite",
+				"port": "HTTP cục bộ ở port 8004"
+			},
+			"puppeteer": {
+				"name": "Puppeteer",
+				"port": "HTTP cục bộ ở port 8005"
+			},
+			"braveSearch": {
+				"name": "Brave Search",
+				"port": "HTTP cục bộ ở port 8006"
+			},
+			"memory": {
+				"name": "Memory",
+				"port": "HTTP cục bộ ở port 8007"
+			},
+			"sequentialThinking": {
+				"name": "Sequential Thinking",
+				"port": "HTTP cục bộ ở port 8008"
+			},
+			"fetch": {
+				"name": "Fetch",
+				"port": "HTTP cục bộ ở port 8009"
+			}
+		}
+	},
+	"instructions": {
+		"label": "Hướng dẫn",
+		"placeholder": "Mô tả vai trò và hành vi của tác nhân…"
+	},
+	"advanced": {
+		"label": "Cài đặt nâng cao"
+	},
+	"featuresSection": {
+		"showMore": "Hiện thêm {{count}}",
+		"showLess": "Thu gọn"
 	}
 }

@@ -69,13 +69,13 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 						{t("actions.create")}
 					</Button>
 				</div>
-				<div className="mt-4 flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+				<div className="mt-4 flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 transition-colors focus-within:border-ring/60 focus-within:bg-muted/30">
 					<Search size={14} className="text-muted-foreground" />
 					<Input
 						value={searchQuery}
 						onChange={(event) => onSearchChange(event.target.value)}
 						placeholder={t("list.searchPlaceholder")}
-						className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+						className="h-7 rounded-none border-0 bg-transparent px-0 py-0 shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
 					/>
 				</div>
 			</div>

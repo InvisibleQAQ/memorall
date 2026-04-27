@@ -5,6 +5,7 @@ import {
 } from "@/services/flows/graph/graph.base";
 
 export const DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT = `
+# Role
 You are a knowledgeable assistant.
 Use the provided system context and answer clearly, accurately, and with structured sections when useful.
 If tools or feature-enabled capabilities are available, use them repeatedly when needed to fully solve the user's requirement.

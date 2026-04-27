@@ -134,6 +134,12 @@ export interface CatalogStep {
 	metadata: Record<string, unknown>;
 }
 
+export interface FeatureIcon {
+	/** Lucide icon component name (e.g. "Globe") or an emoji character (e.g. "🌐"). */
+	name: string;
+	type: "emoji" | "lucide";
+}
+
 export interface FeatureCatalogMetadata extends Record<string, unknown> {
 	description: string;
 	/** i18n key for the description. UI prefers this over `description`. */
@@ -145,6 +151,8 @@ export interface FeatureCatalogMetadata extends Record<string, unknown> {
 	tools: string[];
 	systemPrompt: string;
 	customizable: boolean;
+	/** Icon shown in the feature card. */
+	icon?: FeatureIcon;
 	/** Mark this feature as the recommended choice. */
 	recommended?: boolean;
 	/** Mark this feature as legacy — prefer a newer alternative. */
@@ -360,6 +368,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			systemPrompt: FS_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
 			recommended: true,
+			icon: { name: "HardDrive", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -402,6 +411,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			systemPrompt: DOCUMENTS_FS_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
 			recommended: true,
+			icon: { name: "FolderOpen", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -445,6 +455,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			customizable: false,
 			legacy: true,
 			recommended: false,
+			icon: { name: "FileText", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -486,6 +497,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...NODEJS_SANDBOX_FEATURE_TOOLS],
 			systemPrompt: NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "Terminal", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -527,6 +539,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...WEB_FEATURE_TOOLS],
 			systemPrompt: WEB_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "Globe", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -569,6 +582,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...NEWS_COLLECTION_FEATURE_TOOLS],
 			systemPrompt: NEWS_COLLECTION_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "Newspaper", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -612,6 +626,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...TRAVEL_PLANNER_FEATURE_TOOLS],
 			systemPrompt: TRAVEL_PLANNER_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "✈️", type: "emoji" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -655,6 +670,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...MEAL_PLANNER_FEATURE_TOOLS],
 			systemPrompt: MEAL_PLANNER_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "🍽️", type: "emoji" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -698,6 +714,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...DAILY_BRIEFING_FEATURE_TOOLS],
 			systemPrompt: DAILY_BRIEFING_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "☀️", type: "emoji" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -739,6 +756,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...PLANNER_FEATURE_TOOLS],
 			systemPrompt: PLANNER_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "ListChecks", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -782,6 +800,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...JOB_APPLICATION_FEATURE_TOOLS],
 			systemPrompt: JOB_APPLICATION_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "Briefcase", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -824,6 +843,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...LANGUAGE_TUTOR_FEATURE_TOOLS],
 			systemPrompt: LANGUAGE_TUTOR_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "Languages", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -868,6 +888,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...SHOPPING_ASSISTANT_FEATURE_TOOLS],
 			systemPrompt: SHOPPING_ASSISTANT_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "🛒", type: "emoji" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -915,6 +936,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...MULTI_AGENT_FEATURE_TOOLS],
 			systemPrompt: MULTI_AGENT_FEATURE_SYSTEM_PROMPT,
 			customizable: true,
+			icon: { name: "GitFork", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -956,6 +978,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...MCP_FEATURE_TOOLS],
 			systemPrompt: "",
 			customizable: true,
+			icon: { name: "Plug", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 	{
@@ -999,6 +1022,7 @@ export const DEFAULT_FLOW_STEPS: CatalogStep[] = [
 			tools: [...FINANCE_TRACKER_FEATURE_TOOLS],
 			systemPrompt: FINANCE_TRACKER_FEATURE_SYSTEM_PROMPT,
 			customizable: false,
+			icon: { name: "TrendingUp", type: "lucide" },
 		} satisfies FeatureCatalogMetadata,
 	},
 ];

@@ -31,6 +31,8 @@
 		/* Glass surface tokens — light (white-based) */
 		--glass-bg: rgba(255, 255, 255, 0.72);
 		--glass-bg-strong: rgba(255, 255, 255, 0.90);
+		--glass-panel-bg: rgba(255, 255, 255, 0.82);
+		--glass-panel-highlight: rgba(255, 255, 255, 0.22);
 		--glass-border: rgba(0, 0, 0, 0.08);
 		--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 		--header-glass: rgba(255, 255, 255, 0.88);
@@ -67,6 +69,8 @@
 		/* Glass surface tokens — dark (white-on-dark) */
 		--glass-bg: rgba(255, 255, 255, 0.04);
 		--glass-bg-strong: rgba(255, 255, 255, 0.07);
+		--glass-panel-bg: rgba(18, 18, 18, 0.92);
+		--glass-panel-highlight: rgba(255, 255, 255, 0.035);
 		--glass-border: rgba(255, 255, 255, 0.08);
 		--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.40);
 		--header-glass: rgba(10, 10, 10, 0.84);
@@ -167,17 +171,29 @@
 
 /* Glass + landing-page utility classes */
 .glass {
-	backdrop-filter: blur(16px);
-	-webkit-backdrop-filter: blur(16px);
-	background: var(--glass-bg);
+	backdrop-filter: none;
+	-webkit-backdrop-filter: none;
+	background:
+		linear-gradient(
+			180deg,
+			var(--glass-panel-highlight) 0%,
+			transparent 46%
+		),
+		var(--glass-panel-bg);
 	border: 1px solid var(--glass-border);
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--card-shadow);
 }
 
 .glass-strong {
-	backdrop-filter: blur(20px);
-	-webkit-backdrop-filter: blur(20px);
-	background: var(--glass-bg-strong);
+	backdrop-filter: none;
+	-webkit-backdrop-filter: none;
+	background:
+		linear-gradient(
+			180deg,
+			var(--glass-panel-highlight) 0%,
+			transparent 42%
+		),
+		var(--glass-bg-strong);
 	border: 1px solid var(--glass-border);
 }
 

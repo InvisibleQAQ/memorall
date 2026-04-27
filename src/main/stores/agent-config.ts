@@ -15,8 +15,12 @@ import {
 	MCP_FEATURE_NAME,
 	type MCPServerConfig,
 } from "@/services/flows/steps/features/mcp-feature";
+import { ADD_SKILL_CONTEXT_STEP_NAME } from "@/services/flows/steps/common/add-skill-context";
 import { logError } from "@/utils/logger";
-import type { FeatureCatalogMetadata } from "@/services/flows/flow-builder-catalog";
+import type {
+	FeatureCatalogMetadata,
+	FeatureIcon,
+} from "@/services/flows/flow-builder-catalog";
 import type { Flow } from "@/services/database/types";
 
 // ---------------------------------------------------------------------------
@@ -40,6 +44,7 @@ export interface ConfigFeatureDefinition {
 	nameKey: string;
 	descKey: string;
 	configKey: "enableContextRetrieval" | "enableCitations" | "tools";
+	icon?: FeatureIcon;
 	promptField?: {
 		field: "contextPrompt";
 		labelKey: string;
@@ -62,6 +67,7 @@ export interface CatalogFeatureDefinition {
 	description: string;
 	/** i18n key for the description. */
 	descriptionKey?: string;
+	icon?: FeatureIcon;
 	tools: string[];
 	systemPrompt: string;
 	customizable: boolean;
@@ -127,6 +133,7 @@ const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
 				nameKey: "agentSettings.contextRetrieval",
 				descKey: "agentSettings.contextRetrievalDesc",
 				configKey: "enableContextRetrieval",
+				icon: { name: "Database", type: "lucide" },
 				promptField: {
 					field: "contextPrompt",
 					labelKey: "agentSettings.contextPrompt",
@@ -142,6 +149,7 @@ const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
 				nameKey: "agentSettings.citations",
 				descKey: "agentSettings.citationsDesc",
 				configKey: "enableCitations",
+				icon: { name: "Quote", type: "lucide" },
 				tools: [],
 				systemPrompt: "",
 			},
@@ -151,6 +159,7 @@ const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
 				nameKey: "agentSettings.agentNode",
 				descKey: "agentSettings.agentNodeDesc",
 				configKey: "tools",
+				icon: { name: "Wrench", type: "lucide" },
 				toolScope: "unclaimed",
 				tools: [],
 				systemPrompt: "",
@@ -165,6 +174,7 @@ const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
 				nameKey: "agentSettings.agentNode",
 				descKey: "agentSettings.agentNodeDesc",
 				configKey: "tools",
+				icon: { name: "Wrench", type: "lucide" },
 				toolScope: "all",
 				tools: [],
 				systemPrompt: "",
@@ -217,6 +227,13 @@ function buildFeatureDefinitions(graphType: string): AgentFeatureDefinition[] {
 				systemPrompt:
 					typeof meta.systemPrompt === "string" ? meta.systemPrompt : "",
 				customizable: Boolean(meta.customizable),
+				icon:
+					meta.icon &&
+					typeof meta.icon === "object" &&
+					"name" in meta.icon &&
+					"type" in meta.icon
+						? (meta.icon as FeatureIcon)
+						: undefined,
 			};
 		});
 
@@ -269,6 +286,17 @@ const getMCPServers = (unifiedConfig: UnifiedFlowConfig): MCPServerConfig[] => {
 		: [];
 };
 
+const getEnabledSkillNames = (unifiedConfig: UnifiedFlowConfig): string[] => {
+	const step = unifiedConfig.steps.find(
+		(candidate) => candidate.name === ADD_SKILL_CONTEXT_STEP_NAME,
+	);
+	return Array.isArray(step?.config?.enabledSkillNames)
+		? step.config.enabledSkillNames.filter(
+				(value): value is string => typeof value === "string",
+			)
+		: [];
+};
+
 const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 	const graphType: GraphType =
 		unifiedConfig.graphType === "agent" ? "agent" : "knowledge-rag";
@@ -307,6 +335,7 @@ const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 		multiAgentAccessibleAgentIds:
 			getMultiAgentAccessibleAgentIds(unifiedConfig),
 		mcpServers: getMCPServers(unifiedConfig),
+		enabledSkillNames: getEnabledSkillNames(unifiedConfig),
 		config: {
 			...DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
 			graphType,
@@ -339,6 +368,7 @@ const applyLegacyDraftToUnified = (
 	draftFeatures: FeatureFlags,
 	draftMultiAgentAccessibleAgentIds: string[],
 	draftMCPServers: MCPServerConfig[],
+	draftEnabledSkillNames: string[],
 ): UnifiedFlowConfig => {
 	const graphType: GraphType =
 		draftConfig.graphType === "agent" ? "agent" : "knowledge-rag";
@@ -426,6 +456,13 @@ const applyLegacyDraftToUnified = (
 				};
 			}
 
+			if (step.name === ADD_SKILL_CONTEXT_STEP_NAME) {
+				nextStep.config = {
+					...(nextStep.config ?? {}),
+					enabledSkillNames: [...draftEnabledSkillNames],
+				};
+			}
+
 			if (nextStep.config && Object.keys(nextStep.config).length === 0) {
 				nextStep.config = undefined;
 			}
@@ -449,6 +486,8 @@ interface AgentConfigState {
 	draftMultiAgentAccessibleAgentIds: string[];
 	savedMCPServers: MCPServerConfig[];
 	draftMCPServers: MCPServerConfig[];
+	savedEnabledSkillNames: string[];
+	draftEnabledSkillNames: string[];
 	currentFlowId: string | null;
 	currentGraphType: GraphType;
 	isLegacyConfig: boolean;
@@ -472,6 +511,8 @@ interface AgentConfigState {
 	toggleAccessibleAgent: (agentId: string) => void;
 	setAccessibleAgents: (agentIds: string[]) => void;
 	setMCPServers: (servers: MCPServerConfig[]) => void;
+	toggleSkill: (skillName: string) => void;
+	setEnabledSkills: (skillNames: string[]) => void;
 	save: () => Promise<void>;
 	convertToUnified: () => Promise<void>;
 	revert: () => void;
@@ -487,12 +528,16 @@ const computeDirty = (
 	draftMultiAgentAccessibleAgentIds: string[],
 	savedMCPServers: MCPServerConfig[],
 	draftMCPServers: MCPServerConfig[],
+	savedEnabledSkillNames: string[],
+	draftEnabledSkillNames: string[],
 ): boolean =>
 	JSON.stringify(saved) !== JSON.stringify(draft) ||
 	JSON.stringify(savedFeatures) !== JSON.stringify(draftFeatures) ||
 	JSON.stringify(savedMultiAgentAccessibleAgentIds) !==
 		JSON.stringify(draftMultiAgentAccessibleAgentIds) ||
-	JSON.stringify(savedMCPServers) !== JSON.stringify(draftMCPServers);
+	JSON.stringify(savedMCPServers) !== JSON.stringify(draftMCPServers) ||
+	JSON.stringify(savedEnabledSkillNames) !==
+		JSON.stringify(draftEnabledSkillNames);
 
 export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 	const persistUnifiedConfig = async () => {
@@ -503,6 +548,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				draftFeatures,
 				draftMultiAgentAccessibleAgentIds,
 				draftMCPServers,
+				draftEnabledSkillNames,
 				savedUnifiedConfig,
 			} = get();
 			const targetFlowId = get().currentFlowId;
@@ -519,6 +565,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				draftFeatures,
 				draftMultiAgentAccessibleAgentIds,
 				draftMCPServers,
+				draftEnabledSkillNames,
 			);
 
 			if (targetFlowId) {
@@ -541,6 +588,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					...draftMultiAgentAccessibleAgentIds,
 				],
 				savedMCPServers: [...draftMCPServers],
+				savedEnabledSkillNames: [...draftEnabledSkillNames],
 				isDirty: false,
 				isSaving: false,
 				isLegacyConfig: false,
@@ -568,6 +616,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 		draftMultiAgentAccessibleAgentIds: [],
 		savedMCPServers: [],
 		draftMCPServers: [],
+		savedEnabledSkillNames: [],
+		draftEnabledSkillNames: [],
 		currentFlowId: null,
 		currentGraphType: "knowledge-rag",
 		isLegacyConfig: false,
@@ -640,6 +690,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 						draftMultiAgentAccessibleAgentIds: [],
 						savedMCPServers: [],
 						draftMCPServers: [],
+						savedEnabledSkillNames: [],
+						draftEnabledSkillNames: [],
 						currentFlowId: targetFlowId ?? null,
 						currentGraphType: graphType,
 						isDirty: false,
@@ -670,6 +722,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					],
 					savedMCPServers: [...derivedState.mcpServers],
 					draftMCPServers: [...derivedState.mcpServers],
+					savedEnabledSkillNames: [...derivedState.enabledSkillNames],
+					draftEnabledSkillNames: [...derivedState.enabledSkillNames],
 					currentFlowId: targetFlowId ?? null,
 					currentGraphType: derivedState.graphType,
 					isDirty: false,
@@ -698,6 +752,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					get().draftMultiAgentAccessibleAgentIds,
 					get().savedMCPServers,
 					get().draftMCPServers,
+					get().savedEnabledSkillNames,
+					get().draftEnabledSkillNames,
 				),
 			});
 		},
@@ -728,6 +784,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					draftMultiAgentAccessibleAgentIds,
 					get().savedMCPServers,
 					get().draftMCPServers,
+					get().savedEnabledSkillNames,
+					get().draftEnabledSkillNames,
 				),
 			});
 		},
@@ -748,6 +806,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					get().draftMultiAgentAccessibleAgentIds,
 					get().savedMCPServers,
 					get().draftMCPServers,
+					get().savedEnabledSkillNames,
+					get().draftEnabledSkillNames,
 				),
 			});
 		},
@@ -769,6 +829,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					get().draftMultiAgentAccessibleAgentIds,
 					get().savedMCPServers,
 					get().draftMCPServers,
+					get().savedEnabledSkillNames,
+					get().draftEnabledSkillNames,
 				),
 			});
 		},
@@ -789,6 +851,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					next,
 					get().savedMCPServers,
 					get().draftMCPServers,
+					get().savedEnabledSkillNames,
+					get().draftEnabledSkillNames,
 				),
 			});
 		},
@@ -806,6 +870,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					next,
 					get().savedMCPServers,
 					get().draftMCPServers,
+					get().savedEnabledSkillNames,
+					get().draftEnabledSkillNames,
 				),
 			});
 		},
@@ -822,6 +888,49 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					get().savedMultiAgentAccessibleAgentIds,
 					get().draftMultiAgentAccessibleAgentIds,
 					get().savedMCPServers,
+					next,
+					get().savedEnabledSkillNames,
+					get().draftEnabledSkillNames,
+				),
+			});
+		},
+
+		toggleSkill: (skillName) => {
+			const current = get().draftEnabledSkillNames;
+			const next = current.includes(skillName)
+				? current.filter((value) => value !== skillName)
+				: [...current, skillName];
+			set({
+				draftEnabledSkillNames: next,
+				isDirty: computeDirty(
+					get().savedConfig,
+					get().draftConfig,
+					get().savedFeatures,
+					get().draftFeatures,
+					get().savedMultiAgentAccessibleAgentIds,
+					get().draftMultiAgentAccessibleAgentIds,
+					get().savedMCPServers,
+					get().draftMCPServers,
+					get().savedEnabledSkillNames,
+					next,
+				),
+			});
+		},
+
+		setEnabledSkills: (skillNames) => {
+			const next = [...new Set(skillNames)];
+			set({
+				draftEnabledSkillNames: next,
+				isDirty: computeDirty(
+					get().savedConfig,
+					get().draftConfig,
+					get().savedFeatures,
+					get().draftFeatures,
+					get().savedMultiAgentAccessibleAgentIds,
+					get().draftMultiAgentAccessibleAgentIds,
+					get().savedMCPServers,
+					get().draftMCPServers,
+					get().savedEnabledSkillNames,
 					next,
 				),
 			});
@@ -853,6 +962,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					...get().savedMultiAgentAccessibleAgentIds,
 				],
 				draftMCPServers: [...get().savedMCPServers],
+				draftEnabledSkillNames: [...get().savedEnabledSkillNames],
 				featureDefinitions: buildFeatureDefinitions(graphType),
 				currentGraphType: graphType,
 				isDirty: false,
@@ -869,6 +979,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					...derivedState.multiAgentAccessibleAgentIds,
 				],
 				draftMCPServers: [...derivedState.mcpServers],
+				draftEnabledSkillNames: [...derivedState.enabledSkillNames],
 				featureDefinitions: derivedState.featureDefinitions,
 				currentGraphType: derivedState.graphType,
 				isDirty: computeDirty(
@@ -880,6 +991,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					derivedState.multiAgentAccessibleAgentIds,
 					get().savedMCPServers,
 					derivedState.mcpServers,
+					get().savedEnabledSkillNames,
+					derivedState.enabledSkillNames,
 				),
 			});
 		},
