@@ -7,6 +7,11 @@ import { defineStep, bindStep } from "@/services/flows/interfaces/step";
 import type { StepSpecFromDefinition } from "@/services/flows/interfaces/step";
 import type { BoundStep } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { adaptMCPTool } from "./mcp-tool-adapter";
@@ -138,6 +143,36 @@ stepRegistry.register(STEP_NAME, createMCPFeatureStep, {
 	],
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-mcp-feature",
+	name: MCP_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description: "Messages with MCP tool instructions.",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description: "Tools extended with dynamically loaded MCP tools.",
+		},
+	],
+	metadata: {
+		description: MCP_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.mcpFeature.description",
+		displayName: "MCP Servers",
+		nameKey: "flowBuilder.features.mcpFeature.name",
+		tools: [...MCP_FEATURE_TOOLS],
+		systemPrompt: "",
+		customizable: true,
+		icon: { name: "Plug", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

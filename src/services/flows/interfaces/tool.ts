@@ -5,6 +5,7 @@ import type { IDatabaseService } from "@/services/database";
 import type { ISandboxContainerService } from "@/services/sandbox-container";
 import type { IWebBrowserService } from "@/services/web-browser";
 import type { DocumentFileSystem } from "@/services/filesystem/document-filesystem";
+import type { ChatCompletionToolMessageParam } from "@/types/openai";
 
 // All available services
 export interface AllServices {
@@ -16,41 +17,49 @@ export interface AllServices {
 	documentFileSystem?: DocumentFileSystem;
 }
 
-// ==================== TOOL RESULT ====================
-
-/** An image produced by a tool and stored in document-fs. */
-export interface ToolResultImage {
-	/** Relative path in document filesystem (e.g. /resources/images/<uuid>.png) */
-	path: string;
-	mimeType: string;
-}
+/**
+ * OpenAI-compatible complex tool message content.
+ * For Chat Completions role:tool messages this is an array of text content
+ * parts, not an application-specific wrapper object.
+ */
+export type ToolComplexResult = Exclude<
+	ChatCompletionToolMessageParam["content"],
+	string
+>;
 
 /**
- * Rich tool result that carries both a text description for the LLM
- * (OpenAI tool messages are string-only) and optional image references
- * for the UI to render inside the action card.
+ * Tools return exactly the content shape accepted by an OpenAI role:tool
+ * message: a string or an array of text content parts.
  */
-export interface ToolComplexResult {
-	/** Text sent to the LLM as the tool message content. */
-	content: string;
-	/** Images produced by the tool, stored in document-fs by path. */
-	images?: ToolResultImage[];
+export type ToolResultValue = ChatCompletionToolMessageParam["content"];
+
+export interface ToolExecutionContext<TState = unknown> {
+	state: TState;
 }
 
-/**
- * Tools may return a plain string (backward-compatible) or a ToolComplexResult.
- * String results are treated as { content: result, images: [] }.
- */
-export type ToolResultValue = string | ToolComplexResult;
+export const toolMessageContentToText = (
+	content: ChatCompletionToolMessageParam["content"],
+): string => {
+	if (typeof content === "string") {
+		return content;
+	}
+	return content.map((part) => part.text).join("\n");
+};
 
 /** Normalise a ToolResultValue to its two components. */
 export const extractToolResult = (
 	value: ToolResultValue,
-): { content: string; images: ToolResultImage[] } => {
+): {
+	content: ChatCompletionToolMessageParam["content"];
+	contentText: string;
+} => {
 	if (typeof value === "string") {
-		return { content: value, images: [] };
+		return { content: value, contentText: value };
 	}
-	return { content: value.content, images: value.images ?? [] };
+	return {
+		content: value,
+		contentText: toolMessageContentToText(value),
+	};
 };
 
 export type JsonSchema = Record<string, unknown>;
@@ -89,7 +98,10 @@ export interface BaseTool {
 	description: string;
 	schema: ToolSchema;
 	metadata?: Record<string, unknown>;
-	execute: (input: unknown) => Promise<ToolResultValue>;
+	execute: (
+		input: unknown,
+		context?: ToolExecutionContext,
+	) => Promise<ToolResultValue>;
 }
 
 export interface ToolBinding<TName extends string = string, TConfig = unknown> {
@@ -100,7 +112,10 @@ export interface ToolBinding<TName extends string = string, TConfig = unknown> {
 // Typed tool interface for implementation
 export interface Tool<TInput> extends Omit<BaseTool, "schema" | "execute"> {
 	schema: z.ZodSchema<TInput>;
-	execute: (input: TInput) => Promise<ToolResultValue>;
+	execute: (
+		input: TInput,
+		context?: ToolExecutionContext,
+	) => Promise<ToolResultValue>;
 }
 
 // Factory function type for creating tools with services bound

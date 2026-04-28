@@ -16,6 +16,8 @@ import type {
 	ComplexContentPartImage,
 } from "@/types/chat";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
+import { ArtifactRenderer } from "./artifacts/ArtifactRenderer";
+import { parseArtifactSegments } from "./artifacts/artifact-protocol";
 
 import { MessageActions } from "./MessageActions";
 import { MessageFooter, type MessageFooterMetadata } from "./MessageFooter";
@@ -101,6 +103,41 @@ const USE_STREAMDOWN = false;
 const Streamdown = lazy(() => import("./MessageStreamDown"));
 const MarkdownMessage = lazy(() => import("./MarkdownMessage"));
 const ContentComponent = USE_STREAMDOWN ? Streamdown : MarkdownMessage;
+
+/**
+ * Renders message content by splitting on <memorall_artifact> tags.
+ * Text segments go to MarkdownMessage; artifact segments go to ArtifactRenderer.
+ */
+const MessageContentWithArtifacts: React.FC<{
+	content: string;
+	isStreaming: boolean;
+}> = ({ content, isStreaming }) => {
+	const segments = useMemo(() => parseArtifactSegments(content), [content]);
+
+	return (
+		<>
+			{segments.map((seg, i) => {
+				if (seg.kind === "artifact") {
+					return (
+						<ArtifactRenderer
+							key={i}
+							type={seg.type}
+							content={seg.content}
+							title={seg.title}
+						/>
+					);
+				}
+				const text = seg.text;
+				if (!text.trim()) return null;
+				return (
+					<ContentComponent key={i} isStreaming={isStreaming}>
+						{text}
+					</ContentComponent>
+				);
+			})}
+		</>
+	);
+};
 
 interface MessageMetadata extends MessageFooterMetadata {
 	actions?: MessageActionItem[];
@@ -214,9 +251,10 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 								}
 							>
 								<div className="relative z-10">
-									<ContentComponent isStreaming={isStreaming}>
-										{message.content}
-									</ContentComponent>
+									<MessageContentWithArtifacts
+										content={message.content}
+										isStreaming={isStreaming}
+									/>
 									{isStreaming && (
 										<>
 											<div className="mt-4 flex items-center gap-2">

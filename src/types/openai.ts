@@ -123,7 +123,7 @@ export interface ChatCompletionAssistantMessageParam {
 /** Tool result message */
 export interface ChatCompletionToolMessageParam {
 	role: "tool";
-	content: string;
+	content: string | ChatCompletionContentPartText[];
 	tool_call_id: string;
 }
 

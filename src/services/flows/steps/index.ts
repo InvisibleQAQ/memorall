@@ -27,19 +27,4 @@ import "./common/add-system";
 import "./common/add-skill-context";
 
 // Feature steps
-import "./features/context-smart-retrieve";
-import "./features/context-quick-retrieve";
-import "./features/context-llm-retrieve";
-import "./features/fs-feature";
-import "./features/documents-fs-feature";
-import "./features/documents-feature";
-import "./features/nodejs-sandbox-feature";
-import "./features/web-feature";
-import "./features/news-collection-feature";
-import "./features/travel-planner-feature";
-import "./features/meal-planner-feature";
-import "./features/daily-briefing-feature";
-import "./features/job-application-feature";
-import "./features/planner-feature";
-import "./features/multi-agent-feature";
-import "./features/mcp-feature";
+import "./features";

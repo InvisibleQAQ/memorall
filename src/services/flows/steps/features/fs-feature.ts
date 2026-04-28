@@ -5,6 +5,11 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 
@@ -174,6 +179,37 @@ stepRegistry.register(STEP_NAME, createFsFeatureStep, {
 	description: FS_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-fs-feature",
+	name: FS_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description: "Messages with filesystem instructions for both namespaces",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description: "Tools extended with fs toolset (/documents + /workspaces)",
+		},
+	],
+	metadata: {
+		description: FS_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.fsFeature.description",
+		displayName: "File System",
+		nameKey: "flowBuilder.features.fsFeature.name",
+		tools: [...FS_FEATURE_TOOLS],
+		systemPrompt: FS_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		recommended: true,
+		icon: { name: "HardDrive", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

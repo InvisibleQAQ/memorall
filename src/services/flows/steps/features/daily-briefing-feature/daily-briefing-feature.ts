@@ -5,6 +5,11 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import type { ActiveWebSessionInfo } from "@/services/web-browser";
@@ -247,6 +252,38 @@ stepRegistry.register(STEP_NAME, createDailyBriefingFeatureStep, {
 	description: DAILY_BRIEFING_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-daily-briefing-feature",
+	name: DAILY_BRIEFING_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description:
+				"Messages with daily briefing instructions and open sessions.",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description:
+				"Tools extended with web + knowledge_graph toolset for news research.",
+		},
+	],
+	metadata: {
+		description: DAILY_BRIEFING_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.dailyBriefingFeature.description",
+		displayName: "Daily Briefing",
+		nameKey: "flowBuilder.features.dailyBriefingFeature.name",
+		tools: [...DAILY_BRIEFING_FEATURE_TOOLS],
+		systemPrompt: DAILY_BRIEFING_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		icon: { name: "☀️", type: "emoji" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

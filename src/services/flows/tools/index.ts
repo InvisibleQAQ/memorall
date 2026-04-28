@@ -4,6 +4,7 @@ import "./current-time";
 import "./js-execute";
 import "./knowledge-graph";
 import "./knowledge-graph-write";
+import "./render-memorall-artifact";
 
 import "./documents/doc-search";
 import "./documents/doc-read";

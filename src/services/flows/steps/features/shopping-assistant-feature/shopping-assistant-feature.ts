@@ -5,6 +5,11 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import type { ActiveWebSessionInfo } from "@/services/web-browser";
@@ -331,6 +336,38 @@ stepRegistry.register(STEP_NAME, createShoppingAssistantFeatureStep, {
 	description: SHOPPING_ASSISTANT_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-shopping-assistant-feature",
+	name: SHOPPING_ASSISTANT_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description:
+				"Messages with shopping research instructions and open sessions.",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description:
+				"Tools extended with web + doc toolset for product research.",
+		},
+	],
+	metadata: {
+		description: SHOPPING_ASSISTANT_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.shoppingAssistantFeature.description",
+		displayName: "Shopping Assistant",
+		nameKey: "flowBuilder.features.shoppingAssistantFeature.name",
+		tools: [...SHOPPING_ASSISTANT_FEATURE_TOOLS],
+		systemPrompt: SHOPPING_ASSISTANT_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		icon: { name: "🛒", type: "emoji" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

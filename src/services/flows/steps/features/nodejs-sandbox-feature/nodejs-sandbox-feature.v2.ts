@@ -5,9 +5,18 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionMessageParam } from "@/types/openai";
+import {
+	ARTIFACT_FEATURE_SYSTEM_PROMPT,
+	ARTIFACT_FEATURE_TOOLS,
+} from "@/services/flows/steps/features/artifact-feature";
 
 const STEP_NAME = "nodejs-sandbox-feature" as const;
 export const NODEJS_SANDBOX_FEATURE_NAME = STEP_NAME;
@@ -147,6 +156,15 @@ The server does NOT hot-reload automatically — you must restart it for changes
 | vite-react    | vite          | 5173        | React SPA with HMR           |
 | next-pages    | next          | 3000        | Next.js Pages Router         |
 | next-app      | next          | 3000        | Next.js App Router           |
+
+## SHOWING SERVER PREVIEWS IN THE CHAT
+When a server is running and you want to embed a live preview directly in the chat:
+1. Call \`container_list_servers\` to get the actual server URL.
+2. Call \`render_memorall_artifact\` with \`type="url"\` and \`content=<server url>\`.
+
+This renders an embedded iframe inside the chat message so the user can interact with the running server without leaving the conversation.
+
+> **Do not construct URLs manually.** Always use the \`url\` field from \`container_list_servers\`.
 `;
 export const NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT =
 	SYSTEM_PROMPT_INSTRUCTION.trim();
@@ -162,6 +180,7 @@ export const NODEJS_SANDBOX_FEATURE_TOOLS = [
 	"container_get_logs",
 	"container_clear_logs",
 	"container_web_access_v2",
+	...ARTIFACT_FEATURE_TOOLS,
 ] as const;
 export const NODEJS_SANDBOX_FEATURE_DESCRIPTION =
 	"Enable isolated Node.js container tools for runtime execution, command execution/listening, npm, filesystem, server lifecycle, logs, and resource fetch.";
@@ -233,7 +252,7 @@ const definition = defineStep<
 			const runningServersPrompt = await buildRunningServersPrompt(services);
 			const messages = GraphBase.chat.systemMessage(
 				input.messages,
-				`${NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT}\n\n${runningCommandsPrompt}${runningServersPrompt}`,
+				`${NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT}\n\n${ARTIFACT_FEATURE_SYSTEM_PROMPT}\n\n${runningCommandsPrompt}${runningServersPrompt}`,
 			);
 
 			return {
@@ -273,6 +292,36 @@ stepRegistry.register(STEP_NAME, createNodejsSandboxFeatureStep, {
 	description: NODEJS_SANDBOX_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-nodejs-sandbox-feature",
+	name: NODEJS_SANDBOX_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description: "Messages with Node.js sandbox usage instruction",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description: "Tools extended with container toolset",
+		},
+	],
+	metadata: {
+		description: NODEJS_SANDBOX_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.nodejsSandboxFeature.description",
+		displayName: "Node.js Sandbox",
+		nameKey: "flowBuilder.features.nodejsSandboxFeature.name",
+		tools: [...NODEJS_SANDBOX_FEATURE_TOOLS],
+		systemPrompt: NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		icon: { name: "Terminal", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

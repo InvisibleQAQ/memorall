@@ -5,6 +5,11 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 
@@ -168,6 +173,37 @@ stepRegistry.register(STEP_NAME, createDocumentsFsFeatureStep, {
 	description: DOCUMENTS_FS_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-documents-fs-feature",
+	name: DOCUMENTS_FS_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description: "Messages with document filesystem instructions",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description: "Tools extended with fs toolset (v2)",
+		},
+	],
+	metadata: {
+		description: DOCUMENTS_FS_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.documentsFsFeature.description",
+		displayName: "Documents File System",
+		nameKey: "flowBuilder.features.documentsFsFeature.name",
+		tools: [...DOCUMENTS_FS_FEATURE_TOOLS],
+		systemPrompt: DOCUMENTS_FS_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		recommended: true,
+		icon: { name: "FolderOpen", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

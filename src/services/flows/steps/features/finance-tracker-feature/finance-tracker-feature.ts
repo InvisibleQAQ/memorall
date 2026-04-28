@@ -5,6 +5,11 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import type { ActiveWebSessionInfo } from "@/services/web-browser";
@@ -427,6 +432,38 @@ stepRegistry.register(STEP_NAME, createFinanceTrackerFeatureStep, {
 	description: FINANCE_TRACKER_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-finance-tracker-feature",
+	name: FINANCE_TRACKER_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description:
+				"Messages with financial research instructions and open sessions.",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description:
+				"Tools extended with web + doc toolset for stock/company research.",
+		},
+	],
+	metadata: {
+		description: FINANCE_TRACKER_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.financeTrackerFeature.description",
+		displayName: "Finance Tracker",
+		nameKey: "flowBuilder.features.financeTrackerFeature.name",
+		tools: [...FINANCE_TRACKER_FEATURE_TOOLS],
+		systemPrompt: FINANCE_TRACKER_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		icon: { name: "TrendingUp", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

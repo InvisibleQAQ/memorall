@@ -6,6 +6,7 @@ import {
 	type AgentState,
 } from "./state";
 import {
+	createOutputMessageChunks,
 	GraphBase,
 	type CombinedTool,
 	type GraphTool,
@@ -110,14 +111,14 @@ export class AgentGraph extends GraphBase<
 	}
 
 	/**
-	 * Route after agent node: go to tools if there are tool calls, otherwise end
+	 * Route after agent node:
+	 * - agentNode writes tool-call messages to outputMessages (working memory)
+	 * - agentNode finished path commits to messages and does NOT write to outputMessages
+	 * So: pending tool calls are always the last item in outputMessages.
 	 */
 	private routeAfterAgent = (
 		state: AgentState,
 	): "tool_executor" | typeof END => {
-		const lastMessage = this.chat.lastMessage(state.messages);
-
-		// Check for max iterations
 		if (state.currentIteration >= state.maxIterations) {
 			logInfo(
 				`[AGENT] Max iterations (${state.maxIterations}) reached, ending`,
@@ -125,12 +126,14 @@ export class AgentGraph extends GraphBase<
 			return END;
 		}
 
-		// If last step has tool calls, route to tools node
-		if (lastMessage?.role === "assistant" && lastMessage.tool_calls?.length) {
+		const lastOutputMessage = this.chat.lastMessage(state.outputMessages);
+		if (
+			lastOutputMessage?.role === "assistant" &&
+			lastOutputMessage.tool_calls?.length
+		) {
 			return "tool_executor";
 		}
 
-		// No tool calls means we have a final response
 		return END;
 	};
 
@@ -141,147 +144,136 @@ export class AgentGraph extends GraphBase<
 	};
 
 	/**
-	 * Agent node: Call LLM with tools (streaming) to decide on tool use or final response
+	 * Agent node: streams LLM response and decides on tool use or final response.
+	 *
+	 * LLM context = stable messages + accumulated working memory (outputMessages).
+	 *
+	 * Tool call path  → writes assistant message (with tool_calls) to outputMessages.
+	 * Finished path   → commits all working memory + final response into messages.
 	 */
 	agentNode = async (
 		state: AgentState,
 		runConfig?: LangGraphRunnableConfig,
 	): Promise<Partial<AgentState>> => {
 		const llm = this.services.llm;
+		if (!llm.isReady()) throw new Error("LLM service is not ready");
 
-		if (!llm.isReady()) {
-			throw new Error("LLM service is not ready");
-		}
+		// Full LLM context: stable history + working memory accumulated so far
+		const llmMessages = [...state.messages, ...state.outputMessages];
+		const tools = this.combinedTools.map((t) => t.tool);
 
-		try {
-			const messages = state.messages;
-			const tools = this.combinedTools.map((t) => t.tool);
+		logInfo(
+			"[AGENT] Calling LLM with",
+			llmMessages.length,
+			"messages and",
+			tools.length,
+			"tools",
+		);
 
-			logInfo(
-				"[AGENT] Calling LLM with",
-				messages.length,
-				"messages and",
-				tools.length,
-				"tools",
-			);
+		const stream = llm.chatCompletions({
+			messages: llmMessages,
+			tools,
+			tool_choice: "auto",
+			stream: true,
+		}) as AsyncIterableIterator<ChatCompletionChunk>;
 
-			// Use native OpenAI tool calling with streaming
-			const stream = llm.chatCompletions({
-				messages,
-				tools,
-				tool_choice: "auto",
-				stream: true,
-			}) as AsyncIterableIterator<ChatCompletionChunk>;
+		let content = "";
+		const toolCallsMap = new Map<
+			number,
+			{
+				id: string;
+				type: "function";
+				function: { name: string; arguments: string };
+			}
+		>();
 
-			// Accumulate response from stream
-			let content = "";
-			const toolCallsMap = new Map<
-				number,
-				{
-					id: string;
-					type: "function";
-					function: { name: string; arguments: string };
-				}
-			>();
-			for await (const chunk of stream) {
-				const delta = chunk.choices[0]?.delta;
+		for await (const chunk of stream) {
+			const delta = chunk.choices[0]?.delta;
+			if (delta?.content) content += delta.content;
+			runConfig?.writer?.({ type: "llm", chunk });
 
-				// Accumulate content
-				if (delta?.content) {
-					content += delta.content;
-				}
-				runConfig?.writer?.({ type: "llm", chunk });
-
-				// Accumulate tool calls
-				if (delta?.tool_calls) {
-					for (const tc of delta.tool_calls) {
-						const existing = toolCallsMap.get(tc.index);
-						if (existing) {
-							// Append to existing tool call
-							if (tc.function?.arguments) {
-								existing.function.arguments += tc.function.arguments;
-							}
-						} else {
-							// New tool call
-							toolCallsMap.set(tc.index, {
-								id: tc.id || crypto.randomUUID(),
-								type: "function",
-								function: {
-									name: tc.function?.name || "",
-									arguments: tc.function?.arguments || "",
-								},
-							});
-						}
+			if (delta?.tool_calls) {
+				for (const tc of delta.tool_calls) {
+					const existing = toolCallsMap.get(tc.index);
+					if (existing) {
+						if (tc.function?.arguments)
+							existing.function.arguments += tc.function.arguments;
+					} else {
+						toolCallsMap.set(tc.index, {
+							id: tc.id || crypto.randomUUID(),
+							type: "function",
+							function: {
+								name: tc.function?.name || "",
+								arguments: tc.function?.arguments || "",
+							},
+						});
 					}
 				}
 			}
+		}
 
-			const toolCalls = Array.from(toolCallsMap.values());
+		const toolCalls = Array.from(toolCallsMap.values());
+		logInfo(
+			"[AGENT] Stream complete - content:",
+			content.length,
+			"tool_calls:",
+			toolCalls.length,
+		);
 
-			logInfo(
-				"[AGENT] Stream complete - content length:",
-				content.length,
-				"tool_calls:",
-				toolCalls.length,
-			);
-
-			// Check if LLM wants to call tools
-			if (toolCalls.length > 0) {
-				const updatedMessages = this.chat.assistantMessage(
-					messages,
-					content || null,
-					toolCalls,
-				);
-
-				return {
-					messages: updatedMessages,
-					currentIteration: state.currentIteration + 1,
-				};
-			}
-
-			const updatedMessages = this.chat.assistantMessage(
-				messages,
-				content || null,
-			);
-
+		// Tool call path: write assistant message to working memory, defer final commit
+		if (toolCalls.length > 0) {
 			return {
-				messages: updatedMessages,
-				response: content,
+				outputMessages: [
+					{
+						role: "assistant" as const,
+						content: content || null,
+						tool_calls: toolCalls,
+					},
+				],
 				currentIteration: state.currentIteration + 1,
 			};
-		} catch (error) {
-			logError("[AGENT] Error:", error);
-			throw error;
 		}
+
+		// Finished path: commit working memory + final response into messages
+		return {
+			messages: [
+				...state.messages,
+				...state.outputMessages,
+				{ role: "assistant" as const, content },
+			],
+			response: content,
+			currentIteration: state.currentIteration + 1,
+		};
 	};
 
 	/**
-	 * Tools node: Execute tool calls and return results
+	 * Tools node: executes tool calls from working memory, appends results to working memory.
+	 * Only updates outputMessages — messages stays intact until agentNode finishes.
 	 */
 	toolsNode = async (
 		state: AgentState,
 		runConfig?: LangGraphRunnableConfig,
 	): Promise<Partial<AgentState>> => {
-		const lastMessage = this.chat.lastMessage(state.messages);
+		// The pending tool-call message is always the last item in working memory
+		const lastMessage = this.chat.lastMessage(state.outputMessages);
 
-		if (
-			lastMessage?.role !== "assistant" ||
-			!lastMessage.tool_calls ||
-			lastMessage.tool_calls.length === 0
-		) {
-			throw new Error("No tool calls found in the last step");
+		if (lastMessage?.role !== "assistant" || !lastMessage.tool_calls?.length) {
+			throw new Error("No tool calls found in working memory");
 		}
 
-		let updatedMessages = state.messages;
+		// Fresh working copy so tool executors can push messages via appendOutputMessagesToState
+		const toolState: AgentState = { ...state, outputMessages: [] };
+		let toolStateOffset = 0;
+		const outputMessages: AgentState["outputMessages"] = [];
 		const toolResults: Array<{
 			toolName: string;
-			content: string;
-			images: ReturnType<typeof extractToolResult>["images"];
+			content: ReturnType<typeof extractToolResult>["content"];
+			contentText: string;
 			toolCall: (typeof lastMessage.tool_calls)[number];
 			toolMetadata?: Record<string, unknown>;
 		}> = [];
 
-		logInfo("[TOOL EXECUTE] Start tool call", lastMessage.tool_calls);
+		logInfo("[TOOL EXECUTE] Start tool calls", lastMessage.tool_calls);
 
 		for (const toolCall of lastMessage.tool_calls) {
 			const toolName = toolCall.function.name;
@@ -289,65 +281,69 @@ export class AgentGraph extends GraphBase<
 			runConfig?.writer?.({
 				type: "execute-start",
 				node: "tool_executor",
-				metadata: {
-					tool: toolName,
-					tool_call_id: toolCall.id,
-				},
+				metadata: { tool: toolName, tool_call_id: toolCall.id },
 			});
 
 			if (!combined) {
 				const content = `Error: Tool '${toolName}' not found`;
-				updatedMessages = this.chat.toolMessage(
-					updatedMessages,
-					toolCall.id,
+				outputMessages.push({
+					role: "tool" as const,
 					content,
-				);
-				toolResults.push({
-					toolName,
-					content,
-					images: [],
-					toolCall,
+					tool_call_id: toolCall.id,
 				});
+				toolResults.push({ toolName, content, contentText: content, toolCall });
 				continue;
 			}
 
 			try {
 				const args = JSON.parse(toolCall.function.arguments);
-
-				// Validate and execute the tool (services already bound via factory)
 				const validatedArgs = parseToolInput(combined.executor.schema, args);
-				const rawResult = await combined.executor.execute(validatedArgs);
-				const { content, images } = extractToolResult(rawResult);
-				logInfo("[TOOL EXECUTE] Tool call result", toolCall, content);
+				const rawResult = await combined.executor.execute(validatedArgs, {
+					state: toolState,
+				});
+				const { content, contentText } = extractToolResult(rawResult);
 
-				// LLM tool message must be a string (OpenAI spec — no array content on role:tool)
-				updatedMessages = this.chat.toolMessage(
-					updatedMessages,
-					toolCall.id,
+				// Collect any messages the tool executor pushed to its local working copy
+				const executorMessages =
+					toolState.outputMessages.slice(toolStateOffset);
+				toolStateOffset = toolState.outputMessages.length;
+				outputMessages.push(...executorMessages);
+				for (const chunk of createOutputMessageChunks(executorMessages)) {
+					runConfig?.writer?.({ type: "llm", chunk });
+				}
+
+				outputMessages.push({
+					role: "tool" as const,
 					content,
-				);
+					tool_call_id: toolCall.id,
+				});
 				toolResults.push({
 					toolName,
 					content,
-					images,
+					contentText,
 					toolCall,
 					toolMetadata: combined.executor.metadata,
 				});
+				logInfo(
+					"[TOOL EXECUTE] Tool result",
+					toolCall.function.name,
+					contentText,
+				);
 			} catch (error) {
 				const errorMessage =
 					error instanceof Error ? error.message : "Unknown error";
 				logError(`[TOOLS] Error executing ${toolName}:`, error);
 
 				const content = `Error: ${errorMessage}`;
-				updatedMessages = this.chat.toolMessage(
-					updatedMessages,
-					toolCall.id,
+				outputMessages.push({
+					role: "tool" as const,
 					content,
-				);
+					tool_call_id: toolCall.id,
+				});
 				toolResults.push({
 					toolName,
 					content,
-					images: [],
+					contentText: content,
 					toolCall,
 					toolMetadata: combined.executor.metadata,
 				});
@@ -355,7 +351,7 @@ export class AgentGraph extends GraphBase<
 		}
 
 		const actions = toolResults.map((result) => {
-			const structured = parseStructuredActionPayload(result.content);
+			const structured = parseStructuredActionPayload(result.contentText);
 			const actionName =
 				typeof structured?.actionType === "string"
 					? structured.actionType
@@ -363,7 +359,7 @@ export class AgentGraph extends GraphBase<
 			const actionDescription =
 				typeof structured?.description === "string"
 					? structured.description
-					: result.content;
+					: result.contentText;
 			const mcpMetadata = isObject(result.toolMetadata?.mcp)
 				? result.toolMetadata.mcp
 				: undefined;
@@ -372,15 +368,14 @@ export class AgentGraph extends GraphBase<
 			try {
 				const parsed = JSON.parse(result.toolCall.function.arguments);
 				if (isObject(parsed)) rawArgs = parsed;
-			} catch (error) {
+			} catch {
 				// leave rawArgs empty
 			}
-			const input = formatYAML(rawArgs);
 
 			return {
 				id: crypto.randomUUID(),
 				name: actionName,
-				description: `${input}\noutput:\n${truncateOutput(actionDescription)}`,
+				description: `${formatYAML(rawArgs)}\noutput:\n${truncateOutput(actionDescription)}`,
 				metadata: {
 					tool: result.toolName,
 					tool_call: result.toolCall,
@@ -389,16 +384,16 @@ export class AgentGraph extends GraphBase<
 						: {}),
 					...(mcpMetadata ? { mcp: mcpMetadata } : {}),
 					...(structured || {}),
-					...(result.images.length > 0 ? { images: result.images } : {}),
 				},
 			};
 		});
+
 		if (actions.length) {
 			runConfig?.writer?.({ type: "actions", actions });
 		}
-		return {
-			messages: updatedMessages,
-		};
+
+		// Only update working memory — messages stays intact until agentNode finishes
+		return { outputMessages };
 	};
 }
 

@@ -5,6 +5,11 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 
@@ -104,6 +109,38 @@ stepRegistry.register(STEP_NAME, createStep, {
 	description: `[Legacy] ${DOCUMENTS_FEATURE_DESCRIPTION} Prefer documents-fs-feature.`,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-documents-feature",
+	name: DOCUMENTS_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description: "Messages with documents feature instruction",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description: "Tools extended with documents toolset",
+		},
+	],
+	metadata: {
+		description: `[LEGACY] ${DOCUMENTS_FEATURE_DESCRIPTION} Use "documents-fs-feature" instead.`,
+		descriptionKey: "flowBuilder.features.documentsFeature.description",
+		displayName: "Documents (Legacy)",
+		nameKey: "flowBuilder.features.documentsFeature.name",
+		tools: [...DOCUMENTS_FEATURE_TOOLS],
+		systemPrompt: DOCUMENTS_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		legacy: true,
+		recommended: false,
+		icon: { name: "FileText", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

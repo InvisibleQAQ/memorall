@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import type { ActionRenderer } from "@/main/modules/chat/components/types";
-import type { ToolResultImage } from "@/services/flows/interfaces/tool";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import {
 	extractMermaidContent,
@@ -127,3 +126,7 @@ export const defaultActionRenderer: ActionRenderer = (item, isOpen) => {
 		</div>
 	);
 };
+interface ToolResultImage {
+	path: string;
+	mimeType: string;
+}

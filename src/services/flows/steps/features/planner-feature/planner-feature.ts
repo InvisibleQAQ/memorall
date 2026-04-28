@@ -5,6 +5,11 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 
@@ -154,6 +159,36 @@ stepRegistry.register(STEP_NAME, createPlannerFeatureStep, {
 	description: PLANNER_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-planner-feature",
+	name: PLANNER_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description: "Messages with planner mode instructions.",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description: "Tools extended with planner toolset.",
+		},
+	],
+	metadata: {
+		description: PLANNER_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.plannerFeature.description",
+		displayName: "Planner",
+		nameKey: "flowBuilder.features.plannerFeature.name",
+		tools: [...PLANNER_FEATURE_TOOLS],
+		systemPrompt: PLANNER_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		icon: { name: "ListChecks", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

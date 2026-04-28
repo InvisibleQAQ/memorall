@@ -12,6 +12,11 @@ import type {
 import type { AllServices } from "@/services/flows/interfaces/tool";
 import { stepRegistry } from "@/services/flows/step-registry";
 import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
+import {
 	MultiAgentManager,
 	SEND_MESSAGE_TO_AGENT_TOOL_NAME,
 	type SendMessageToAgentToolConfig,
@@ -190,6 +195,44 @@ stepRegistry.register(STEP_NAME, createMultiAgentFeatureStep, {
 		topicId: "graphId",
 	},
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-multi-agent-feature",
+	name: MULTI_AGENT_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: [
+		...FEATURE_DEFAULT_INPUTS,
+		{
+			name: "topicId",
+			type: "string",
+			required: false,
+			description: "Current topic ID passed to delegated child agents",
+		},
+	],
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description: "Messages with multi-agent delegation instructions.",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description: "Tools extended with configured child-agent delegation.",
+		},
+	],
+	metadata: {
+		description: MULTI_AGENT_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.multiAgentFeature.description",
+		displayName: "Multi-Agent Delegation",
+		nameKey: "flowBuilder.features.multiAgentFeature.name",
+		tools: [...MULTI_AGENT_FEATURE_TOOLS],
+		systemPrompt: MULTI_AGENT_FEATURE_SYSTEM_PROMPT,
+		customizable: true,
+		icon: { name: "GitFork", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

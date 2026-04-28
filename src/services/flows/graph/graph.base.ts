@@ -6,8 +6,11 @@ import {
 	type LangGraphRunnableConfig,
 } from "@langchain/langgraph/web";
 import type {
+	ChatCompletionContentPart,
+	ChatCompletionChunk,
 	ChatCompletionMessageParam,
 	ChatCompletionMessageToolCall,
+	ChatCompletionToolMessageParam,
 	ChatCompletionTool,
 } from "@/types/openai";
 import {
@@ -43,6 +46,7 @@ export type GraphTool = ToolName | ConfiguredGraphTool | BaseTool;
 export interface BaseStateBase {
 	messages: ChatCompletionMessageParam[];
 	response?: string;
+	outputMessages: ChatCompletionMessageParam[];
 	tools: GraphTool[];
 }
 
@@ -64,6 +68,89 @@ const getSystemContent = (message: ChatCompletionMessageParam): string => {
 			.trim();
 	}
 	return "";
+};
+
+export const messageContentToText = (
+	content:
+		| ChatCompletionMessageParam["content"]
+		| ChatCompletionToolMessageParam["content"]
+		| null
+		| undefined,
+): string => {
+	if (!content) return "";
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content
+		.map((part: ChatCompletionContentPart) =>
+			part.type === "text" ? part.text : `[${part.type}]`,
+		)
+		.join("\n");
+};
+
+export const outputMessagesToText = (
+	messages: ChatCompletionMessageParam[],
+): string =>
+	messages
+		.map((message) => messageContentToText(message.content))
+		.filter(Boolean)
+		.join("\n\n");
+
+export const buildResponseFromOutputMessages = (
+	currentMessages: ChatCompletionMessageParam[] | undefined,
+	nextMessages: ChatCompletionMessageParam[],
+): string =>
+	outputMessagesToText([...(currentMessages ?? []), ...nextMessages]);
+
+export const appendOutputMessagesToState = <TState extends BaseStateBase>(
+	state: TState,
+	...messages: ChatCompletionMessageParam[]
+): TState => {
+	state.outputMessages.push(...messages);
+	return state;
+};
+
+export const appendAssistantOutputToState = <TState extends BaseStateBase>(
+	state: TState,
+	content: string | null | undefined,
+): TState => {
+	if (!content || messageContentToText(content).trim().length === 0) {
+		return state;
+	}
+
+	return appendOutputMessagesToState(state, {
+		role: "assistant",
+		content,
+	});
+};
+
+export const createOutputMessageChunks = (
+	messages: ChatCompletionMessageParam[],
+): ChatCompletionChunk[] => {
+	const chunks: ChatCompletionChunk[] = [];
+
+	for (const message of messages) {
+		if (message.role !== "assistant") continue;
+		const content = messageContentToText(message.content);
+		if (!content) continue;
+		chunks.push({
+			id: `chunk-${Date.now()}-${crypto.randomUUID()}`,
+			object: "chat.completion.chunk",
+			created: Math.floor(Date.now() / 1000),
+			model: "",
+			choices: [
+				{
+					index: 0,
+					delta: {
+						role: "assistant" as const,
+						content,
+					},
+					finish_reason: null,
+				},
+			],
+		});
+	}
+
+	return chunks;
 };
 
 export const normalizeChatMessages = (
@@ -152,6 +239,10 @@ export const BaseAnnotation = {
 	response: Annotation<string>({
 		value: (x, y) => y ?? x,
 		default: () => "",
+	}),
+	outputMessages: Annotation<ChatCompletionMessageParam[]>({
+		value: (x, y) => [...(x ?? []), ...(y ?? [])],
+		default: () => [],
 	}),
 	tools: Annotation<GraphTool[]>({
 		value: (x, y) => y ?? x,
@@ -308,7 +399,7 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 		toolMessage: (
 			messages: ChatCompletionMessageParam[],
 			tool_call_id: string,
-			content: string,
+			content: ChatCompletionToolMessageParam["content"],
 		): ChatCompletionMessageParam[] => [
 			...messages,
 			{

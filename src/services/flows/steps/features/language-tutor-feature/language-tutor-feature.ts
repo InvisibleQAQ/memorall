@@ -5,6 +5,11 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 
@@ -232,6 +237,37 @@ stepRegistry.register(STEP_NAME, createLanguageTutorFeatureStep, {
 	description: LANGUAGE_TUTOR_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-language-tutor-feature",
+	name: LANGUAGE_TUTOR_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description: "Messages with language tutor instructions.",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description:
+				"Tools extended with knowledge_graph and current_time toolset.",
+		},
+	],
+	metadata: {
+		description: LANGUAGE_TUTOR_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.languageTutorFeature.description",
+		displayName: "Language Tutor",
+		nameKey: "flowBuilder.features.languageTutorFeature.name",
+		tools: [...LANGUAGE_TUTOR_FEATURE_TOOLS],
+		systemPrompt: LANGUAGE_TUTOR_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		icon: { name: "Languages", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

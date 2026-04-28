@@ -5,6 +5,11 @@ import type {
 	StepSpecFromDefinition,
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	featureCatalogRegistry,
+	FEATURE_DEFAULT_INPUTS,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
 import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import type { ActiveWebSessionInfo } from "@/services/web-browser";
@@ -244,6 +249,37 @@ stepRegistry.register(STEP_NAME, createNewsCollectionFeatureStep, {
 	description: NEWS_COLLECTION_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
 	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-news-collection-feature",
+	name: NEWS_COLLECTION_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["knowledge-rag"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: [
+		{
+			name: "messages",
+			type: "Message[]",
+			description:
+				"Messages with news research instructions and open sessions.",
+		},
+		{
+			name: "tools",
+			type: "Tool[]",
+			description: "Tools extended with web toolset for news browsing.",
+		},
+	],
+	metadata: {
+		description: NEWS_COLLECTION_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.newsCollectionFeature.description",
+		displayName: "News Collection",
+		nameKey: "flowBuilder.features.newsCollectionFeature.name",
+		tools: [...NEWS_COLLECTION_FEATURE_TOOLS],
+		systemPrompt: NEWS_COLLECTION_FEATURE_SYSTEM_PROMPT,
+		customizable: false,
+		icon: { name: "Newspaper", type: "lucide" },
+	} satisfies FeatureCatalogMetadata,
 });
 
 declare global {

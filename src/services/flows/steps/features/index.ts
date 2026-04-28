@@ -1,0 +1,21 @@
+// Import feature steps for side-effect registration (stepRegistry + featureCatalogRegistry)
+import "./artifact-feature";
+import "./context-quick-retrieve";
+import "./context-smart-retrieve";
+import "./context-llm-retrieve";
+import "./fs-feature";
+import "./documents-fs-feature";
+import "./documents-feature";
+import "./nodejs-sandbox-feature";
+import "./web-feature";
+import "./news-collection-feature";
+import "./travel-planner-feature";
+import "./meal-planner-feature";
+import "./daily-briefing-feature";
+import "./job-application-feature";
+import "./planner-feature";
+import "./language-tutor-feature";
+import "./shopping-assistant-feature";
+import "./finance-tracker-feature";
+import "./multi-agent-feature";
+import "./mcp-feature";
