@@ -119,6 +119,26 @@
 			"answer": "Generating answer"
 		}
 	},
+	"citation": {
+		"node": "Knowledge Node",
+		"edge": "Knowledge Edge",
+		"loading": "Loading...",
+		"clickToLoad": "Click to load details",
+		"name": "Name",
+		"type": "Type",
+		"summary": "Summary",
+		"connection": "Connection",
+		"relationship": "Relationship",
+		"fact": "Fact"
+	},
+	"htmlPreview": {
+		"label": "HTML",
+		"save": "Save",
+		"saving": "Saving…",
+		"saved": "Saved",
+		"preview": "Preview",
+		"code": "Code"
+	},
 	"smartSelect": {
 		"title": "Smart Select context",
 		"label": "Smart Select",

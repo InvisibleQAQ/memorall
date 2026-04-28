@@ -5,5 +5,8 @@ export interface DefaultSkillManifestEntry {
 	collection: string;
 	repo: string;
 	sourceUrl: string;
-	rawUrl: string;
+	/** Remote raw URL to fetch skill body from. Omit when `body` is provided. */
+	rawUrl?: string;
+	/** Inline skill body — skips remote fetch when present. */
+	body?: string;
 }

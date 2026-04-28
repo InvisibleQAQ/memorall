@@ -61,7 +61,9 @@
 		"tags": "Thẻ",
 		"topics": "Chủ đề",
 		"description": "Mô tả",
-		"convertSuccess": "Chuyển đổi nội dung thành công."
+		"convertSuccess": "Chuyển đổi nội dung thành công.",
+		"preview": "Xem trước",
+		"code": "Mã nguồn"
 	},
 	"tree": {
 		"dropToRoot": "Thả để di chuyển đến thư mục gốc",

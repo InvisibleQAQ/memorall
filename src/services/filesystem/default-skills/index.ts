@@ -1,5 +1,6 @@
 import { ALIREZAREZVANI_DEFAULT_SKILLS } from "./alirezarezvani";
 import { ANTHROPIC_DEFAULT_SKILLS } from "./anthropic";
+import { BUNDLED_DEFAULT_SKILLS } from "./bundled";
 import { SECONDSKY_DEFAULT_SKILLS } from "./secondsky";
 import type { DefaultSkillManifestEntry } from "./types";
 
@@ -8,6 +9,7 @@ const DEFAULT_SKILL_MANIFEST = [
 	...ANTHROPIC_DEFAULT_SKILLS,
 	...SECONDSKY_DEFAULT_SKILLS,
 	...ALIREZAREZVANI_DEFAULT_SKILLS,
+	...BUNDLED_DEFAULT_SKILLS,
 ];
 
 const defaultSkillIndex = new Map(
@@ -66,7 +68,14 @@ export const readDefaultSkill = async (
 	}
 
 	const pendingSkill = (async () => {
-		const response = await fetch(manifestEntry.rawUrl);
+		if (manifestEntry.body !== undefined) {
+			return {
+				...toSummary(manifestEntry),
+				body: manifestEntry.body,
+			};
+		}
+
+		const response = await fetch(manifestEntry.rawUrl!);
 		if (!response.ok) {
 			throw new Error(
 				`Failed to load default skill "${name}" from ${manifestEntry.repo}: HTTP ${response.status}`,

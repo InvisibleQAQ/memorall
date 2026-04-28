@@ -118,6 +118,26 @@
 			"answer": "Tạo câu trả lời"
 		}
 	},
+	"citation": {
+		"node": "Nút kiến thức",
+		"edge": "Cạnh kiến thức",
+		"loading": "Đang tải...",
+		"clickToLoad": "Nhấn để xem chi tiết",
+		"name": "Tên",
+		"type": "Loại",
+		"summary": "Tóm tắt",
+		"connection": "Kết nối",
+		"relationship": "Quan hệ",
+		"fact": "Sự kiện"
+	},
+	"htmlPreview": {
+		"label": "HTML",
+		"save": "Lưu",
+		"saving": "Đang lưu…",
+		"saved": "Đã lưu",
+		"preview": "Xem trước",
+		"code": "Mã nguồn"
+	},
 	"smartSelect": {
 		"title": "Ngữ cảnh chọn thông minh",
 		"label": "Chọn thông minh",

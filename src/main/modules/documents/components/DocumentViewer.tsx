@@ -18,6 +18,8 @@ import {
 	Tag,
 	Tags,
 	MoreHorizontal,
+	Code,
+	Eye,
 } from "lucide-react";
 import { eq, inArray } from "drizzle-orm";
 
@@ -79,6 +81,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	const [excelData, setExcelData] = useState<Uint8Array | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [showProperties, setShowProperties] = useState(false);
+	const [htmlShowCode, setHtmlShowCode] = useState(false);
 	const pdfPageSelector = useModalSelector();
 	const excelSheetSelector = useModalSelector();
 	const [loadedFileTopics, setLoadedFileTopics] = useState<Topic[]>([]);
@@ -540,8 +543,53 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 					</div>
 				)}
 
+				{textContent !== null &&
+					(file.mimeType === "text/html" ||
+						file.name.toLowerCase().endsWith(".html")) && (
+						<div className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4 gap-2">
+							<div className="flex justify-end">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setHtmlShowCode((prev) => !prev)}
+									className="h-7 gap-1.5 text-xs"
+								>
+									{htmlShowCode ? (
+										<>
+											<Eye className="h-3.5 w-3.5" />
+											{t("viewer.preview")}
+										</>
+									) : (
+										<>
+											<Code className="h-3.5 w-3.5" />
+											{t("viewer.code")}
+										</>
+									)}
+								</Button>
+							</div>
+							<div className="flex-1 border rounded-lg overflow-hidden">
+								{htmlShowCode ? (
+									<CodeEditor
+										file={file}
+										initialContent={textContent}
+										onSave={handleSaveContent}
+									/>
+								) : (
+									<iframe
+										srcDoc={textContent}
+										sandbox="allow-scripts allow-same-origin"
+										className="w-full h-full bg-white"
+										title={file.name}
+									/>
+								)}
+							</div>
+						</div>
+					)}
+
 				{(file.type === "text" || file.type === "other") &&
-					textContent !== null && (
+					textContent !== null &&
+					file.mimeType !== "text/html" &&
+					!file.name.toLowerCase().endsWith(".html") && (
 						<div className="flex-1 overflow-hidden">
 							<CodeEditor
 								file={file}

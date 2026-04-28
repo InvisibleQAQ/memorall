@@ -16,7 +16,15 @@ import {
 	TaskTrigger,
 	TaskItem,
 } from "@/main/components/ui/shadcn-io/ai/task";
-import { Brain, ChevronDownIcon, Network, Link2, Sparkles } from "lucide-react";
+import {
+	Brain,
+	ChevronDownIcon,
+	Network,
+	Link2,
+	Sparkles,
+	Save,
+	Check,
+} from "lucide-react";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/main/components/molecules/ThemeContext";
@@ -28,11 +36,99 @@ import {
 import { serviceManager } from "@/services";
 import { eq } from "drizzle-orm";
 import { logError } from "@/utils/logger";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
 // Performance optimization: Define plugins and components outside component
 const remarkPlugins = [remarkGfm, remarkMath];
 const rehypePlugins = [rehypeKatex];
 const SEPARATE_RENDER_STREAM = false;
+
+type SaveState = "idle" | "saving" | "saved";
+
+const HtmlCodePreview: React.FC<{ code: string }> = React.memo(({ code }) => {
+	const { actualTheme } = useTheme();
+	const isDark = actualTheme === "dark";
+	const [showCode, setShowCode] = useState(false);
+	const [saveState, setSaveState] = useState<SaveState>("idle");
+	const { t } = useTranslation("chat");
+
+	const handleSave = async () => {
+		if (saveState !== "idle") return;
+		setSaveState("saving");
+		try {
+			const fileName = `preview-${Date.now()}.html`;
+			const file = new File([code], fileName, { type: "text/html" });
+			await documentFileSystemService.uploadFile(file, "/");
+			setSaveState("saved");
+			setTimeout(() => setSaveState("idle"), 2000);
+		} catch (err) {
+			logError("Failed to save HTML to documents:", err);
+			setSaveState("idle");
+		}
+	};
+
+	return (
+		<div className="rounded-md overflow-hidden border border-border my-2">
+			<div className="flex items-center justify-between border-b border-border px-3 py-1.5 bg-muted/30">
+				<span className="text-xs text-muted-foreground">
+					{t("htmlPreview.label")}
+				</span>
+				<div className="flex items-center gap-1">
+					<button
+						type="button"
+						onClick={handleSave}
+						disabled={saveState !== "idle"}
+						className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50 disabled:opacity-60"
+					>
+						{saveState === "saved" ? (
+							<>
+								<Check className="w-3 h-3" /> {t("htmlPreview.saved")}
+							</>
+						) : (
+							<>
+								<Save className="w-3 h-3" />{" "}
+								{saveState === "saving"
+									? t("htmlPreview.saving")
+									: t("htmlPreview.save")}
+							</>
+						)}
+					</button>
+					<button
+						type="button"
+						onClick={() => setShowCode((prev) => !prev)}
+						className="px-2 py-0.5 text-xs rounded bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
+					>
+						{showCode ? t("htmlPreview.preview") : t("htmlPreview.code")}
+					</button>
+				</div>
+			</div>
+			{showCode ? (
+				<SyntaxHighlighter
+					style={isDark ? oneDark : oneLight}
+					language="html"
+					PreTag="div"
+					className="text-sm"
+					customStyle={{
+						margin: 0,
+						padding: "1rem",
+						borderRadius: 0,
+						backgroundColor: isDark ? "hsl(220 13% 18%)" : "hsl(210 40% 98%)",
+					}}
+				>
+					{code}
+				</SyntaxHighlighter>
+			) : (
+				<iframe
+					srcDoc={code}
+					sandbox="allow-scripts allow-same-origin"
+					className="w-full bg-white"
+					style={{ height: "60vh", border: "none" }}
+					title="HTML Preview"
+				/>
+			)}
+		</div>
+	);
+});
 
 // Citation component with popover
 interface CitationProps {
@@ -43,6 +139,7 @@ interface CitationProps {
 
 const Citation: React.FC<CitationProps> = React.memo(
 	({ type, uuid, label }) => {
+		const { t } = useTranslation("chat");
 		const [open, setOpen] = useState(false);
 		const [data, setData] = useState<{
 			name?: string;
@@ -156,27 +253,29 @@ const Citation: React.FC<CitationProps> = React.memo(
 								<Link2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
 							)}
 							<h4 className="font-semibold text-sm">
-								{type === "node" ? "Knowledge Node" : "Knowledge Edge"}
+								{type === "node" ? t("citation.node") : t("citation.edge")}
 							</h4>
 						</div>
 
 						{loading ? (
 							<div className="flex items-center gap-2 text-sm text-muted-foreground">
 								<Sparkles className="w-4 h-4 animate-spin" />
-								<span>Loading...</span>
+								<span>{t("citation.loading")}</span>
 							</div>
 						) : data ? (
 							<div className="space-y-2">
 								{type === "node" ? (
 									<>
 										<div>
-											<div className="text-xs text-muted-foreground">Name</div>
+											<div className="text-xs text-muted-foreground">
+												{t("citation.name")}
+											</div>
 											<div className="text-sm font-medium">{data.name}</div>
 										</div>
 										{data.nodeType && (
 											<div>
 												<div className="text-xs text-muted-foreground">
-													Type
+													{t("citation.type")}
 												</div>
 												<div className="text-sm">{data.nodeType}</div>
 											</div>
@@ -184,7 +283,7 @@ const Citation: React.FC<CitationProps> = React.memo(
 										{data.summary && (
 											<div>
 												<div className="text-xs text-muted-foreground">
-													Summary
+													{t("citation.summary")}
 												</div>
 												<div className="text-sm text-muted-foreground line-clamp-3">
 													{data.summary}
@@ -197,7 +296,7 @@ const Citation: React.FC<CitationProps> = React.memo(
 										{data.sourceNode && data.destNode && (
 											<div>
 												<div className="text-xs text-muted-foreground">
-													Connection
+													{t("citation.connection")}
 												</div>
 												<div className="text-sm">
 													<span className="font-medium">{data.sourceNode}</span>
@@ -209,7 +308,7 @@ const Citation: React.FC<CitationProps> = React.memo(
 										{data.edgeType && (
 											<div>
 												<div className="text-xs text-muted-foreground">
-													Relationship
+													{t("citation.relationship")}
 												</div>
 												<div className="text-sm font-medium">
 													{data.edgeType}
@@ -219,7 +318,7 @@ const Citation: React.FC<CitationProps> = React.memo(
 										{data.factText && (
 											<div>
 												<div className="text-xs text-muted-foreground">
-													Fact
+													{t("citation.fact")}
 												</div>
 												<div className="text-sm text-muted-foreground">
 													{data.factText}
@@ -236,7 +335,7 @@ const Citation: React.FC<CitationProps> = React.memo(
 							</div>
 						) : (
 							<div className="text-sm text-muted-foreground">
-								Click to load details
+								{t("citation.clickToLoad")}
 							</div>
 						)}
 					</div>
@@ -447,6 +546,10 @@ const MarkdownMessageComponent: React.FC<MarkdownMessageProps> = ({
 			if (language === "mermaid") {
 				const chartContent = String(children).replace(/\n$/, "");
 				return <MermaidRenderer chart={chartContent} />;
+			}
+
+			if (language === "html") {
+				return <HtmlCodePreview code={String(children).replace(/\n$/, "")} />;
 			}
 
 			return (

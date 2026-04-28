@@ -18,6 +18,7 @@ import {
 	restoreAllProviders,
 	getEncryptedProviders,
 } from "@/utils/auth-provider-restore";
+import { detectSystemSpecs } from "@/main/modules/llm/utils/system-detection";
 
 const JOB_NAMES = {
 	getCurrentModel: "get-current-model",
@@ -971,11 +972,6 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 			stage: "Detecting system specifications",
 			progress: 20,
 		});
-
-		// Import detectSystemSpecs dynamically to run in offscreen context
-		const { detectSystemSpecs } = await import(
-			"@/main/modules/llm/utils/system-detection"
-		);
 
 		await updateJobProgress(jobId, {
 			stage: "Detecting WebGPU and hardware capabilities",

@@ -61,7 +61,9 @@
 		"tags": "Tags",
 		"topics": "Topics",
 		"description": "Description",
-		"convertSuccess": "Successfully converted content."
+		"convertSuccess": "Successfully converted content.",
+		"preview": "Preview",
+		"code": "Code"
 	},
 	"tree": {
 		"dropToRoot": "Drop to move to root folder",
