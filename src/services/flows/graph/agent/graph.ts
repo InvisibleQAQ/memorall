@@ -6,6 +6,7 @@ import {
 	type AgentState,
 } from "./state";
 import {
+	buildResponseFromOutputMessages,
 	createOutputMessageChunks,
 	GraphBase,
 	type CombinedTool,
@@ -235,13 +236,12 @@ export class AgentGraph extends GraphBase<
 		}
 
 		// Finished path: commit working memory + final response into messages
+		const finalMessage = { role: "assistant" as const, content };
+		const committedMessages = [...state.outputMessages, finalMessage];
+
 		return {
-			messages: [
-				...state.messages,
-				...state.outputMessages,
-				{ role: "assistant" as const, content },
-			],
-			response: content,
+			messages: [...state.messages, ...committedMessages],
+			response: buildResponseFromOutputMessages([], committedMessages),
 			currentIteration: state.currentIteration + 1,
 		};
 	};

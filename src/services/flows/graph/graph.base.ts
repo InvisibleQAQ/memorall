@@ -91,6 +91,7 @@ export const outputMessagesToText = (
 	messages: ChatCompletionMessageParam[],
 ): string =>
 	messages
+		.filter((message) => message.role === "assistant")
 		.map((message) => messageContentToText(message.content))
 		.filter(Boolean)
 		.join("\n\n");
