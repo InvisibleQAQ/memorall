@@ -28,7 +28,7 @@ import type {
 	ContextToSystemConfig,
 	ContextToSystemInput,
 	ContextToSystemOutput,
-} from "../knowledge-retrieval/context-to-system";
+} from "../common/context-to-system";
 
 const STEP_NAME = "context-smart-retrieve" as const;
 

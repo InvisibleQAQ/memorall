@@ -71,8 +71,13 @@ export const MessageKnowledgeGraph: React.FC<MessageKnowledgeGraphProps> = ({
 	}, [nodes, edges]);
 
 	return (
-		<div className="w-full rounded-lg overflow-hidden bg-background/50 border border-border">
-			<D3KnowledgeGraph graphData={graphData} width={600} height={400} />
+		<div className="w-full overflow-hidden">
+			<D3KnowledgeGraph
+				graphData={graphData}
+				width={600}
+				height={360}
+				variant="inline"
+			/>
 		</div>
 	);
 };

@@ -15,9 +15,12 @@ import {
 	workbookToMarkdown,
 } from "../handlers/excel-extraction";
 import NiceModal from "@ebay/nice-modal-react";
-import { TopicPickerDialog } from "@/main/modules/topics/modals";
 import { useProcessMonitor } from "@/main/stores/process-monitor";
 import type { ProcessingSource } from "@/main/stores/process-monitor";
+import {
+	KnowledgeConversionDialog,
+	type KnowledgeConversionSelection,
+} from "../components/KnowledgeConversionDialog";
 
 /**
  * Shared function for converting documents to knowledge graphs with topic selection
@@ -32,16 +35,20 @@ export async function convertToKnowledge(
 		useProcessMonitor.getState();
 
 	try {
-		// Show topic picker modal
-		const selectedTopicId = await NiceModal.show(TopicPickerDialog, {
+		// Show conversion modal with topic and grow mode selection.
+		const selection = await NiceModal.show(KnowledgeConversionDialog, {
 			fileName: file.name,
 		});
 
 		// Only return if user explicitly cancelled (null)
-		// undefined means "Default" (no topic), which should still process
-		if (selectedTopicId === null) {
+		if (selection === null) {
 			return; // User cancelled
 		}
+		const { topicId: selectedTopicId, growMode } =
+			(selection as KnowledgeConversionSelection) ?? {
+				topicId: undefined,
+				growMode: "knowledge",
+			};
 
 		// Add to topic if new association and not default (selectedTopicId is a string)
 		if (selectedTopicId && typeof selectedTopicId === "string") {
@@ -98,6 +105,7 @@ export async function convertToKnowledge(
 					filePath: file.path,
 					content: content,
 					topicId: selectedTopicId,
+					growMode,
 				},
 				{ stream: false },
 			);

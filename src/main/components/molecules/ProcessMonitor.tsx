@@ -48,6 +48,18 @@ const STATUS_COLORS = {
 	failed: "text-red-500",
 } as const;
 
+const PROCESS_TIMEOUT_MINUTES = 60;
+
+const isTimedOutSource = (source: Source): boolean => {
+	const status = source.status || "pending";
+	if (status !== "pending" && status !== "processing") return false;
+	const statusStartedAt =
+		source.statusValidFrom ?? source.updatedAt ?? source.createdAt;
+	const validFrom = statusStartedAt ? new Date(statusStartedAt) : null;
+	if (!validFrom || Number.isNaN(validFrom.getTime())) return false;
+	return Date.now() - validFrom.getTime() > PROCESS_TIMEOUT_MINUTES * 60 * 1000;
+};
+
 // STATUS_LABELS will be created inside component to access translations
 
 interface ProcessItemProps {
@@ -240,29 +252,54 @@ export const ProcessMonitor: React.FC = () => {
 		}
 	}, [offset, isLoadingMore, hasMore, processHistory]);
 
-	const activeProcessArray = Array.from(activeProcesses.entries()).map(
-		([filePath, process]) => ({
-			filePath,
-			name: process.name,
-			status: process.status || "pending",
-			progress: process.progress,
-			stage: process.stage,
-			createdAt: process.createdAt ? new Date(process.createdAt) : new Date(),
-			updatedAt: process.updatedAt ? new Date(process.updatedAt) : new Date(),
-		}),
-	);
+	const activeProcessArray = Array.from(activeProcesses.entries())
+		.map(([filePath, process]) => {
+			const effectiveStatus = getEffectiveSourceStatus(
+				process,
+				PROCESS_TIMEOUT_MINUTES,
+			);
+			return {
+				filePath,
+				name: process.name,
+				status: effectiveStatus,
+				progress: process.progress,
+				stage:
+					effectiveStatus === "failed" && isTimedOutSource(process)
+						? "Timed out after 1 hour"
+						: process.stage,
+				createdAt: process.createdAt ? new Date(process.createdAt) : new Date(),
+				updatedAt: process.updatedAt ? new Date(process.updatedAt) : new Date(),
+			};
+		})
+		.filter(
+			(process) =>
+				process.status === "pending" || process.status === "processing",
+		);
 
 	const historyItems = processHistory
 		.filter((source) => {
-			// Don't show items that are in activeProcesses
-			return !activeProcesses.has(source.targetId);
+			// Don't duplicate sources that still have an effectively active in-memory process.
+			const activeProcess = activeProcesses.get(source.targetId);
+			if (!activeProcess) return true;
+			const activeStatus = getEffectiveSourceStatus(
+				activeProcess,
+				PROCESS_TIMEOUT_MINUTES,
+			);
+			return activeStatus !== "pending" && activeStatus !== "processing";
 		})
 		.map((source) => {
-			const effectiveStatus = getEffectiveSourceStatus(source);
+			const effectiveStatus = getEffectiveSourceStatus(
+				source,
+				PROCESS_TIMEOUT_MINUTES,
+			);
 			return {
 				filePath: source.targetId,
 				name: source.name,
 				status: effectiveStatus,
+				stage:
+					effectiveStatus === "failed" && isTimedOutSource(source)
+						? "Timed out after 1 hour"
+						: undefined,
 				createdAt: source.createdAt ? new Date(source.createdAt) : new Date(),
 				updatedAt: source.updatedAt ? new Date(source.updatedAt) : new Date(),
 			};

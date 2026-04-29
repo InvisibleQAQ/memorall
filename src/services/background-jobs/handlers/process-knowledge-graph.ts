@@ -12,6 +12,7 @@ import { serviceManager } from "@/services";
 import { backgroundProcessFactory } from "./process-factory";
 import { and, eq } from "drizzle-orm";
 import { logWarn } from "@/utils/logger";
+import type { KnowledgeGrowMode } from "@/main/modules/knowledge/services/knowledge-graph-service";
 
 // Knowledge graph payload - file path, content, and optional topicId
 export interface KnowledgeGraphPayload {
@@ -19,6 +20,7 @@ export interface KnowledgeGraphPayload {
 	content: string;
 	topicId?: string; // undefined means default (no topic)
 	isSpecificTextConversion?: boolean; // If true, use aggressive extraction
+	growMode?: KnowledgeGrowMode;
 }
 
 // Define result types that handlers return
@@ -115,6 +117,7 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 						jobId,
 						filePath: pageData.filePath,
 						contentLength: pageData.content.length,
+						growMode: pageData.growMode ?? "knowledge",
 					},
 					"offscreen",
 				);
@@ -124,6 +127,7 @@ export class KnowledgeGraphHandler extends BaseProcessHandler<KnowledgeGraphJob>
 					pageData.content,
 					pageData.topicId, // Pass the topicId (undefined for default)
 					pageData.isSpecificTextConversion, // Pass the aggressive extraction flag
+					pageData.growMode ?? "knowledge",
 				);
 
 				await dependencies.logger.info(

@@ -9,7 +9,10 @@ import type {
 	KnowledgeGraphRelation,
 } from "@/types/knowledge-graph";
 import type { KnowledgeGraphState } from "@/services/flows/graph/knowledge/state";
+import type { StructMemState } from "@/services/flows/graph/structmem/state";
 import { isUuid } from "@/utils/uuid";
+
+export type KnowledgeGrowMode = "knowledge" | "structmem";
 
 export class KnowledgeGraphService {
 	private static instance: KnowledgeGraphService;
@@ -164,6 +167,7 @@ export class KnowledgeGraphService {
 		content: string,
 		topicId?: string,
 		isSpecificTextConversion?: boolean,
+		growMode: KnowledgeGrowMode = "knowledge",
 	): Promise<void> {
 		const conversionId = filePath;
 		// Initialize conversion progress
@@ -194,42 +198,49 @@ export class KnowledgeGraphService {
 				topicId: topicId, // Use the provided topicId (undefined for default)
 				sourceType: "file",
 				sourceUrl: filePath,
+				growMode,
 			});
 
 			this.updateConversion(conversionId, {
 				status: "extracting_entities",
-				stage: "Extracting entities...",
+				stage:
+					growMode === "structmem"
+						? "Extracting StructMem event entries..."
+						: "Extracting entities...",
 				progress: 10,
 			});
 
-			// Create knowledge graph flow
-			const knowledgeGraph = serviceManager.flowsService.createGraph(
-				"knowledge",
-				{
-					llm: serviceManager.getLLMService(),
-					embedding: serviceManager.getEmbeddingService(),
-					database: serviceManager.getDatabaseService(),
-					sandboxContainer: serviceManager.getSandboxContainerService(),
-				},
-			);
+			const services = {
+				llm: serviceManager.getLLMService(),
+				embedding: serviceManager.getEmbeddingService(),
+				database: serviceManager.getDatabaseService(),
+				sandboxContainer: serviceManager.getSandboxContainerService(),
+			};
 
-			// Prepare input state - file path and content with sourceId for KG tracking
-			const initialState: Partial<KnowledgeGraphState> = {
+			const baseState = {
 				content: content,
 				title: filePath,
 				url: filePath,
 				graphId: topicId,
 				sourceId: sourceId,
 				referenceTimestamp: new Date().toISOString(),
-				metadata: {} as Record<string, unknown>,
+				metadata: { growMode } as Record<string, unknown>,
 				currentMessage: `File: ${filePath}\n\nContent:\n${content}`,
 				sourceType: "file",
 				previousMessages: undefined,
-				isSpecificTextConversion: isSpecificTextConversion,
 			};
 
-			// Execute the knowledge graph flow with progress tracking
-			const stream = await knowledgeGraph.stream(initialState);
+			const stream =
+				growMode === "structmem"
+					? await serviceManager.flowsService
+							.createGraph("structmem", services)
+							.stream(baseState satisfies Partial<StructMemState>)
+					: await serviceManager.flowsService
+							.createGraph("knowledge", services)
+							.stream({
+								...baseState,
+								isSpecificTextConversion,
+							} satisfies Partial<KnowledgeGraphState>);
 
 			// Calculate stats
 			const stats: {
@@ -293,6 +304,31 @@ export class KnowledgeGraphService {
 				let progress = 20;
 
 				switch (stepName) {
+					case "extract_event":
+						status = "extracting_entities";
+						stage = "Extracting StructMem event entries...";
+						progress = 30;
+						break;
+					case "save_event_entries":
+						status = "saving_to_database";
+						stage = "Saving StructMem event memory...";
+						progress = 55;
+						break;
+					case "load_related_events":
+						status = "loading_existing_data";
+						stage = "Loading related StructMem events...";
+						progress = 70;
+						break;
+					case "consolidate_events":
+						status = "extracting_facts";
+						stage = "Consolidating StructMem memory...";
+						progress = 85;
+						break;
+					case "save_consolidation":
+						status = "saving_to_database";
+						stage = "Saving StructMem synthesis memory...";
+						progress = 95;
+						break;
 					case "load_entities":
 						status = "loading_existing_data";
 						stage = "Loading related entities...";
@@ -355,6 +391,7 @@ export class KnowledgeGraphService {
 
 			logInfo("Knowledge graph conversion completed:", {
 				filePath: filePath,
+				growMode,
 				stats,
 			});
 		} catch (error) {
@@ -386,6 +423,7 @@ export class KnowledgeGraphService {
 			topicId?: string;
 			sourceType?: string;
 			sourceUrl?: string;
+			growMode?: KnowledgeGrowMode;
 		},
 	): Promise<string> {
 		try {
@@ -404,6 +442,7 @@ export class KnowledgeGraphService {
 								sourceType: options.sourceType,
 								sourceUrl: options.sourceUrl,
 								topicId: options.topicId,
+								growMode: options.growMode ?? "knowledge",
 							},
 							referenceTime: new Date(),
 							graph: graphValue,
@@ -434,6 +473,7 @@ export class KnowledgeGraphService {
 			topicId?: string;
 			sourceType?: string;
 			sourceUrl?: string;
+			growMode?: KnowledgeGrowMode;
 		},
 	): Promise<string> {
 		try {
@@ -484,6 +524,7 @@ export class KnowledgeGraphService {
 									sourceType: options.sourceType,
 									sourceUrl: options.sourceUrl,
 									topicId: options.topicId,
+									growMode: options.growMode ?? "knowledge",
 								},
 								referenceTime: now,
 								graph: graphValue,

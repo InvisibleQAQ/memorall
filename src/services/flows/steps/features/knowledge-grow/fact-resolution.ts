@@ -8,7 +8,7 @@ import type {
 } from "@/services/flows/interfaces/step";
 import { stepRegistry } from "@/services/flows/step-registry";
 import type { AllServices } from "@/services/flows/interfaces/tool";
-import { UuidMapper } from "../../utils/uuid-mapping";
+import { UuidMapper } from "../../../utils/uuid-mapping";
 
 const STEP_NAME = "fact-resolution" as const;
 

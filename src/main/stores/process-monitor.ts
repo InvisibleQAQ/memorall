@@ -6,6 +6,15 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { Source } from "@/services/database/entities/sources";
+import { getEffectiveSourceStatus } from "@/services/database/types";
+
+const PROCESS_TIMEOUT_MINUTES = 60;
+
+const isActiveStatus = (status: string | null | undefined): boolean =>
+	status === "pending" || status === "processing";
+
+const getEffectiveProcessStatus = (source: Source): string =>
+	getEffectiveSourceStatus(source, PROCESS_TIMEOUT_MINUTES);
 
 export interface ProcessingSource extends Source {
 	progress?: number;
@@ -75,7 +84,9 @@ export const useProcessMonitor = create<ProcessMonitorState>()(
 		},
 
 		hasActiveProcesses: () => {
-			return get().activeProcesses.size > 0;
+			return Array.from(get().activeProcesses.values()).some((process) =>
+				isActiveStatus(getEffectiveProcessStatus(process)),
+			);
 		},
 
 		getProcessByFilePath: (filePath: string) => {
@@ -84,7 +95,9 @@ export const useProcessMonitor = create<ProcessMonitorState>()(
 
 		isProcessing: (filePath: string) => {
 			const process = get().activeProcesses.get(filePath);
-			return process?.status === "processing";
+			return process
+				? isActiveStatus(getEffectiveProcessStatus(process))
+				: false;
 		},
 	})),
 );
@@ -100,5 +113,10 @@ export function useIsProcessing(filePath: string): boolean {
  * Hook to get active process count
  */
 export function useActiveProcessCount(): number {
-	return useProcessMonitor((state) => state.activeProcesses.size);
+	return useProcessMonitor(
+		(state) =>
+			Array.from(state.activeProcesses.values()).filter((process) =>
+				isActiveStatus(getEffectiveProcessStatus(process)),
+			).length,
+	);
 }

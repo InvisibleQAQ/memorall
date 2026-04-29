@@ -54,6 +54,7 @@ const LUCIDE_MAP: Record<
 
 const FEATURE_ICON_ACCENTS: Record<string, string> = {
 	"rag-knowledge": "#22c55e",
+	"knowledge-retrieval": "#22c55e",
 	citations: "#a855f7",
 	"agent-node": "#f59e0b",
 	"fs-feature": "#06b6d4",

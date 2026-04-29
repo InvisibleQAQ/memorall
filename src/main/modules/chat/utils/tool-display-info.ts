@@ -26,6 +26,12 @@ export const TOOL_DISPLAY_INFO: Record<
 		description: "Query the knowledge graph for relationships and entities",
 		descriptionKey: "agentSettings.toolDescriptions.knowledge_graph",
 	},
+	structmem_knowledge_retrieval: {
+		description:
+			"Retrieve StructMem event and synthesis memories for grounded context",
+		descriptionKey:
+			"agentSettings.toolDescriptions.structmem_knowledge_retrieval",
+	},
 	doc_read: {
 		description: "Read document files from the file system",
 		descriptionKey: "agentSettings.toolDescriptions.doc_read",

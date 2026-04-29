@@ -32,7 +32,7 @@ import type {
 	ContextToSystemConfig,
 	ContextToSystemInput,
 	ContextToSystemOutput,
-} from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+} from "@/services/flows/steps/common/context-to-system";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { extractRetrievalTextFromMessages } from "@/services/flows/utils/message-query";
 

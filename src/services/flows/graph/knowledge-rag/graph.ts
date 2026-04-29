@@ -67,6 +67,7 @@ flowRegistry.register({
 		"context-smart-retrieve",
 		"context-quick-retrieve",
 		"context-llm-retrieve",
+		"structmem-retrieve",
 		FEATURE_SLOT,
 		"agent-completion",
 		"chat-completion",

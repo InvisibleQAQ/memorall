@@ -20,6 +20,7 @@ import type { KnowledgeRAGState } from "@/services/flows/graph/knowledge-rag/sta
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import { buildDefaultFlowConfig } from "@/services/flows/build-flow-config";
+import { mergeWithDefaultConfig } from "@/services/flows/build-flow-config";
 import { sql } from "drizzle-orm";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
@@ -436,8 +437,9 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					);
 				}
 
-				const resolvedConfig =
-					flowConfig ?? buildDefaultFlowConfig("knowledge-rag");
+				const resolvedConfig = flowConfig
+					? mergeWithDefaultConfig(flowConfig, flowConfig.graphType)
+					: buildDefaultFlowConfig("knowledge-rag");
 				const graphType = resolvedConfig.graphType ?? "knowledge-rag";
 
 				// Resolve the chat flow via registry — no graph-type branching here.
@@ -457,7 +459,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				);
 
 				await dependencies.updateJobProgress(jobId, {
-					stage: "Searching knowledge base...",
+					stage: "Running Knowledge Retrieval...",
 					progress: 20,
 				});
 

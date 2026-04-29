@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { serviceManager } from "@/services";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import { buildDefaultFlowConfig } from "@/services/flows/build-flow-config";
+import { mergeWithDefaultConfig } from "@/services/flows/build-flow-config";
 import {
 	DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
 	type KnowledgeRAGPredefinedConfig,
@@ -9,7 +10,7 @@ import {
 import { DEFAULT_AGENT_SYSTEM_PROMPT } from "@/services/flows/graph/agent/state";
 import { DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT } from "@/services/flows/graph/knowledge-rag/state";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
-import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/common/context-to-system";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import {
 	MCP_FEATURE_NAME,
@@ -101,11 +102,40 @@ export const getDefaultSystemPromptForGraph = (graphType: GraphType): string =>
 		? DEFAULT_AGENT_SYSTEM_PROMPT
 		: DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT;
 
-const RETRIEVAL_STEP_NAMES = new Set([
-	"context-smart-retrieve",
-	"context-quick-retrieve",
-	"context-llm-retrieve",
-]);
+export type KnowledgeRetrievalMode = "smart" | "quick" | "llm" | "structmem";
+
+export const KNOWLEDGE_RETRIEVAL_MODES: Array<{
+	mode: KnowledgeRetrievalMode;
+	stepName: string;
+}> = [
+	{ mode: "smart", stepName: "context-smart-retrieve" },
+	{ mode: "quick", stepName: "context-quick-retrieve" },
+	{ mode: "llm", stepName: "context-llm-retrieve" },
+	{ mode: "structmem", stepName: "structmem-retrieve" },
+];
+
+const RETRIEVAL_STEP_NAMES = new Set(
+	KNOWLEDGE_RETRIEVAL_MODES.map((mode) => mode.stepName),
+);
+
+const getRetrievalStepName = (mode: string | undefined): string =>
+	KNOWLEDGE_RETRIEVAL_MODES.find((candidate) => candidate.mode === mode)
+		?.stepName ?? "context-smart-retrieve";
+
+const getRetrievalModeFromSteps = (
+	steps: UnifiedFlowConfig["steps"],
+): KnowledgeRetrievalMode => {
+	const enabledStepNames = new Set(
+		steps
+			.filter((step) => RETRIEVAL_STEP_NAMES.has(step.name) && step.enabled)
+			.map((step) => step.name),
+	);
+	return (
+		KNOWLEDGE_RETRIEVAL_MODES.find((mode) =>
+			enabledStepNames.has(mode.stepName),
+		)?.mode ?? "smart"
+	);
+};
 
 const cloneUnifiedConfig = (config: UnifiedFlowConfig): UnifiedFlowConfig => ({
 	...config,
@@ -129,7 +159,7 @@ const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
 		configFeatures: [
 			{
 				type: "config",
-				name: "rag-knowledge",
+				name: "knowledge-retrieval",
 				nameKey: "agentSettings.contextRetrieval",
 				descKey: "agentSettings.contextRetrievalDesc",
 				configKey: "enableContextRetrieval",
@@ -353,6 +383,7 @@ const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 				? agentCompletionStep.config.tools.map(String)
 				: [],
 			enableContextRetrieval: retrievalSteps.some((step) => step.enabled),
+			retrievalMode: getRetrievalModeFromSteps(unifiedConfig.steps),
 			enableCitations:
 				typeof citationStep?.enabled === "boolean"
 					? citationStep.enabled
@@ -390,14 +421,19 @@ const applyLegacyDraftToUnified = (
 			.filter((step) => RETRIEVAL_STEP_NAMES.has(step.name) && step.enabled)
 			.map((step) => step.name),
 	);
+	const selectedRetrievalStepName = getRetrievalStepName(
+		draftConfig.retrievalMode,
+	);
 	const featureNames = new Set(
 		getCatalogFeatureNames(buildFeatureDefinitions(graphType)),
 	);
 
 	if (draftConfig.enableContextRetrieval && enabledRetrievalNames.size === 0) {
-		for (const stepName of defaultEnabledRetrievalNames) {
-			enabledRetrievalNames.add(stepName);
-		}
+		enabledRetrievalNames.add(
+			defaultEnabledRetrievalNames.has(selectedRetrievalStepName)
+				? selectedRetrievalStepName
+				: getRetrievalStepName(draftConfig.retrievalMode),
+		);
 	}
 
 	return {
@@ -425,7 +461,7 @@ const applyLegacyDraftToUnified = (
 			if (RETRIEVAL_STEP_NAMES.has(step.name)) {
 				nextStep.enabled =
 					draftConfig.enableContextRetrieval &&
-					enabledRetrievalNames.has(step.name);
+					step.name === selectedRetrievalStepName;
 				nextStep.config = { ...(nextStep.config ?? {}) };
 				if (draftConfig.contextPrompt.trim()) {
 					nextStep.config.prompt = draftConfig.contextPrompt;
@@ -505,6 +541,7 @@ interface AgentConfigState {
 		field: K,
 		value: KnowledgeRAGPredefinedConfig[K],
 	) => void;
+	setKnowledgeRetrievalMode: (mode: KnowledgeRetrievalMode) => void;
 	setGraphType: (graphType: GraphType) => void;
 	toggleFeature: (featureName: string) => void;
 	toggleTool: (toolName: string) => void;
@@ -557,7 +594,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				(savedUnifiedConfig.graphType === draftConfig.graphType ||
 					(savedUnifiedConfig.graphType !== "agent" &&
 						draftConfig.graphType === "knowledge-rag"))
-					? savedUnifiedConfig
+					? mergeWithDefaultConfig(savedUnifiedConfig, draftConfig.graphType)
 					: buildDefaultFlowConfig(draftConfig.graphType);
 			const unifiedConfig = applyLegacyDraftToUnified(
 				baseConfig,
@@ -741,6 +778,29 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 
 		updateField: (field, value) => {
 			const draft = { ...get().draftConfig, [field]: value };
+			set({
+				draftConfig: draft,
+				isDirty: computeDirty(
+					get().savedConfig,
+					draft,
+					get().savedFeatures,
+					get().draftFeatures,
+					get().savedMultiAgentAccessibleAgentIds,
+					get().draftMultiAgentAccessibleAgentIds,
+					get().savedMCPServers,
+					get().draftMCPServers,
+					get().savedEnabledSkillNames,
+					get().draftEnabledSkillNames,
+				),
+			});
+		},
+
+		setKnowledgeRetrievalMode: (mode) => {
+			const draft = {
+				...get().draftConfig,
+				retrievalMode: mode,
+				enableContextRetrieval: true,
+			};
 			set({
 				draftConfig: draft,
 				isDirty: computeDirty(

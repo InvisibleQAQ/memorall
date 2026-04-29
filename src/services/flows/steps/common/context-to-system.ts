@@ -40,10 +40,10 @@ Available Knowledge Context:
 
 ## Context usage buideline
 Using the provided knowledge context, provide a comprehensive and accurate answer to the user's query.
-If the knowledge graph doesn't contain enough information to fully answer the question, mention what information is available and what might be missing.
+If Knowledge Retrieval doesn't contain enough information to fully answer the question, mention what information is available and what might be missing.
 Following below order of information:
-1. If information to answer available in knowledge graph use it to answer the question.
-2. If information to answer not available in knowledge graph use your general knowledge to answer the question.
+1. If information to answer is available in Knowledge Retrieval context, use it to answer the question.
+2. If information to answer is not available in Knowledge Retrieval context, use your general knowledge to answer the question.
 Structure your answer in clear sections when appropriate.
 `;
 

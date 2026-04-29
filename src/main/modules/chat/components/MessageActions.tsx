@@ -39,6 +39,10 @@ import { terminalToolRenderer } from "./tools/TerminalTool";
 import { plannerToolRenderer } from "./tools/PlannerTool";
 import { ToolItemRawIO } from "./tools/ToolCommon";
 import {
+	messageKnowledgeGraphRenderer,
+	structMemKnowledgeRetrievalRenderer,
+} from "./tools/MessageKnowledgeGraph";
+import {
 	currentTimeToolRenderer,
 	loadSkillToolRenderer,
 	sendMessageToAgentToolRenderer,
@@ -131,6 +135,8 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	current_time: currentTimeToolRenderer,
 	load_skill: loadSkillToolRenderer,
 	send_message_to_agent: sendMessageToAgentToolRenderer,
+	knowledge_graph: messageKnowledgeGraphRenderer,
+	structmem_knowledge_retrieval: structMemKnowledgeRetrievalRenderer,
 };
 
 interface ActionContentProps {

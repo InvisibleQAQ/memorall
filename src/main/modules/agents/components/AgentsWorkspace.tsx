@@ -13,7 +13,7 @@ import {
 	GRAPH_REGISTRY,
 	getDefaultSystemPromptForGraph,
 } from "@/main/stores/agent-config";
-import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/common/context-to-system";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import {
 	AlertDialog,

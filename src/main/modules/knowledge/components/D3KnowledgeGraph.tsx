@@ -74,6 +74,7 @@ interface D3KnowledgeGraphProps {
 	graphData?: { nodes: Node[]; edges: Edge[] };
 	width?: number;
 	height?: number;
+	variant?: "default" | "inline";
 	onNodeDeleted?: () => void;
 	onEdgeDeleted?: (edgeId: string) => Promise<void> | void;
 	onNodeSelect?: (nodeId: string | null) => void;
@@ -654,6 +655,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 	graphData: externalGraphData,
 	width = 800,
 	height = 600,
+	variant = "default",
 	onNodeDeleted,
 	onEdgeDeleted,
 	onNodeSelect,
@@ -685,6 +687,7 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 
 	const { actualTheme } = useTheme();
 	const isDark = actualTheme === "dark";
+	const isInline = variant === "inline";
 
 	const themeColors = useMemo(() => getThemeColors(isDark), [isDark]);
 
@@ -1421,31 +1424,42 @@ export const D3KnowledgeGraph: React.FC<D3KnowledgeGraphProps> = ({
 				height="100%"
 				viewBox={`0 0 ${width} ${height}`}
 				className={cn(
-					"border rounded-lg transition-colors",
-					isDark
-						? "border-gray-700 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800"
-						: "border-gray-200 bg-gray-50",
+					"transition-colors",
+					isInline
+						? "bg-transparent"
+						: cn(
+								"border rounded-lg",
+								isDark
+									? "border-gray-700 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800"
+									: "border-gray-200 bg-gray-50",
+							),
 				)}
 			/>
 
-			<ControlPanel
-				onZoomIn={handleZoomIn}
-				onZoomOut={handleZoomOut}
-				onResetZoom={handleResetZoom}
-				isDark={isDark}
-			/>
+			{!isInline && (
+				<ControlPanel
+					onZoomIn={handleZoomIn}
+					onZoomOut={handleZoomOut}
+					onResetZoom={handleResetZoom}
+					isDark={isDark}
+				/>
+			)}
 
-			<Legend
-				nodeColors={nodeColors}
-				uniqueNodeTypes={uniqueNodeTypes}
-				isDark={isDark}
-			/>
+			{!isInline && (
+				<Legend
+					nodeColors={nodeColors}
+					uniqueNodeTypes={uniqueNodeTypes}
+					isDark={isDark}
+				/>
+			)}
 
-			<StatsPanel
-				nodeCount={graphData.nodes.length}
-				edgeCount={graphData.edges.length}
-				isDark={isDark}
-			/>
+			{!isInline && (
+				<StatsPanel
+					nodeCount={graphData.nodes.length}
+					edgeCount={graphData.edges.length}
+					isDark={isDark}
+				/>
+			)}
 
 			{selectedNode && (
 				<SelectedNodePanel

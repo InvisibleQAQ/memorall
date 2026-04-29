@@ -18,12 +18,20 @@ import { Button } from "@/main/components/ui/button";
 import { Label } from "@/main/components/ui/label";
 import { Switch } from "@/main/components/ui/switch";
 import { Textarea } from "@/main/components/ui/textarea";
-import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/knowledge-retrieval/context-to-system";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/main/components/ui/select";
+import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/common/context-to-system";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import {
 	getAgentFeatureDescription,
 	getAgentFeatureDisplayName,
 } from "../utils/feature-display";
+import { KNOWLEDGE_RETRIEVAL_MODES } from "@/main/stores/agent-config";
 
 interface AgentFeatureDetailModalProps {
 	featureName: string;
@@ -60,6 +68,7 @@ export const AgentFeatureDetailModal =
 			availableAgents,
 			currentFlowId,
 			updateField,
+			setKnowledgeRetrievalMode,
 			toggleTool,
 			toggleAccessibleAgent,
 			setAccessibleAgents,
@@ -373,25 +382,64 @@ export const AgentFeatureDetailModal =
 					draftConfig[promptField] || DEFAULT_CONTEXT_SYSTEM_PROMPT;
 
 				return (
-					<div className="space-y-2">
-						<Label className="text-xs font-medium">
-							{t(feature.promptField.labelKey)}
-						</Label>
-						<Textarea
-							value={contextPromptValue}
-							onChange={(event) =>
-								updateField(
-									promptField,
-									event.target.value === DEFAULT_CONTEXT_SYSTEM_PROMPT
-										? ""
-										: event.target.value,
-								)
-							}
-							className="min-h-[220px] resize-y rounded-xl border-border/70 bg-background/80 font-mono text-xs"
-						/>
-						<p className="text-[10px] text-muted-foreground">
-							{t(feature.promptField.hintKey)}
-						</p>
+					<div className="space-y-4">
+						{feature.configKey === "enableContextRetrieval" ? (
+							<div className="space-y-2">
+								<Label className="text-xs font-medium">
+									Knowledge Retrieval Mode
+								</Label>
+								<Select
+									value={draftConfig.retrievalMode}
+									onValueChange={(value) =>
+										setKnowledgeRetrievalMode(
+											value as typeof draftConfig.retrievalMode,
+										)
+									}
+								>
+									<SelectTrigger className="h-9">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{KNOWLEDGE_RETRIEVAL_MODES.map((mode) => (
+											<SelectItem key={mode.mode} value={mode.mode}>
+												{mode.mode === "smart"
+													? "Smart"
+													: mode.mode === "quick"
+														? "Quick"
+														: mode.mode === "llm"
+															? "LLM"
+															: "StructMem"}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<p className="text-[10px] text-muted-foreground">
+									Choose the retrieval implementation used before response
+									generation. StructMem searches event memories plus
+									consolidated syntheses.
+								</p>
+							</div>
+						) : null}
+						<div className="space-y-2">
+							<Label className="text-xs font-medium">
+								{t(feature.promptField.labelKey)}
+							</Label>
+							<Textarea
+								value={contextPromptValue}
+								onChange={(event) =>
+									updateField(
+										promptField,
+										event.target.value === DEFAULT_CONTEXT_SYSTEM_PROMPT
+											? ""
+											: event.target.value,
+									)
+								}
+								className="min-h-[220px] resize-y rounded-xl border-border/70 bg-background/80 font-mono text-xs"
+							/>
+							<p className="text-[10px] text-muted-foreground">
+								{t(feature.promptField.hintKey)}
+							</p>
+						</div>
 					</div>
 				);
 			}
