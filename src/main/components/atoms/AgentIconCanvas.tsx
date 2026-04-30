@@ -181,14 +181,14 @@ const drawAgent = (
 	const headX = interaction.x * interaction.strength * s * 0.035;
 	const headY = interaction.y * interaction.strength * s * 0.025;
 	const shellX = s * 0.055;
-	const shellY = s * 0.155;
+	const shellY = s * 0.115;
 	const shellW = s * 0.89;
 	const shellH = s * 0.69;
 	const shellR = s * 0.29;
 	const screenX = s * 0.115;
-	const screenY = s * 0.23;
+	const screenY = s * 0.285;
 	const screenW = s * 0.77;
-	const screenH = s * 0.54;
+	const screenH = s * 0.48;
 	const screenR = s * 0.2;
 
 	ctx.save();
@@ -211,6 +211,48 @@ const drawAgent = (
 	ctx.beginPath();
 	ctx.roundRect(shellX, shellY, shellW, shellH, shellR);
 	ctx.stroke();
+
+	ctx.save();
+	ctx.globalAlpha = 1;
+	const chromeY = shellY + shellH * 0.155;
+	const chromeDot = Math.max(2.4, s * 0.032);
+	ctx.fillStyle = "#ef4444";
+	roundedRect(
+		ctx,
+		shellX + shellW * 0.2,
+		chromeY,
+		chromeDot,
+		chromeDot,
+		chromeDot / 2,
+	);
+	ctx.fillStyle = "#facc15";
+	roundedRect(
+		ctx,
+		shellX + shellW * 0.3,
+		chromeY,
+		chromeDot,
+		chromeDot,
+		chromeDot / 2,
+	);
+	ctx.fillStyle = "#22c55e";
+	roundedRect(
+		ctx,
+		shellX + shellW * 0.4,
+		chromeY,
+		chromeDot,
+		chromeDot,
+		chromeDot / 2,
+	);
+	ctx.fillStyle = "rgba(15, 23, 42, 0.22)";
+	roundedRect(
+		ctx,
+		shellX + shellW * 0.54,
+		chromeY - chromeDot * 0.12,
+		shellW * 0.24,
+		chromeDot * 1.2,
+		chromeDot * 0.6,
+	);
+	ctx.restore();
 
 	ctx.save();
 	ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
