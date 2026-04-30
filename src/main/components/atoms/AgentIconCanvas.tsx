@@ -8,19 +8,86 @@ import {
 	type AgentIconAnimation,
 	type AgentScreenFrame,
 } from "./AgentIconFrames";
+import { getAgentCostumeByVariant, type AgentCostumeVariant } from "./costumes";
 
 export type AgentIconSize = "xs" | "sm" | "md" | "lg" | "xl" | number;
 export type { AgentIconAnimation, AgentScreenFrame };
 export type AgentScreenPalette = Record<string, string>;
 
-interface AgentIconCanvasProps {
+export type AgentScreenContent =
+	| string
+	| {
+			value: string;
+			kind?: "text" | "emoji";
+			color?: string;
+			background?: string;
+			fontFamily?: string;
+			fontWeight?: string | number;
+			scale?: number;
+	  };
+
+type ScreenBounds = { x: number; y: number; w: number; h: number; r: number };
+
+/** Overrides for the agent shell gradient colours. */
+export type AgentCostumeColors = {
+	shellTop?: string;
+	shellMid?: string;
+	shellBot?: string;
+};
+
+/** Context passed to every costume overlay so it can draw accessories. */
+export type AgentCostumeDrawContext = {
+	ctx: CanvasRenderingContext2D;
+	canvas: HTMLCanvasElement;
+	size: number;
+	time: number;
+	/** Normalised pointer direction + proximity [0-1]. */
+	interaction: { x: number; y: number; strength: number };
+	/** Shell geometry constants (mirrors drawAgent internals). */
+	shell: { x: number; y: number; w: number; h: number; r: number };
+};
+
+export type AgentCostumeScreenContext = {
+	ctx: CanvasRenderingContext2D;
+	canvas: HTMLCanvasElement;
+	size: number;
+	time: number;
+	interaction: { x: number; y: number; strength: number };
+	screen: ScreenBounds;
+};
+
+/**
+ * A costume is pure data — no imports from this file needed at the call site.
+ * Define each costume in its own file under costumes/ and pass it as a prop.
+ */
+export type AgentCostume = {
+	/** Optional shell colour tint applied before drawing. */
+	colors?: AgentCostumeColors;
+	/** Optional screen animation frames shown inside the agent display. */
+	screenFrames?: AgentScreenFrame[];
+	/** Optional screen palette overrides for costume-specific display art. */
+	screenPalette?: Partial<AgentScreenPalette>;
+	/** Optional screen content for text, numbers, or emoji. */
+	screenContent?: AgentScreenContent;
+	/** Optional frame duration for costume-specific screen animation. */
+	frameDuration?: number;
+	/** Optional custom screen renderer for art that does not fit pixel frames. */
+	screen?: (cx: AgentCostumeScreenContext) => void;
+	/** Called after the core agent is drawn; add hats, scarves, armour, etc. */
+	overlay?: (cx: AgentCostumeDrawContext) => void;
+};
+
+export interface AgentIconCanvasProps {
 	size?: AgentIconSize;
 	animation?: AgentIconAnimation;
 	screenFrames?: AgentScreenFrame[];
 	screenPalette?: Partial<AgentScreenPalette>;
+	screenContent?: AgentScreenContent;
 	faceColor?: string;
 	faceDimColor?: string;
 	frameDuration?: number;
+	costume?: AgentCostume;
+	variant?: AgentCostumeVariant;
 	className?: string;
 	"aria-label"?: string;
 }
@@ -67,6 +134,27 @@ const getLoopAnimation = (time: number): AgentIconAnimation => {
 	return ANIMATION_SEQUENCE[index];
 };
 
+const mergeCostumes = (
+	base?: AgentCostume,
+	override?: AgentCostume,
+): AgentCostume | undefined => {
+	if (!base) return override;
+	if (!override) return base;
+
+	return {
+		...base,
+		...override,
+		colors: {
+			...base.colors,
+			...override.colors,
+		},
+		screenPalette: {
+			...base.screenPalette,
+			...override.screenPalette,
+		},
+	};
+};
+
 const getFrame = (
 	animation: AgentIconAnimation,
 	time: number,
@@ -76,6 +164,84 @@ const getFrame = (
 	const frames = customFrames?.length ? customFrames : FACE_FRAMES[animation];
 	const index = Math.floor(time / frameDuration) % frames.length;
 	return frames[index] ?? FACE_FRAMES.idle[0];
+};
+
+const normalizeScreenContent = (
+	content: AgentScreenContent,
+): Exclude<AgentScreenContent, string> => {
+	if (typeof content === "string") {
+		return {
+			value: content,
+			kind: "text",
+		};
+	}
+
+	return content;
+};
+
+const drawScreenContent = (
+	ctx: CanvasRenderingContext2D,
+	content: AgentScreenContent,
+	bounds: ScreenBounds,
+	palette: AgentScreenPalette,
+) => {
+	const normalized = normalizeScreenContent(content);
+	const value = normalized.value.trim();
+	if (!value) return;
+
+	ctx.save();
+	ctx.beginPath();
+	ctx.roundRect(bounds.x, bounds.y, bounds.w, bounds.h, bounds.r);
+	ctx.clip();
+
+	if (normalized.background) {
+		ctx.fillStyle = normalized.background;
+		ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
+	}
+
+	const isEmoji = normalized.kind === "emoji";
+	const maxFontSize = bounds.h * (normalized.scale ?? (isEmoji ? 0.78 : 0.72));
+	const minFontSize = Math.max(8, bounds.h * 0.18);
+	const fontFamily =
+		normalized.fontFamily ??
+		(isEmoji
+			? '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif'
+			: '"JetBrains Mono", "SFMono-Regular", Consolas, monospace');
+	const fontWeight = normalized.fontWeight ?? (isEmoji ? "400" : "800");
+	let fontSize = maxFontSize;
+	const contentColor = normalized.color ?? palette["2"] ?? "#17e7e7";
+
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	ctx.fillStyle = contentColor;
+
+	do {
+		ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+		if (ctx.measureText(value).width <= bounds.w * 0.9) break;
+		fontSize -= 1;
+	} while (fontSize > minFontSize);
+
+	ctx.shadowColor = isEmoji ? "rgba(255,255,255,0.2)" : contentColor;
+	ctx.shadowBlur = isEmoji ? bounds.w * 0.015 : bounds.w * 0.035;
+	ctx.fillText(value, bounds.x + bounds.w / 2, bounds.y + bounds.h * 0.52);
+	ctx.restore();
+};
+
+const createVisibilityObserver = (
+	canvas: HTMLCanvasElement,
+	onVisibilityChange: (isVisible: boolean) => void,
+) => {
+	if (!("IntersectionObserver" in window)) {
+		onVisibilityChange(true);
+		return undefined;
+	}
+
+	const observer = new IntersectionObserver(
+		([entry]) => onVisibilityChange(Boolean(entry?.isIntersecting)),
+		{ threshold: 0.01 },
+	);
+	observer.observe(canvas);
+	return observer;
 };
 
 const getThemeColor = (
@@ -169,6 +335,9 @@ const drawAgent = (
 	time: number,
 	interaction: InteractionState,
 	palette: AgentScreenPalette,
+	costume?: AgentCostumeColors,
+	screen?: AgentCostume["screen"],
+	screenContent?: AgentScreenContent,
 ) => {
 	const border = getThemeColor(canvas, "--border", "#d8dce6");
 	const glow = palette["2"] ?? "#17e7e7";
@@ -199,9 +368,9 @@ const drawAgent = (
 	ctx.shadowBlur = s * 0.085;
 	ctx.shadowOffsetY = s * 0.035;
 	const shellGradient = ctx.createLinearGradient(0, shellY, 0, shellY + shellH);
-	shellGradient.addColorStop(0, "#ffffff");
-	shellGradient.addColorStop(0.42, "#f9fafb");
-	shellGradient.addColorStop(1, "#d7dde5");
+	shellGradient.addColorStop(0, costume?.shellTop ?? "#ffffff");
+	shellGradient.addColorStop(0.42, costume?.shellMid ?? "#f9fafb");
+	shellGradient.addColorStop(1, costume?.shellBot ?? "#d7dde5");
 	ctx.fillStyle = shellGradient;
 	roundedRect(ctx, shellX, shellY, shellW, shellH, shellR);
 	ctx.restore();
@@ -304,15 +473,35 @@ const drawAgent = (
 		interaction.x * interaction.strength * s * 0.035,
 		interaction.y * interaction.strength * s * 0.02,
 	);
-	drawScreenFrame(
-		ctx,
-		frame,
-		screenX + screenW * 0.035,
-		screenY + screenH * 0.065 + Math.sin(time / 500) * s * 0.003,
-		screenW * 0.93,
-		screenH * 0.87,
-		palette,
-	);
+	const contentScreen = {
+		x: screenX + screenW * 0.035,
+		y: screenY + screenH * 0.065 + Math.sin(time / 500) * s * 0.003,
+		w: screenW * 0.93,
+		h: screenH * 0.87,
+		r: screenR * 0.58,
+	};
+	if (screenContent) {
+		drawScreenContent(ctx, screenContent, contentScreen, palette);
+	} else if (screen) {
+		screen({
+			ctx,
+			canvas,
+			size,
+			time,
+			interaction,
+			screen: contentScreen,
+		});
+	} else {
+		drawScreenFrame(
+			ctx,
+			frame,
+			contentScreen.x,
+			contentScreen.y,
+			contentScreen.w,
+			contentScreen.h,
+			palette,
+		);
+	}
 	ctx.restore();
 
 	ctx.restore();
@@ -323,19 +512,36 @@ export const AgentIconCanvas: React.FC<AgentIconCanvasProps> = ({
 	animation = "idle",
 	screenFrames,
 	screenPalette,
+	screenContent,
 	faceColor,
 	faceDimColor,
 	frameDuration,
+	costume,
+	variant,
 	className,
 	"aria-label": ariaLabel = "Agent",
 }) => {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const interactionRef = useRef<InteractionState>({ x: 0, y: 0, strength: 0 });
 	const resolvedSize = resolveSize(size);
-	const resolvedPalette = useMemo(
-		() => resolveScreenPalette(screenPalette, faceColor, faceDimColor),
-		[faceColor, faceDimColor, screenPalette],
+	const resolvedCostume = useMemo(
+		() => mergeCostumes(getAgentCostumeByVariant(variant), costume),
+		[costume, variant],
 	);
+	const resolvedScreenPalette = useMemo(
+		() => ({
+			...resolvedCostume?.screenPalette,
+			...screenPalette,
+		}),
+		[resolvedCostume?.screenPalette, screenPalette],
+	);
+	const resolvedPalette = useMemo(
+		() => resolveScreenPalette(resolvedScreenPalette, faceColor, faceDimColor),
+		[faceColor, faceDimColor, resolvedScreenPalette],
+	);
+	const activeScreenFrames = screenFrames ?? resolvedCostume?.screenFrames;
+	const activeScreenContent = screenContent ?? resolvedCostume?.screenContent;
+	const activeFrameDuration = frameDuration ?? resolvedCostume?.frameDuration;
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -356,8 +562,11 @@ export const AgentIconCanvas: React.FC<AgentIconCanvasProps> = ({
 		).matches;
 		let frameId = 0;
 		let disposed = false;
+		let isCanvasVisible = true;
+		let isDocumentVisible = document.visibilityState === "visible";
 
 		const handlePointerMove = (event: PointerEvent) => {
+			if (!isCanvasVisible || !isDocumentVisible) return;
 			interactionRef.current = getPointerInteraction(
 				canvas,
 				event.clientX,
@@ -370,30 +579,79 @@ export const AgentIconCanvas: React.FC<AgentIconCanvasProps> = ({
 			interactionRef.current = { x: 0, y: 0, strength: 0 };
 		};
 
+		const requestNextFrame = () => {
+			if (!reduceMotion && isCanvasVisible && isDocumentVisible) {
+				frameId = window.requestAnimationFrame(render);
+			}
+		};
+
+		const handleVisibilityChange = () => {
+			isDocumentVisible = document.visibilityState === "visible";
+			if (frameId) window.cancelAnimationFrame(frameId);
+			if (isDocumentVisible) {
+				frameId = window.requestAnimationFrame(render);
+			}
+		};
+
 		window.addEventListener("pointermove", handlePointerMove, {
 			passive: true,
 		});
 		window.addEventListener("pointerleave", handlePointerLeave);
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+
+		const visibilityObserver = createVisibilityObserver(
+			canvas,
+			(nextIsVisible) => {
+				isCanvasVisible = nextIsVisible;
+				if (frameId) window.cancelAnimationFrame(frameId);
+				if (nextIsVisible) {
+					frameId = window.requestAnimationFrame(render);
+				}
+			},
+		);
 
 		const render = (time: number) => {
-			if (disposed) return;
+			if (disposed || !isCanvasVisible || !isDocumentVisible) return;
 			const activeAnimation =
-				animation === "idle" && !screenFrames
+				animation === "idle" && !activeScreenFrames
 					? getLoopAnimation(time)
 					: animation;
+			const currentFrame = getFrame(
+				activeAnimation,
+				time,
+				activeScreenFrames,
+				activeFrameDuration,
+			);
+
 			drawAgent(
 				context,
 				canvas,
 				resolvedSize,
-				getFrame(activeAnimation, time, screenFrames, frameDuration),
+				currentFrame,
 				time,
 				interactionRef.current,
 				resolvedPalette,
+				resolvedCostume?.colors,
+				resolvedCostume?.screen,
+				activeScreenContent,
 			);
 
-			if (!reduceMotion) {
-				frameId = window.requestAnimationFrame(render);
-			}
+			resolvedCostume?.overlay?.({
+				ctx: context,
+				canvas,
+				size: resolvedSize,
+				time,
+				interaction: interactionRef.current,
+				shell: {
+					x: resolvedSize * 0.055,
+					y: resolvedSize * 0.115,
+					w: resolvedSize * 0.89,
+					h: resolvedSize * 0.69,
+					r: resolvedSize * 0.29,
+				},
+			});
+
+			requestNextFrame();
 		};
 
 		render(0);
@@ -402,9 +660,19 @@ export const AgentIconCanvas: React.FC<AgentIconCanvasProps> = ({
 			disposed = true;
 			window.removeEventListener("pointermove", handlePointerMove);
 			window.removeEventListener("pointerleave", handlePointerLeave);
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			visibilityObserver?.disconnect();
 			if (frameId) window.cancelAnimationFrame(frameId);
 		};
-	}, [animation, frameDuration, resolvedPalette, resolvedSize, screenFrames]);
+	}, [
+		activeFrameDuration,
+		activeScreenContent,
+		activeScreenFrames,
+		animation,
+		resolvedCostume,
+		resolvedPalette,
+		resolvedSize,
+	]);
 
 	return (
 		<canvas

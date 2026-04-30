@@ -19,7 +19,7 @@ import {
 	useSmartSelectContext,
 } from "@/main/modules/chat/components";
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
-import { AgentIconCanvas } from "@/main/components/atoms/AgentIconCanvas";
+import { AgentIcon } from "@/main/components/atoms/AgentIcon";
 import { Button } from "@/main/components/ui/button";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import { AgentSettingsPanel } from "@/main/modules/chat/components/AgentSettingsPanel";
@@ -304,12 +304,8 @@ export const ChatPage: React.FC = () => {
 						{showPreviousGroups ? completedMessageGroups : null}
 
 						{latestGroupIsEmpty ? (
-							<div className="flex min-h-[calc(100vh-10rem)] flex-1 flex-col items-center justify-center gap-5 py-12">
-								<AgentIconCanvas
-									size={132}
-									animation="idle"
-									aria-label="Agent"
-								/>
+							<div className="flex min-h-[calc(100vh-12rem)] flex-1 flex-col items-center justify-center gap-5 py-12">
+								<AgentIcon size={132} aria-label="Agent" />
 							</div>
 						) : latestGroup ? (
 							<MessageGroup

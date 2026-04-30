@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import React, { useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { AgentIconCanvas } from "@/main/components/atoms/AgentIconCanvas";
+import { AgentIcon } from "@/main/components/atoms/AgentIcon";
 import { MessageRenderer } from "./MessageRenderer";
 import type { InProgressMessage } from "../hooks/use-chat";
 import type { ChatMessageGroup } from "@/main/stores/chat";
@@ -170,11 +170,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 						) : null}
 						{showLatestEmptyIcon ? (
 							<div className="flex h-24 w-24 items-center justify-center">
-								<AgentIconCanvas
-									size={96}
-									animation="blink"
-									aria-label="Agent"
-								/>
+								<AgentIcon size={96} aria-label="Agent" />
 							</div>
 						) : null}
 					</div>
