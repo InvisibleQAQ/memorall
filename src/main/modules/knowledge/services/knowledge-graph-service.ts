@@ -10,9 +10,16 @@ import type {
 } from "@/types/knowledge-graph";
 import type { KnowledgeGraphState } from "@/services/flows/graph/knowledge/state";
 import type { StructMemState } from "@/services/flows/graph/structmem/state";
+import {
+	DEFAULT_GROW_TYPE,
+	type GrowType,
+} from "@/services/database/entities/topic-types";
 import { isUuid } from "@/utils/uuid";
 
 export type KnowledgeGrowMode = "knowledge" | "structmem";
+
+const growTypeToMode = (growType: GrowType): KnowledgeGrowMode =>
+	growType === "structmem" ? "structmem" : "knowledge";
 
 export class KnowledgeGraphService {
 	private static instance: KnowledgeGraphService;
@@ -33,6 +40,30 @@ export class KnowledgeGraphService {
 			return `${topicId.trim()}`;
 		}
 		return "";
+	}
+
+	private async resolveGrowModeForTopic(
+		topicId: string | undefined,
+		fallback: KnowledgeGrowMode,
+	): Promise<KnowledgeGrowMode> {
+		if (!topicId || topicId === "default") return fallback;
+
+		try {
+			const topic = await serviceManager.databaseService.use(
+				async ({ db, schema }) => {
+					const rows = await db
+						.select({ growType: schema.topics.growType })
+						.from(schema.topics)
+						.where(eq(schema.topics.id, topicId))
+						.limit(1);
+					return rows[0] ?? null;
+				},
+			);
+			return growTypeToMode(topic?.growType ?? DEFAULT_GROW_TYPE);
+		} catch (error) {
+			logError("Failed to resolve topic grow mode:", error);
+			return fallback;
+		}
 	}
 
 	static getInstance(): KnowledgeGraphService {
@@ -170,6 +201,10 @@ export class KnowledgeGraphService {
 		growMode: KnowledgeGrowMode = "knowledge",
 	): Promise<void> {
 		const conversionId = filePath;
+		const effectiveGrowMode = await this.resolveGrowModeForTopic(
+			topicId,
+			growMode,
+		);
 		// Initialize conversion progress
 		const conversion: ConversionProgress = {
 			pageId: filePath, // Keep as pageId for ConversionProgress interface compatibility
@@ -198,13 +233,13 @@ export class KnowledgeGraphService {
 				topicId: topicId, // Use the provided topicId (undefined for default)
 				sourceType: "file",
 				sourceUrl: filePath,
-				growMode,
+				growMode: effectiveGrowMode,
 			});
 
 			this.updateConversion(conversionId, {
 				status: "extracting_entities",
 				stage:
-					growMode === "structmem"
+					effectiveGrowMode === "structmem"
 						? "Extracting StructMem event entries..."
 						: "Extracting entities...",
 				progress: 10,
@@ -224,14 +259,14 @@ export class KnowledgeGraphService {
 				graphId: topicId,
 				sourceId: sourceId,
 				referenceTimestamp: new Date().toISOString(),
-				metadata: { growMode } as Record<string, unknown>,
+				metadata: { growMode: effectiveGrowMode } as Record<string, unknown>,
 				currentMessage: `File: ${filePath}\n\nContent:\n${content}`,
 				sourceType: "file",
 				previousMessages: undefined,
 			};
 
 			const stream =
-				growMode === "structmem"
+				effectiveGrowMode === "structmem"
 					? await serviceManager.flowsService
 							.createGraph("structmem", services)
 							.stream(baseState satisfies Partial<StructMemState>)
@@ -391,7 +426,7 @@ export class KnowledgeGraphService {
 
 			logInfo("Knowledge graph conversion completed:", {
 				filePath: filePath,
-				growMode,
+				growMode: effectiveGrowMode,
 				stats,
 			});
 		} catch (error) {

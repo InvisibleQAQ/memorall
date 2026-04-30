@@ -3,6 +3,13 @@ import { serviceManager } from "@/services";
 import { logError } from "@/utils/logger";
 import { createAgentPresetDraft, type AgentPresetDraft } from "../types";
 import type { Flow } from "@/services/database/types";
+import { topicService } from "@/main/modules/topics/services/topic-service";
+import {
+	DEFAULT_GROW_TYPE,
+	DEFAULT_RECALL_TYPE,
+	type GrowType,
+	type RecallType,
+} from "@/services/database/entities/topic-types";
 
 interface UseAgentPresetsResult {
 	presets: Flow[];
@@ -25,7 +32,10 @@ interface UseAgentPresetsResult {
 		value: AgentPresetDraft[K],
 	) => void;
 	refreshPresets: (preferredPresetId?: string | null) => Promise<string | null>;
-	createPreset: (name: string) => Promise<Flow | null>;
+	createPreset: (
+		name: string,
+		options?: { growType: GrowType; recallType: RecallType },
+	) => Promise<Flow | null>;
 	saveMetadata: () => Promise<Flow | null>;
 	revertMetadata: () => void;
 	deleteSelectedPreset: () => Promise<void>;
@@ -168,7 +178,13 @@ export const useAgentPresets = (): UseAgentPresetsResult => {
 	);
 
 	const createPreset = React.useCallback(
-		async (name: string) => {
+		async (
+			name: string,
+			options = {
+				growType: DEFAULT_GROW_TYPE,
+				recallType: DEFAULT_RECALL_TYPE,
+			},
+		) => {
 			setIsCreating(true);
 			setError(null);
 
@@ -178,6 +194,20 @@ export const useAgentPresets = (): UseAgentPresetsResult => {
 						"knowledge-rag",
 						name,
 					);
+				try {
+					await topicService.createTopic({
+						name,
+						description: "",
+						agentId: created.id,
+						growType: options.growType,
+						recallType: options.recallType,
+					});
+				} catch (topicErr) {
+					logError(
+						"[Agents] Failed to create memory zone for agent:",
+						topicErr,
+					);
+				}
 				await refreshPresets(created.id);
 				return created;
 			} catch (err) {

@@ -29,6 +29,14 @@ import {
 	up as addMessageQueryIndexesUp,
 	down as addMessageQueryIndexesDown,
 } from "./008_add_message_query_indexes";
+import {
+	up as addAgentIdToTopicsUp,
+	down as addAgentIdToTopicsDown,
+} from "./009_add_agent_id_to_topics";
+import {
+	up as addGrowRecallTypeUp,
+	down as addGrowRecallTypeDown,
+} from "./010_add_grow_recall_type_to_topics";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -101,6 +109,22 @@ export const migrations: Migration[] = [
 			"Add conversation/time indexes for separator-first message loading",
 		up: addMessageQueryIndexesUp,
 		down: addMessageQueryIndexesDown,
+	},
+	{
+		id: "add_agent_id_to_topics",
+		version: 9,
+		description:
+			"Add agent_id to topics for linking memory zones to agents (nullable — independent topics remain unlinked)",
+		up: addAgentIdToTopicsUp,
+		down: addAgentIdToTopicsDown,
+	},
+	{
+		id: "add_grow_recall_type_to_topics",
+		version: 10,
+		description:
+			"Add grow_type and recall_type to topics — grow_type is immutable (knowledge-graph|structmem), recall_type is mutable per-memory retrieval strategy",
+		up: addGrowRecallTypeUp,
+		down: addGrowRecallTypeDown,
 	},
 	// Example of how to add future migrations:
 	// {

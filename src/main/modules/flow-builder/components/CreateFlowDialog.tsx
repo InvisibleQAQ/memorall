@@ -11,17 +11,21 @@ import {
 import { Button } from "@/main/components/ui/button";
 import { Input } from "@/main/components/ui/input";
 
-interface CreateFlowDialogProps {
+interface CreateFlowDialogProps<TExtra = undefined> {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onCreateFlow: (name: string) => void;
+	onCreateFlow: (name: string, extra: TExtra) => void;
 	title?: string;
 	description?: string;
 	namePlaceholder?: string;
 	submitLabel?: string;
+	children?: (extraState: {
+		resetToken: number;
+		setExtra: (extra: TExtra) => void;
+	}) => React.ReactNode;
 }
 
-export const CreateFlowDialog: React.FC<CreateFlowDialogProps> = ({
+export const CreateFlowDialog = <TExtra,>({
 	open,
 	onOpenChange,
 	onCreateFlow,
@@ -29,19 +33,24 @@ export const CreateFlowDialog: React.FC<CreateFlowDialogProps> = ({
 	description,
 	namePlaceholder,
 	submitLabel,
-}) => {
+	children,
+}: CreateFlowDialogProps<TExtra>) => {
 	const { t } = useTranslation();
 	const [newFlowName, setNewFlowName] = React.useState("");
+	const [extra, setExtra] = React.useState<TExtra | undefined>(undefined);
+	const [resetToken, setResetToken] = React.useState(0);
 
 	const handleCreate = () => {
 		if (!newFlowName.trim()) return;
-		onCreateFlow(newFlowName.trim());
+		onCreateFlow(newFlowName.trim(), extra as TExtra);
 		setNewFlowName("");
+		setResetToken((value) => value + 1);
 		onOpenChange(false);
 	};
 
 	const handleCancel = () => {
 		setNewFlowName("");
+		setResetToken((value) => value + 1);
 		onOpenChange(false);
 	};
 
@@ -78,6 +87,7 @@ export const CreateFlowDialog: React.FC<CreateFlowDialogProps> = ({
 						}
 					}}
 				/>
+				{children?.({ resetToken, setExtra })}
 				<DialogFooter className="gap-2 sm:gap-0">
 					<Button variant="outline" onClick={handleCancel}>
 						{t("buttons.cancel", { defaultValue: "Cancel" })}

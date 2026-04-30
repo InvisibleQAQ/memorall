@@ -87,6 +87,11 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 	const selectedFlow = flowOptions.find(
 		(flow) => flow.id === selectedAgentFlowId,
 	);
+	const selectedTopicName =
+		selectedTopic === "__all__"
+			? t("topic.all")
+			: topics.find((topic) => topic.id === selectedTopic)?.name ||
+				t("topic.select");
 
 	return (
 		<PromptInputToolbar>
@@ -206,11 +211,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 													<span className="max-w-20 truncate">
 														{isLoadingTopics
 															? t("topic.loading")
-															: selectedTopic === "__all__"
-																? t("topic.all")
-																: topics.find(
-																		(topic) => topic.id === selectedTopic,
-																	)?.name || t("topic.select")}
+															: selectedTopicName}
 													</span>
 													<ChevronDown size={10} className="opacity-50" />
 												</Button>

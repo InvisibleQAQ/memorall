@@ -11,6 +11,7 @@ export * from "./source-edges";
 
 export * from "./topics";
 export * from "./topic-files";
+export * from "./topic-types";
 export * from "./encryptions";
 export * from "./configurations";
 

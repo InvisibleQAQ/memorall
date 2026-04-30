@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
 	Search,
 	Network,
@@ -38,6 +39,10 @@ import {
 } from "@/main/modules/topics/modals";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import type { Topic } from "@/services/database/entities/topics";
+import type {
+	GrowType,
+	RecallType,
+} from "@/services/database/entities/topic-types";
 import type { Node, Edge } from "@/services/database/types";
 import { serviceManager } from "@/services";
 import { logError, logInfo } from "@/utils/logger";
@@ -46,6 +51,18 @@ type TopicWithCount = Topic & { fileCount: number };
 
 const DEFAULT_TOPIC_ID = "default" as const;
 
+const GROW_LABELS: Record<GrowType, string> = {
+	"knowledge-graph": "Graph",
+	structmem: "StructMem",
+};
+
+const RECALL_LABELS: Record<RecallType, string> = {
+	smart: "Smart",
+	quick: "Quick",
+	llm: "LLM",
+	structmem: "StructMem",
+};
+
 // ---------------------------------------------------------------------------
 // TopicRow – clickable sidebar row for selecting / managing a topic
 // ---------------------------------------------------------------------------
@@ -53,6 +70,8 @@ const DEFAULT_TOPIC_ID = "default" as const;
 interface TopicRowProps {
 	name: string;
 	fileCount?: number;
+	growType?: GrowType;
+	recallType?: RecallType;
 	isSelected: boolean;
 	isDefault?: boolean;
 	isDeleting?: boolean;
@@ -64,6 +83,8 @@ interface TopicRowProps {
 const TopicRow: React.FC<TopicRowProps> = ({
 	name,
 	fileCount,
+	growType,
+	recallType,
 	isSelected,
 	isDefault = false,
 	isDeleting = false,
@@ -95,6 +116,16 @@ const TopicRow: React.FC<TopicRowProps> = ({
 					>
 						{fileCount}
 					</Badge>
+				)}
+				{growType && recallType && !isDefault && (
+					<div className="flex items-center gap-1 shrink-0">
+						<Badge variant="outline" className="text-[10px] h-4 px-1 py-0">
+							{GROW_LABELS[growType]}
+						</Badge>
+						<Badge variant="outline" className="text-[10px] h-4 px-1 py-0">
+							{RECALL_LABELS[recallType]}
+						</Badge>
+					</div>
 				)}
 			</div>
 
@@ -154,6 +185,7 @@ interface KnowledgeGraphPageProps {}
 export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 	const { t } = useTranslation("knowledge");
 	const { t: tTopics } = useTranslation("topics");
+	const [searchParams, setSearchParams] = useSearchParams();
 
 	const [nodes, setNodes] = useState<Node[]>([]);
 	const [edges, setEdges] = useState<Edge[]>([]);
@@ -170,6 +202,14 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 	useEffect(() => {
 		loadTopics();
 	}, []);
+
+	useEffect(() => {
+		const topicId = searchParams.get("topicId");
+		if (topicId) {
+			setSelectedTopicId(topicId);
+			setSelectedNodeId(null);
+		}
+	}, [searchParams]);
 
 	useEffect(() => {
 		loadGraphData();
@@ -302,6 +342,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 	const handleTopicSelect = (topicId: string) => {
 		setSelectedTopicId(topicId);
 		setSelectedNodeId(null);
+		setSearchParams(topicId === DEFAULT_TOPIC_ID ? {} : { topicId });
 	};
 
 	const filteredNodes = nodes.filter((node) =>
@@ -348,6 +389,8 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 								key={topic.id}
 								name={topic.name}
 								fileCount={topic.fileCount}
+								growType={topic.growType}
+								recallType={topic.recallType}
 								isSelected={selectedTopicId === topic.id}
 								isDeleting={deletingTopicId === topic.id}
 								onSelect={() => handleTopicSelect(topic.id)}

@@ -58,7 +58,7 @@
 	},
 	"summary": {
 		"graph": "Đồ thị cơ sở",
-		"features": "Tính năng đang bật",
+		"features": "Tính năng",
 		"featuresValue": "{{count}} đang bật",
 		"noFeaturesEnabled": "Hiện chưa có tính năng nào được bật.",
 		"tools": "Công cụ đang bật",
@@ -72,6 +72,7 @@
 		"systemPromptValue": "{{count}} ký tự · {{mode}}",
 		"contextPrompt": "Context prompt",
 		"contextPromptValue": "{{count}} ký tự · {{mode}}",
+		"openMemoryGraph": "Bộ nhớ đồ thị tri thức",
 		"default": "Mặc định",
 		"custom": "Tùy chỉnh",
 		"unknownGraph": "Đồ thị không xác định"
@@ -230,6 +231,8 @@
 		"label": "Cài đặt nâng cao"
 	},
 	"featuresSection": {
+		"core": "Cốt lõi",
+		"other": "Khác",
 		"showMore": "Hiện thêm {{count}}",
 		"showLess": "Thu gọn"
 	}

@@ -21,6 +21,7 @@ import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import { AgentSettingsPanel } from "@/main/modules/chat/components/AgentSettingsPanel";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
+import type { Topic } from "@/services/database/types";
 import {
 	useDownloadProgress,
 	ModelDownloadingScreen,
@@ -44,7 +45,7 @@ export const ChatPage: React.FC = () => {
 		setQuickDownloadModel,
 	} = useDownloadProgress();
 	const [topics, setTopics] = React.useState<
-		Array<{ id: string; name: string }>
+		Array<Pick<Topic, "id" | "name" | "growType" | "recallType">>
 	>([]);
 	const [isLoadingTopics, setIsLoadingTopics] = React.useState(false);
 	const [agentFlows, setAgentFlows] = React.useState<
@@ -148,6 +149,8 @@ export const ChatPage: React.FC = () => {
 						result.map((topic) => ({
 							id: topic.id,
 							name: topic.name,
+							growType: topic.growType,
+							recallType: topic.recallType,
 						})),
 					);
 				} catch (error) {

@@ -1,9 +1,9 @@
 {
 	"title": "Đồ thị tri thức",
 	"topic": {
-		"label": "Chủ đề",
-		"selectPlaceholder": "Chọn chủ đề",
-		"defaultNoTopic": "Mặc định (Không chủ đề)"
+		"label": "Bộ nhớ",
+		"selectPlaceholder": "Chọn bộ nhớ",
+		"defaultNoTopic": "Mặc định (Không bộ nhớ)"
 	},
 	"search": {
 		"placeholder": "Tìm kiếm nút...",
@@ -52,8 +52,8 @@
 		"close": "Đóng"
 	},
 	"topics": {
-		"title": "Chủ đề",
-		"noTopics": "Chưa có chủ đề",
-		"deleteConfirm": "Xóa \"{{name}}\"? Thao tác này sẽ xóa chủ đề khỏi tất cả tài liệu liên quan và không thể hoàn tác."
+		"title": "Bộ nhớ",
+		"noTopics": "Chưa có bộ nhớ",
+		"deleteConfirm": "Xóa \"{{name}}\"? Thao tác này sẽ xóa bộ nhớ khỏi tất cả tài liệu liên quan và không thể hoàn tác."
 	}
 }

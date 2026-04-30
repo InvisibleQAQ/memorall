@@ -1,9 +1,9 @@
 {
 	"title": "Knowledge Graph",
 	"topic": {
-		"label": "Topic",
-		"selectPlaceholder": "Select topic",
-		"defaultNoTopic": "Default (No Topic)"
+		"label": "Memory",
+		"selectPlaceholder": "Select memory",
+		"defaultNoTopic": "Default (No Memory)"
 	},
 	"search": {
 		"placeholder": "Search nodes...",
@@ -52,8 +52,8 @@
 		"close": "Close"
 	},
 	"topics": {
-		"title": "Topics",
-		"noTopics": "No topics yet",
+		"title": "Memory",
+		"noTopics": "No memories yet",
 		"deleteConfirm": "Delete \"{{name}}\"? This will remove it from all associated files and cannot be undone."
 	}
 }

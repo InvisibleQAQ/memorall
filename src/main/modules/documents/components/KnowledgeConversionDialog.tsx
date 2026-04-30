@@ -11,17 +11,13 @@ import {
 } from "@/main/components/ui/dialog";
 import { Button } from "@/main/components/ui/button";
 import { Label } from "@/main/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/main/components/ui/select";
+import { Badge } from "@/main/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { topicService } from "@/main/modules/topics/services/topic-service";
+import { serviceManager } from "@/services";
 import type { Topic } from "@/services/database/types";
 import type { KnowledgeGrowMode } from "@/main/modules/knowledge/services/knowledge-graph-service";
+import type { GrowType } from "@/services/database/entities/topic-types";
 import { logError } from "@/utils/logger";
 
 interface KnowledgeConversionDialogProps {
@@ -33,26 +29,45 @@ export interface KnowledgeConversionSelection {
 	growMode: KnowledgeGrowMode;
 }
 
+const GROW_LABELS: Record<GrowType, string> = {
+	"knowledge-graph": "Knowledge Graph",
+	structmem: "StructMem",
+};
+
+const growTypeToMode = (growType: GrowType): KnowledgeGrowMode =>
+	growType === "structmem" ? "structmem" : "knowledge";
+
 export const KnowledgeConversionDialog =
 	NiceModal.create<KnowledgeConversionDialogProps>(({ fileName }) => {
 		const modal = useModal();
 		const [loading, setLoading] = useState(false);
 		const [topics, setTopics] = useState<Topic[]>([]);
+		const [agentNamesById, setAgentNamesById] = useState<
+			Record<string, string>
+		>({});
 		const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>(
 			undefined,
 		);
-		const [growMode, setGrowMode] = useState<KnowledgeGrowMode>("knowledge");
 
 		useEffect(() => {
 			if (!modal.visible) return;
 			const loadTopics = async () => {
 				try {
 					setLoading(true);
-					const allTopics = await topicService.getTopics();
+					const [allTopics, flows] = await Promise.all([
+						topicService.getTopics(),
+						serviceManager.flowBuilderService.listPredefinedFlows(
+							"knowledge-rag",
+						),
+					]);
 					setTopics(Array.isArray(allTopics) ? allTopics : []);
+					setAgentNamesById(
+						Object.fromEntries(flows.map((flow) => [flow.id, flow.name])),
+					);
 				} catch (error) {
 					logError("Failed to load topics:", error);
 					setTopics([]);
+					setAgentNamesById({});
 				} finally {
 					setLoading(false);
 				}
@@ -61,9 +76,14 @@ export const KnowledgeConversionDialog =
 		}, [modal.visible]);
 
 		const handleSelect = () => {
+			const selectedTopic = topics.find(
+				(topic) => topic.id === selectedTopicId,
+			);
 			modal.resolve({
 				topicId: selectedTopicId,
-				growMode,
+				growMode: selectedTopic
+					? growTypeToMode(selectedTopic.growType)
+					: "knowledge",
 			} satisfies KnowledgeConversionSelection);
 			modal.hide();
 		};
@@ -85,35 +105,14 @@ export const KnowledgeConversionDialog =
 							Convert to Knowledge
 						</DialogTitle>
 						<DialogDescription>
-							Choose topic and grow mode for "{fileName}"
+							Choose memory for "{fileName}". Conversion uses that memory's grow
+							type.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="flex-1 overflow-y-auto px-6 py-4 min-h-0 space-y-4">
 						<div className="space-y-2">
-							<Label className="text-xs font-medium">Grow Mode</Label>
-							<Select
-								value={growMode}
-								onValueChange={(value) =>
-									setGrowMode(value as KnowledgeGrowMode)
-								}
-							>
-								<SelectTrigger>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="knowledge">Knowledge Graph</SelectItem>
-									<SelectItem value="structmem">StructMem</SelectItem>
-								</SelectContent>
-							</Select>
-							<p className="text-xs text-muted-foreground">
-								Knowledge Graph extracts entities and facts. StructMem stores
-								timestamped event memories and cross-event syntheses.
-							</p>
-						</div>
-
-						<div className="space-y-2">
-							<Label className="text-xs font-medium">Topic</Label>
+							<Label className="text-xs font-medium">Memory</Label>
 							{loading ? (
 								<div className="flex items-center justify-center rounded-md border py-8">
 									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -145,14 +144,17 @@ export const KnowledgeConversionDialog =
 											<div>
 												<div className="font-medium">Default</div>
 												<div className="text-sm text-muted-foreground">
-													No topic association
+													No memory association
 												</div>
+												<Badge variant="outline" className="mt-2 text-[10px]">
+													Knowledge Graph
+												</Badge>
 											</div>
 										</button>
 
 										{topics.length === 0 ? (
 											<div className="py-8 text-center text-sm text-muted-foreground">
-												No topics available
+												No memories available
 											</div>
 										) : (
 											topics.map((topic) => (
@@ -178,11 +180,26 @@ export const KnowledgeConversionDialog =
 															<div className="h-2 w-2 bg-primary-foreground rounded-full" />
 														)}
 													</div>
-													<div>
-														<div className="font-medium">{topic.name}</div>
+													<div className="min-w-0 flex-1">
+														<div className="flex items-center gap-2">
+															<div className="font-medium truncate">
+																{topic.name}
+															</div>
+															<Badge
+																variant="outline"
+																className="shrink-0 text-[10px]"
+															>
+																{GROW_LABELS[topic.growType]}
+															</Badge>
+														</div>
 														{topic.description && (
 															<div className="text-sm text-muted-foreground line-clamp-1">
 																{topic.description}
+															</div>
+														)}
+														{topic.agentId && agentNamesById[topic.agentId] && (
+															<div className="text-xs text-muted-foreground mt-1">
+																Agent: {agentNamesById[topic.agentId]}
 															</div>
 														)}
 													</div>

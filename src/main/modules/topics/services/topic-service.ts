@@ -1,5 +1,11 @@
 import { eq, like, desc } from "drizzle-orm";
 import type { Topic, NewTopic } from "@/services/database/types";
+import {
+	DEFAULT_GROW_TYPE,
+	DEFAULT_RECALL_TYPE,
+	getValidRecallTypes,
+	isRecallTypeValidForGrow,
+} from "@/services/database/entities/topic-types";
 import { logInfo, logError } from "@/utils/logger";
 import { serviceManager } from "@/services";
 
@@ -26,6 +32,16 @@ export class TopicService {
 						.values({
 							name: topicData.name,
 							description: topicData.description || "",
+							agentId: topicData.agentId,
+							growType: topicData.growType ?? DEFAULT_GROW_TYPE,
+							recallType: isRecallTypeValidForGrow(
+								topicData.growType ?? DEFAULT_GROW_TYPE,
+								topicData.recallType ?? DEFAULT_RECALL_TYPE,
+							)
+								? (topicData.recallType ?? DEFAULT_RECALL_TYPE)
+								: getValidRecallTypes(
+										topicData.growType ?? DEFAULT_GROW_TYPE,
+									)[0],
 						})
 						.returning();
 
@@ -108,11 +124,38 @@ export class TopicService {
 	}
 
 	/**
+	 * Get the memory topic associated with an agent flow.
+	 */
+	async getTopicByAgentId(agentId: string): Promise<Topic | null> {
+		try {
+			logInfo("[TOPIC_SERVICE] Fetching topic by agent ID:", agentId);
+
+			const result = await serviceManager.databaseService.use(
+				async ({ db, schema }) => {
+					const topics = await db
+						.select()
+						.from(schema.topics)
+						.where(eq(schema.topics.agentId, agentId))
+						.limit(1);
+
+					return topics[0] || null;
+				},
+			);
+
+			logInfo("[TOPIC_SERVICE] Retrieved agent topic:", result);
+			return result;
+		} catch (error) {
+			logError("[TOPIC_SERVICE] Failed to fetch topic by agent ID:", error);
+			throw error;
+		}
+	}
+
+	/**
 	 * Update a topic
 	 */
 	async updateTopic(
 		topicId: string,
-		updates: Partial<Pick<NewTopic, "name" | "description">>,
+		updates: Partial<Pick<NewTopic, "name" | "description" | "recallType">>,
 	): Promise<Topic> {
 		try {
 			logInfo("[TOPIC_SERVICE] Updating topic:", { topicId, updates });

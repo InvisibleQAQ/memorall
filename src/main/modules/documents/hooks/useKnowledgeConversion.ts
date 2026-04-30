@@ -1,6 +1,6 @@
 /**
  * Knowledge Conversion Hook
- * React hook for converting documents to knowledge graphs with topic selection
+ * React hook for converting documents to knowledge with memory selection
  */
 
 import { useCallback } from "react";
@@ -23,7 +23,7 @@ import {
 } from "../components/KnowledgeConversionDialog";
 
 /**
- * Shared function for converting documents to knowledge graphs with topic selection
+ * Shared function for converting documents to knowledge with memory selection
  * Can be used directly or through the hook
  */
 export async function convertToKnowledge(
@@ -35,7 +35,7 @@ export async function convertToKnowledge(
 		useProcessMonitor.getState();
 
 	try {
-		// Show conversion modal with topic and grow mode selection.
+		// Show conversion modal with memory selection. Grow mode follows memory type.
 		const selection = await NiceModal.show(KnowledgeConversionDialog, {
 			fileName: file.name,
 		});

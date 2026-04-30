@@ -23,6 +23,11 @@ import { buildDefaultFlowConfig } from "@/services/flows/build-flow-config";
 import { mergeWithDefaultConfig } from "@/services/flows/build-flow-config";
 import { sql } from "drizzle-orm";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
+import {
+	getValidRecallTypes,
+	isRecallTypeValidForGrow,
+	type RecallType,
+} from "@/services/database/entities/topic-types";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
@@ -156,6 +161,32 @@ type ToolCallAccumulator = Map<
 		};
 	}
 >;
+
+const RECALL_STEP_BY_TYPE: Record<RecallType, string> = {
+	smart: "context-smart-retrieve",
+	quick: "context-quick-retrieve",
+	llm: "context-llm-retrieve",
+	structmem: "structmem-retrieve",
+};
+
+const RETRIEVAL_STEP_NAMES = new Set(Object.values(RECALL_STEP_BY_TYPE));
+
+function applyTopicRecallType(
+	config: UnifiedFlowConfig,
+	recallType: RecallType | undefined,
+): UnifiedFlowConfig {
+	if (!recallType) return config;
+
+	const selectedStepName = RECALL_STEP_BY_TYPE[recallType];
+	return {
+		...config,
+		steps: config.steps.map((step) =>
+			RETRIEVAL_STEP_NAMES.has(step.name)
+				? { ...step, enabled: step.name === selectedStepName }
+				: step,
+		),
+	};
+}
 
 const accumulateChunkToolCalls = (
 	accumulator: ToolCallAccumulator,
@@ -437,9 +468,60 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					);
 				}
 
-				const resolvedConfig = flowConfig
+				let resolvedConfig = flowConfig
 					? mergeWithDefaultConfig(flowConfig, flowConfig.graphType)
 					: buildDefaultFlowConfig("knowledge-rag");
+
+				await dependencies.updateJobProgress(jobId, {
+					stage: "Running Knowledge Retrieval...",
+					progress: 20,
+				});
+
+				// Fetch topic info for retrieval context queries if topicId exists
+				const contextQueries: string[] = [];
+				let topicRecallType: RecallType | undefined;
+				if (topicId) {
+					try {
+						const topicInfo = await serviceManager.databaseService.use(
+							async ({ db, schema }) => {
+								const rows = await db
+									.select()
+									.from(schema.topics)
+									.where(sql`${schema.topics.id} = ${topicId}`)
+									.limit(1);
+
+								if (rows.length > 0) {
+									const row = rows[0];
+									const name = row.name || "Unknown Topic";
+									const desc = row.description || row.name || "";
+									return {
+										contextQuery: desc ? `${name}: ${desc}` : name,
+										growType: row.growType,
+										recallType: row.recallType,
+									};
+								}
+								return undefined;
+							},
+						);
+						if (topicInfo) {
+							contextQueries.push(topicInfo.contextQuery);
+							topicRecallType = isRecallTypeValidForGrow(
+								topicInfo.growType,
+								topicInfo.recallType,
+							)
+								? topicInfo.recallType
+								: getValidRecallTypes(topicInfo.growType)[0];
+						}
+					} catch (error) {
+						await dependencies.logger.warn(
+							`Failed to fetch topic info for ${topicId}:`,
+							`${error}`,
+							"offscreen",
+						);
+					}
+				}
+
+				resolvedConfig = applyTopicRecallType(resolvedConfig, topicRecallType);
 				const graphType = resolvedConfig.graphType ?? "knowledge-rag";
 
 				// Resolve the chat flow via registry — no graph-type branching here.
@@ -457,44 +539,6 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					allServices,
 					resolvedConfig,
 				);
-
-				await dependencies.updateJobProgress(jobId, {
-					stage: "Running Knowledge Retrieval...",
-					progress: 20,
-				});
-
-				// Fetch topic info for retrieval context queries if topicId exists
-				const contextQueries: string[] = [];
-				if (topicId) {
-					try {
-						const topicInfo = await serviceManager.databaseService.use(
-							async ({ db, schema }) => {
-								const rows = await db
-									.select()
-									.from(schema.topics)
-									.where(sql`${schema.topics.id} = ${topicId}`)
-									.limit(1);
-
-								if (rows.length > 0) {
-									const row = rows[0];
-									const name = row.name || "Unknown Topic";
-									const desc = row.description || row.name || "";
-									return desc ? `${name}: ${desc}` : name;
-								}
-								return undefined;
-							},
-						);
-						if (topicInfo) {
-							contextQueries.push(topicInfo);
-						}
-					} catch (error) {
-						await dependencies.logger.warn(
-							`Failed to fetch topic info for ${topicId}:`,
-							`${error}`,
-							"offscreen",
-						);
-					}
-				}
 
 				let finalState: KnowledgeRAGState | null = null;
 

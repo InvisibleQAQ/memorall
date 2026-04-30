@@ -7,7 +7,10 @@ import { cn } from "@/lib/utils";
 import type { KnowledgeRAGPredefinedConfig } from "@/services/flows/graph/knowledge-rag/state";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import { MCP_FEATURE_NAME } from "@/services/flows/steps/features/mcp-feature";
-import { useAgentConfigStore } from "@/main/stores/agent-config";
+import {
+	useAgentConfigStore,
+	type AgentFeatureDefinition,
+} from "@/main/stores/agent-config";
 import { HoverBadgeList } from "./AgentHoverInfo";
 import { FeatureCard } from "./FeatureCard";
 import {
@@ -21,6 +24,20 @@ const BOTTOM_FEATURE_NAMES = new Set([
 	"documents-feature",
 	"documents-fs-feature",
 ]);
+const CORE_FEATURE_ORDER = [
+	"knowledge-retrieval",
+	"fs-feature",
+	"nodejs-sandbox-feature",
+	"web-feature",
+	MULTI_AGENT_FEATURE_NAME,
+	"agent-node",
+	"artifact-feature",
+	"citations",
+] as const;
+const CORE_FEATURE_NAMES = new Set<string>(CORE_FEATURE_ORDER);
+const CORE_FEATURE_RANK = new Map<string, number>(
+	CORE_FEATURE_ORDER.map((name, index) => [name, index]),
+);
 
 const getFeatureEnabled = (
 	feature: ReturnType<
@@ -139,10 +156,73 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ summary }) => {
 				}),
 		[featureDefinitions, draftConfig, draftFeatures],
 	);
-	const visibleFeatures = showAll
-		? filteredFeatures
-		: filteredFeatures.slice(0, FEATURES_DEFAULT_VISIBLE);
-	const hiddenCount = filteredFeatures.length - FEATURES_DEFAULT_VISIBLE;
+	const coreFeatures = filteredFeatures
+		.filter((feature) => CORE_FEATURE_NAMES.has(feature.name))
+		.sort(
+			(a, b) =>
+				(CORE_FEATURE_RANK.get(a.name) ?? Number.MAX_SAFE_INTEGER) -
+				(CORE_FEATURE_RANK.get(b.name) ?? Number.MAX_SAFE_INTEGER),
+		);
+	const otherFeatures = filteredFeatures.filter(
+		(feature) => !CORE_FEATURE_NAMES.has(feature.name),
+	);
+	const visibleOtherFeatures = showAll
+		? otherFeatures
+		: otherFeatures.slice(0, FEATURES_DEFAULT_VISIBLE);
+	const hiddenCount = otherFeatures.length - FEATURES_DEFAULT_VISIBLE;
+
+	const renderFeatureCard = (feature: AgentFeatureDefinition) => {
+		const displayName = getAgentFeatureDisplayName(feature, t);
+		const displayDesc = getAgentFeatureDescription(feature, t);
+
+		if (feature.type === "config" && feature.configKey === "tools") {
+			const toolsToShow =
+				feature.toolScope === "all"
+					? availableTools
+					: availableTools.filter((tool) => !claimedToolSet.has(tool));
+			const enabledCount = toolsToShow.filter((tool) =>
+				draftConfig.tools.includes(tool),
+			).length;
+
+			return (
+				<FeatureCard
+					key={feature.name}
+					feature={feature}
+					displayName={displayName}
+					displayDesc={displayDesc}
+					toolCount={enabledCount}
+					totalToolCount={toolsToShow.length}
+					hasDetail
+				/>
+			);
+		}
+
+		const enabled = getFeatureEnabled(feature, draftConfig, draftFeatures);
+
+		const onToggle =
+			feature.type === "config"
+				? (checked: boolean) =>
+						updateField(
+							feature.configKey as keyof KnowledgeRAGPredefinedConfig,
+							checked as never,
+						)
+				: () => toggleFeature(feature.name);
+
+		const hasDetail =
+			feature.type === "config" ? Boolean(feature.promptField) : true;
+
+		return (
+			<FeatureCard
+				key={feature.name}
+				feature={feature}
+				enabled={enabled}
+				onToggle={onToggle}
+				displayName={displayName}
+				displayDesc={displayDesc}
+				hasDetail={hasDetail}
+			/>
+		);
+	};
 
 	return (
 		<div className="space-y-3">
@@ -174,65 +254,27 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ summary }) => {
 				</HoverBadgeList>
 			</div>
 
-			{/* Grid */}
-			<div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
-				{visibleFeatures.map((feature) => {
-					const displayName = getAgentFeatureDisplayName(feature, t);
-					const displayDesc = getAgentFeatureDescription(feature, t);
+			{coreFeatures.length > 0 ? (
+				<div className="space-y-2">
+					<p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+						{ta("featuresSection.core")}
+					</p>
+					<div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
+						{coreFeatures.map(renderFeatureCard)}
+					</div>
+				</div>
+			) : null}
 
-					if (feature.type === "config" && feature.configKey === "tools") {
-						const toolsToShow =
-							feature.toolScope === "all"
-								? availableTools
-								: availableTools.filter((tool) => !claimedToolSet.has(tool));
-						const enabledCount = toolsToShow.filter((tool) =>
-							draftConfig.tools.includes(tool),
-						).length;
-
-						return (
-							<FeatureCard
-								key={feature.name}
-								feature={feature}
-								displayName={displayName}
-								displayDesc={displayDesc}
-								toolCount={enabledCount}
-								totalToolCount={toolsToShow.length}
-								hasDetail
-							/>
-						);
-					}
-
-					const enabled = getFeatureEnabled(
-						feature,
-						draftConfig,
-						draftFeatures,
-					);
-
-					const onToggle =
-						feature.type === "config"
-							? (checked: boolean) =>
-									updateField(
-										feature.configKey as keyof KnowledgeRAGPredefinedConfig,
-										checked as never,
-									)
-							: () => toggleFeature(feature.name);
-
-					const hasDetail =
-						feature.type === "config" ? Boolean(feature.promptField) : true;
-
-					return (
-						<FeatureCard
-							key={feature.name}
-							feature={feature}
-							enabled={enabled}
-							onToggle={onToggle}
-							displayName={displayName}
-							displayDesc={displayDesc}
-							hasDetail={hasDetail}
-						/>
-					);
-				})}
-			</div>
+			{otherFeatures.length > 0 ? (
+				<div className="space-y-2">
+					<p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+						{ta("featuresSection.other")}
+					</p>
+					<div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
+						{visibleOtherFeatures.map(renderFeatureCard)}
+					</div>
+				</div>
+			) : null}
 
 			{/* Show more / less */}
 			{hiddenCount > 0 && (
