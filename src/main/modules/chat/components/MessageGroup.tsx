@@ -54,7 +54,8 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 			group.isLatest && group.messages.length === 0 && !inProgressMessage;
 		const displaySeparator = suppressSeparator
 			? null
-			: group.separator || (showLatestEmptyIcon ? group.previousSeparator : null);
+			: group.separator ||
+				(showLatestEmptyIcon ? group.previousSeparator : null);
 
 		const separatorDate = useMemo(
 			() =>
