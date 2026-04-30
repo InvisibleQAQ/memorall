@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import React, { useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { AgentIconCanvas } from "@/main/components/atoms/AgentIconCanvas";
 import { MessageRenderer } from "./MessageRenderer";
 import type { InProgressMessage } from "../hooks/use-chat";
 import type { ChatMessageGroup } from "@/main/stores/chat";
@@ -11,6 +12,7 @@ interface MessageGroupProps {
 	inProgressMessage?: InProgressMessage | null;
 	defaultCollapsed?: boolean;
 	selectedTopic?: string;
+	suppressSeparator?: boolean;
 	onLoadMessages?: (groupId: string) => Promise<void>;
 }
 
@@ -20,6 +22,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 		inProgressMessage,
 		defaultCollapsed = false,
 		selectedTopic,
+		suppressSeparator = false,
 		onLoadMessages,
 	}) => {
 		const { t } = useTranslation("chat");
@@ -47,12 +50,18 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 			[group.separator],
 		);
 
+		const showLatestEmptyIcon =
+			group.isLatest && group.messages.length === 0 && !inProgressMessage;
+		const displaySeparator = suppressSeparator
+			? null
+			: group.separator || (showLatestEmptyIcon ? group.previousSeparator : null);
+
 		const separatorDate = useMemo(
 			() =>
-				group.separator
-					? dayjs(group.separator.createdAt).format("MMM D, YYYY h:mm A")
+				displaySeparator
+					? dayjs(displaySeparator.createdAt).format("MMM D, YYYY h:mm A")
 					: "",
-			[group.separator],
+			[displaySeparator],
 		);
 
 		const messageComponents = useMemo(() => {
@@ -147,15 +156,28 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 					</div>
 				)}
 
-				{group.separator && (
-					<div className="my-4 flex items-center">
-						<div className="flex-1 border-t border-gray-300"></div>
-						<div className="mx-4 text-xs text-gray-500 font-medium">
-							{separatorDate}
-						</div>
-						<div className="flex-1 border-t border-gray-300"></div>
+				{displaySeparator || showLatestEmptyIcon ? (
+					<div className="my-4 flex flex-col items-center gap-3">
+						{displaySeparator ? (
+							<div className="flex w-full items-center">
+								<div className="flex-1 border-t border-border"></div>
+								<div className="mx-4 text-xs font-medium text-muted-foreground">
+									{separatorDate}
+								</div>
+								<div className="flex-1 border-t border-border"></div>
+							</div>
+						) : null}
+						{showLatestEmptyIcon ? (
+							<div className="flex h-24 w-24 items-center justify-center">
+								<AgentIconCanvas
+									size={96}
+									animation="blink"
+									aria-label="Agent"
+								/>
+							</div>
+						) : null}
 					</div>
-				)}
+				) : null}
 			</div>
 		);
 	},

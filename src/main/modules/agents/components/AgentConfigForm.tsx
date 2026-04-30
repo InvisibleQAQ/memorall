@@ -20,6 +20,7 @@ import {
 	GRAPH_REGISTRY,
 } from "@/main/stores/agent-config";
 import { Button } from "@/main/components/ui/button";
+import { AgentIconCanvas } from "@/main/components/atoms/AgentIconCanvas";
 import { Separator } from "@/main/components/ui/separator";
 import { Label } from "@/main/components/ui/label";
 import {
@@ -212,8 +213,8 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 					<div className="space-y-3">
 						{/* Icon + Name row + inline actions */}
 						<div className="flex items-center gap-3">
-							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted">
-								<Bot size={20} className="text-muted-foreground" />
+							<div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center">
+								<AgentIconCanvas size="xl" animation="idle" />
 							</div>
 
 							<input

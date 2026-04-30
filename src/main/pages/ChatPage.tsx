@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { ArrowUp, X } from "lucide-react";
 import {
 	Conversation,
 	ConversationContent,
@@ -18,6 +19,8 @@ import {
 	useSmartSelectContext,
 } from "@/main/modules/chat/components";
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
+import { AgentIconCanvas } from "@/main/components/atoms/AgentIconCanvas";
+import { Button } from "@/main/components/ui/button";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import { AgentSettingsPanel } from "@/main/modules/chat/components/AgentSettingsPanel";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
@@ -63,6 +66,7 @@ export const ChatPage: React.FC = () => {
 	const { smartSelectContext, setSmartSelectContext } = useSmartSelectContext();
 	const [isChatInputModelReady, setIsChatInputModelReady] =
 		React.useState(true);
+	const [showPreviousGroups, setShowPreviousGroups] = React.useState(false);
 
 	const {
 		inputValue,
@@ -116,6 +120,8 @@ export const ChatPage: React.FC = () => {
 		() => messageGroups.find((group) => group.isLatest) ?? null,
 		[messageGroups],
 	);
+	const latestGroupIsEmpty =
+		latestGroup?.messages.length === 0 && !inProgressMessage;
 	const completedGroupsIds = useMemo(
 		() =>
 			completedGroups
@@ -133,10 +139,23 @@ export const ChatPage: React.FC = () => {
 				inProgressMessage={null}
 				defaultCollapsed={true}
 				selectedTopic={selectedTopic}
+				suppressSeparator={
+					!showPreviousGroups &&
+					latestGroupIsEmpty &&
+					latestGroup?.previousSeparator?.id === group.separator?.id
+				}
 				onLoadMessages={loadMessageGroup}
 			/>
 		));
-	}, [completedGroupsIds, completedGroups, loadMessageGroup, selectedTopic]);
+	}, [
+		completedGroupsIds,
+		completedGroups,
+		latestGroup?.previousSeparator?.id,
+		latestGroupIsEmpty,
+		loadMessageGroup,
+		selectedTopic,
+		showPreviousGroups,
+	]);
 
 	// Fetch topics when knowledge mode is selected
 	useEffect(() => {
@@ -249,11 +268,50 @@ export const ChatPage: React.FC = () => {
 			{isWideChatRuntimeRailVisible ? <RuntimeSessionsPanel /> : null}
 			<div className="flex flex-col flex-1 min-w-0">
 				<Conversation className="flex-1 min-h-0">
-					<ConversationContent className="max-w-3xl mx-auto space-y-6">
-						{/* Completed groups - memoized components, never re-render during streaming */}
-						{completedMessageGroups}
+					{completedGroups.length > 0 ? (
+						<div className="pointer-events-none absolute left-0 right-0 top-4 z-20 flex justify-center">
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="pointer-events-auto h-8 rounded-full border border-border/70 bg-background/90 px-3 text-xs text-muted-foreground shadow-sm backdrop-blur hover:bg-accent/60 hover:text-foreground"
+								onClick={() => setShowPreviousGroups((value) => !value)}
+							>
+								{showPreviousGroups ? (
+									<>
+										<ArrowUp size={13} />
+										<span>Scroll up to view history</span>
+									</>
+								) : (
+									`Show previous chats (${completedGroups.length})`
+								)}
+							</Button>
+							{showPreviousGroups ? (
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									className="pointer-events-auto ml-2 h-8 w-8 rounded-full border border-border/70 bg-background/90 text-muted-foreground shadow-sm backdrop-blur hover:bg-accent/60 hover:text-foreground"
+									aria-label="Hide previous chats"
+									onClick={() => setShowPreviousGroups(false)}
+								>
+									<X size={14} />
+								</Button>
+							) : null}
+						</div>
+					) : null}
+					<ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col space-y-6">
+						{showPreviousGroups ? completedMessageGroups : null}
 
-						{latestGroup ? (
+						{latestGroupIsEmpty ? (
+							<div className="flex min-h-[calc(100vh-10rem)] flex-1 flex-col items-center justify-center gap-5 py-12">
+								<AgentIconCanvas
+									size={132}
+									animation="idle"
+									aria-label="Agent"
+								/>
+							</div>
+						) : latestGroup ? (
 							<MessageGroup
 								key={latestGroup.id}
 								group={latestGroup}
