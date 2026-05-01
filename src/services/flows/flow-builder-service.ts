@@ -129,6 +129,7 @@ export class FlowBuilderService {
 	async createPredefinedFlow(
 		flowKey: PredefinedFlowKey,
 		name: string,
+		status: "active" | "draft" = "active",
 	): Promise<Flow> {
 		const normalizedName = name.trim() || flowKey;
 		return this.databaseService.transaction(async ({ db, schema }) => {
@@ -137,7 +138,7 @@ export class FlowBuilderService {
 				.values({
 					name: normalizedName,
 					predefinedFlow: flowKey,
-					status: "active",
+					status,
 					serviceKeys: [],
 				})
 				.returning();

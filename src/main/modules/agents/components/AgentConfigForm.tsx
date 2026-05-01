@@ -20,7 +20,7 @@ import {
 	GRAPH_REGISTRY,
 } from "@/main/stores/agent-config";
 import { Button } from "@/main/components/ui/button";
-import { AgentIcon } from "@/main/components/atoms/AgentIcon";
+import { AgentIcon } from "@/components/AgentIcon";
 import { Separator } from "@/main/components/ui/separator";
 import { Label } from "@/main/components/ui/label";
 import {
@@ -70,9 +70,12 @@ export interface AgentConfigFormActions {
 	canSave: boolean;
 	isBusy: boolean;
 	hasUnsavedChanges: boolean;
+	saveLabel?: string;
+	canOptimize?: boolean;
 	canDelete: boolean;
 	isDeleting: boolean;
 	onSave: () => void;
+	onOptimize?: () => void;
 	onRevert: () => void;
 	onDelete: () => void;
 	onResetConfig: () => void;
@@ -244,6 +247,20 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 										</Button>
 									)}
 
+									{formActions.onOptimize ? (
+										<Button
+											type="button"
+											variant="secondary"
+											size="sm"
+											className="h-8 px-2.5 text-xs"
+											onClick={formActions.onOptimize}
+											disabled={!formActions.canOptimize || formActions.isBusy}
+										>
+											<Sparkles size={13} className="mr-1" />
+											Optimize
+										</Button>
+									) : null}
+
 									<Button
 										type="button"
 										size="sm"
@@ -254,7 +271,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 										<Save size={13} className="mr-1" />
 										{formActions.isBusy
 											? ta("actions.saving")
-											: ta("actions.save")}
+											: (formActions.saveLabel ?? ta("actions.save"))}
 									</Button>
 
 									{/* More menu for destructive actions */}

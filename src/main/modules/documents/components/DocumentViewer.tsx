@@ -43,8 +43,8 @@ import { documentFileSystemService } from "@/services/filesystem/document-filesy
 import { PDFPageSelector } from "./PDFPageSelector";
 import { ExcelViewer } from "./ExcelViewer";
 import { ExcelSheetSelector } from "./ExcelSheetSelector";
-import { useModalSelector } from "../hooks/useModalSelector";
-import { useSourceStatus } from "../hooks/useSourceStatus";
+import { useModalSelector } from "../hooks/use-modal-selector";
+import { useSourceStatus } from "../hooks/use-source-status";
 import { editorRegistry } from "../editors";
 import { CodeEditor } from "../editors/CodeEditor";
 

@@ -155,10 +155,18 @@ interface MessageRendererProps {
 	isStreaming: boolean;
 	groupMessages?: DBMessage[];
 	selectedTopic?: string;
+	showMessageControls?: boolean;
 }
 
 export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
-	({ message, isLastMessage, isStreaming, groupMessages, selectedTopic }) => {
+	({
+		message,
+		isLastMessage,
+		isStreaming,
+		groupMessages,
+		selectedTopic,
+		showMessageControls = true,
+	}) => {
 		const formattedDate = useMemo(
 			() => dayjs(message.createdAt).format("MMM D, YYYY h:mm A"),
 			[message.createdAt],
@@ -224,7 +232,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 
 		return (
 			<div key={message.id} className="flex flex-col gap-4">
-				<MessageActions actions={actions} />
+				{showMessageControls ? <MessageActions actions={actions} /> : null}
 				<Message key={message.id} from={message.role}>
 					<MessageContent className="relative">
 						{message.role === "user" && attachedDocuments.length > 0 && (
@@ -277,7 +285,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 											/>
 										</>
 									)}
-									{!isStreaming &&
+									{showMessageControls &&
+									!isStreaming &&
 									message.role === "assistant" &&
 									message.metadata &&
 									groupMessages &&
@@ -304,7 +313,8 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 			prev.message.complexContent === next.message.complexContent &&
 			prev.message.metadata === next.message.metadata &&
 			prev.isLastMessage === next.isLastMessage &&
-			prev.isStreaming === next.isStreaming
+			prev.isStreaming === next.isStreaming &&
+			prev.showMessageControls === next.showMessageControls
 		);
 	},
 );

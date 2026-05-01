@@ -38,7 +38,7 @@ import { TopicBadgeList } from "@/main/modules/topics/components";
 import type { Topic } from "@/services/database/types";
 import { useProcessMonitor } from "@/main/stores/process-monitor";
 
-import type { SourceStatus } from "../hooks/useSourceStatus";
+import type { SourceStatus } from "../hooks/use-source-status";
 import { logError } from "@/utils/logger";
 
 interface DocumentListProps {

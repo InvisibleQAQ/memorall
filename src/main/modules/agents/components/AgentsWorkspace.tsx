@@ -2,10 +2,16 @@ import React from "react";
 import { useBeforeUnload } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CreateFlowDialog } from "@/main/modules/flow-builder/components";
+import {
+	AgentWizardChatPanel,
+	AgentWizardTemplatePanel,
+	useAgentWizard,
+} from "@/main/modules/agent-wizard";
+import type { AgentWizardDraft } from "@/main/modules/agent-wizard";
 import { AgentPresetList } from "./AgentPresetList";
 import { AgentConfigForm } from "./AgentConfigForm";
 import type { AgentConfigFormActions } from "./AgentConfigForm";
-import { useAgentPresets } from "../hooks/useAgentPresets";
+import { useAgentPresets } from "../hooks/use-agent-presets";
 import {
 	useAgentConfigStore,
 	GRAPH_REGISTRY,
@@ -28,6 +34,7 @@ import {
 	SelectValue,
 } from "@/main/components/ui/select";
 import { cn } from "@/lib/utils";
+import { serviceManager } from "@/services";
 import { coerceDate, type AgentConfigSummary } from "../types";
 import { getAgentFeatureDisplayName } from "../utils/feature-display";
 import { topicService } from "@/main/modules/topics/services/topic-service";
@@ -62,6 +69,10 @@ const RECALL_LABELS: Record<RecallType, string> = {
 type CreateAgentTopicOptions = {
 	growType: GrowType;
 	recallType: RecallType;
+};
+
+type CreateAgentOptions = CreateAgentTopicOptions & {
+	status?: AgentWizardDraft["status"];
 };
 
 const AgentMemoryTypeFields: React.FC<{
@@ -194,6 +205,8 @@ export const AgentsWorkspace: React.FC = () => {
 		draftConfig,
 		draftFeatures,
 		draftMultiAgentAccessibleAgentIds,
+		draftMCPServers,
+		draftEnabledSkillNames,
 		featureDefinitions,
 		availableTools,
 		currentGraphType,
@@ -202,6 +215,13 @@ export const AgentsWorkspace: React.FC = () => {
 		isDirty: hasConfigChanges,
 		isLoading: isConfigLoading,
 		isSaving: isConfigSaving,
+		setGraphType,
+		updateField,
+		setKnowledgeRetrievalMode,
+		setEnabledSkills,
+		setMCPServers,
+		setAccessibleAgents,
+		toggleFeature,
 		save,
 		revert,
 		resetToDefaults,
@@ -209,12 +229,25 @@ export const AgentsWorkspace: React.FC = () => {
 	} = useAgentConfigStore();
 
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+	const [isAgentWizardMode, setIsAgentWizardMode] = React.useState(false);
+	const [isWizardTemplateChooserOpen, setIsWizardTemplateChooserOpen] =
+		React.useState(false);
 	const [isSavingPage, setIsSavingPage] = React.useState(false);
 	const [activeCompactTab, setActiveCompactTab] = React.useState("list");
 	const [panelSizes, setPanelSizes] =
 		React.useState<[number, number]>(readStoredPanelSizes);
 	const [isDesktop, setIsDesktop] = React.useState(false);
 	const [memoryTopic, setMemoryTopic] = React.useState<Topic | null>(null);
+	const [draftMemoryOptions, setDraftMemoryOptions] =
+		React.useState<CreateAgentTopicOptions>({
+			growType: DEFAULT_GROW_TYPE,
+			recallType: DEFAULT_RECALL_TYPE,
+		});
+	const [wizardInitialDraft, setWizardInitialDraft] =
+		React.useState<AgentWizardDraft | null>(null);
+	const [wizardInitialMessage, setWizardInitialMessage] = React.useState<
+		string | undefined
+	>(undefined);
 	const containerRef = React.useRef<HTMLDivElement | null>(null);
 	const hasUnsavedChanges = hasMetadataChanges || hasConfigChanges;
 
@@ -428,7 +461,9 @@ export const AgentsWorkspace: React.FC = () => {
 	const canSave =
 		Boolean(selectedPresetId) &&
 		Boolean(metadataDraft.name.trim()) &&
-		(hasMetadataChanges || hasConfigChanges) &&
+		(hasMetadataChanges ||
+			hasConfigChanges ||
+			metadataDraft.status === "draft") &&
 		!isLegacyConfig &&
 		!isBusy;
 
@@ -447,42 +482,255 @@ export const AgentsWorkspace: React.FC = () => {
 	);
 
 	const handleCreatePreset = React.useCallback(
-		async (name: string, options?: CreateAgentTopicOptions) => {
+		async (name: string, options?: CreateAgentOptions) => {
 			if (
 				hasUnsavedChanges &&
 				!window.confirm(t("agents:confirm.discardSelection"))
 			)
-				return;
-			await createPreset(
+				return null;
+			const created = await createPreset(
 				name,
 				options ?? {
 					growType: DEFAULT_GROW_TYPE,
 					recallType: DEFAULT_RECALL_TYPE,
+					status: "active",
 				},
 			);
 			if (!isDesktop) setActiveCompactTab("config");
+			return created;
 		},
 		[createPreset, hasUnsavedChanges, isDesktop, t],
+	);
+
+	const applyWizardDraftToEditor = React.useCallback(
+		(draft: AgentWizardDraft) => {
+			setIsWizardTemplateChooserOpen(false);
+			updateMetadataField("name", draft.name || "Draft agent");
+			updateMetadataField("description", draft.description);
+			updateMetadataField("status", draft.status);
+
+			const state = useAgentConfigStore.getState();
+			if (state.currentGraphType !== draft.graphType) {
+				setGraphType(draft.graphType);
+			}
+
+			const nextState = useAgentConfigStore.getState();
+			nextState.updateField("systemPrompt", draft.systemPrompt);
+			nextState.updateField("contextPrompt", draft.contextPrompt);
+			nextState.updateField("tools", draft.enabledToolNames);
+			nextState.updateField(
+				"enableContextRetrieval",
+				draft.enabledFeatureNames.includes("knowledge-retrieval") ||
+					Boolean(draft.contextPrompt.trim()),
+			);
+			nextState.updateField(
+				"enableCitations",
+				draft.enabledFeatureNames.includes("citations"),
+			);
+			setKnowledgeRetrievalMode(draft.recallType);
+			setDraftMemoryOptions({
+				growType: draft.growType,
+				recallType: draft.recallType,
+			});
+			setEnabledSkills(draft.enabledSkillNames);
+			setMCPServers(draft.mcpServers);
+			setAccessibleAgents(draft.multiAgentAccessibleAgentIds);
+
+			const enabledFeatures = new Set(draft.enabledFeatureNames);
+			for (const feature of useAgentConfigStore.getState().featureDefinitions) {
+				if (feature.type !== "catalog") continue;
+				const shouldEnable = enabledFeatures.has(feature.name);
+				if (
+					Boolean(
+						useAgentConfigStore.getState().draftFeatures[feature.name],
+					) !== shouldEnable
+				) {
+					toggleFeature(feature.name);
+				}
+			}
+		},
+		[
+			setAccessibleAgents,
+			setEnabledSkills,
+			setGraphType,
+			setKnowledgeRetrievalMode,
+			setMCPServers,
+			toggleFeature,
+			updateMetadataField,
+		],
+	);
+
+	const buildCurrentAgentWizardDraft =
+		React.useCallback((): AgentWizardDraft => {
+			const enabledFeatureNames = new Set<string>();
+			if (
+				draftConfig.enableContextRetrieval ||
+				draftConfig.contextPrompt.trim()
+			) {
+				enabledFeatureNames.add("knowledge-retrieval");
+			}
+			if (draftConfig.enableCitations) {
+				enabledFeatureNames.add("citations");
+			}
+			if (
+				draftConfig.tools.length > 0 ||
+				draftMultiAgentAccessibleAgentIds.length > 0
+			) {
+				enabledFeatureNames.add("agent-node");
+			}
+			for (const [featureName, enabled] of Object.entries(draftFeatures)) {
+				if (enabled) enabledFeatureNames.add(featureName);
+			}
+
+			return {
+				name: metadataDraft.name,
+				description: metadataDraft.description,
+				status: metadataDraft.status,
+				graphType: currentGraphType,
+				systemPrompt: draftConfig.systemPrompt,
+				contextPrompt: draftConfig.contextPrompt,
+				enabledFeatureNames: [...enabledFeatureNames],
+				enabledToolNames: [...draftConfig.tools],
+				enabledSkillNames: [...draftEnabledSkillNames],
+				mcpServers: [...draftMCPServers],
+				multiAgentAccessibleAgentIds: [...draftMultiAgentAccessibleAgentIds],
+				growType: draftMemoryOptions.growType,
+				recallType: draftMemoryOptions.recallType,
+				templateId: null,
+			};
+		}, [
+			currentGraphType,
+			draftConfig.contextPrompt,
+			draftConfig.enableCitations,
+			draftConfig.enableContextRetrieval,
+			draftConfig.systemPrompt,
+			draftConfig.tools,
+			draftEnabledSkillNames,
+			draftFeatures,
+			draftMCPServers,
+			draftMemoryOptions.growType,
+			draftMemoryOptions.recallType,
+			draftMultiAgentAccessibleAgentIds,
+			metadataDraft.description,
+			metadataDraft.name,
+			metadataDraft.status,
+		]);
+
+	const handleOpenAgentWizard = React.useCallback(async () => {
+		setWizardInitialDraft(null);
+		setWizardInitialMessage(undefined);
+		const created = await handleCreatePreset("Draft agent", {
+			growType: DEFAULT_GROW_TYPE,
+			recallType: DEFAULT_RECALL_TYPE,
+			status: "draft",
+		});
+		if (!created) return;
+		await refreshPresets(created.id);
+		setIsAgentWizardMode(true);
+		setIsWizardTemplateChooserOpen(true);
+		updateMetadataField("status", "draft");
+		if (!isDesktop) setActiveCompactTab("config");
+	}, [handleCreatePreset, isDesktop, refreshPresets, updateMetadataField]);
+
+	const handleOptimizeCurrentAgent = React.useCallback(() => {
+		if (!selectedPresetId || isLegacyConfig || isBusy) return;
+		setWizardInitialDraft(buildCurrentAgentWizardDraft());
+		setWizardInitialMessage(
+			"Tell me how you want to improve this agent. I already loaded the current agent configuration, so I can update its name, description, instructions, skills, features, tools, and memory settings directly.",
+		);
+		setIsAgentWizardMode(true);
+		setIsWizardTemplateChooserOpen(false);
+		if (!isDesktop) setActiveCompactTab("list");
+	}, [
+		buildCurrentAgentWizardDraft,
+		isBusy,
+		isDesktop,
+		isLegacyConfig,
+		selectedPresetId,
+	]);
+
+	const handleWizardCreated = React.useCallback(
+		async (flowId: string) => {
+			await refreshPresets(flowId);
+			setIsAgentWizardMode(false);
+			if (!isDesktop) setActiveCompactTab("config");
+		},
+		[isDesktop, refreshPresets],
+	);
+
+	const agentWizard = useAgentWizard({
+		open: isAgentWizardMode,
+		createPreset: handleCreatePreset,
+		onCreated: handleWizardCreated,
+		onClose: () => {
+			setIsAgentWizardMode(false);
+			setIsWizardTemplateChooserOpen(false);
+			setWizardInitialDraft(null);
+			setWizardInitialMessage(undefined);
+		},
+		onDraftChange: applyWizardDraftToEditor,
+		initialDraft: wizardInitialDraft,
+		initialAssistantMessage: wizardInitialMessage,
+	});
+
+	const handleSelectWizardTemplate = React.useCallback(
+		(template: Parameters<typeof agentWizard.applyTemplate>[0]) => {
+			agentWizard.applyTemplate(template);
+			setIsWizardTemplateChooserOpen(false);
+		},
+		[agentWizard],
 	);
 
 	const handleSavePage = React.useCallback(async () => {
 		if (!canSave || !selectedPresetId) return;
 		setIsSavingPage(true);
 		try {
-			if (hasMetadataChanges) await saveMetadata();
+			const isPublishingDraft = metadataDraft.status === "draft";
+			if (hasMetadataChanges || isPublishingDraft) {
+				await serviceManager.flowBuilderService.updateFlowMetadata(
+					selectedPresetId,
+					{
+						name: metadataDraft.name,
+						description: metadataDraft.description,
+						status: isPublishingDraft ? "active" : metadataDraft.status,
+					},
+				);
+			}
 			if (hasConfigChanges) await save();
+			if (isPublishingDraft) {
+				const existingTopic =
+					await topicService.getTopicByAgentId(selectedPresetId);
+				if (!existingTopic) {
+					const createdTopic = await topicService.createTopic({
+						name: metadataDraft.name,
+						description: metadataDraft.description,
+						agentId: selectedPresetId,
+						growType: draftMemoryOptions.growType,
+						recallType: draftMemoryOptions.recallType,
+					});
+					setMemoryTopic(createdTopic);
+				} else {
+					setMemoryTopic(existingTopic);
+				}
+				updateMetadataField("status", "active");
+			}
 			await refreshPresets(selectedPresetId);
 		} finally {
 			setIsSavingPage(false);
 		}
 	}, [
 		canSave,
+		draftMemoryOptions.growType,
+		draftMemoryOptions.recallType,
 		hasConfigChanges,
 		hasMetadataChanges,
+		metadataDraft.description,
+		metadataDraft.name,
+		metadataDraft.status,
 		refreshPresets,
 		save,
-		saveMetadata,
 		selectedPresetId,
+		updateMetadataField,
 	]);
 
 	const handleRevertPage = React.useCallback(() => {
@@ -499,6 +747,9 @@ export const AgentsWorkspace: React.FC = () => {
 				canSave,
 				isBusy,
 				hasUnsavedChanges,
+				saveLabel: metadataDraft.status === "draft" ? "Submit" : undefined,
+				canOptimize: Boolean(selectedPresetId) && !isLegacyConfig && !isBusy,
+				onOptimize: handleOptimizeCurrentAgent,
 				canDelete: canDeleteSelectedPreset,
 				isDeleting,
 				onSave: () => void handleSavePage(),
@@ -516,17 +767,31 @@ export const AgentsWorkspace: React.FC = () => {
 				isDesktop ? "overflow-hidden bg-background" : "",
 			)}
 		>
-			<AgentPresetList
-				presets={filteredPresets}
-				selectedPresetId={selectedPresetId}
-				searchQuery={searchQuery}
-				isLoading={isPresetListLoading}
-				isCreating={isCreating}
-				scrollMode={isDesktop ? "contained" : "page"}
-				onSearchChange={setSearchQuery}
-				onSelectPreset={handlePresetSelection}
-				onCreatePreset={() => setIsCreateDialogOpen(true)}
-			/>
+			{isAgentWizardMode ? (
+				<AgentWizardChatPanel
+					messages={agentWizard.messages}
+					inputValue={agentWizard.inputValue}
+					onInputChange={agentWizard.setInputValue}
+					onSubmit={agentWizard.submitMessage}
+					onStop={agentWizard.stop}
+					onBack={agentWizard.requestClose}
+					isStreaming={agentWizard.isStreaming}
+					isModelReady={agentWizard.isModelReady}
+				/>
+			) : (
+				<AgentPresetList
+					presets={filteredPresets}
+					selectedPresetId={selectedPresetId}
+					searchQuery={searchQuery}
+					isLoading={isPresetListLoading}
+					isCreating={isCreating}
+					scrollMode={isDesktop ? "contained" : "page"}
+					onSearchChange={setSearchQuery}
+					onSelectPreset={handlePresetSelection}
+					onCreatePreset={() => setIsCreateDialogOpen(true)}
+					onOpenAgentWizard={() => void handleOpenAgentWizard()}
+				/>
+			)}
 		</section>
 	);
 
@@ -538,30 +803,62 @@ export const AgentsWorkspace: React.FC = () => {
 			)}
 		>
 			<div className={cn("flex flex-col", isDesktop ? "h-full min-h-0" : "")}>
-				{selectedPreset ? (
+				{isAgentWizardMode ? (
 					<div
-						className={cn(isDesktop ? "flex-1 min-h-0 overflow-y-auto" : "")}
+						className={cn("min-h-0", isDesktop ? "flex-1 overflow-y-auto" : "")}
 					>
-						{error ? (
-							<div className="px-4 pt-4 max-w-3xl mx-auto">
-								<div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-									{error}
-								</div>
+						{isWizardTemplateChooserOpen ? (
+							<AgentWizardTemplatePanel
+								templates={agentWizard.templates}
+								selectedTemplateId={agentWizard.draft.templateId}
+								onSelectTemplate={handleSelectWizardTemplate}
+								error={agentWizard.error}
+							/>
+						) : selectedPreset ? (
+							<AgentConfigForm
+								className="p-4 sm:p-5"
+								metadataDraft={metadataDraft}
+								configSummary={configSummary}
+								memoryTopic={memoryTopic}
+								onMetadataChange={updateMetadataField}
+								formActions={formActions}
+							/>
+						) : (
+							<div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-sm text-muted-foreground">
+								Creating draft agent...
 							</div>
-						) : null}
-						<AgentConfigForm
-							className="p-4 sm:p-5"
-							metadataDraft={metadataDraft}
-							configSummary={configSummary}
-							memoryTopic={memoryTopic}
-							onMetadataChange={updateMetadataField}
-							formActions={formActions}
-						/>
+						)}
 					</div>
 				) : (
-					<div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-sm text-muted-foreground">
-						{t("overview.emptyDescription")}
-					</div>
+					<>
+						{selectedPreset ? (
+							<div
+								className={cn(
+									isDesktop ? "flex-1 min-h-0 overflow-y-auto" : "",
+								)}
+							>
+								{error ? (
+									<div className="px-4 pt-4 max-w-3xl mx-auto">
+										<div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+											{error}
+										</div>
+									</div>
+								) : null}
+								<AgentConfigForm
+									className="p-4 sm:p-5"
+									metadataDraft={metadataDraft}
+									configSummary={configSummary}
+									memoryTopic={memoryTopic}
+									onMetadataChange={updateMetadataField}
+									formActions={formActions}
+								/>
+							</div>
+						) : (
+							<div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-sm text-muted-foreground">
+								{t("overview.emptyDescription")}
+							</div>
+						)}
+					</>
 				)}
 			</div>
 		</section>

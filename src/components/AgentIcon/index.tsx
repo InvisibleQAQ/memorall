@@ -20,16 +20,86 @@ export interface AgentIconProps
 	moods?: AgentIconMood[];
 }
 
-const DEFAULT_EMOJI = ["✨", "💡", "⚡", "☕", "🌙", "☀️", "💭", "🎯"];
-const DEFAULT_TEXT = ["Agent", "OK", "01", "HI"];
+const DEFAULT_EMOJI = [
+	"✨",
+	"💡",
+	"⚡",
+	"☕",
+	"🌙",
+	"☀️",
+	"💭",
+	"🎯",
+	"🥰",
+	"😊",
+	"🌸",
+	"🎀",
+	"🍵",
+	"🌈",
+	"💫",
+	"🦋",
+	"🎵",
+	"💝",
+	"🐱",
+	"🌺",
+	"🎶",
+	"💕",
+	"🌟",
+	"🍀",
+	"🌻",
+	"🎪",
+	"🫧",
+	"🐾",
+	"🌼",
+	"🎠",
+];
+const DEFAULT_TEXT = [
+	"hi!",
+	"hey!",
+	"yay",
+	"uwu",
+	"heh",
+	"ok!",
+	"wow",
+	"sure",
+	"hmm",
+	"omg",
+	"^w^",
+	"nya~",
+	"lol",
+	"eep",
+	":3",
+	"zzz",
+	"run",
+	"01",
+	"HI",
+	"OK",
+	"bzz",
+	"yes",
+	"nah",
+	"...",
+	"on!",
+];
+const TEXT_COLORS = ["#facc15", "#f472b6", "#a78bfa", "#34d399", "#60a5fa"];
+// weighted: calm moods appear more often, rare emotions less so
 const DEFAULT_ANIMATIONS: AgentIconAnimation[] = [
 	"idle",
+	"idle",
+	"blink",
 	"blink",
 	"look-around",
 	"happy",
 	"thinking",
+	"talk",
+	"wink",
+	"shy",
 	"excited",
 	"scan",
+	"loading",
+	"love",
+	"giggle",
+	"surprised",
+	"confused",
+	"sleepy",
 ];
 
 const getTimeSeed = () => {
@@ -53,6 +123,30 @@ const hashSeed = (value: number) => {
 const pick = <T,>(items: readonly T[], seed: number) =>
 	items[seed % items.length] as T;
 
+const animationDuration = (
+	animation: AgentIconAnimation,
+	seed: number,
+): number => {
+	switch (animation) {
+		case "surprised":
+			return 2600 + (seed % 1400);
+		case "giggle":
+			return 3000 + (seed % 1800);
+		case "confused":
+			return 3200 + (seed % 1800);
+		case "wink":
+			return 3500 + (seed % 1600);
+		case "love":
+			return 5200 + (seed % 2200);
+		case "shy":
+			return 4800 + (seed % 2200);
+		case "sleepy":
+			return 5500 + (seed % 2500);
+		default:
+			return 4200 + (seed % 2200);
+	}
+};
+
 const getDefaultMood = (tick: number): AgentIconMood => {
 	const seed = hashSeed(getTimeSeed() + tick * 17);
 	const showText = seed % 5 === 0;
@@ -65,7 +159,7 @@ const getDefaultMood = (tick: number): AgentIconMood => {
 			duration: 5200 + (seed % 1800),
 			screenContent: {
 				value: pick(DEFAULT_TEXT, Math.floor(seed / 3)),
-				color: "#facc15",
+				color: pick(TEXT_COLORS, Math.floor(seed / 7)),
 				scale: 0.52,
 			},
 		};
@@ -85,7 +179,7 @@ const getDefaultMood = (tick: number): AgentIconMood => {
 
 	return {
 		animation,
-		duration: 4200 + (seed % 2200),
+		duration: animationDuration(animation, seed),
 	};
 };
 

@@ -1,7 +1,11 @@
 import React from "react";
 import { serviceManager } from "@/services";
 import { logError } from "@/utils/logger";
-import { createAgentPresetDraft, type AgentPresetDraft } from "../types";
+import {
+	createAgentPresetDraft,
+	type AgentPresetDraft,
+	type AgentPresetStatus,
+} from "../types";
 import type { Flow } from "@/services/database/types";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import {
@@ -10,6 +14,12 @@ import {
 	type GrowType,
 	type RecallType,
 } from "@/services/database/entities/topic-types";
+
+type CreatePresetOptions = {
+	growType: GrowType;
+	recallType: RecallType;
+	status?: AgentPresetStatus;
+};
 
 interface UseAgentPresetsResult {
 	presets: Flow[];
@@ -34,7 +44,7 @@ interface UseAgentPresetsResult {
 	refreshPresets: (preferredPresetId?: string | null) => Promise<string | null>;
 	createPreset: (
 		name: string,
-		options?: { growType: GrowType; recallType: RecallType },
+		options?: CreatePresetOptions,
 	) => Promise<Flow | null>;
 	saveMetadata: () => Promise<Flow | null>;
 	revertMetadata: () => void;
@@ -180,9 +190,10 @@ export const useAgentPresets = (): UseAgentPresetsResult => {
 	const createPreset = React.useCallback(
 		async (
 			name: string,
-			options = {
+			options: CreatePresetOptions = {
 				growType: DEFAULT_GROW_TYPE,
 				recallType: DEFAULT_RECALL_TYPE,
+				status: "active",
 			},
 		) => {
 			setIsCreating(true);
@@ -193,20 +204,23 @@ export const useAgentPresets = (): UseAgentPresetsResult => {
 					await serviceManager.flowBuilderService.createPredefinedFlow(
 						"knowledge-rag",
 						name,
+						options.status ?? "active",
 					);
-				try {
-					await topicService.createTopic({
-						name,
-						description: "",
-						agentId: created.id,
-						growType: options.growType,
-						recallType: options.recallType,
-					});
-				} catch (topicErr) {
-					logError(
-						"[Agents] Failed to create memory zone for agent:",
-						topicErr,
-					);
+				if ((options.status ?? "active") === "active") {
+					try {
+						await topicService.createTopic({
+							name,
+							description: "",
+							agentId: created.id,
+							growType: options.growType,
+							recallType: options.recallType,
+						});
+					} catch (topicErr) {
+						logError(
+							"[Agents] Failed to create memory zone for agent:",
+							topicErr,
+						);
+					}
 				}
 				await refreshPresets(created.id);
 				return created;

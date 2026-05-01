@@ -18,6 +18,7 @@ interface AgentPresetListProps {
 	onSearchChange: (value: string) => void;
 	onSelectPreset: (presetId: string) => void;
 	onCreatePreset: () => void;
+	onOpenAgentWizard?: () => void;
 }
 
 const getStatusBadgeClassName = (
@@ -37,6 +38,7 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 	onSearchChange,
 	onSelectPreset,
 	onCreatePreset,
+	onOpenAgentWizard,
 }) => {
 	const { t } = useTranslation("agents");
 
@@ -48,27 +50,39 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 			)}
 		>
 			<div className="border-b px-4 py-4">
-				<div className="flex items-center justify-between gap-3">
-					<div className="space-y-1">
-						<p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-							{t("list.eyebrow")}
-						</p>
-						<h2 className="text-lg font-semibold">{t("list.title")}</h2>
-						<p className="text-sm text-muted-foreground">
-							{t("list.subtitle")}
-						</p>
-					</div>
+				<div className="space-y-1">
+					<p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
+						{t("list.eyebrow")}
+					</p>
+					<h2 className="text-lg font-semibold">{t("list.title")}</h2>
+					<p className="text-sm text-muted-foreground">{t("list.subtitle")}</p>
+				</div>
+
+				<div className="mt-4 grid grid-cols-2 gap-2">
 					<Button
 						type="button"
 						size="sm"
 						onClick={onCreatePreset}
 						disabled={isCreating}
-						className="shrink-0"
+						className="h-9 justify-center"
 					>
 						<Plus size={14} className="mr-1.5" />
 						{t("actions.create")}
 					</Button>
+					{onOpenAgentWizard ? (
+						<Button
+							type="button"
+							size="sm"
+							variant="secondary"
+							onClick={onOpenAgentWizard}
+							className="h-9 justify-center border border-border/70 bg-muted/60 hover:bg-muted"
+						>
+							<Sparkles size={14} className="mr-1.5" />
+							Build agent
+						</Button>
+					) : null}
 				</div>
+
 				<div className="mt-4 flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 transition-colors focus-within:border-ring/60 focus-within:bg-muted/30">
 					<Search size={14} className="text-muted-foreground" />
 					<Input

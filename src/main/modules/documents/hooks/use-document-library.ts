@@ -4,7 +4,7 @@ import NiceModal from "@ebay/nice-modal-react";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import { TopicSelectorDialog } from "@/main/modules/topics/modals";
-import { useKnowledgeConversion } from "./useKnowledgeConversion";
+import { useKnowledgeConversion } from "./use-knowledge-conversion";
 import type {
 	DocumentLibraryItem,
 	DocumentTreeNode,

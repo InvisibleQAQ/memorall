@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import React, { useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { AgentIcon } from "@/main/components/atoms/AgentIcon";
+import { AgentIcon } from "@/components/AgentIcon";
 import { MessageRenderer } from "./MessageRenderer";
 import type { InProgressMessage } from "../hooks/use-chat";
 import type { ChatMessageGroup } from "@/main/stores/chat";

@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
-import { useDocumentLibrary } from "@/main/modules/documents/hooks/useDocumentLibrary";
+import { useDocumentLibrary } from "@/main/modules/documents/hooks/use-document-library";
 import { DocumentLibraryHeader } from "@/main/modules/documents/components/DocumentLibraryHeader";
 import { DocumentLibrarySidebar } from "@/main/modules/documents/components/DocumentLibrarySidebar";
 import { DocumentLibraryContent } from "@/main/modules/documents/components/DocumentLibraryContent";

@@ -3,7 +3,7 @@ import { Folder } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DocumentList } from "./DocumentList";
 import { DocumentViewer } from "./DocumentViewer";
-import { useMultipleSourceStatus } from "../hooks/useSourceStatus";
+import { useMultipleSourceStatus } from "../hooks/use-source-status";
 import type {
 	DocumentLibraryItem,
 	DocumentTreeNode,

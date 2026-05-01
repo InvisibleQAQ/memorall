@@ -1,0 +1,347 @@
+import type {
+	AgentWizardCatalog,
+	AgentWizardDraft,
+	AgentWizardFeatureConfig,
+	AgentWizardPatch,
+	AgentWizardToolPatch,
+} from "../types";
+import { AGENT_WIZARD_TOOL_NAMES } from "./build-agent-wizard-prompt";
+import {
+	DEFAULT_GROW_TYPE,
+	DEFAULT_RECALL_TYPE,
+	GROW_TYPES,
+	getValidRecallTypes,
+	type GrowType,
+	type RecallType,
+} from "@/services/database/entities/topic-types";
+
+const MAX_PROMPT_LENGTH = 24000;
+
+const uniqueStrings = (values: unknown): string[] =>
+	Array.isArray(values)
+		? [
+				...new Set(
+					values.filter((value): value is string => typeof value === "string"),
+				),
+			]
+		: [];
+
+const filterKnown = (
+	values: unknown,
+	knownValues: string[],
+	rejected: string[],
+	label: string,
+): string[] => {
+	const known = new Set(knownValues);
+	return uniqueStrings(values).filter((value) => {
+		const accepted = known.has(value);
+		if (!accepted) rejected.push(`${label}: ${value}`);
+		return accepted;
+	});
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null && !Array.isArray(value);
+
+const normalizeMcpServers = (
+	value: unknown,
+): AgentWizardDraft["mcpServers"] => {
+	if (!Array.isArray(value)) return [];
+	return value
+		.filter(isRecord)
+		.filter(
+			(server) =>
+				(server.type === "http" || server.type === "sse") &&
+				typeof server.name === "string" &&
+				typeof server.url === "string",
+		)
+		.map((server) => ({
+			type: server.type as "http" | "sse",
+			name: server.name as string,
+			url: server.url as string,
+			headers: isRecord(server.headers)
+				? Object.fromEntries(
+						Object.entries(server.headers).filter(
+							(entry): entry is [string, string] =>
+								typeof entry[1] === "string",
+						),
+					)
+				: undefined,
+		}));
+};
+
+const normalizeGrowType = (value: unknown): GrowType =>
+	typeof value === "string" && GROW_TYPES.includes(value as GrowType)
+		? (value as GrowType)
+		: DEFAULT_GROW_TYPE;
+
+const normalizeRecallType = (
+	growType: GrowType,
+	value: unknown,
+): RecallType => {
+	const valid = getValidRecallTypes(growType);
+	return typeof value === "string" && valid.includes(value as RecallType)
+		? (value as RecallType)
+		: growType === DEFAULT_GROW_TYPE
+			? DEFAULT_RECALL_TYPE
+			: valid[0];
+};
+
+const truncatePrompt = (value: unknown): string | undefined =>
+	typeof value === "string" ? value.slice(0, MAX_PROMPT_LENGTH) : undefined;
+
+const addUniqueStrings = (existing: string[], values: string[]): string[] => [
+	...new Set([...existing, ...values]),
+];
+
+const removeStrings = (existing: string[], values: string[]): string[] => {
+	const valuesToRemove = new Set(values);
+	return existing.filter((value) => !valuesToRemove.has(value));
+};
+
+const normalizeFeatureConfig = (value: unknown): AgentWizardFeatureConfig =>
+	isRecord(value) ? (value as AgentWizardFeatureConfig) : {};
+
+const applyFeatureConfig = (
+	draft: AgentWizardDraft,
+	config: AgentWizardFeatureConfig | undefined,
+	catalog: AgentWizardCatalog,
+	rejected: string[],
+): void => {
+	if (!config) return;
+
+	const contextPrompt = truncatePrompt(config.contextPrompt);
+	if (contextPrompt !== undefined) draft.contextPrompt = contextPrompt;
+
+	if ("tools" in config) {
+		draft.enabledToolNames = filterKnown(
+			config.tools,
+			catalog.toolNames,
+			rejected,
+			"tool",
+		);
+	}
+
+	if ("accessibleAgentIds" in config) {
+		draft.multiAgentAccessibleAgentIds = uniqueStrings(
+			config.accessibleAgentIds,
+		);
+	}
+};
+
+export const applyAgentWizardPatch = (
+	draft: AgentWizardDraft,
+	patch: AgentWizardPatch,
+	catalog: AgentWizardCatalog,
+): { draft: AgentWizardDraft; notes: string[] } => {
+	const next: AgentWizardDraft = { ...draft };
+	const rejected: string[] = [];
+
+	if (typeof patch.name === "string") next.name = patch.name.slice(0, 120);
+	if (typeof patch.description === "string") {
+		next.description = patch.description.slice(0, 500);
+	}
+	if (patch.status === "active" || patch.status === "draft") {
+		next.status = patch.status;
+	}
+	if (patch.graphType === "agent" || patch.graphType === "knowledge-rag") {
+		next.graphType = patch.graphType;
+	}
+
+	const systemPrompt = truncatePrompt(patch.systemPrompt);
+	if (systemPrompt !== undefined) next.systemPrompt = systemPrompt;
+	const contextPrompt = truncatePrompt(patch.contextPrompt);
+	if (contextPrompt !== undefined) next.contextPrompt = contextPrompt;
+
+	if ("enabledFeatureNames" in patch) {
+		next.enabledFeatureNames = filterKnown(
+			patch.enabledFeatureNames,
+			catalog.featureNames,
+			rejected,
+			"feature",
+		);
+	}
+	if ("enabledToolNames" in patch) {
+		next.enabledToolNames = filterKnown(
+			patch.enabledToolNames,
+			catalog.toolNames,
+			rejected,
+			"tool",
+		);
+	}
+	if ("enabledSkillNames" in patch) {
+		next.enabledSkillNames = filterKnown(
+			patch.enabledSkillNames,
+			catalog.skillNames,
+			rejected,
+			"skill",
+		);
+	}
+	if ("multiAgentAccessibleAgentIds" in patch) {
+		next.multiAgentAccessibleAgentIds = uniqueStrings(
+			patch.multiAgentAccessibleAgentIds,
+		);
+	}
+	if ("mcpServers" in patch) {
+		next.mcpServers = normalizeMcpServers(patch.mcpServers);
+	}
+
+	const growType =
+		"growType" in patch ? normalizeGrowType(patch.growType) : next.growType;
+	next.growType = growType;
+	next.recallType =
+		"recallType" in patch
+			? normalizeRecallType(growType, patch.recallType)
+			: normalizeRecallType(growType, next.recallType);
+
+	return {
+		draft: next,
+		notes:
+			rejected.length > 0
+				? [`Ignored unknown catalog entries: ${rejected.join(", ")}`]
+				: [],
+	};
+};
+
+export const applyAgentWizardToolPatch = (
+	draft: AgentWizardDraft,
+	patch: AgentWizardToolPatch,
+	catalog: AgentWizardCatalog,
+): { draft: AgentWizardDraft; notes: string[] } => {
+	const next: AgentWizardDraft = { ...draft };
+	const rejected: string[] = [];
+
+	switch (patch.type) {
+		case "update_name":
+			next.name = patch.name.slice(0, 120);
+			break;
+		case "update_description":
+			next.description = patch.description.slice(0, 500);
+			break;
+		case "add_skills":
+			next.enabledSkillNames = addUniqueStrings(
+				next.enabledSkillNames,
+				filterKnown(patch.skillNames, catalog.skillNames, rejected, "skill"),
+			);
+			break;
+		case "remove_skills":
+			next.enabledSkillNames = removeStrings(
+				next.enabledSkillNames,
+				uniqueStrings(patch.skillNames),
+			);
+			break;
+		case "install_skill": {
+			const installedName =
+				patch.name ??
+				(catalog.skillNames.includes(patch.source) ? patch.source : undefined);
+			if (installedName) {
+				next.enabledSkillNames = addUniqueStrings(
+					next.enabledSkillNames,
+					filterKnown([installedName], catalog.skillNames, rejected, "skill"),
+				);
+			} else {
+				rejected.push(`external skill install: ${patch.source}`);
+			}
+			break;
+		}
+		case "enable_feature":
+			next.enabledFeatureNames = addUniqueStrings(
+				next.enabledFeatureNames,
+				filterKnown([patch.name], catalog.featureNames, rejected, "feature"),
+			);
+			applyFeatureConfig(next, patch.config, catalog, rejected);
+			break;
+		case "disable_feature":
+			next.enabledFeatureNames = removeStrings(next.enabledFeatureNames, [
+				patch.name,
+			]);
+			if (patch.name === "knowledge-retrieval") next.contextPrompt = "";
+			if (patch.name === "agent-node") next.multiAgentAccessibleAgentIds = [];
+			break;
+		case "update_instruction": {
+			const systemPrompt = truncatePrompt(patch.systemPrompt);
+			if (systemPrompt !== undefined) next.systemPrompt = systemPrompt;
+			break;
+		}
+		case "update_grow_type": {
+			const growType = normalizeGrowType(patch.growType);
+			next.growType = growType;
+			next.recallType = normalizeRecallType(growType, next.recallType);
+			break;
+		}
+		case "update_recall_type":
+			next.recallType = normalizeRecallType(next.growType, patch.recallType);
+			break;
+	}
+
+	return {
+		draft: next,
+		notes:
+			rejected.length > 0
+				? [`Ignored unsupported or unknown entries: ${rejected.join(", ")}`]
+				: [],
+	};
+};
+
+export const agentWizardToolPatchFromCall = (
+	toolName: string,
+	args: Record<string, unknown>,
+): AgentWizardToolPatch | null => {
+	switch (toolName) {
+		case AGENT_WIZARD_TOOL_NAMES.updateName:
+			return typeof args.name === "string"
+				? { type: "update_name", name: args.name }
+				: null;
+		case AGENT_WIZARD_TOOL_NAMES.updateDescription:
+			return typeof args.description === "string"
+				? { type: "update_description", description: args.description }
+				: null;
+		case AGENT_WIZARD_TOOL_NAMES.addSkills:
+			return { type: "add_skills", skillNames: uniqueStrings(args.skillNames) };
+		case AGENT_WIZARD_TOOL_NAMES.removeSkills:
+			return {
+				type: "remove_skills",
+				skillNames: uniqueStrings(args.skillNames),
+			};
+		case AGENT_WIZARD_TOOL_NAMES.installSkill:
+			return typeof args.source === "string"
+				? {
+						type: "install_skill",
+						source: args.source,
+						name: typeof args.name === "string" ? args.name : undefined,
+					}
+				: null;
+		case AGENT_WIZARD_TOOL_NAMES.enableFeature:
+			return typeof args.name === "string"
+				? {
+						type: "enable_feature",
+						name: args.name,
+						config: normalizeFeatureConfig(args.config),
+					}
+				: null;
+		case AGENT_WIZARD_TOOL_NAMES.disableFeature:
+			return typeof args.name === "string"
+				? { type: "disable_feature", name: args.name }
+				: null;
+		case AGENT_WIZARD_TOOL_NAMES.updateInstruction:
+			return typeof args.systemPrompt === "string"
+				? { type: "update_instruction", systemPrompt: args.systemPrompt }
+				: null;
+		case AGENT_WIZARD_TOOL_NAMES.updateGrowType:
+			return typeof args.growType === "string"
+				? {
+						type: "update_grow_type",
+						growType: normalizeGrowType(args.growType),
+					}
+				: null;
+		case AGENT_WIZARD_TOOL_NAMES.updateRecallType:
+			return typeof args.recallType === "string"
+				? {
+						type: "update_recall_type",
+						recallType: args.recallType as RecallType,
+					}
+				: null;
+		default:
+			return null;
+	}
+};

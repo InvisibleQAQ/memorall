@@ -2,6 +2,8 @@ import { ALIREZAREZVANI_DEFAULT_SKILLS } from "./alirezarezvani";
 import { ANTHROPIC_DEFAULT_SKILLS } from "./anthropic";
 import { BUNDLED_DEFAULT_SKILLS } from "./bundled";
 import { SECONDSKY_DEFAULT_SKILLS } from "./secondsky";
+import { ANDREJ_KARPATHY_SKILLS } from "./andrej-karpathy";
+import { NEXU_DEFAULT_SKILLS } from "./nexu";
 import type { DefaultSkillManifestEntry } from "./types";
 
 const DEFAULT_SKILLS_LOGICAL_ROOT = "/skills/default";
@@ -10,6 +12,8 @@ const DEFAULT_SKILL_MANIFEST = [
 	...SECONDSKY_DEFAULT_SKILLS,
 	...ALIREZAREZVANI_DEFAULT_SKILLS,
 	...BUNDLED_DEFAULT_SKILLS,
+	...ANDREJ_KARPATHY_SKILLS,
+	...NEXU_DEFAULT_SKILLS,
 ];
 
 const defaultSkillIndex = new Map(
