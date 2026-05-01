@@ -47,6 +47,10 @@
 		"chat": "Trò chuyện",
 		"create": "Tạo flow mới"
 	},
+	"agentBuilderCallout": {
+		"title": "Tạo tác nhân cho đúng công việc của bạn",
+		"description": "Tạo tác nhân tập trung với bộ nhớ, công cụ và hành vi phù hợp để giải quyết yêu cầu của bạn."
+	},
 	"actions": {
 		"deleteChat": "Xóa cuộc trò chuyện",
 		"moreActions": "Thêm hành động",

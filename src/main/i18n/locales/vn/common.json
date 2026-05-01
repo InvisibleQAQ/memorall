@@ -367,43 +367,51 @@
 		"steps": {
 			"welcome": {
 				"title": "Chào mừng đến với Memorall! 🧠",
-				"content": "Memorall là người bạn đồng hành tri thức được hỗ trợ bởi AI giúp bạn ghi nhớ, tổ chức và tương tác với thông tin. Nó thu thập nội dung web, xử lý thông minh và cho phép bạn trò chuyện với kiến thức tích lũy bằng các mô hình AI tiên tiến."
+				"content": "Memorall là không gian làm việc AI cục bộ cho trò chuyện, tài liệu, agent, đồ thị tri thức và thiết lập mô hình. Ứng dụng giúp bạn tổ chức thông tin, biến tệp thành tri thức có thể dùng và làm việc với các tính năng AI ở một nơi."
 			},
 			"productOverview": {
 				"title": "Memorall làm gì",
-				"content": "🔍 Thu thập: Lưu trang web, lựa chọn và ghi chú\n📊 Xử lý: AI trích xuất thông tin chính và tạo đồ thị tri thức\n💬 Trò chuyện: Đặt câu hỏi về nội dung đã lưu\n🎯 Ghi nhớ: Không bao giờ mất thông tin quan trọng"
+				"content": "💬 Trò chuyện: Đặt câu hỏi với ngữ cảnh mô hình, chủ đề và agent\n📄 Tài liệu: Quản lý tệp, thư mục, workspace và chuyển đổi tri thức\n🧠 Agent: Cấu hình trợ lý dùng lại với kỹ năng và MCP server\n🕸️ Tri thức: Khám phá bộ nhớ dạng đồ thị theo chủ đề\n🤖 Mô hình: Tải provider cục bộ hoặc dùng API"
 			},
 			"chatTab": {
 				"title": "💬 Tab Trò chuyện",
-				"content": "Giao diện chính để trò chuyện với trợ lý AI về nội dung đã lưu."
+				"content": "Trò chuyện là workspace chính cho các cuộc hội thoại với mô hình. Bạn có thể chọn luồng agent, đổi chủ đề, đính kèm hình ảnh hoặc tài liệu, dùng ngữ cảnh Smart Select, dừng hoặc thử lại tác vụ và xem các nhóm tin nhắn trước đó."
 			},
 			"knowledgeGraphTab": {
 				"title": "🕸️ Tab Đồ thị tri thức",
-				"content": "Trực quan hóa tương tác hiển thị kết nối giữa nội dung đã lưu của bạn."
+				"content": "Đồ thị tri thức hiển thị bộ nhớ theo chủ đề dưới dạng node và edge được kết nối. Dùng thanh chủ đề, tìm kiếm, canvas đồ thị và điều khiển node để kiểm tra và duy trì tri thức đã trích xuất."
 			},
 			"documentsTab": {
 				"title": "📄 Tab Tài liệu",
-				"content": "Thư viện tài liệu cá nhân nơi bạn có thể tải lên, tổ chức và quản lý PDF, tệp Excel, hình ảnh và các tài liệu khác. Truy cập chúng bất cứ lúc nào và sử dụng AI để phân tích nội dung."
+				"content": "Tài liệu là thư viện tệp và trình duyệt workspace của bạn. Tải lên hoặc tạo tệp, tổ chức thư mục, đổi chế độ xem, lọc theo chủ đề, xem trước nội dung và chuyển tệp đã chọn thành tri thức."
+			},
+			"agentsTab": {
+				"title": "🧠 Tab Agent",
+				"content": "Agent cho phép bạn tạo và tinh chỉnh các trợ lý AI có thể dùng lại. Cấu hình preset, hành vi bộ nhớ, system prompt, tính năng được bật, kỹ năng và MCP server cho các workflow chuyên biệt."
 			},
 			"modelsTabIntro": {
 				"title": "🤖 Tab Mô hình - Cần thiết lập!",
-				"content": "Bây giờ hãy tập trung vào bước quan trọng nhất: thiết lập các mô hình AI. Điều này rất cần thiết để bắt đầu sử dụng các tính năng của Memorall."
+				"content": "Mô hình kiểm soát thứ cung cấp sức mạnh cho Trò chuyện và workflow agent. Hãy thiết lập ít nhất một provider để Memorall có thể tạo phản hồi, phân tích tài liệu và truy xuất tri thức."
 			},
 			"currentModelSection": {
 				"title": "📊 Trạng thái mô hình hiện tại",
-				"content": "Phần này hiển thị mô hình AI nào đang hoạt động. Nó hiển thị:\n• Tên mô hình và nhà cung cấp\n• Trạng thái: Hoạt động (sẵn sàng sử dụng) / Đã cấu hình (đã thiết lập nhưng chưa tải) / Không hoạt động (cần thiết lập)\n• Đây là tham chiếu nhanh cho những gì đang chạy"
+				"content": "Phần này hiển thị mô hình và provider hiện đang được chọn. Với mô hình cục bộ, nó cũng hiển thị các thông tin hữu ích như kích thước ngữ cảnh, giới hạn output, dung lượng mô hình, ngày phát hành và metadata runtime."
 			},
 			"quickSetupSection": {
-				"title": "⚡ Mô hình của tôi - Thiết lập nhanh",
-				"content": "Phần này cung cấp thiết lập dễ dàng cho các nhà cung cấp AI khác nhau. Chọn từ:\n\n🌐 **WebLLM**: Mô hình dựa trên trình duyệt\n🔑 **OpenAI**: Mô hình GPT (cần khóa API)\n🏠 **LM Studio**: Máy chủ mô hình cục bộ\n🦙 **Ollama**: Mô hình mã nguồn mở cục bộ\n🧠 **Wllama**: Mô hình cục bộ dựa trên WASM"
+				"title": "⚡ Mô hình của bạn",
+				"content": "Mô hình của bạn là nơi nhanh nhất để tải hoặc chuyển đổi các provider được hỗ trợ. Dùng cho mô hình cục bộ chạy trong trình duyệt, server cục bộ, mô hình WASM/GGUF và provider dùng API."
 			},
 			"providerAdvantages": {
 				"title": "🎯 Chọn điều tốt nhất cho bạn",
-				"content": "**WebLLM**: ✅ Miễn phí, riêng tư, hoạt động ngoại tuyến, không cần thiết lập\n**OpenAI**: ✅ Mô hình mạnh nhất, phản hồi nhanh\n**LM Studio**: ✅ Kiểm soát hoàn toàn, riêng tư, có thể tùy chỉnh cao\n**Ollama**: ✅ Mã nguồn mở, tập trung vào quyền riêng tư, hoàn toàn miễn phí\n**Wllama**: ✅ Suy luận cục bộ nhanh, dựa trên WebAssembly\n\n💡 **Khuyến nghị**: Bắt đầu với WebLLM để sử dụng ngay lập tức, sau đó khám phá những cái khác cho nhu cầu cụ thể!"
+				"content": "**WebLLM / mô hình chạy trong trình duyệt**: riêng tư và dễ bắt đầu\n**Wllama / GGUF**: suy luận cục bộ với tệp mô hình linh hoạt\n**LM Studio / Ollama**: workflow server cục bộ với nhiều quyền kiểm soát hơn\n**OpenAI và provider API khác**: mô hình hosted mạnh khi bạn cần tốc độ và năng lực cao\n\nHãy bắt đầu với provider phù hợp với quyền riêng tư, phần cứng và chất lượng bạn cần."
+			},
+			"runtimeSessions": {
+				"title": "🧰 Phiên runtime",
+				"content": "Khi agent hoặc công cụ chạy lệnh, server, preview trình duyệt hoặc request API, các phiên đang hoạt động sẽ xuất hiện trong điều khiển runtime. Dùng chúng để xem output, làm mới trạng thái, mở preview hoặc dừng tác vụ vẫn đang chạy."
 			},
 			"getStarted": {
 				"title": "🚀 Bạn đã sẵn sàng bắt đầu!",
-				"content": "Hoàn hảo! Bây giờ bạn đã hiểu giao diện và tùy chọn thiết lập của Memorall.\n\n**Các bước tiếp theo:**\n1. Chọn một tùy chọn thiết lập từ màn hình chào mừng (Dịch vụ quản lý dễ dàng, Mô hình cục bộ miễn phí, hoặc Mang khóa API của riêng bạn)\n2. Cấu hình mô hình AI đã chọn\n3. Bắt đầu lưu nội dung và trò chuyện với kiến thức của bạn\n\nHãy bắt đầu hành trình của bạn với Memorall!"
+				"content": "Các bước tiếp theo:\n1. Tải một mô hình từ tab Mô hình\n2. Thêm tệp hoặc thư mục trong Tài liệu\n3. Tạo hoặc chọn agent cho workflow bạn cần\n4. Trò chuyện với mô hình, tài liệu, chủ đề và đồ thị tri thức của bạn"
 			}
 		}
 	}

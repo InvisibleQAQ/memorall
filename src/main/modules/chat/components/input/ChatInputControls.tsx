@@ -95,11 +95,14 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 			selectedAgentFlowId !== "chat" &&
 			topic.agentId === selectedAgentFlowId,
 	)?.id;
+	const isDefaultTopicSelected = selectedTopic === "default" || !selectedTopic;
 	const selectedTopicName =
 		selectedTopic === "__all__"
 			? t("topic.all")
-			: topics.find((topic) => topic.id === selectedTopic)?.name ||
-				t("topic.select");
+			: isDefaultTopicSelected
+				? t("topic.default")
+				: topics.find((topic) => topic.id === selectedTopic)?.name ||
+					t("topic.select");
 
 	return (
 		<PromptInputToolbar>
@@ -228,28 +231,48 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 										<DropdownMenuContent align="start">
 											<DropdownMenuItem
 												onClick={() => setSelectedTopic("default")}
-												className="flex items-center gap-2"
+												className={cn(
+													"flex items-center gap-2",
+													isDefaultTopicSelected &&
+														"bg-accent/60 text-accent-foreground",
+												)}
 											>
 												<Tags size={14} />
 												<span>{t("topic.default")}</span>
+												{isDefaultTopicSelected && (
+													<Check size={13} className="ml-auto text-primary" />
+												)}
 											</DropdownMenuItem>
-											{topics.map((topic) => (
-												<DropdownMenuItem
-													key={topic.id}
-													onClick={() => setSelectedTopic(topic.id)}
-													className={cn(
-														"flex items-center gap-2",
-														topic.id === currentAgentTopicId &&
-															"bg-accent/60 text-accent-foreground",
-													)}
-												>
-													<Tags size={14} />
-													<span>{topic.name}</span>
-													{topic.id === currentAgentTopicId && (
-														<Check size={13} className="ml-auto text-primary" />
-													)}
-												</DropdownMenuItem>
-											))}
+											{topics.map((topic) => {
+												const isSelectedTopic = topic.id === selectedTopic;
+												const isCurrentAgentMemory =
+													topic.id === currentAgentTopicId;
+
+												return (
+													<DropdownMenuItem
+														key={topic.id}
+														onClick={() => setSelectedTopic(topic.id)}
+														className={cn(
+															"flex items-center gap-2",
+															isSelectedTopic &&
+																"bg-accent/60 text-accent-foreground",
+														)}
+													>
+														{isCurrentAgentMemory ? (
+															<Brain size={14} className="text-primary" />
+														) : (
+															<Tags size={14} />
+														)}
+														<span>{topic.name}</span>
+														{isSelectedTopic && (
+															<Check
+																size={13}
+																className="ml-auto text-primary"
+															/>
+														)}
+													</DropdownMenuItem>
+												);
+											})}
 										</DropdownMenuContent>
 									</DropdownMenu>
 									<TooltipContent>

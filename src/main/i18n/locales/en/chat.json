@@ -47,6 +47,10 @@
 		"chat": "Chat",
 		"create": "Create new flow"
 	},
+	"agentBuilderCallout": {
+		"title": "Build an agent for your exact work",
+		"description": "Create a focused agent with the right memory, tools, and behavior to solve your requirements."
+	},
 	"actions": {
 		"deleteChat": "Delete Chat",
 		"moreActions": "More actions",

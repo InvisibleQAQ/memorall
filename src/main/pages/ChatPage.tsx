@@ -1,8 +1,9 @@
 "use client";
 import React, { useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, X } from "lucide-react";
+import { ArrowRight, ArrowUp, Sparkles, X } from "lucide-react";
 import {
 	Conversation,
 	ConversationContent,
@@ -19,7 +20,11 @@ import {
 	useSmartSelectContext,
 } from "@/main/modules/chat/components";
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
-import { AgentIcon, type AgentScreenContent } from "@/components/AgentIcon";
+import {
+	AgentIcon,
+	type AgentGreetingContext,
+	type AgentScreenContent,
+} from "@/components/AgentIcon";
 import { Button } from "@/main/components/ui/button";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import { AgentSettingsPanel } from "@/main/modules/chat/components/AgentSettingsPanel";
@@ -37,8 +42,16 @@ import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { isPopupSurface } from "@/utils/dom";
 import { useIsWideViewport } from "@/main/hooks/use-viewport";
 import { getAgentIconScreenFromMetadata } from "@/main/modules/agents/types";
+import type { FeatureCatalogMetadata } from "@/services/flows/feature-catalog-registry";
 
 type AgentFlowOption = Pick<Flow, "id" | "name" | "metadata">;
+
+const RETRIEVAL_STEP_NAMES = new Set([
+	"context-smart-retrieve",
+	"context-quick-retrieve",
+	"context-llm-retrieve",
+	"structmem-retrieval",
+]);
 
 const OPEN_SCREEN_AGENT_ICON_MOODS: NonNullable<
 	React.ComponentProps<typeof AgentIcon>["moods"]
@@ -79,6 +92,7 @@ const buildOpenScreenMoods = (
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
+	const { t } = useTranslation(["chat"]);
 	const { model, current, isInitialized, handleModelLoaded } =
 		useCurrentModel();
 	const {
@@ -92,6 +106,10 @@ export const ChatPage: React.FC = () => {
 	>([]);
 	const [isLoadingTopics, setIsLoadingTopics] = React.useState(false);
 	const [agentFlows, setAgentFlows] = React.useState<AgentFlowOption[]>([]);
+	const [selectedAgentFeatureNames, setSelectedAgentFeatureNames] =
+		React.useState<string[]>([]);
+	const [selectedAgentFeatureLabels, setSelectedAgentFeatureLabels] =
+		React.useState<string[]>([]);
 	const { isOpen, open, close } = useAgentConfigStore();
 	const refreshRuntimeSessions = useRuntimeSessionsStore(
 		(state) => state.refresh,
@@ -106,6 +124,8 @@ export const ChatPage: React.FC = () => {
 	const [isChatInputModelReady, setIsChatInputModelReady] =
 		React.useState(true);
 	const [showPreviousGroups, setShowPreviousGroups] = React.useState(false);
+	const latestPreviousGroupRef = useRef<HTMLDivElement | null>(null);
+	const shouldScrollToPreviousGroupsRef = useRef(false);
 
 	const {
 		inputValue,
@@ -171,20 +191,28 @@ export const ChatPage: React.FC = () => {
 
 	// Memoized completed components - only re-render when completed groups actually change
 	const completedMessageGroups = useMemo(() => {
-		return completedGroups.map((group) => (
-			<MessageGroup
+		return completedGroups.map((group, index) => (
+			<div
 				key={group.id}
-				group={group}
-				inProgressMessage={null}
-				defaultCollapsed={true}
-				selectedTopic={selectedTopic}
-				suppressSeparator={
-					!showPreviousGroups &&
-					latestGroupIsEmpty &&
-					latestGroup?.previousSeparator?.id === group.separator?.id
+				ref={
+					index === completedGroups.length - 1
+						? latestPreviousGroupRef
+						: undefined
 				}
-				onLoadMessages={loadMessageGroup}
-			/>
+			>
+				<MessageGroup
+					group={group}
+					inProgressMessage={null}
+					defaultCollapsed={true}
+					selectedTopic={selectedTopic}
+					suppressSeparator={
+						!showPreviousGroups &&
+						latestGroupIsEmpty &&
+						latestGroup?.previousSeparator?.id === group.separator?.id
+					}
+					onLoadMessages={loadMessageGroup}
+				/>
+			</div>
 		));
 	}, [
 		completedGroupsIds,
@@ -195,6 +223,32 @@ export const ChatPage: React.FC = () => {
 		selectedTopic,
 		showPreviousGroups,
 	]);
+
+	const scrollToPreviousGroups = React.useCallback(() => {
+		latestPreviousGroupRef.current?.scrollIntoView({
+			behavior: "smooth",
+			block: "end",
+		});
+	}, []);
+
+	const handlePreviousGroupsClick = React.useCallback(() => {
+		if (showPreviousGroups) {
+			scrollToPreviousGroups();
+			return;
+		}
+
+		shouldScrollToPreviousGroupsRef.current = true;
+		setShowPreviousGroups(true);
+	}, [scrollToPreviousGroups, showPreviousGroups]);
+
+	useEffect(() => {
+		if (!showPreviousGroups || !shouldScrollToPreviousGroupsRef.current) return;
+
+		shouldScrollToPreviousGroupsRef.current = false;
+		requestAnimationFrame(() => {
+			scrollToPreviousGroups();
+		});
+	}, [scrollToPreviousGroups, showPreviousGroups]);
 
 	// Fetch topics when knowledge mode is selected
 	useEffect(() => {
@@ -230,14 +284,22 @@ export const ChatPage: React.FC = () => {
 					await serviceManager.flowBuilderService.listPredefinedFlows(
 						"knowledge-rag",
 					);
-				const mapped = flows.map((flow) => ({
-					id: flow.id,
-					name: flow.name,
-					metadata: flow.metadata,
-				}));
+				const mapped = flows
+					.filter((flow) => flow.status === "active")
+					.map((flow) => ({
+						id: flow.id,
+						name: flow.name,
+						metadata: flow.metadata,
+					}));
 				setAgentFlows(mapped);
 				if (!selectedAgentFlowId && mapped.length > 0) {
 					setSelectedAgentFlowId(mapped[0].id);
+				} else if (
+					selectedAgentFlowId &&
+					selectedAgentFlowId !== "chat" &&
+					!mapped.some((flow) => flow.id === selectedAgentFlowId)
+				) {
+					setSelectedAgentFlowId(mapped[0]?.id ?? "chat");
 				}
 			} catch {
 				setAgentFlows([]);
@@ -245,6 +307,87 @@ export const ChatPage: React.FC = () => {
 		};
 		loadFlows();
 	}, [selectedAgentFlowId, setSelectedAgentFlowId]);
+
+	useEffect(() => {
+		let cancelled = false;
+
+		const loadSelectedAgentFeatures = async () => {
+			if (!selectedAgentFlowId) {
+				setSelectedAgentFeatureNames([]);
+				setSelectedAgentFeatureLabels([]);
+				return;
+			}
+
+			try {
+				const [config, catalog] = await Promise.all([
+					serviceManager.flowBuilderService.getUnifiedFlowConfig({
+						flowId: selectedAgentFlowId,
+					}),
+					Promise.resolve(serviceManager.flowBuilderService.getCatalog()),
+				]);
+				if (cancelled) return;
+
+				const catalogFeatures = new Map(
+					catalog.steps
+						.filter((step) => step.type === "feature")
+						.map((step) => [
+							step.name,
+							step.metadata as FeatureCatalogMetadata,
+						]),
+				);
+				const names: string[] = [];
+				const labels: string[] = [];
+				const addFeature = (name: string, label: string) => {
+					if (names.includes(name)) return;
+					names.push(name);
+					labels.push(label);
+				};
+
+				if (
+					config.steps.some(
+						(step) => step.enabled && RETRIEVAL_STEP_NAMES.has(step.name),
+					)
+				) {
+					addFeature(
+						"knowledge-retrieval",
+						t("agentSettings.contextRetrieval"),
+					);
+				}
+				if (
+					config.steps.some(
+						(step) => step.enabled && step.name === "entities-facts-citation",
+					)
+				) {
+					addFeature("citations", t("agentSettings.citations"));
+				}
+
+				for (const step of config.steps) {
+					if (!step.enabled) continue;
+					const metadata = catalogFeatures.get(step.name);
+					if (!metadata) continue;
+					addFeature(
+						step.name,
+						metadata.nameKey
+							? t(metadata.nameKey)
+							: (metadata.displayName ?? step.name),
+					);
+				}
+
+				setSelectedAgentFeatureNames(names);
+				setSelectedAgentFeatureLabels(labels);
+			} catch {
+				if (!cancelled) {
+					setSelectedAgentFeatureNames([]);
+					setSelectedAgentFeatureLabels([]);
+				}
+			}
+		};
+
+		void loadSelectedAgentFeatures();
+		return () => {
+			cancelled = true;
+		};
+	}, [selectedAgentFlowId, t]);
 
 	const getAgentTopicId = React.useCallback(
 		(flowId: string) =>
@@ -319,18 +462,38 @@ export const ChatPage: React.FC = () => {
 	};
 
 	const isWideChatRuntimeRailVisible = isWideViewport && !isPopupSurface();
+	const selectedAgent = useMemo(
+		() => agentFlows.find((flow) => flow.id === selectedAgentFlowId),
+		[agentFlows, selectedAgentFlowId],
+	);
 	const selectedAgentIconScreenContent = useMemo(() => {
-		const selectedAgent = agentFlows.find(
-			(flow) => flow.id === selectedAgentFlowId,
-		);
 		return toAgentScreenContent(
 			getAgentIconScreenFromMetadata(selectedAgent?.metadata),
 		);
-	}, [agentFlows, selectedAgentFlowId]);
+	}, [selectedAgent]);
+	const agentGreetingContext = useMemo<AgentGreetingContext>(
+		() => ({
+			selectedAgentName: selectedAgent?.name,
+			agentNames: agentFlows.map((flow) => flow.name),
+			agentCount: agentFlows.length,
+			featureNames: selectedAgentFeatureNames,
+			featureLabels: selectedAgentFeatureLabels,
+		}),
+		[
+			agentFlows,
+			selectedAgent?.name,
+			selectedAgentFeatureLabels,
+			selectedAgentFeatureNames,
+		],
+	);
 	const openScreenAgentMoods = useMemo(
 		() => buildOpenScreenMoods(selectedAgentIconScreenContent),
 		[selectedAgentIconScreenContent],
 	);
+	const shouldShowAgentBuilderCallout = agentFlows.length === 1;
+	const handleOpenAgentWizard = React.useCallback(() => {
+		navigate("/agents", { state: { openAgentWizard: true } });
+	}, [navigate]);
 
 	if (!isInitialized) {
 		return <LoadingScreen />;
@@ -372,7 +535,7 @@ export const ChatPage: React.FC = () => {
 								variant="ghost"
 								size="sm"
 								className="pointer-events-auto h-8 rounded-full border border-border/70 bg-background/90 px-3 text-xs text-muted-foreground shadow-sm backdrop-blur hover:bg-accent/60 hover:text-foreground"
-								onClick={() => setShowPreviousGroups((value) => !value)}
+								onClick={handlePreviousGroupsClick}
 							>
 								{showPreviousGroups ? (
 									<>
@@ -398,7 +561,9 @@ export const ChatPage: React.FC = () => {
 						</div>
 					) : null}
 					<ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col space-y-6">
-						{showPreviousGroups ? completedMessageGroups : null}
+						{showPreviousGroups ? (
+							<div className="space-y-6">{completedMessageGroups}</div>
+						) : null}
 
 						{latestGroupIsEmpty ? (
 							<div className="flex min-h-[calc(100vh-12rem)] flex-1 flex-col items-center justify-center gap-5 py-12">
@@ -406,7 +571,34 @@ export const ChatPage: React.FC = () => {
 									size={132}
 									aria-label="Agent"
 									moods={openScreenAgentMoods}
+									autoGreeting
+									greetingContext={agentGreetingContext}
 								/>
+								{shouldShowAgentBuilderCallout ? (
+									<button
+										type="button"
+										onClick={handleOpenAgentWizard}
+										className="group w-full max-w-md rounded-lg border border-blue-500/25 bg-blue-500/10 px-4 py-3 text-left shadow-[0_10px_30px_rgba(59,130,246,0.08)] transition-colors hover:border-blue-500/45 hover:bg-blue-500/15"
+									>
+										<span className="flex items-start gap-3">
+											<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-500/15 text-blue-500">
+												<Sparkles size={18} />
+											</span>
+											<span className="min-w-0 flex-1">
+												<span className="block text-sm font-semibold text-foreground">
+													{t("agentBuilderCallout.title")}
+												</span>
+												<span className="mt-1 block text-xs leading-5 text-muted-foreground">
+													{t("agentBuilderCallout.description")}
+												</span>
+											</span>
+											<ArrowRight
+												size={16}
+												className="mt-1 shrink-0 text-blue-500 transition-transform group-hover:translate-x-0.5"
+											/>
+										</span>
+									</button>
+								) : null}
 							</div>
 						) : latestGroup ? (
 							<MessageGroup

@@ -3,6 +3,7 @@
 	"subtitle": "Tùy chỉnh các preset tác nhân dựng sẵn trong một không gian làm việc riêng cho metadata, prompt, công cụ và tính năng.",
 	"actions": {
 		"create": "Tạo tác nhân",
+		"build": "Xây dựng tác nhân",
 		"save": "Lưu thay đổi",
 		"saving": "Đang lưu...",
 		"revert": "Hoàn tác",
@@ -20,6 +21,211 @@
 	},
 	"state": {
 		"loading": "Đang tải preset tác nhân..."
+	},
+	"iconGreeting": {
+		"generic": [
+			"Chào, mình đã sẵn sàng.",
+			"Sẵn sàng khi bạn cần.",
+			"Hôm nay mình ghi nhớ gì đây?",
+			"Không gian làm việc đã sẵn sàng.",
+			"Tiếp tục từ đây nhé.",
+			"Mình đã vào chế độ tập trung.",
+			"Bạn muốn tiếp tục không?",
+			"Xin chào. Mình đang lắng nghe.",
+			"Cùng làm việc này gọn hơn nhé.",
+			"Mình mang ghi chú đến rồi.",
+			"Mình xử lý gì trước?",
+			"Đưa mình một ký ức để giữ nhé.",
+			"Mình có thể giúp sắp xếp việc này.",
+			"Cùng làm nó rõ hơn nhé.",
+			"Mình sẵn sàng giúp.",
+			"Bong bóng nhỏ, tập trung lớn.",
+			"Chỉ mình vào nhiệm vụ nhé.",
+			"Mình có thể theo dõi việc này.",
+			"Cùng xây tiếp từ đây.",
+			"Từng ý một thôi.",
+			"Mình đã có ngữ cảnh.",
+			"Bạn muốn tóm tắt nhanh không?",
+			"Mình có thể nhớ các chi tiết.",
+			"Sẵn sàng cho ghi chú tiếp theo.",
+			"Bàn ghi nhớ của bạn đã mở.",
+			"Cùng giữ lại phần quan trọng.",
+			"Mình sẽ giữ mọi thứ gọn gàng.",
+			"Mình đã khởi động xong.",
+			"Có ý mới không? Mình sẵn sàng.",
+			"Việc này có vẻ đáng lưu.",
+			"Nói mình điều quan trọng nhé.",
+			"Mình có thể giúp kết nối việc này.",
+			"Chào. Bắt đầu thôi.",
+			"Ghi chú của bạn đã có hỗ trợ.",
+			"Mình đang theo dõi mạch này.",
+			"Mình sẽ nhớ lại ngữ cảnh hữu ích khi cần.",
+			"Thả một ý vào đây nhé.",
+			"Mình có thể giữ các chi tiết.",
+			"Cùng gỡ phần rối này.",
+			"Mình sẵn sàng nhận ngữ cảnh.",
+			"Ghi chú nhỏ, lưu thật rõ.",
+			"Bắt đầu ở đâu cũng được.",
+			"Mình có thể giúp gỡ rối.",
+			"Nói mình phần quan trọng nhé.",
+			"Cùng giữ lại tín hiệu chính.",
+			"Mình ở đây cho bước tiếp theo.",
+			"Ngữ cảnh của bạn ở gần đây.",
+			"Mình có thể lần theo dấu vết.",
+			"Bắt đầu bằng một câu thôi.",
+			"Chào. Mình giữ chỗ cho bạn rồi."
+		],
+		"agent": [
+			"Xin chào từ {{agent}}.",
+			"{{agent}} đã có mặt.",
+			"{{agent}} đã sẵn sàng.",
+			"{{agent}} đang giữ mạch này.",
+			"{{agent}} đang lắng nghe.",
+			"{{agent}} có thể giúp việc này.",
+			"{{agent}} đã khởi động xong.",
+			"{{agent}} đã có ngữ cảnh.",
+			"{{agent}} đang chờ lệnh.",
+			"{{agent}} sẵn sàng ghi nhớ."
+		],
+		"team": [
+			"Các tác nhân của bạn ở gần đây.",
+			"Cả đội đã sẵn sàng.",
+			"Mình cũng có thể hỏi tác nhân khác.",
+			"Đội tác nhân của bạn đang online.",
+			"Mình ở đây cùng hỗ trợ.",
+			"Các tác nhân khác cũng ở gần.",
+			"Mình có vài trợ thủ đã sẵn sàng.",
+			"Dàn tác nhân của bạn đã sẵn sàng."
+		],
+		"feature": {
+			"default": [
+				"Mình có thể dùng {feature} khi hữu ích.",
+				"{feature} đã sẵn sàng nếu cần.",
+				"Mình sẽ dùng {feature} đúng lúc."
+			],
+			"knowledgeRetrieval": [
+				"Mình sẽ nhớ lại ký ức để trả lời bạn tốt hơn.",
+				"Mình có thể xem lại ngữ cảnh liên quan cho bạn.",
+				"Mình sẽ kéo ký ức hữu ích vào khi cần."
+			],
+			"citations": [
+				"Mình có thể chỉ nguồn của câu trả lời.",
+				"Mình sẽ giữ nguồn tham khảo gần bên khi cần.",
+				"Mình có thể neo câu trả lời bằng dẫn chứng."
+			],
+			"multiAgent": [
+				"Mình có thể hỏi tác nhân khác để hỗ trợ đúng trọng tâm.",
+				"Mình sẽ gọi đúng tác nhân khi cần.",
+				"Mình có thể chia việc với tác nhân khác."
+			],
+			"web": [
+				"Mình có thể kiểm tra web khi cần thông tin mới.",
+				"Mình có thể mở trang và đọc phần đã thay đổi.",
+				"Mình sẽ tra cứu khi chi tiết hiện tại quan trọng."
+			],
+			"artifact": [
+				"Mình có thể biến câu trả lời thành artifact rõ ràng hơn.",
+				"Mình có thể render kết quả có cấu trúc khi hữu ích.",
+				"Mình có thể làm đầu ra dễ kiểm tra hơn."
+			],
+			"documents": [
+				"Mình có thể đọc và làm việc với tài liệu của bạn.",
+				"Mình sẽ dùng ngữ cảnh tài liệu khi hữu ích.",
+				"Mình có thể giúp soạn, sửa hoặc tóm tắt tệp."
+			],
+			"documentsFs": [
+				"Mình có thể sắp xếp tệp tài liệu cho bạn.",
+				"Mình có thể lưu phần việc hữu ích vào thư viện tài liệu.",
+				"Mình sẽ giữ đầu ra tài liệu dễ tìm."
+			],
+			"fileSystem": [
+				"Mình có thể làm việc với tệp khi nhiệm vụ cần.",
+				"Mình có thể đọc và cập nhật tệp dự án cục bộ.",
+				"Mình sẽ giữ thay đổi tệp thật tập trung."
+			],
+			"dailyBriefing": [
+				"Mình có thể chuẩn bị bản tin hằng ngày gọn gàng.",
+				"Mình sẽ gom các cập nhật quan trọng lại.",
+				"Mình có thể biến thông tin rời rạc thành bản tin buổi sáng."
+			],
+			"financeTracker": [
+				"Mình có thể nghiên cứu thị trường và làm rõ các con số.",
+				"Mình sẽ so sánh chi tiết tài chính trước khi trả lời.",
+				"Mình có thể biến nghiên cứu tài chính thành báo cáo dễ đọc."
+			],
+			"jobApplication": [
+				"Mình có thể chỉnh tài liệu ứng tuyển theo vị trí.",
+				"Mình sẽ giúp khớp CV với yêu cầu công việc.",
+				"Mình có thể làm chi tiết ứng tuyển sắc nét hơn."
+			],
+			"languageTutor": [
+				"Mình có thể luyện ngôn ngữ cùng bạn từng bước.",
+				"Mình sẽ điều chỉnh giải thích theo trình độ của bạn.",
+				"Mình có thể biến lỗi sai thành bài học nhanh."
+			],
+			"mcp": [
+				"Mình có thể dùng công cụ MCP đã kết nối khi hữu ích.",
+				"Mình sẽ gọi công cụ bên ngoài qua MCP nếu cần.",
+				"Mình có thể đưa dịch vụ đã kết nối vào câu trả lời."
+			],
+			"mealPlanner": [
+				"Mình có thể lên thực đơn theo ràng buộc của bạn.",
+				"Mình sẽ cân bằng công thức, thời gian và sở thích.",
+				"Mình có thể biến ý tưởng món ăn thành kế hoạch thực tế."
+			],
+			"newsCollection": [
+				"Mình có thể gom tin mới và tóm tắt lại.",
+				"Mình sẽ đọc sâu hơn tiêu đề khi tin tức quan trọng.",
+				"Mình có thể gom cập nhật thành bản tóm tắt ngắn gọn."
+			],
+			"nodejsSandbox": [
+				"Mình có thể chạy kiểm tra mã nhỏ trong sandbox.",
+				"Mình sẽ thử ý tưởng mã trước khi tin vào nó.",
+				"Mình có thể dùng Node.js sandbox để xác minh nhanh."
+			],
+			"planner": [
+				"Mình có thể chia việc này thành kế hoạch thực tế.",
+				"Mình sẽ giữ các bước tiếp theo rõ ràng.",
+				"Mình có thể biến mục tiêu rối thành việc có thứ tự."
+			],
+			"shoppingAssistant": [
+				"Mình có thể so sánh sản phẩm trước khi bạn chọn.",
+				"Mình sẽ kiểm tra thông số, giá và đánh đổi.",
+				"Mình có thể làm nghiên cứu mua sắm dễ quét hơn."
+			],
+			"travelPlanner": [
+				"Mình có thể biến việc này thành lịch trình hữu ích.",
+				"Mình sẽ cân bằng địa điểm, thời gian và logistics.",
+				"Mình có thể lập kế hoạch du lịch với ngữ cảnh hiện tại."
+			],
+			"knowledgeGrow": [
+				"Mình có thể biến chi tiết thành tri thức lâu dài.",
+				"Mình sẽ kết nối sự kiện để bạn dễ nhớ lại hơn.",
+				"Mình có thể mở rộng memory graph từ ngữ cảnh hữu ích."
+			]
+		},
+		"time": {
+			"morning": [
+				"Chào buổi sáng. Sẵn sàng khi bạn cần.",
+				"Buổi sáng tốt lành. Mình ghi nhớ gì đây?",
+				"Chào buổi sáng. Ghi chú của bạn đã sẵn sàng."
+			],
+			"afternoon": [
+				"Chào buổi chiều. Tiếp tục từ đây nhé.",
+				"Điểm danh buổi chiều. Mình ở đây.",
+				"Chào buổi chiều. Tiếp theo là gì?"
+			],
+			"evening": [
+				"Chào buổi tối. Mình vẫn ở đây.",
+				"Buổi tối rồi. Cùng làm việc này gọn hơn nhé.",
+				"Chào buổi tối. Bạn muốn tóm tắt nhanh không?"
+			],
+			"night": [
+				"Đã bật chế độ đêm muộn.",
+				"Giờ yên tĩnh, trí nhớ sắc nét.",
+				"Mình vẫn thức. Điều gì quan trọng?"
+			]
+		}
 	},
 	"list": {
 		"eyebrow": "Danh mục",
@@ -53,6 +259,9 @@
 		"description": "Mô tả",
 		"descriptionPlaceholder": "Mô tả vai trò, đối tượng hoặc ràng buộc vận hành của preset",
 		"iconScreen": "Màn hình biểu tượng",
+		"iconScreenEdit": "Chỉnh màn hình biểu tượng tác nhân",
+		"iconScreenEditShort": "Sửa",
+		"iconScreenHint": "Chọn kiểu rồi chọn chữ, màu hoặc emoji.",
 		"iconScreenText": "Chữ",
 		"iconScreenEmoji": "Emoji",
 		"iconScreenPlaceholder": "Chữ hoặc emoji",
@@ -98,6 +307,9 @@
 	"delete": {
 		"title": "Xóa preset tác nhân",
 		"description": "Xóa \"{{name}}\"? Thao tác này sẽ xóa preset cùng cấu hình đã lưu.",
+		"linkedMemoryTitle": "Xóa cả bộ nhớ đã liên kết",
+		"linkedMemoryDescription": "Tác nhân này đang liên kết với topic bộ nhớ \"{{name}}\". Giữ tùy chọn này được chọn để xóa bộ nhớ đó cùng tác nhân.",
+		"linkedMemoryDeleteFailed": "Không thể xóa topic bộ nhớ đã liên kết. Tác nhân chưa bị xóa.",
 		"lastPresetHint": "Cần giữ lại ít nhất một preset."
 	},
 	"reset": {

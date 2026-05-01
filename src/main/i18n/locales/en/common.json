@@ -368,43 +368,51 @@
 		"steps": {
 			"welcome": {
 				"title": "Welcome to Memorall! 🧠",
-				"content": "Memorall is your AI-powered knowledge companion that helps you remember, organize, and interact with information. It captures web content, processes it intelligently, and lets you chat with your accumulated knowledge using advanced AI models."
+				"content": "Memorall is your local AI workspace for chat, documents, agents, knowledge graphs, and model setup. It helps you organize information, turn files into usable knowledge, and work with AI features from one place."
 			},
 			"productOverview": {
 				"title": "What Memorall Does",
-				"content": "🔍 Capture: Save web pages, selections, and notes\n📊 Process: AI extracts key information and creates knowledge graphs\n💬 Chat: Ask questions about your saved content\n🎯 Remember: Never lose important information again"
+				"content": "💬 Chat: Ask questions with model, topic, and agent context\n📄 Documents: Manage files, folders, workspaces, and knowledge conversion\n🧠 Agents: Configure reusable assistants with skills and MCP servers\n🕸️ Knowledge: Explore topic-based graph memory\n🤖 Models: Load local or API-backed providers"
 			},
 			"chatTab": {
 				"title": "💬 Chat Tab",
-				"content": "Your main interface for conversing with your AI assistant about saved content."
+				"content": "Chat is the main workspace for model conversations. You can choose an agent flow, switch topics, attach images or documents, use Smart Select context, stop or retry work, and review previous message groups."
 			},
 			"knowledgeGraphTab": {
 				"title": "🕸️ Knowledge Graph Tab",
-				"content": "Interactive visualization showing connections between your saved content."
+				"content": "The Knowledge Graph shows topic-based memory as connected nodes and edges. Use the topic sidebar, search, graph canvas, and node controls to inspect and maintain extracted knowledge."
 			},
 			"documentsTab": {
 				"title": "📄 Documents Tab",
-				"content": "Your personal document library where you can upload, organize, and manage PDFs, Excel files, images, and other documents. Access them anytime and use AI to analyze their content."
+				"content": "Documents is your file library and workspace browser. Upload or create files, organize folders, switch views, filter by topics, preview content, and convert selected files into knowledge."
+			},
+			"agentsTab": {
+				"title": "🧠 Agents Tab",
+				"content": "Agents lets you build and tune reusable AI assistants. Configure presets, memory behavior, system prompts, enabled features, skills, and MCP servers for specialized workflows."
 			},
 			"modelsTabIntro": {
 				"title": "🤖 Models Tab - Setup Required!",
-				"content": "Now let's focus on the most important step: setting up your AI models. This is essential to start using Memorall's features."
+				"content": "Models controls what powers Chat and agent workflows. Set up at least one provider so the rest of Memorall can generate responses, analyze documents, and retrieve knowledge."
 			},
 			"currentModelSection": {
 				"title": "📊 Current Model Status",
-				"content": "This section shows which AI model is currently active. It displays:\n• Model name and provider\n• Status: Active (ready to use) / Configured (set up but not loaded) / Inactive (needs setup)\n• This is your quick reference for what's running"
+				"content": "This section shows the currently selected model and provider. For local models it also surfaces useful details such as context size, output limits, model size, release date, and runtime metadata."
 			},
 			"quickSetupSection": {
-				"title": "⚡ My Models - Quick Setup",
-				"content": "This section provides easy setup for different AI providers. Choose from:\n\n🌐 **WebLLM**: Browser-based models\n🔑 **OpenAI**: GPT models (API key needed)\n🏠 **LM Studio**: Local model server\n🦙 **Ollama**: Local open-source models\n🧠 **Wllama**: WASM-based local models"
+				"title": "⚡ Your Models",
+				"content": "Your Models is the fastest place to load or switch supported providers. Use it for browser-based local models, local servers, WASM/GGUF models, and API-backed providers."
 			},
 			"providerAdvantages": {
 				"title": "🎯 Choose What's Best for You",
-				"content": "**WebLLM**: ✅ Free, private, works offline, no setup\n**OpenAI**: ✅ Most powerful models, fast responses\n**LM Studio**: ✅ Full control, privacy, highly customizable\n**Ollama**: ✅ Open source, privacy-focused, completely free\n**Wllama**: ✅ Fast local inference, WebAssembly-based\n\n💡 **Recommendation**: Start with WebLLM for immediate use, then explore others for specific needs!"
+				"content": "**WebLLM / local browser models**: private and easy to start\n**Wllama / GGUF**: local inference with portable model files\n**LM Studio / Ollama**: local server workflows with more control\n**OpenAI and other API providers**: strong hosted models when you want speed and capability\n\nStart with the provider that matches your privacy, hardware, and quality needs."
+			},
+			"runtimeSessions": {
+				"title": "🧰 Runtime Sessions",
+				"content": "When agents or tools run commands, servers, browser previews, or API requests, their active sessions appear in the runtime controls. Use them to inspect output, refresh status, open previews, or stop work that is still running."
 			},
 			"getStarted": {
 				"title": "🚀 You're Ready to Start!",
-				"content": "Perfect! Now you understand Memorall's interface and setup options.\n\n**Next steps:**\n1. Select a setup option from the welcome screen (Easy managed service, Free local models, or Bring your own API keys)\n2. Configure your chosen AI model\n3. Start saving content and chatting with your knowledge\n\nLet's begin your journey with Memorall!"
+				"content": "Next steps:\n1. Load a model from the Models tab\n2. Add files or folders in Documents\n3. Create or select an agent for the workflow you need\n4. Chat with your model, documents, topics, and knowledge graph"
 			}
 		}
 	}

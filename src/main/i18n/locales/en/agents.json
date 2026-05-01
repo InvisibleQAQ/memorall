@@ -3,6 +3,7 @@
 	"subtitle": "Customize your predefined agent presets with a dedicated workspace for metadata, prompts, tools, and feature toggles.",
 	"actions": {
 		"create": "Create agent",
+		"build": "Build agent",
 		"save": "Save changes",
 		"saving": "Saving...",
 		"revert": "Revert",
@@ -20,6 +21,211 @@
 	},
 	"state": {
 		"loading": "Loading agent presets..."
+	},
+	"iconGreeting": {
+		"generic": [
+			"Hi, I am awake.",
+			"Ready when you are.",
+			"What are we remembering today?",
+			"Your workspace is ready.",
+			"Let us pick this up.",
+			"I found my focus mode.",
+			"Want to continue?",
+			"Hello. I am listening.",
+			"Let us make this easy.",
+			"I brought the notes.",
+			"What should we tackle first?",
+			"Give me a memory to hold.",
+			"I can help sort this out.",
+			"Let us make it clearer.",
+			"I am ready to help.",
+			"Tiny bubble, big focus.",
+			"Point me at the task.",
+			"I can keep track.",
+			"Let us build from here.",
+			"One thought at a time.",
+			"I have context ready.",
+			"Want a quick recap?",
+			"I can remember the details.",
+			"Ready for the next note.",
+			"Your memory desk is open.",
+			"Let us catch the important bits.",
+			"I will keep this tidy.",
+			"I am warmed up.",
+			"New thought? I am ready.",
+			"This looks worth saving.",
+			"Tell me what matters.",
+			"I can help connect this.",
+			"Hi. Let us begin.",
+			"Your notes have backup.",
+			"I am watching the thread.",
+			"I will recall useful context when it helps.",
+			"Drop a thought here.",
+			"I can hold the details.",
+			"Let us organize the messy part.",
+			"I am ready for context.",
+			"Small note, saved clearly.",
+			"We can start anywhere.",
+			"I can help untangle this.",
+			"Tell me the important bit.",
+			"Let us keep the signal.",
+			"I am here for the next step.",
+			"Your context is close by.",
+			"I can follow the trail.",
+			"Start with one sentence.",
+			"Hi. I saved you a seat."
+		],
+		"agent": [
+			"Hi from {{agent}}.",
+			"{{agent}} reporting in.",
+			"{{agent}} is ready.",
+			"{{agent}} has the thread.",
+			"{{agent}} is listening.",
+			"{{agent}} can help with this.",
+			"{{agent}} is warmed up.",
+			"{{agent}} has context ready.",
+			"{{agent}} is on standby.",
+			"{{agent}} is ready to remember."
+		],
+		"team": [
+			"Your agents are nearby.",
+			"The team is ready.",
+			"I can ask the other agents too.",
+			"Your agent crew is online.",
+			"I am here with backup.",
+			"The other agents are close.",
+			"We have a few minds ready.",
+			"Your agent bench is ready."
+		],
+		"feature": {
+			"default": [
+				"I can use {feature} when it helps.",
+				"{feature} is ready if we need it.",
+				"I will bring in {feature} at the right moment."
+			],
+			"knowledgeRetrieval": [
+				"I will recall memory to answer you better.",
+				"I can look back at relevant context for you.",
+				"I will pull in useful memory when it helps."
+			],
+			"citations": [
+				"I can show where an answer came from.",
+				"I will keep sources close when they matter.",
+				"I can ground the answer with references."
+			],
+			"multiAgent": [
+				"I can ask another agent for focused help.",
+				"I will bring in the right agent if needed.",
+				"I can split the work with another agent."
+			],
+			"web": [
+				"I can check the web when fresh context matters.",
+				"I can open pages and read what changed.",
+				"I will look things up when current details matter."
+			],
+			"artifact": [
+				"I can turn the answer into a clearer artifact.",
+				"I can render structured work when it helps.",
+				"I can make the output easier to inspect."
+			],
+			"documents": [
+				"I can read and work with your documents.",
+				"I will use document context when it helps.",
+				"I can help draft, edit, or summarize files."
+			],
+			"documentsFs": [
+				"I can organize document files for you.",
+				"I can save useful work into the document library.",
+				"I will keep document outputs easy to find."
+			],
+			"fileSystem": [
+				"I can work with files when the task needs it.",
+				"I can read and update local project files.",
+				"I will keep file changes focused."
+			],
+			"dailyBriefing": [
+				"I can prepare a focused daily briefing.",
+				"I will pull the important updates together.",
+				"I can turn scattered updates into a morning brief."
+			],
+			"financeTracker": [
+				"I can research markets and keep the numbers clear.",
+				"I will compare financial details before answering.",
+				"I can turn finance research into a readable report."
+			],
+			"jobApplication": [
+				"I can tailor job application materials.",
+				"I will help align your resume with the role.",
+				"I can make application details sharper."
+			],
+			"languageTutor": [
+				"I can practice language with you step by step.",
+				"I will adapt explanations to your level.",
+				"I can turn mistakes into quick lessons."
+			],
+			"mcp": [
+				"I can use connected MCP tools when they help.",
+				"I will reach external tools through MCP if needed.",
+				"I can bring connected services into the answer."
+			],
+			"mealPlanner": [
+				"I can plan meals around your constraints.",
+				"I will balance recipes, timing, and preferences.",
+				"I can turn food ideas into a practical plan."
+			],
+			"newsCollection": [
+				"I can gather recent news and summarize it.",
+				"I will read beyond headlines when news matters.",
+				"I can collect updates into a concise brief."
+			],
+			"nodejsSandbox": [
+				"I can run small code checks in a sandbox.",
+				"I will test code ideas before trusting them.",
+				"I can use a Node.js sandbox for quick verification."
+			],
+			"planner": [
+				"I can break this into a practical plan.",
+				"I will keep the next steps clear.",
+				"I can turn a messy goal into ordered work."
+			],
+			"shoppingAssistant": [
+				"I can compare products before you choose.",
+				"I will check specs, prices, and tradeoffs.",
+				"I can make shopping research easier to scan."
+			],
+			"travelPlanner": [
+				"I can shape this into a useful itinerary.",
+				"I will balance places, timing, and logistics.",
+				"I can plan travel details with current context."
+			],
+			"knowledgeGrow": [
+				"I can turn details into lasting knowledge.",
+				"I will connect facts so they are easier to recall.",
+				"I can grow the memory graph from useful context."
+			]
+		},
+		"time": {
+			"morning": [
+				"Good morning. Ready when you are.",
+				"Morning. What should we remember?",
+				"Good morning. Your notes are ready."
+			],
+			"afternoon": [
+				"Good afternoon. Let us pick this up.",
+				"Afternoon check-in. I am here.",
+				"Good afternoon. What is next?"
+			],
+			"evening": [
+				"Good evening. I am still here.",
+				"Evening. Let us make this easy.",
+				"Good evening. Want a quick recap?"
+			],
+			"night": [
+				"Late night mode activated.",
+				"Quiet hours, sharp memory.",
+				"Still awake. What matters?"
+			]
+		}
 	},
 	"list": {
 		"eyebrow": "Directory",
@@ -53,6 +259,9 @@
 		"description": "Description",
 		"descriptionPlaceholder": "Describe the role, audience, or operating constraints for this preset",
 		"iconScreen": "Icon screen",
+		"iconScreenEdit": "Edit agent icon screen",
+		"iconScreenEditShort": "Edit",
+		"iconScreenHint": "Click a style, then pick text, color, or an emoji.",
 		"iconScreenText": "Text",
 		"iconScreenEmoji": "Emoji",
 		"iconScreenPlaceholder": "Text or emoji",
@@ -98,6 +307,9 @@
 	"delete": {
 		"title": "Delete agent preset",
 		"description": "Delete \"{{name}}\"? This removes the preset and its saved configuration.",
+		"linkedMemoryTitle": "Also delete linked memory",
+		"linkedMemoryDescription": "This agent is linked to the \"{{name}}\" memory topic. Leave this checked to delete that memory with the agent.",
+		"linkedMemoryDeleteFailed": "Failed to delete the linked memory topic. The agent was not deleted.",
 		"lastPresetHint": "At least one preset must remain available."
 	},
 	"reset": {

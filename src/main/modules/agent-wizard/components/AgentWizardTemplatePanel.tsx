@@ -34,7 +34,7 @@ export const AgentWizardTemplatePanel: React.FC<
 
 	return (
 		<div className="border-b bg-background">
-			<div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-5 lg:p-6">
+			<div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-5">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 space-y-1">
 						<h2 className="text-lg font-semibold tracking-tight">
@@ -128,7 +128,7 @@ export const AgentWizardTemplatePanel: React.FC<
 
 					<CursorPoint
 						cursorKey={AGENT_WIZARD_CURSOR_KEYS.templates}
-						className="grid grid-cols-1 gap-3 min-[1180px]:grid-cols-2"
+						className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-2"
 					>
 						{starterTemplates.map((template) => {
 							const selected = selectedTemplateId === template.id;
@@ -136,12 +136,13 @@ export const AgentWizardTemplatePanel: React.FC<
 								<CursorPoint
 									key={template.id}
 									cursorKey={AGENT_WIZARD_CURSOR_KEYS.template(template.id)}
+									className="min-w-0"
 								>
 									<button
 										type="button"
 										onClick={() => onSelectTemplate(template)}
 										className={cn(
-											"group overflow-hidden rounded-lg border bg-card/65 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/45 hover:bg-card hover:shadow-md",
+											"group h-full w-full overflow-hidden rounded-lg border bg-card/65 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/45 hover:bg-card hover:shadow-md",
 											selected &&
 												"border-primary bg-primary/5 shadow-primary/10",
 										)}

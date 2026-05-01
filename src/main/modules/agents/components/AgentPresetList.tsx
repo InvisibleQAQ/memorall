@@ -5,12 +5,7 @@ import { Button } from "@/main/components/ui/button";
 import { Input } from "@/main/components/ui/input";
 import { Badge } from "@/main/components/ui/badge";
 import { cn } from "@/lib/utils";
-import {
-	coerceDate,
-	getAgentIconScreenFromMetadata,
-	normalizeAgentPresetStatus,
-} from "../types";
-import { AgentIcon } from "@/components/AgentIcon";
+import { coerceDate, normalizeAgentPresetStatus } from "../types";
 import type { Flow } from "@/services/database/types";
 
 interface AgentPresetListProps {
@@ -32,18 +27,6 @@ const getStatusBadgeClassName = (
 	status === "active"
 		? "border-emerald-200 bg-emerald-50 text-emerald-700"
 		: "border-amber-200 bg-amber-50 text-amber-700";
-
-const toAgentScreenContent = (
-	iconScreen: ReturnType<typeof getAgentIconScreenFromMetadata>,
-) =>
-	iconScreen
-		? {
-				kind: iconScreen.kind,
-				value: iconScreen.value,
-				color: iconScreen.color,
-				scale: iconScreen.kind === "emoji" ? 0.72 : 0.52,
-			}
-		: undefined;
 
 export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 	presets,
@@ -95,7 +78,7 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 							className="h-9 justify-center border border-border/70 bg-muted/60 hover:bg-muted"
 						>
 							<Sparkles size={14} className="mr-1.5" />
-							Build agent
+							{t("actions.build")}
 						</Button>
 					) : null}
 				</div>
@@ -143,9 +126,6 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 							);
 							const updatedAt = coerceDate(preset.updatedAt);
 							const isSelected = preset.id === selectedPresetId;
-							const iconScreen = getAgentIconScreenFromMetadata(
-								preset.metadata,
-							);
 
 							return (
 								<button
@@ -161,20 +141,13 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 									)}
 								>
 									<div className="flex items-start justify-between gap-3">
-										<div className="flex min-w-0 gap-2.5">
-											<AgentIcon
-												size="sm"
-												screenContent={toAgentScreenContent(iconScreen)}
-											/>
-											<div className="min-w-0 space-y-1">
-												<p className="truncate text-sm font-semibold">
-													{preset.name}
-												</p>
-												<p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-													{preset.description?.trim() ||
-														t("list.noDescription")}
-												</p>
-											</div>
+										<div className="min-w-0 flex-1 space-y-1">
+											<p className="truncate text-sm font-semibold">
+												{preset.name}
+											</p>
+											<p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+												{preset.description?.trim() || t("list.noDescription")}
+											</p>
 										</div>
 										<Badge
 											variant="outline"

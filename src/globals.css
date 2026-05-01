@@ -507,3 +507,45 @@
 	background-color: #3e4550;
 	border: 0;
 }
+
+@keyframes agent-speech-bubble-float {
+	0%,
+	100% {
+		transform: translateY(0) rotate(var(--agent-bubble-rotate, 0deg))
+			scale(var(--agent-bubble-scale, 1));
+	}
+
+	50% {
+		transform: translateY(-4px) rotate(var(--agent-bubble-rotate, 0deg))
+			scale(var(--agent-bubble-scale, 1));
+	}
+}
+
+.agent-speech-bubble-motion {
+	animation: agent-speech-bubble-float 3.8s ease-in-out infinite;
+}
+
+@keyframes agent-speech-bubble-type {
+	from {
+		width: 0;
+	}
+
+	to {
+		width: 100%;
+	}
+}
+
+@keyframes agent-speech-bubble-caret {
+	50% {
+		border-color: transparent;
+	}
+}
+
+.agent-speech-bubble-type {
+	border-right: 2px solid currentColor;
+	width: 100%;
+	animation:
+		agent-speech-bubble-type 900ms
+			steps(var(--agent-bubble-characters, 18), end) both,
+		agent-speech-bubble-caret 700ms step-end 4;
+}

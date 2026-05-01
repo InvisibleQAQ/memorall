@@ -1,11 +1,13 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import {
 	useAgentWizard,
 	type AgentWizardDraft,
 } from "@/main/modules/agent-wizard";
 import { serviceManager } from "@/services";
 import { topicService } from "@/main/modules/topics/services/topic-service";
+import { logError } from "@/utils/logger";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
 import {
 	DEFAULT_GROW_TYPE,
@@ -25,6 +27,7 @@ import { useUnsavedAgentWorkspaceGuard } from "./use-unsaved-agent-workspace-gua
 
 export const useAgentsWorkspaceController = () => {
 	const { t } = useTranslation(["agents", "chat", "common"]);
+	const location = useLocation();
 	const {
 		filteredPresets,
 		selectedPreset,
@@ -92,6 +95,7 @@ export const useAgentsWorkspaceController = () => {
 	const [wizardInitialMessage, setWizardInitialMessage] = React.useState<
 		string | undefined
 	>(undefined);
+	const didAutoOpenWizardRef = React.useRef(false);
 
 	const hasUnsavedChanges = hasMetadataChanges || hasConfigChanges;
 	useUnsavedAgentWorkspaceGuard(hasUnsavedChanges);
@@ -347,6 +351,28 @@ export const useAgentsWorkspaceController = () => {
 		initialAssistantMessage: wizardInitialMessage,
 	});
 
+	React.useEffect(() => {
+		if (
+			location.pathname !== "/agents" ||
+			(location.state as { openAgentWizard?: boolean } | null)
+				?.openAgentWizard !== true ||
+			didAutoOpenWizardRef.current ||
+			isPresetListLoading ||
+			isAgentWizardMode
+		) {
+			return;
+		}
+
+		didAutoOpenWizardRef.current = true;
+		void handleOpenAgentWizard();
+	}, [
+		handleOpenAgentWizard,
+		isAgentWizardMode,
+		isPresetListLoading,
+		location.pathname,
+		location.state,
+	]);
+
 	const handleSelectWizardTemplate = React.useCallback(
 		(template: Parameters<typeof agentWizard.applyTemplate>[0]) => {
 			agentWizard.applyTemplate(template);
@@ -428,9 +454,22 @@ export const useAgentsWorkspaceController = () => {
 		revert();
 	}, [revert, revertMetadata]);
 
-	const handleDeletePreset = React.useCallback(async () => {
-		await deleteSelectedPreset();
-	}, [deleteSelectedPreset]);
+	const handleDeletePreset = React.useCallback(
+		async (options?: { deleteLinkedMemory: boolean }) => {
+			try {
+				if (options?.deleteLinkedMemory && memoryTopic) {
+					await topicService.deleteTopic(memoryTopic.id);
+					setMemoryTopic(null);
+				}
+			} catch (error) {
+				logError("[Agents] Failed to delete linked memory topic:", error);
+				window.alert(t("agents:delete.linkedMemoryDeleteFailed"));
+				return;
+			}
+			await deleteSelectedPreset();
+		},
+		[deleteSelectedPreset, memoryTopic, setMemoryTopic, t],
+	);
 
 	const formActions: AgentConfigFormActions | undefined = selectedPreset
 		? {
@@ -447,7 +486,7 @@ export const useAgentsWorkspaceController = () => {
 				isDeleting,
 				onSave: () => void handleSavePage(),
 				onRevert: handleRevertPage,
-				onDelete: () => void handleDeletePreset(),
+				onDelete: (options) => void handleDeletePreset(options),
 				onResetConfig: resetToDefaults,
 			}
 		: undefined;

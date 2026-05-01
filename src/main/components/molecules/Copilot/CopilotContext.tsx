@@ -93,6 +93,16 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 			showProgress: true,
 		},
 		{
+			id: "agents-tab-quick",
+			title: t("copilot.steps.agentsTab.title"),
+			content: t("copilot.steps.agentsTab.content"),
+			target: '[href="/agents"]',
+			placement: "bottom",
+			action: "navigate",
+			navigationPath: "/agents",
+			showProgress: true,
+		},
+		{
 			id: "knowledge-graph-tab-quick",
 			title: t("copilot.steps.knowledgeGraphTab.title"),
 			content: t("copilot.steps.knowledgeGraphTab.content"),
@@ -134,6 +144,14 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 			content: t("copilot.steps.providerAdvantages.content"),
 			target: '[data-copilot="quick-setup"]',
 			placement: "top",
+			showProgress: true,
+		},
+		{
+			id: "runtime-sessions",
+			title: t("copilot.steps.runtimeSessions.title"),
+			content: t("copilot.steps.runtimeSessions.content"),
+			target: "body",
+			placement: "bottom",
 			showProgress: true,
 		},
 		{

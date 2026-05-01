@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import NiceModal from "@ebay/nice-modal-react";
 import {
 	Bot,
 	CalendarClock,
@@ -20,7 +21,7 @@ import {
 	GRAPH_REGISTRY,
 } from "@/main/stores/agent-config";
 import { Button } from "@/main/components/ui/button";
-import { AgentIcon, type AgentScreenContent } from "@/components/AgentIcon";
+import type { AgentScreenContent } from "@/components/AgentIcon";
 import { Separator } from "@/main/components/ui/separator";
 import { Label } from "@/main/components/ui/label";
 import {
@@ -36,16 +37,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/main/components/ui/dropdown-menu";
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/main/components/ui/alert-dialog";
-import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -56,14 +47,15 @@ import { cn } from "@/lib/utils";
 import { MCPServersSection } from "./MCPServersSection";
 import { FeaturesGrid } from "./FeaturesGrid";
 import { SystemPromptEditor } from "./SystemPromptEditor";
+import { AgentIconScreenPicker } from "./AgentIconScreenPicker";
+import {
+	AgentDeleteDialog,
+	AgentResetConfigDialog,
+} from "./AgentConfigFormDialogs";
 import { HoverBadgeList } from "./AgentHoverInfo";
 import { CursorPoint } from "@/components/AgentCursor";
 import { AGENT_WIZARD_CURSOR_KEYS } from "@/main/modules/agent-wizard";
-import type {
-	AgentConfigSummary,
-	AgentPresetDraft,
-	AgentPresetIconScreenKind,
-} from "../types";
+import type { AgentConfigSummary, AgentPresetDraft } from "../types";
 import type { Topic } from "@/services/database/types";
 
 const SkillsSection = React.lazy(() =>
@@ -83,7 +75,7 @@ export interface AgentConfigFormActions {
 	onSave: () => void;
 	onOptimize?: () => void;
 	onRevert: () => void;
-	onDelete: () => void;
+	onDelete: (options?: { deleteLinkedMemory: boolean }) => void;
 	onResetConfig: () => void;
 }
 
@@ -209,8 +201,6 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 	} = useAgentConfigStore();
 
 	const [showBaseGraph, setShowBaseGraph] = React.useState(false);
-	const [deleteOpen, setDeleteOpen] = React.useState(false);
-	const [resetOpen, setResetOpen] = React.useState(false);
 	const iconScreenContent = toAgentScreenContent(
 		metadataDraft?.iconScreen ?? null,
 	);
@@ -218,6 +208,24 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 	const currentGraphMeta = GRAPH_REGISTRY.find(
 		(graph) => graph.id === currentGraphType,
 	);
+
+	const openResetConfigDialog = () => {
+		if (!formActions) return;
+		void NiceModal.show(AgentResetConfigDialog, {
+			onResetConfig: formActions.onResetConfig,
+		});
+	};
+
+	const openDeleteDialog = () => {
+		if (!formActions) return;
+		void NiceModal.show(AgentDeleteDialog, {
+			agentName: metadataDraft?.name,
+			memoryTopic,
+			canDelete: formActions.canDelete,
+			isDeleting: formActions.isDeleting,
+			onDelete: formActions.onDelete,
+		});
+	};
 
 	if (isLoading) {
 		return (
@@ -238,9 +246,12 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 						{/* Icon + Name row + inline actions */}
 						<div className="flex items-center gap-3">
 							<CursorPoint cursorKey={AGENT_WIZARD_CURSOR_KEYS.iconScreen}>
-								<div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center">
-									<AgentIcon size="xl" screenContent={iconScreenContent} />
-								</div>
+								<AgentIconScreenPicker
+									metadataDraft={metadataDraft}
+									iconScreenContent={iconScreenContent}
+									onMetadataChange={onMetadataChange}
+									ta={ta}
+								/>
 							</CursorPoint>
 
 							<CursorPoint
@@ -315,7 +326,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end" className="w-44">
-											<DropdownMenuItem onSelect={() => setResetOpen(true)}>
+											<DropdownMenuItem onSelect={openResetConfigDialog}>
 												<RotateCcw size={13} className="mr-2" />
 												{ta("actions.resetConfig")}
 											</DropdownMenuItem>
@@ -325,7 +336,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 												disabled={
 													!formActions.canDelete || formActions.isDeleting
 												}
-												onSelect={() => setDeleteOpen(true)}
+												onSelect={openDeleteDialog}
 											>
 												<Trash2 size={13} className="mr-2" />
 												{ta("actions.delete")}
@@ -348,88 +359,6 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 								rows={2}
 								className="w-full bg-transparent p-0 text-sm text-muted-foreground placeholder:text-muted-foreground/40 border-0 outline-none resize-none"
 							/>
-						</CursorPoint>
-
-						<CursorPoint
-							cursorKey={AGENT_WIZARD_CURSOR_KEYS.iconScreen}
-							className="flex flex-wrap items-center gap-2"
-						>
-							<Label className="text-xs text-muted-foreground">
-								{ta("fields.iconScreen")}
-							</Label>
-							<Select
-								value={metadataDraft.iconScreen?.kind ?? "text"}
-								onValueChange={(value) => {
-									const kind = value as AgentPresetIconScreenKind;
-									const current = metadataDraft.iconScreen;
-									onMetadataChange("iconScreen", {
-										kind,
-										value: current?.value || (kind === "emoji" ? "✨" : "hi"),
-										color:
-											kind === "text"
-												? (current?.color ?? "#17e7e7")
-												: undefined,
-									});
-								}}
-							>
-								<SelectTrigger className="h-8 w-24 text-xs">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="text">
-										{ta("fields.iconScreenText")}
-									</SelectItem>
-									<SelectItem value="emoji">
-										{ta("fields.iconScreenEmoji")}
-									</SelectItem>
-								</SelectContent>
-							</Select>
-							<input
-								value={metadataDraft.iconScreen?.value ?? ""}
-								onChange={(event) => {
-									const value = event.target.value.slice(0, 24);
-									onMetadataChange(
-										"iconScreen",
-										value.trim()
-											? {
-													kind: metadataDraft.iconScreen?.kind ?? "text",
-													value,
-													color:
-														(metadataDraft.iconScreen?.kind ?? "text") ===
-														"text"
-															? (metadataDraft.iconScreen?.color ?? "#17e7e7")
-															: undefined,
-												}
-											: null,
-									);
-								}}
-								placeholder={ta("fields.iconScreenPlaceholder")}
-								className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-xs outline-none transition-colors focus:border-ring"
-							/>
-							{metadataDraft.iconScreen?.kind === "text" ? (
-								<input
-									type="color"
-									value={metadataDraft.iconScreen.color ?? "#17e7e7"}
-									onChange={(event) =>
-										onMetadataChange("iconScreen", {
-											...metadataDraft.iconScreen!,
-											color: event.target.value,
-										})
-									}
-									aria-label={ta("fields.iconScreenColor")}
-									className="h-8 w-9 rounded-md border border-border bg-background p-1"
-								/>
-							) : null}
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								className="h-8 px-2 text-xs"
-								onClick={() => onMetadataChange("iconScreen", null)}
-								disabled={!metadataDraft.iconScreen}
-							>
-								{ta("fields.iconScreenDefault")}
-							</Button>
 						</CursorPoint>
 
 						{/* Compact stats row */}
@@ -656,55 +585,6 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 					</div>
 				)}
 			</div>
-
-			{/* Controlled dialogs */}
-			{formActions && (
-				<>
-					<AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>{ta("delete.title")}</AlertDialogTitle>
-								<AlertDialogDescription>
-									{ta("delete.description", {
-										name: metadataDraft?.name || ta("overview.untitled"),
-									})}
-								</AlertDialogDescription>
-							</AlertDialogHeader>
-							{!formActions.canDelete ? (
-								<div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-									{ta("delete.lastPresetHint")}
-								</div>
-							) : null}
-							<AlertDialogFooter>
-								<AlertDialogCancel>{ta("actions.cancel")}</AlertDialogCancel>
-								<AlertDialogAction
-									onClick={formActions.onDelete}
-									disabled={!formActions.canDelete || formActions.isDeleting}
-								>
-									{ta("actions.delete")}
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
-
-					<AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>{ta("reset.title")}</AlertDialogTitle>
-								<AlertDialogDescription>
-									{ta("reset.description")}
-								</AlertDialogDescription>
-							</AlertDialogHeader>
-							<AlertDialogFooter>
-								<AlertDialogCancel>{ta("actions.cancel")}</AlertDialogCancel>
-								<AlertDialogAction onClick={formActions.onResetConfig}>
-									{ta("actions.resetConfig")}
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
-				</>
-			)}
 		</div>
 	);
 };
