@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/main/components/ui/button";
 import type { Flow } from "@/services/database/types";
 import type { AgentWizardDraft } from "../types";
@@ -21,6 +22,7 @@ export const AgentWizardWorkspace: React.FC<AgentWizardWorkspaceProps> = ({
 	onCreated,
 	onExit,
 }) => {
+	const { t } = useTranslation(["agents"]);
 	const wizard = useAgentWizard({
 		open: true,
 		createPreset,
@@ -39,7 +41,7 @@ export const AgentWizardWorkspace: React.FC<AgentWizardWorkspaceProps> = ({
 					onClick={wizard.requestClose}
 				>
 					<ArrowLeft size={13} />
-					Presets
+					{t("wizard.chatPanel.presets", { ns: "agents" })}
 				</Button>
 				<AgentWizardChatPanel
 					messages={wizard.messages}

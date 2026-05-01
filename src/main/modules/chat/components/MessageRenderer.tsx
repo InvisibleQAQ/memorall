@@ -105,7 +105,7 @@ const MarkdownMessage = lazy(() => import("./MarkdownMessage"));
 const ContentComponent = USE_STREAMDOWN ? Streamdown : MarkdownMessage;
 
 /**
- * Renders message content by splitting on <memorall_artifact> tags.
+ * Renders message content by splitting on standard <artifact> tags.
  * Text segments go to MarkdownMessage; artifact segments go to ArtifactRenderer.
  */
 const MessageContentWithArtifacts: React.FC<{
@@ -123,6 +123,7 @@ const MessageContentWithArtifacts: React.FC<{
 							key={i}
 							type={seg.type}
 							content={seg.content}
+							identifier={seg.identifier}
 							title={seg.title}
 						/>
 					);

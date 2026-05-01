@@ -7,6 +7,7 @@ import type { ArtifactType } from "./artifact-protocol";
 
 interface ArtifactProps {
 	content: string;
+	identifier?: string;
 	title?: string;
 }
 
@@ -40,7 +41,11 @@ const ArtifactHeader: React.FC<{
 	</div>
 );
 
-const HtmlArtifact: React.FC<ArtifactProps> = ({ content, title }) => {
+const HtmlArtifact: React.FC<ArtifactProps> = ({
+	content,
+	identifier,
+	title,
+}) => {
 	const [saveState, setSaveState] = useState<SaveState>("idle");
 	const { t } = useTranslation("chat");
 
@@ -49,7 +54,7 @@ const HtmlArtifact: React.FC<ArtifactProps> = ({ content, title }) => {
 		setSaveState("saving");
 
 		try {
-			const fileName = `${toSafeFileName(title)}-${Date.now()}.html`;
+			const fileName = `${toSafeFileName(identifier || title)}-${Date.now()}.html`;
 			const file = new File([content], fileName, { type: "text/html" });
 			await documentFileSystemService.uploadFile(file, "/");
 			setSaveState("saved");
@@ -117,17 +122,21 @@ const UrlArtifact: React.FC<ArtifactProps> = ({ content, title }) => {
 interface ArtifactRendererProps {
 	type: ArtifactType;
 	content: string;
+	identifier?: string;
 	title?: string;
 }
 
 export const ArtifactRenderer: React.FC<ArtifactRendererProps> = ({
 	type,
 	content,
+	identifier,
 	title,
 }) => {
 	switch (type) {
 		case "html":
-			return <HtmlArtifact content={content} title={title} />;
+			return (
+				<HtmlArtifact content={content} identifier={identifier} title={title} />
+			);
 		case "url":
 			return <UrlArtifact content={content} title={title} />;
 		default:

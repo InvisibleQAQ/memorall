@@ -1,6 +1,12 @@
 export { AgentWizardWorkspace } from "./components/AgentWizardWorkspace";
 export { AgentWizardChatPanel } from "./components/AgentWizardChatPanel";
 export { AgentWizardTemplatePanel } from "./components/AgentWizardTemplatePanel";
+export {
+	AGENT_WIZARD_CURSOR_KEYS,
+	jumAgentWizardCursorTo,
+	jumpAgentWizardCursorTo,
+	moveAgentWizardCursorTo,
+} from "./utils/agent-wizard-cursor";
 export { useAgentWizard } from "./hooks/use-agent-wizard";
 export type {
 	AgentWizardCatalog,

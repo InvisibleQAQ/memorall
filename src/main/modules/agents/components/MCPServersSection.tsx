@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { Plug, Plus } from "lucide-react";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
 import { MCPServersModal } from "../modals/MCPServersModal";
+import { CursorPoint } from "@/components/AgentCursor";
+import { AGENT_WIZARD_CURSOR_KEYS } from "@/main/modules/agent-wizard";
 
 export const MCPServersSection: React.FC = () => {
 	const { t } = useTranslation(["agents"]);
@@ -14,7 +16,10 @@ export const MCPServersSection: React.FC = () => {
 	};
 
 	return (
-		<div className="flex min-h-[32px] items-center gap-3">
+		<CursorPoint
+			cursorKey={AGENT_WIZARD_CURSOR_KEYS.mcpServers}
+			className="flex min-h-[32px] items-center gap-3"
+		>
 			<span className="w-12 shrink-0 text-sm text-muted-foreground">
 				{t("mcps.label")}
 			</span>
@@ -39,6 +44,6 @@ export const MCPServersSection: React.FC = () => {
 					{t("mcps.manage")}
 				</button>
 			</div>
-		</div>
+		</CursorPoint>
 	);
 };

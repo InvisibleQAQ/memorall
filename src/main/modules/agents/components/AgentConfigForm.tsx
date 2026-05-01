@@ -57,6 +57,8 @@ import { MCPServersSection } from "./MCPServersSection";
 import { FeaturesGrid } from "./FeaturesGrid";
 import { SystemPromptEditor } from "./SystemPromptEditor";
 import { HoverBadgeList } from "./AgentHoverInfo";
+import { CursorPoint } from "@/components/AgentCursor";
+import { AGENT_WIZARD_CURSOR_KEYS } from "@/main/modules/agent-wizard";
 import type { AgentConfigSummary, AgentPresetDraft } from "../types";
 import type { Topic } from "@/services/database/types";
 
@@ -220,15 +222,20 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 								<AgentIcon size="xl" />
 							</div>
 
-							<input
-								id="agent-preset-name"
-								value={metadataDraft.name}
-								onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-									onMetadataChange("name", e.target.value)
-								}
-								placeholder={ta("fields.namePlaceholder")}
-								className="flex-1 min-w-0 bg-transparent text-xl font-bold text-foreground placeholder:text-muted-foreground/40 border-0 outline-none p-0"
-							/>
+							<CursorPoint
+								cursorKey={AGENT_WIZARD_CURSOR_KEYS.name}
+								className="min-w-0 flex-1"
+							>
+								<input
+									id="agent-preset-name"
+									value={metadataDraft.name}
+									onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+										onMetadataChange("name", e.target.value)
+									}
+									placeholder={ta("fields.namePlaceholder")}
+									className="w-full min-w-0 bg-transparent p-0 text-xl font-bold text-foreground placeholder:text-muted-foreground/40 border-0 outline-none"
+								/>
+							</CursorPoint>
 
 							{/* Inline action buttons */}
 							{formActions && (
@@ -257,7 +264,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 											disabled={!formActions.canOptimize || formActions.isBusy}
 										>
 											<Sparkles size={13} className="mr-1" />
-											Optimize
+											{ta("actions.optimize")}
 										</Button>
 									) : null}
 
@@ -309,19 +316,29 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 						</div>
 
 						{/* Description */}
-						<textarea
-							id="agent-preset-description"
-							value={metadataDraft.description}
-							onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-								onMetadataChange("description", e.target.value)
-							}
-							placeholder={ta("fields.descriptionPlaceholder")}
-							rows={2}
-							className="w-full bg-transparent text-sm text-muted-foreground placeholder:text-muted-foreground/40 border-0 outline-none resize-none p-0"
-						/>
+						<CursorPoint cursorKey={AGENT_WIZARD_CURSOR_KEYS.description}>
+							<textarea
+								id="agent-preset-description"
+								value={metadataDraft.description}
+								onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+									onMetadataChange("description", e.target.value)
+								}
+								placeholder={ta("fields.descriptionPlaceholder")}
+								rows={2}
+								className="w-full bg-transparent p-0 text-sm text-muted-foreground placeholder:text-muted-foreground/40 border-0 outline-none resize-none"
+							/>
+						</CursorPoint>
 
 						{/* Compact stats row */}
-						<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+						<CursorPoint
+							cursorKey={[
+								AGENT_WIZARD_CURSOR_KEYS.status,
+								AGENT_WIZARD_CURSOR_KEYS.graphType,
+								AGENT_WIZARD_CURSOR_KEYS.growType,
+								AGENT_WIZARD_CURSOR_KEYS.recallType,
+							]}
+							className="flex flex-wrap items-center gap-x-3 gap-y-1.5"
+						>
 							<StatItem
 								icon={<Bot size={12} />}
 								label={configSummary?.graphLabel ?? ta("state.loading")}
@@ -369,10 +386,13 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 									</Link>
 								</>
 							) : null}
-						</div>
+						</CursorPoint>
 
 						{/* Prompt pills */}
-						<div className="flex flex-wrap gap-2">
+						<CursorPoint
+							cursorKey={AGENT_WIZARD_CURSOR_KEYS.contextPrompt}
+							className="flex flex-wrap gap-2"
+						>
 							<PromptPill
 								label={ta("summary.systemPrompt")}
 								value={
@@ -405,7 +425,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 									configSummary?.contextPromptPreview ?? ta("state.loading")
 								}
 							/>
-						</div>
+						</CursorPoint>
 					</div>
 
 					<Separator />
@@ -458,12 +478,22 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 			<Separator />
 
 			{/* ── Features grid ──────────────────────────────────────────── */}
-			<FeaturesGrid summary={configSummary} />
+			<CursorPoint
+				cursorKey={[
+					AGENT_WIZARD_CURSOR_KEYS.features,
+					AGENT_WIZARD_CURSOR_KEYS.tools,
+					AGENT_WIZARD_CURSOR_KEYS.multiAgent,
+				]}
+			>
+				<FeaturesGrid summary={configSummary} />
+			</CursorPoint>
 
 			<Separator />
 
 			{/* ── Instructions — Tiptap WYSIWYG ─────────────────────────── */}
-			<SystemPromptEditor />
+			<CursorPoint cursorKey={AGENT_WIZARD_CURSOR_KEYS.systemPrompt}>
+				<SystemPromptEditor />
+			</CursorPoint>
 
 			{/* ── Advanced (base graph) ──────────────────────────────────── */}
 			<div>

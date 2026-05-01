@@ -51,6 +51,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { FlowBuilderPage } from "./pages/FlowBuilderPage/FlowBuilderPage";
 import { registerAllEditors } from "@/main/modules/documents/editors";
 import { useAuthInit } from "@/main/modules/supabase";
+import { AgentCursorOverlay } from "@/components/AgentCursor";
 
 type EncryptionFormat = "master" | "legacy" | "none";
 
@@ -380,6 +381,7 @@ const App: React.FC = () => {
 						</Routes>
 						<Copilot />
 					</Router>
+					<AgentCursorOverlay />
 
 					{/* Master passkey prompt dialog */}
 					<PasskeyPromptDialog

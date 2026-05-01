@@ -1,7 +1,12 @@
 import React from "react";
 import { ArrowLeft, Bot, Send, Square } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/main/components/ui/button";
-import { ScrollArea } from "@/main/components/ui/scroll-area";
+import {
+	Conversation,
+	ConversationContent,
+	ConversationScrollButton,
+} from "@/main/components/ui/shadcn-io/ai/conversation";
 import {
 	PromptInput,
 	PromptInputSubmit,
@@ -51,6 +56,8 @@ export const AgentWizardChatPanel: React.FC<AgentWizardChatPanelProps> = ({
 	isStreaming,
 	isModelReady,
 }) => {
+	const { t } = useTranslation(["agents"]);
+	const tc = (key: string) => t(`wizard.chatPanel.${key}`, { ns: "agents" });
 	const dbMessages = React.useMemo(() => messages.map(toDbMessage), [messages]);
 	const canSubmit = Boolean(inputValue.trim()) && !isStreaming && isModelReady;
 
@@ -66,22 +73,22 @@ export const AgentWizardChatPanel: React.FC<AgentWizardChatPanelProps> = ({
 						onClick={onBack}
 					>
 						<ArrowLeft size={13} />
-						Presets
+						{tc("presets")}
 					</Button>
 				) : null}
 				<div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
 					<Bot size={16} />
 				</div>
 				<div className="min-w-0">
-					<h2 className="text-sm font-semibold">Build agent with AI</h2>
+					<h2 className="text-sm font-semibold">{tc("title")}</h2>
 					<p className="truncate text-xs text-muted-foreground">
-						Describe behavior, tools, skills, and constraints.
+						{tc("subtitle")}
 					</p>
 				</div>
 			</div>
 
-			<ScrollArea className="min-h-0 flex-1 px-4 py-4">
-				<div className="mx-auto flex max-w-3xl flex-col gap-5">
+			<Conversation className="min-h-0 flex-1">
+				<ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-5 px-4 py-4">
 					{dbMessages.map((message, index) => (
 						<MessageRenderer
 							key={message.id}
@@ -97,8 +104,9 @@ export const AgentWizardChatPanel: React.FC<AgentWizardChatPanelProps> = ({
 							showMessageControls={false}
 						/>
 					))}
-				</div>
-			</ScrollArea>
+				</ConversationContent>
+				<ConversationScrollButton />
+			</Conversation>
 
 			<div className="shrink-0 border-t p-3">
 				<PromptInput
@@ -112,8 +120,8 @@ export const AgentWizardChatPanel: React.FC<AgentWizardChatPanelProps> = ({
 						value={inputValue}
 						placeholder={
 							isModelReady
-								? "Ask AI to build or update this agent..."
-								: "Select or load a model before chatting..."
+								? tc("inputPlaceholder")
+								: tc("inputPlaceholderNoModel")
 						}
 						disabled={isStreaming || !isModelReady}
 						onChange={(event) => onInputChange(event.target.value)}
@@ -126,7 +134,7 @@ export const AgentWizardChatPanel: React.FC<AgentWizardChatPanelProps> = ({
 								isModelReady ? "text-muted-foreground" : "text-destructive",
 							)}
 						>
-							{isModelReady ? "Wizard draft only" : "No model selected"}
+							{isModelReady ? tc("wizardDraftOnly") : tc("noModelSelected")}
 						</span>
 						{isStreaming ? (
 							<Button

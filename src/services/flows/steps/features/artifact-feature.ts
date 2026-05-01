@@ -36,16 +36,17 @@ const SYSTEM_PROMPT_INSTRUCTION = `
 You can render visual artifacts inline by calling the \`render_memorall_artifact\` tool.
 
 ## Artifact Types
-- **html**: Renders an HTML preview in a sandboxed iframe. Use for HTML pages, interactive demos, SVG graphics.
-- **url**: Renders an embedded iframe pointing to a URL. Use for live server previews or external pages.
+- **text/html**: Renders an HTML preview in a sandboxed iframe. Use for HTML pages, interactive demos, SVG graphics.
+- **text/uri-list**: Renders an embedded iframe pointing to a URL. Use for live server previews or external pages.
 
 ## Usage
 Call the tool with:
-- \`type\`: \`html\` or \`url\`
+- \`type\`: \`text/html\` or \`text/uri-list\`
 - \`content\`: the HTML document/source or URL to render
+- \`identifier\`: optional stable artifact slug, for example \`wireframe-vnnews-2026-05-01\`
 - \`title\`: optional display title
 
-The tool appends an assistant message to graph output state. Its normal tool result is only for model context, so do not print or repeat \`<memorall_artifact>\` tags yourself.
+The tool appends a standard \`<artifact identifier="..." type="..." title="...">...</artifact>\` assistant message to graph output state. Its normal tool result is only for model context, so do not print or repeat artifact tags yourself.
 `;
 
 export const ARTIFACT_FEATURE_SYSTEM_PROMPT = SYSTEM_PROMPT_INSTRUCTION.trim();

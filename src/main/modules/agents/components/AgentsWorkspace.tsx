@@ -26,6 +26,7 @@ import {
 	TabsTrigger,
 } from "@/main/components/ui/tabs";
 import { Label } from "@/main/components/ui/label";
+import { Button } from "@/main/components/ui/button";
 import {
 	Select,
 	SelectContent,
@@ -33,6 +34,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/main/components/ui/select";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/main/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { serviceManager } from "@/services";
 import { coerceDate, type AgentConfigSummary } from "../types";
@@ -54,17 +63,21 @@ const MIN_PANEL_SIZES = [16, 36] as const;
 const DESKTOP_BREAKPOINT = 1180;
 const DESKTOP_SEPARATOR_TRACK = 2;
 
-const GROW_LABELS: Record<GrowType, string> = {
-	"knowledge-graph": "Knowledge Graph",
-	structmem: "StructMem",
-};
+const getGrowLabels = (
+	t: (key: string, opts?: Record<string, unknown>) => string,
+): Record<GrowType, string> => ({
+	"knowledge-graph": t("wizard.growType.knowledgeGraph", { ns: "agents" }),
+	structmem: t("wizard.growType.structmem", { ns: "agents" }),
+});
 
-const RECALL_LABELS: Record<RecallType, string> = {
-	smart: "Smart",
-	quick: "Quick",
-	llm: "LLM",
-	structmem: "StructMem",
-};
+const getRecallLabels = (
+	t: (key: string, opts?: Record<string, unknown>) => string,
+): Record<RecallType, string> => ({
+	smart: t("wizard.recallType.smart", { ns: "agents" }),
+	quick: t("wizard.recallType.quick", { ns: "agents" }),
+	llm: t("wizard.recallType.llm", { ns: "agents" }),
+	structmem: t("wizard.recallType.structmem", { ns: "agents" }),
+});
 
 type CreateAgentTopicOptions = {
 	growType: GrowType;
@@ -79,7 +92,9 @@ const AgentMemoryTypeFields: React.FC<{
 	resetToken: number;
 	setExtra: (extra: CreateAgentTopicOptions) => void;
 }> = ({ resetToken, setExtra }) => {
-	const { t } = useTranslation("topics");
+	const { t } = useTranslation(["topics", "agents"]);
+	const growLabels = getGrowLabels(t);
+	const recallLabels = getRecallLabels(t);
 	const [growType, setGrowType] = React.useState<GrowType>(DEFAULT_GROW_TYPE);
 	const [recallType, setRecallType] =
 		React.useState<RecallType>(DEFAULT_RECALL_TYPE);
@@ -116,7 +131,7 @@ const AgentMemoryTypeFields: React.FC<{
 					<SelectContent>
 						{GROW_TYPES.map((type) => (
 							<SelectItem key={type} value={type}>
-								{GROW_LABELS[type]}
+								{growLabels[type]}
 							</SelectItem>
 						))}
 					</SelectContent>
@@ -135,13 +150,119 @@ const AgentMemoryTypeFields: React.FC<{
 					<SelectContent>
 						{validRecallTypes.map((type) => (
 							<SelectItem key={type} value={type}>
-								{RECALL_LABELS[type]}
+								{recallLabels[type]}
 							</SelectItem>
 						))}
 					</SelectContent>
 				</Select>
 			</div>
 		</div>
+	);
+};
+
+const AgentMemoryTypeDialog: React.FC<{
+	open: boolean;
+	defaultValue: CreateAgentTopicOptions;
+	isBusy: boolean;
+	onOpenChange: (open: boolean) => void;
+	onSubmit: (options: CreateAgentTopicOptions) => void;
+}> = ({ open, defaultValue, isBusy, onOpenChange, onSubmit }) => {
+	const { t } = useTranslation(["agents", "topics", "common"]);
+	const growLabels = getGrowLabels(t);
+	const recallLabels = getRecallLabels(t);
+	const [growType, setGrowType] = React.useState<GrowType>(
+		defaultValue.growType,
+	);
+	const [recallType, setRecallType] = React.useState<RecallType>(
+		defaultValue.recallType,
+	);
+
+	React.useEffect(() => {
+		if (!open) return;
+		setGrowType(defaultValue.growType);
+		setRecallType(defaultValue.recallType);
+	}, [defaultValue.growType, defaultValue.recallType, open]);
+
+	const validRecallTypes = getValidRecallTypes(growType);
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<DialogTitle>{t("topics:types.title")}</DialogTitle>
+					<DialogDescription>
+						{t("agents:wizard.memoryTypeDialog.description")}
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="grid gap-4 sm:grid-cols-2">
+					<div className="space-y-2">
+						<Label>{t("topics:types.growType")}</Label>
+						<Select
+							value={growType}
+							onValueChange={(value) => {
+								const nextGrowType = value as GrowType;
+								const nextRecallTypes = getValidRecallTypes(nextGrowType);
+								setGrowType(nextGrowType);
+								setRecallType((current) =>
+									nextRecallTypes.includes(current)
+										? current
+										: nextRecallTypes[0],
+								);
+							}}
+						>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{GROW_TYPES.map((type) => (
+									<SelectItem key={type} value={type}>
+										{growLabels[type]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					<div className="space-y-2">
+						<Label>{t("topics:types.recallType")}</Label>
+						<Select
+							value={recallType}
+							onValueChange={(value) => setRecallType(value as RecallType)}
+						>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{validRecallTypes.map((type) => (
+									<SelectItem key={type} value={type}>
+										{recallLabels[type]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
+
+				<DialogFooter>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => onOpenChange(false)}
+						disabled={isBusy}
+					>
+						{t("common:buttons.cancel")}
+					</Button>
+					<Button
+						type="button"
+						onClick={() => onSubmit({ growType, recallType })}
+						disabled={isBusy}
+					>
+						{isBusy ? t("agents:actions.saving") : t("agents:actions.submit")}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 };
 
@@ -217,7 +338,6 @@ export const AgentsWorkspace: React.FC = () => {
 		isSaving: isConfigSaving,
 		setGraphType,
 		updateField,
-		setKnowledgeRetrievalMode,
 		setEnabledSkills,
 		setMCPServers,
 		setAccessibleAgents,
@@ -233,6 +353,8 @@ export const AgentsWorkspace: React.FC = () => {
 	const [isWizardTemplateChooserOpen, setIsWizardTemplateChooserOpen] =
 		React.useState(false);
 	const [isSavingPage, setIsSavingPage] = React.useState(false);
+	const [isMemoryTypeDialogOpen, setIsMemoryTypeDialogOpen] =
+		React.useState(false);
 	const [activeCompactTab, setActiveCompactTab] = React.useState("list");
 	const [panelSizes, setPanelSizes] =
 		React.useState<[number, number]>(readStoredPanelSizes);
@@ -505,7 +627,10 @@ export const AgentsWorkspace: React.FC = () => {
 	const applyWizardDraftToEditor = React.useCallback(
 		(draft: AgentWizardDraft) => {
 			setIsWizardTemplateChooserOpen(false);
-			updateMetadataField("name", draft.name || "Draft agent");
+			updateMetadataField(
+				"name",
+				draft.name || t("agents:wizard.draftAgentName"),
+			);
 			updateMetadataField("description", draft.description);
 			updateMetadataField("status", draft.status);
 
@@ -527,7 +652,7 @@ export const AgentsWorkspace: React.FC = () => {
 				"enableCitations",
 				draft.enabledFeatureNames.includes("citations"),
 			);
-			setKnowledgeRetrievalMode(draft.recallType);
+			nextState.updateField("retrievalMode", draft.recallType);
 			setDraftMemoryOptions({
 				growType: draft.growType,
 				recallType: draft.recallType,
@@ -553,7 +678,6 @@ export const AgentsWorkspace: React.FC = () => {
 			setAccessibleAgents,
 			setEnabledSkills,
 			setGraphType,
-			setKnowledgeRetrievalMode,
 			setMCPServers,
 			toggleFeature,
 			updateMetadataField,
@@ -619,11 +743,14 @@ export const AgentsWorkspace: React.FC = () => {
 	const handleOpenAgentWizard = React.useCallback(async () => {
 		setWizardInitialDraft(null);
 		setWizardInitialMessage(undefined);
-		const created = await handleCreatePreset("Draft agent", {
-			growType: DEFAULT_GROW_TYPE,
-			recallType: DEFAULT_RECALL_TYPE,
-			status: "draft",
-		});
+		const created = await handleCreatePreset(
+			t("agents:wizard.draftAgentName"),
+			{
+				growType: DEFAULT_GROW_TYPE,
+				recallType: DEFAULT_RECALL_TYPE,
+				status: "draft",
+			},
+		);
 		if (!created) return;
 		await refreshPresets(created.id);
 		setIsAgentWizardMode(true);
@@ -635,9 +762,7 @@ export const AgentsWorkspace: React.FC = () => {
 	const handleOptimizeCurrentAgent = React.useCallback(() => {
 		if (!selectedPresetId || isLegacyConfig || isBusy) return;
 		setWizardInitialDraft(buildCurrentAgentWizardDraft());
-		setWizardInitialMessage(
-			"Tell me how you want to improve this agent. I already loaded the current agent configuration, so I can update its name, description, instructions, skills, features, tools, and memory settings directly.",
-		);
+		setWizardInitialMessage(t("agents:wizard.optimizeInitialMessage"));
 		setIsAgentWizardMode(true);
 		setIsWizardTemplateChooserOpen(false);
 		if (!isDesktop) setActiveCompactTab("list");
@@ -681,57 +806,67 @@ export const AgentsWorkspace: React.FC = () => {
 		[agentWizard],
 	);
 
-	const handleSavePage = React.useCallback(async () => {
-		if (!canSave || !selectedPresetId) return;
-		setIsSavingPage(true);
-		try {
+	const handleSavePage = React.useCallback(
+		async (memoryOptionsOverride?: CreateAgentTopicOptions) => {
+			if (!canSave || !selectedPresetId) return;
 			const isPublishingDraft = metadataDraft.status === "draft";
-			if (hasMetadataChanges || isPublishingDraft) {
-				await serviceManager.flowBuilderService.updateFlowMetadata(
-					selectedPresetId,
-					{
-						name: metadataDraft.name,
-						description: metadataDraft.description,
-						status: isPublishingDraft ? "active" : metadataDraft.status,
-					},
-				);
+			if (isPublishingDraft && !memoryTopic && !memoryOptionsOverride) {
+				setIsMemoryTypeDialogOpen(true);
+				return;
 			}
-			if (hasConfigChanges) await save();
-			if (isPublishingDraft) {
-				const existingTopic =
-					await topicService.getTopicByAgentId(selectedPresetId);
-				if (!existingTopic) {
-					const createdTopic = await topicService.createTopic({
-						name: metadataDraft.name,
-						description: metadataDraft.description,
-						agentId: selectedPresetId,
-						growType: draftMemoryOptions.growType,
-						recallType: draftMemoryOptions.recallType,
-					});
-					setMemoryTopic(createdTopic);
-				} else {
-					setMemoryTopic(existingTopic);
+
+			const memoryOptions = memoryOptionsOverride ?? draftMemoryOptions;
+			setIsSavingPage(true);
+			try {
+				if (hasMetadataChanges || isPublishingDraft) {
+					await serviceManager.flowBuilderService.updateFlowMetadata(
+						selectedPresetId,
+						{
+							name: metadataDraft.name,
+							description: metadataDraft.description,
+							status: isPublishingDraft ? "active" : metadataDraft.status,
+						},
+					);
 				}
-				updateMetadataField("status", "active");
+				if (hasConfigChanges) await save();
+				if (isPublishingDraft) {
+					const existingTopic =
+						await topicService.getTopicByAgentId(selectedPresetId);
+					if (!existingTopic) {
+						const createdTopic = await topicService.createTopic({
+							name: metadataDraft.name,
+							description: metadataDraft.description,
+							agentId: selectedPresetId,
+							growType: memoryOptions.growType,
+							recallType: memoryOptions.recallType,
+						});
+						setMemoryTopic(createdTopic);
+					} else {
+						setMemoryTopic(existingTopic);
+					}
+					updateMetadataField("status", "active");
+				}
+				await refreshPresets(selectedPresetId);
+			} finally {
+				setIsSavingPage(false);
 			}
-			await refreshPresets(selectedPresetId);
-		} finally {
-			setIsSavingPage(false);
-		}
-	}, [
-		canSave,
-		draftMemoryOptions.growType,
-		draftMemoryOptions.recallType,
-		hasConfigChanges,
-		hasMetadataChanges,
-		metadataDraft.description,
-		metadataDraft.name,
-		metadataDraft.status,
-		refreshPresets,
-		save,
-		selectedPresetId,
-		updateMetadataField,
-	]);
+		},
+		[
+			canSave,
+			draftMemoryOptions.growType,
+			draftMemoryOptions.recallType,
+			hasConfigChanges,
+			hasMetadataChanges,
+			memoryTopic,
+			metadataDraft.description,
+			metadataDraft.name,
+			metadataDraft.status,
+			refreshPresets,
+			save,
+			selectedPresetId,
+			updateMetadataField,
+		],
+	);
 
 	const handleRevertPage = React.useCallback(() => {
 		revertMetadata();
@@ -747,7 +882,10 @@ export const AgentsWorkspace: React.FC = () => {
 				canSave,
 				isBusy,
 				hasUnsavedChanges,
-				saveLabel: metadataDraft.status === "draft" ? "Submit" : undefined,
+				saveLabel:
+					metadataDraft.status === "draft"
+						? t("agents:actions.submit")
+						: undefined,
 				canOptimize: Boolean(selectedPresetId) && !isLegacyConfig && !isBusy,
 				onOptimize: handleOptimizeCurrentAgent,
 				canDelete: canDeleteSelectedPreset,
@@ -825,7 +963,7 @@ export const AgentsWorkspace: React.FC = () => {
 							/>
 						) : (
 							<div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-sm text-muted-foreground">
-								Creating draft agent...
+								{t("agents:wizard.creatingDraftAgent")}
 							</div>
 						)}
 					</div>
@@ -932,6 +1070,18 @@ export const AgentsWorkspace: React.FC = () => {
 					<AgentMemoryTypeFields resetToken={resetToken} setExtra={setExtra} />
 				)}
 			</CreateFlowDialog>
+
+			<AgentMemoryTypeDialog
+				open={isMemoryTypeDialogOpen}
+				defaultValue={draftMemoryOptions}
+				isBusy={isSavingPage}
+				onOpenChange={setIsMemoryTypeDialogOpen}
+				onSubmit={(options) => {
+					setDraftMemoryOptions(options);
+					setIsMemoryTypeDialogOpen(false);
+					void handleSavePage(options);
+				}}
+			/>
 		</div>
 	);
 };

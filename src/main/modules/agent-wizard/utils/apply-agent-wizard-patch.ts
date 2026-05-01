@@ -14,6 +14,10 @@ import {
 	type GrowType,
 	type RecallType,
 } from "@/services/database/entities/topic-types";
+import {
+	AGENT_WIZARD_CURSOR_KEYS,
+	moveAgentWizardCursorTo,
+} from "./agent-wizard-cursor";
 
 const MAX_PROMPT_LENGTH = 24000;
 
@@ -129,6 +133,122 @@ const applyFeatureConfig = (
 	}
 };
 
+const announceCursorMove = (targetKey: string, message: string): void => {
+	window.setTimeout(() => moveAgentWizardCursorTo(targetKey, message), 0);
+};
+
+const announcePatchCursorMoves = (patch: AgentWizardPatch): void => {
+	if (typeof window === "undefined") return;
+
+	if (typeof patch.name === "string") {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.name, "Updating name");
+	}
+	if (typeof patch.description === "string") {
+		announceCursorMove(
+			AGENT_WIZARD_CURSOR_KEYS.description,
+			"Updating description",
+		);
+	}
+	if (patch.status === "active" || patch.status === "draft") {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.status, "Updating status");
+	}
+	if (patch.graphType === "agent" || patch.graphType === "knowledge-rag") {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.graphType, "Updating graph");
+	}
+	if (typeof patch.systemPrompt === "string") {
+		announceCursorMove(
+			AGENT_WIZARD_CURSOR_KEYS.systemPrompt,
+			"Updating instructions",
+		);
+	}
+	if (typeof patch.contextPrompt === "string") {
+		announceCursorMove(
+			AGENT_WIZARD_CURSOR_KEYS.contextPrompt,
+			"Updating retrieval context",
+		);
+	}
+	if ("enabledFeatureNames" in patch) {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.features, "Updating features");
+	}
+	if ("enabledToolNames" in patch) {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.tools, "Updating tools");
+	}
+	if ("enabledSkillNames" in patch) {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.skills, "Updating skills");
+	}
+	if ("mcpServers" in patch) {
+		announceCursorMove(
+			AGENT_WIZARD_CURSOR_KEYS.mcpServers,
+			"Updating MCP servers",
+		);
+	}
+	if ("multiAgentAccessibleAgentIds" in patch) {
+		announceCursorMove(
+			AGENT_WIZARD_CURSOR_KEYS.multiAgent,
+			"Updating agent access",
+		);
+	}
+	if ("growType" in patch) {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.growType, "Updating memory");
+	}
+	if ("recallType" in patch) {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.recallType, "Updating recall");
+	}
+};
+
+const announceToolPatchCursorMove = (patch: AgentWizardToolPatch): void => {
+	if (typeof window === "undefined") return;
+
+	switch (patch.type) {
+		case "update_name":
+			announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.name, "Updating name");
+			break;
+		case "update_description":
+			announceCursorMove(
+				AGENT_WIZARD_CURSOR_KEYS.description,
+				"Updating description",
+			);
+			break;
+		case "add_skills":
+		case "remove_skills":
+			announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.skills, "Updating skills");
+			break;
+		case "install_skill":
+			announceCursorMove(
+				AGENT_WIZARD_CURSOR_KEYS.skills,
+				`Adding ${patch.name ?? patch.source}`,
+			);
+			break;
+		case "enable_feature":
+			announceCursorMove(
+				AGENT_WIZARD_CURSOR_KEYS.feature(patch.name),
+				`Enabling ${patch.name}`,
+			);
+			break;
+		case "disable_feature":
+			announceCursorMove(
+				AGENT_WIZARD_CURSOR_KEYS.feature(patch.name),
+				`Disabling ${patch.name}`,
+			);
+			break;
+		case "update_instruction":
+			announceCursorMove(
+				AGENT_WIZARD_CURSOR_KEYS.systemPrompt,
+				"Updating instructions",
+			);
+			break;
+		case "update_grow_type":
+			announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.growType, "Updating memory");
+			break;
+		case "update_recall_type":
+			announceCursorMove(
+				AGENT_WIZARD_CURSOR_KEYS.recallType,
+				"Updating recall",
+			);
+			break;
+	}
+};
+
 export const applyAgentWizardPatch = (
 	draft: AgentWizardDraft,
 	patch: AgentWizardPatch,
@@ -193,6 +313,7 @@ export const applyAgentWizardPatch = (
 		"recallType" in patch
 			? normalizeRecallType(growType, patch.recallType)
 			: normalizeRecallType(growType, next.recallType);
+	announcePatchCursorMoves(patch);
 
 	return {
 		draft: next,
@@ -273,6 +394,7 @@ export const applyAgentWizardToolPatch = (
 			next.recallType = normalizeRecallType(next.growType, patch.recallType);
 			break;
 	}
+	announceToolPatchCursorMove(patch);
 
 	return {
 		draft: next,

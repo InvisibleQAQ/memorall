@@ -1,6 +1,9 @@
 export const MEMORALL_ARTIFACT_TAG = "memorall_artifact";
 export const MEMORALL_ARTIFACT_OPEN = `<${MEMORALL_ARTIFACT_TAG}`;
 export const MEMORALL_ARTIFACT_CLOSE = `</${MEMORALL_ARTIFACT_TAG}>`;
+export const STANDARD_ARTIFACT_TAG = "artifact";
+export const STANDARD_ARTIFACT_OPEN = `<${STANDARD_ARTIFACT_TAG}`;
+export const STANDARD_ARTIFACT_CLOSE = `</${STANDARD_ARTIFACT_TAG}>`;
 
 export const ARTIFACT_TYPES = ["html", "url"] as const;
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
@@ -11,6 +14,7 @@ export type MessageContentSegment =
 			kind: "artifact";
 			type: ArtifactType;
 			content: string;
+			identifier?: string;
 			title?: string;
 	  };
 
@@ -18,6 +22,19 @@ const DEFAULT_ARTIFACT_TYPE: ArtifactType = "html";
 
 const isArtifactType = (value: string | undefined): value is ArtifactType =>
 	ARTIFACT_TYPES.includes(value as ArtifactType);
+
+const normalizeArtifactType = (value: string | undefined): ArtifactType => {
+	switch (value) {
+		case "text/html":
+		case "html":
+			return "html";
+		case "text/uri-list":
+		case "url":
+			return "url";
+		default:
+			return isArtifactType(value) ? value : DEFAULT_ARTIFACT_TYPE;
+	}
+};
 
 const decodeAttributeValue = (value: string): string =>
 	value
@@ -53,7 +70,15 @@ export const parseArtifactSegments = (
 	let cursor = 0;
 
 	while (cursor < content.length) {
-		const openIdx = content.indexOf(MEMORALL_ARTIFACT_OPEN, cursor);
+		const standardOpenIdx = content.indexOf(STANDARD_ARTIFACT_OPEN, cursor);
+		const legacyOpenIdx = content.indexOf(MEMORALL_ARTIFACT_OPEN, cursor);
+		const openIdx =
+			standardOpenIdx === -1
+				? legacyOpenIdx
+				: legacyOpenIdx === -1
+					? standardOpenIdx
+					: Math.min(standardOpenIdx, legacyOpenIdx);
+
 		if (openIdx === -1) {
 			segments.push({ kind: "text", text: content.slice(cursor) });
 			break;
@@ -68,22 +93,28 @@ export const parseArtifactSegments = (
 			break;
 		}
 
-		const closeIdx = content.indexOf(MEMORALL_ARTIFACT_CLOSE, openEnd + 1);
+		const isLegacy = content.startsWith(MEMORALL_ARTIFACT_OPEN, openIdx);
+		const openTag = isLegacy ? MEMORALL_ARTIFACT_OPEN : STANDARD_ARTIFACT_OPEN;
+		const closeTag = isLegacy
+			? MEMORALL_ARTIFACT_CLOSE
+			: STANDARD_ARTIFACT_CLOSE;
+		const closeIdx = content.indexOf(closeTag, openEnd + 1);
 		if (closeIdx === -1) {
 			break;
 		}
 
 		const attrs = parseArtifactAttributes(
-			content.slice(openIdx + MEMORALL_ARTIFACT_OPEN.length, openEnd),
+			content.slice(openIdx + openTag.length, openEnd),
 		);
 		segments.push({
 			kind: "artifact",
-			type: isArtifactType(attrs.type) ? attrs.type : DEFAULT_ARTIFACT_TYPE,
+			type: normalizeArtifactType(attrs.type),
 			content: content.slice(openEnd + 1, closeIdx),
+			identifier: attrs.identifier,
 			title: attrs.title,
 		});
 
-		cursor = closeIdx + MEMORALL_ARTIFACT_CLOSE.length;
+		cursor = closeIdx + closeTag.length;
 	}
 
 	return segments;

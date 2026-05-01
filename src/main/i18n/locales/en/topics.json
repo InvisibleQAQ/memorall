@@ -85,6 +85,7 @@
 		"showMore": "+{{count}} more"
 	},
 	"types": {
+		"title": "Select memory type",
 		"growType": "Grow Type",
 		"recallType": "Recall Type"
 	},

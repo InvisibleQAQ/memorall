@@ -85,6 +85,7 @@
 		"showMore": "+{{count}} thêm"
 	},
 	"types": {
+		"title": "Chọn loại bộ nhớ",
 		"growType": "Kiểu phát triển",
 		"recallType": "Kiểu truy hồi"
 	},

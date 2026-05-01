@@ -35,6 +35,8 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/main/components/ui/alert-dialog";
+import { CursorPoint } from "@/components/AgentCursor";
+import { AGENT_WIZARD_CURSOR_KEYS } from "@/main/modules/agent-wizard";
 
 interface SkillEditorDialogProps {
 	open: boolean;
@@ -745,7 +747,10 @@ export const SkillsSection: React.FC = () => {
 
 	return (
 		<>
-			<div className="flex min-h-[32px] items-center gap-3">
+			<CursorPoint
+				cursorKey={AGENT_WIZARD_CURSOR_KEYS.skills}
+				className="flex min-h-[32px] items-center gap-3"
+			>
 				<span className="w-12 shrink-0 text-sm text-muted-foreground">
 					{t("skills.label", { ns: "agents" })}
 				</span>
@@ -785,7 +790,7 @@ export const SkillsSection: React.FC = () => {
 						{t("skills.manageAction", { ns: "agents" })}
 					</button>
 				</div>
-			</div>
+			</CursorPoint>
 
 			<ManageSkillsDialog
 				open={manageOpen}

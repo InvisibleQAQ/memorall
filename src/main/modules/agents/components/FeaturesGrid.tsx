@@ -17,6 +17,8 @@ import {
 	getAgentFeatureDescription,
 	getAgentFeatureDisplayName,
 } from "../utils/feature-display";
+import { CursorPoint } from "@/components/AgentCursor";
+import { AGENT_WIZARD_CURSOR_KEYS } from "@/main/modules/agent-wizard";
 import type { AgentConfigSummary } from "../types";
 
 const FEATURES_DEFAULT_VISIBLE = 4;
@@ -185,15 +187,19 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ summary }) => {
 			).length;
 
 			return (
-				<FeatureCard
+				<CursorPoint
 					key={feature.name}
-					feature={feature}
-					displayName={displayName}
-					displayDesc={displayDesc}
-					toolCount={enabledCount}
-					totalToolCount={toolsToShow.length}
-					hasDetail
-				/>
+					cursorKey={AGENT_WIZARD_CURSOR_KEYS.feature(feature.name)}
+				>
+					<FeatureCard
+						feature={feature}
+						displayName={displayName}
+						displayDesc={displayDesc}
+						toolCount={enabledCount}
+						totalToolCount={toolsToShow.length}
+						hasDetail
+					/>
+				</CursorPoint>
 			);
 		}
 
@@ -212,15 +218,19 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ summary }) => {
 			feature.type === "config" ? Boolean(feature.promptField) : true;
 
 		return (
-			<FeatureCard
+			<CursorPoint
 				key={feature.name}
-				feature={feature}
-				enabled={enabled}
-				onToggle={onToggle}
-				displayName={displayName}
-				displayDesc={displayDesc}
-				hasDetail={hasDetail}
-			/>
+				cursorKey={AGENT_WIZARD_CURSOR_KEYS.feature(feature.name)}
+			>
+				<FeatureCard
+					feature={feature}
+					enabled={enabled}
+					onToggle={onToggle}
+					displayName={displayName}
+					displayDesc={displayDesc}
+					hasDetail={hasDetail}
+				/>
+			</CursorPoint>
 		);
 	};
 

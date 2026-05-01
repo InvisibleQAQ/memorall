@@ -9,8 +9,9 @@ import {
 const TOOL_NAME = "render_memorall_artifact" as const;
 
 const schema = z.object({
-	type: z.enum(["html", "url"]),
+	type: z.enum(["text/html", "text/uri-list", "html", "url"]),
 	content: z.string().min(1),
+	identifier: z.string().optional(),
 	title: z.string().optional(),
 });
 
@@ -23,13 +24,44 @@ const escapeAttribute = (value: string): string =>
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;");
 
+const toStandardArtifactType = (type: Input["type"]): string => {
+	switch (type) {
+		case "html":
+			return "text/html";
+		case "url":
+			return "text/uri-list";
+		default:
+			return type;
+	}
+};
+
+const toArtifactIdentifier = ({
+	identifier,
+	title,
+	type,
+}: Pick<Input, "identifier" | "title" | "type">): string => {
+	const source = identifier?.trim() || title?.trim() || type;
+	const slug = source
+		.toLowerCase()
+		.replace(/[^a-z0-9._-]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.slice(0, 80);
+
+	return slug || "artifact";
+};
+
 const buildArtifactMessageContent = ({
 	type,
 	content,
+	identifier,
 	title,
 }: Input): string => {
+	const identifierAttr = ` identifier="${escapeAttribute(
+		toArtifactIdentifier({ identifier, title, type }),
+	)}"`;
+	const typeAttr = ` type="${escapeAttribute(toStandardArtifactType(type))}"`;
 	const titleAttr = title ? ` title="${escapeAttribute(title)}"` : "";
-	return `<memorall_artifact type="${type}"${titleAttr}>${content}</memorall_artifact>`;
+	return `<artifact${identifierAttr}${typeAttr}${titleAttr}>${content}</artifact>`;
 };
 
 export const createRenderMemorallArtifactTool: ToolFactory<
@@ -37,7 +69,7 @@ export const createRenderMemorallArtifactTool: ToolFactory<
 > = (): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Append a Memorall artifact to the graph output as an assistant message. The tool result is only a normal OpenAI tool message; the artifact itself is added to graph state.",
+		"Append a standard artifact to the graph output as an assistant message. The tool result is only a normal OpenAI tool message; the artifact itself is added to graph state.",
 	schema,
 	execute: async (input, context) => {
 		if (!context) {

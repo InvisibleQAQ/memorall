@@ -8,7 +8,9 @@
 		"revert": "Hoàn tác",
 		"resetConfig": "Đặt lại cấu hình",
 		"delete": "Xóa",
-		"cancel": "Hủy"
+		"cancel": "Hủy",
+		"optimize": "Tối ưu hóa",
+		"submit": "Gửi"
 	},
 	"workspace": {
 		"saved": "Mọi thay đổi đã được lưu",
@@ -229,6 +231,46 @@
 	},
 	"advanced": {
 		"label": "Cài đặt nâng cao"
+	},
+	"wizard": {
+		"templatePanel": {
+			"title": "Chọn cách xây dựng",
+			"subtitle": "Xây dựng qua hội thoại hoặc bắt đầu với mẫu tác nhân có sẵn.",
+			"blankTitle": "Không dùng mẫu, xây dựng hoàn toàn qua tin nhắn của bạn",
+			"blankSubtitle": "Bắt đầu với bản nháp trống và để chat định hình tác nhân.",
+			"fromScratch": "Từ đầu",
+			"blankDescription": "Dùng chat để định nghĩa tên, hành vi, kỹ năng, công cụ và ràng buộc từ bản nháp trống.",
+			"startBlank": "Bắt đầu trống",
+			"templatesTitle": "Bắt đầu với mẫu",
+			"templatesSubtitle": "Chọn mẫu khởi đầu và tiếp tục tinh chỉnh trong chat.",
+			"customSetup": "Tùy chỉnh",
+			"noStarterSkills": "Không có kỹ năng khởi đầu"
+		},
+		"chatPanel": {
+			"presets": "Preset",
+			"title": "Xây dựng tác nhân với AI",
+			"subtitle": "Mô tả hành vi, công cụ, kỹ năng và ràng buộc.",
+			"inputPlaceholder": "Nhờ AI xây dựng hoặc cập nhật tác nhân này...",
+			"inputPlaceholderNoModel": "Chọn hoặc tải mô hình trước khi trò chuyện...",
+			"wizardDraftOnly": "Chỉ là bản nháp wizard",
+			"noModelSelected": "Chưa chọn mô hình"
+		},
+		"draftAgentName": "Tác nhân nháp",
+		"creatingDraftAgent": "Đang tạo tác nhân nháp...",
+		"optimizeInitialMessage": "Hãy cho tôi biết bạn muốn cải thiện tác nhân này như thế nào. Tôi đã tải cấu hình tác nhân hiện tại, vì vậy tôi có thể cập nhật tên, mô tả, hướng dẫn, kỹ năng, tính năng, công cụ và cài đặt bộ nhớ trực tiếp.",
+		"memoryTypeDialog": {
+			"description": "Chọn cách tác nhân này lưu trữ và truy hồi bộ nhớ trước khi gửi."
+		},
+		"growType": {
+			"knowledgeGraph": "Đồ thị tri thức",
+			"structmem": "StructMem"
+		},
+		"recallType": {
+			"smart": "Thông minh",
+			"quick": "Nhanh",
+			"llm": "LLM",
+			"structmem": "StructMem"
+		}
 	},
 	"featuresSection": {
 		"core": "Cốt lõi",

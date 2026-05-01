@@ -205,7 +205,7 @@ const persistDraftToFlow = async (
 		draft.enabledFeatureNames.includes("knowledge-retrieval") ||
 			Boolean(draft.contextPrompt.trim()),
 	);
-	state.setKnowledgeRetrievalMode(draft.recallType);
+	state.updateField("retrievalMode", draft.recallType);
 	state.setEnabledSkills(draft.enabledSkillNames);
 	state.setMCPServers(draft.mcpServers);
 	state.setAccessibleAgents(draft.multiAgentAccessibleAgentIds);

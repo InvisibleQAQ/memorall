@@ -8,7 +8,9 @@
 		"revert": "Revert",
 		"resetConfig": "Reset config",
 		"delete": "Delete",
-		"cancel": "Cancel"
+		"cancel": "Cancel",
+		"optimize": "Optimize",
+		"submit": "Submit"
 	},
 	"workspace": {
 		"saved": "All changes saved",
@@ -229,6 +231,46 @@
 	},
 	"advanced": {
 		"label": "Advanced settings"
+	},
+	"wizard": {
+		"templatePanel": {
+			"title": "Choose how to build",
+			"subtitle": "Build from conversation or start with a prepared agent shape.",
+			"blankTitle": "No template, build completely with your messages",
+			"blankSubtitle": "Start with an empty draft and let chat shape the agent.",
+			"fromScratch": "From scratch",
+			"blankDescription": "Use chat to define the name, behavior, skills, tools, and constraints from an empty draft.",
+			"startBlank": "Start blank",
+			"templatesTitle": "Start with templates",
+			"templatesSubtitle": "Pick a starter and continue refining it in chat.",
+			"customSetup": "Custom setup",
+			"noStarterSkills": "No starter skills"
+		},
+		"chatPanel": {
+			"presets": "Presets",
+			"title": "Build agent with AI",
+			"subtitle": "Describe behavior, tools, skills, and constraints.",
+			"inputPlaceholder": "Ask AI to build or update this agent...",
+			"inputPlaceholderNoModel": "Select or load a model before chatting...",
+			"wizardDraftOnly": "Wizard draft only",
+			"noModelSelected": "No model selected"
+		},
+		"draftAgentName": "Draft agent",
+		"creatingDraftAgent": "Creating draft agent...",
+		"optimizeInitialMessage": "Tell me how you want to improve this agent. I already loaded the current agent configuration, so I can update its name, description, instructions, skills, features, tools, and memory settings directly.",
+		"memoryTypeDialog": {
+			"description": "Choose how this agent should store and recall memory before submitting it."
+		},
+		"growType": {
+			"knowledgeGraph": "Knowledge Graph",
+			"structmem": "StructMem"
+		},
+		"recallType": {
+			"smart": "Smart",
+			"quick": "Quick",
+			"llm": "LLM",
+			"structmem": "StructMem"
+		}
 	},
 	"featuresSection": {
 		"core": "Core",
