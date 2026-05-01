@@ -11,6 +11,18 @@ import { defaultNowToTrigger } from "../utils/default-now-to-trigger";
 const tableName = "flows";
 
 export type PredefinedFlowKey = "knowledge-rag";
+export type AgentIconScreenKind = "text" | "emoji";
+
+export interface AgentIconScreenMetadata {
+	kind: AgentIconScreenKind;
+	value: string;
+	color?: string;
+}
+
+export interface FlowMetadata {
+	agentIconScreen?: AgentIconScreenMetadata;
+	[key: string]: unknown;
+}
 
 export const flows = pgTable(
 	tableName,
@@ -21,7 +33,7 @@ export const flows = pgTable(
 		status: text("status").notNull().default("draft"),
 		predefinedFlow: text("predefined_flow"),
 		serviceKeys: jsonb("service_keys").$type<string[]>().notNull().default([]),
-		metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+		metadata: jsonb("metadata").$type<FlowMetadata>().default({}),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},

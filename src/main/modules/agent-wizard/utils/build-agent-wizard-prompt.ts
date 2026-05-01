@@ -11,6 +11,7 @@ export const AGENT_WIZARD_TOOL_NAMES = {
 	updateInstruction: "update_agent_instruction",
 	updateGrowType: "update_agent_grow_type",
 	updateRecallType: "update_agent_recall_type",
+	updateIconScreen: "update_agent_icon_screen",
 } as const;
 
 export type AgentWizardToolName =
@@ -50,6 +51,7 @@ ${catalog.skillNames.map((name) => `- ${name}`).join("\n")}
 - Use graphType "knowledge-rag" unless the user asks for a simple tool-only agent.
 - Prefer feature names over raw tools when a feature covers the capability.
 - Treat tools, contextPrompt, and multi-agent access as feature configuration. Use enable_agent_feature with config instead of raw draft fields.
+- Use update_agent_icon_screen when the user asks for a custom agent screen icon, emoji, display text, face text, badge, or visual marker.
 - Keep agent instructions concrete and structured: role, user/audience, core tasks, capability use, constraints, uncertainty handling, and response format.
 - Ask concise questions only when required information is missing. Otherwise make a reasonable draft update.
 - Use the smallest available tool for each inferred change. Multiple small tool calls are preferred over one broad update.
@@ -238,6 +240,34 @@ ANTI-PATTERNS TO AVOID:
 					},
 				},
 				required: ["recallType"],
+				additionalProperties: false,
+			},
+		},
+	},
+	{
+		type: "function" as const,
+		function: {
+			name: AGENT_WIZARD_TOOL_NAMES.updateIconScreen,
+			description:
+				"Update the custom content shown on the agent icon screen. Use null value to restore the animated default.",
+			parameters: {
+				type: "object",
+				properties: {
+					kind: {
+						type: "string",
+						enum: ["text", "emoji"],
+					},
+					value: {
+						type: ["string", "null"],
+						description:
+							"Text or emoji shown on the agent screen. Null clears the custom screen.",
+					},
+					color: {
+						type: "string",
+						description: "Optional CSS color for text screen content.",
+					},
+				},
+				required: ["kind", "value"],
 				additionalProperties: false,
 			},
 		},

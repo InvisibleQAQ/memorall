@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, Code2, Save, Check } from "lucide-react";
-import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import { logError } from "@/utils/logger";
+import { DocumentSaveFolderDialog } from "../DocumentSaveFolderDialog";
 import type { ArtifactType } from "./artifact-protocol";
 
 interface ArtifactProps {
@@ -47,22 +47,12 @@ const HtmlArtifact: React.FC<ArtifactProps> = ({
 	title,
 }) => {
 	const [saveState, setSaveState] = useState<SaveState>("idle");
+	const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 	const { t } = useTranslation("chat");
 
-	const handleSave = async () => {
+	const handleSave = () => {
 		if (saveState !== "idle") return;
-		setSaveState("saving");
-
-		try {
-			const fileName = `${toSafeFileName(identifier || title)}-${Date.now()}.html`;
-			const file = new File([content], fileName, { type: "text/html" });
-			await documentFileSystemService.uploadFile(file, "/");
-			setSaveState("saved");
-			setTimeout(() => setSaveState("idle"), 2000);
-		} catch (err) {
-			logError("Failed to save artifact HTML to documents:", err);
-			setSaveState("idle");
-		}
+		setSaveDialogOpen(true);
 	};
 
 	return (
@@ -92,6 +82,21 @@ const HtmlArtifact: React.FC<ArtifactProps> = ({
 						)}
 					</button>
 				}
+			/>
+			<DocumentSaveFolderDialog
+				open={saveDialogOpen}
+				content={content}
+				initialFileName={`${toSafeFileName(identifier || title)}-${Date.now()}.html`}
+				mimeType="text/html"
+				onOpenChange={setSaveDialogOpen}
+				onSaved={() => {
+					setSaveState("saved");
+					setTimeout(() => setSaveState("idle"), 2000);
+				}}
+				onError={(err) => {
+					logError("Failed to save artifact HTML to documents:", err);
+					setSaveState("idle");
+				}}
 			/>
 			<iframe
 				srcDoc={content}

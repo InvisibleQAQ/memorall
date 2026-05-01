@@ -12,6 +12,7 @@ import {
 	Settings2,
 	Paperclip,
 	FileText,
+	Check,
 } from "lucide-react";
 
 import {
@@ -32,6 +33,7 @@ import {
 	TooltipTrigger,
 } from "@/main/components/ui/tooltip";
 import type { ChatStatus } from "@/types/chat";
+import { cn } from "@/lib/utils";
 
 export interface ChatInputControlsProps {
 	isLoading: boolean;
@@ -43,7 +45,7 @@ export interface ChatInputControlsProps {
 	onStop: () => void;
 	abortController: AbortController | null;
 	isLoadingTopics: boolean;
-	topics: Array<{ id: string; name: string }>;
+	topics: Array<{ id: string; name: string; agentId?: string | null }>;
 	agentFlows: Array<{ id: string; name: string }>;
 	selectedAgentFlowId: string | null;
 	setSelectedAgentFlowId: (flowId: string) => void;
@@ -87,6 +89,12 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 	const selectedFlow = flowOptions.find(
 		(flow) => flow.id === selectedAgentFlowId,
 	);
+	const currentAgentTopicId = topics.find(
+		(topic) =>
+			selectedAgentFlowId &&
+			selectedAgentFlowId !== "chat" &&
+			topic.agentId === selectedAgentFlowId,
+	)?.id;
 	const selectedTopicName =
 		selectedTopic === "__all__"
 			? t("topic.all")
@@ -229,10 +237,17 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 												<DropdownMenuItem
 													key={topic.id}
 													onClick={() => setSelectedTopic(topic.id)}
-													className="flex items-center gap-2"
+													className={cn(
+														"flex items-center gap-2",
+														topic.id === currentAgentTopicId &&
+															"bg-accent/60 text-accent-foreground",
+													)}
 												>
 													<Tags size={14} />
 													<span>{topic.name}</span>
+													{topic.id === currentAgentTopicId && (
+														<Check size={13} className="ml-auto text-primary" />
+													)}
 												</DropdownMenuItem>
 											))}
 										</DropdownMenuContent>

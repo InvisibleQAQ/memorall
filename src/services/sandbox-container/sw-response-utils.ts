@@ -1,5 +1,8 @@
 import type { SandboxHandleSwRequestResult } from "./types";
 
+const EMPTY_LOCAL_BUILD_RETRY_PATH_RE =
+	/(?:^\/(?:$|\?)|\/$|\.html?(?:[?#].*)?$|\.(?:css|mjs|cjs|js|jsx|ts|tsx)(?:[?#].*)?$)/i;
+
 export const getSwResponseHeader = (
 	headers: Record<string, string> | undefined,
 	name: string,
@@ -32,3 +35,40 @@ export const decodeSwResponseBodyPreview = (
 		return "";
 	}
 };
+
+export const delay = (ms: number): Promise<void> =>
+	new Promise((resolve) => setTimeout(resolve, ms));
+
+export const isLikelyPendingLocalBuildResponse = (
+	result: Pick<
+		SandboxHandleSwRequestResult,
+		"statusCode" | "headers" | "bodyBase64"
+	>,
+	params: { method: string; path: string },
+): boolean => {
+	const statusCode = result.statusCode ?? 200;
+	if (params.method.toUpperCase() !== "GET") {
+		return false;
+	}
+	if (statusCode < 200 || statusCode >= 300) {
+		return false;
+	}
+	if (result.bodyBase64 && result.bodyBase64.length > 0) {
+		return false;
+	}
+
+	const contentType =
+		getSwResponseHeader(result.headers, "content-type")?.toLowerCase() ?? "";
+	const isBuildAssetContentType =
+		contentType.includes("text/html") ||
+		contentType.includes("text/css") ||
+		contentType.includes("javascript") ||
+		contentType.includes("typescript");
+
+	return (
+		isBuildAssetContentType || EMPTY_LOCAL_BUILD_RETRY_PATH_RE.test(params.path)
+	);
+};
+
+export const getLocalBuildRetryDelayMs = (attempt: number): number =>
+	Math.min(500 + attempt * 250, 2_000);

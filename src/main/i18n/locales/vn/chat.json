@@ -140,6 +140,15 @@
 		"preview": "Xem trước",
 		"code": "Mã nguồn"
 	},
+	"saveDialog": {
+		"title": "Chọn thư mục để lưu",
+		"folder": "Thư mục",
+		"fileName": "Tên tệp",
+		"cancel": "Hủy",
+		"save": "Lưu vào tài liệu",
+		"saving": "Đang lưu...",
+		"failed": "Không thể lưu"
+	},
 	"smartSelect": {
 		"title": "Ngữ cảnh chọn thông minh",
 		"label": "Chọn thông minh",

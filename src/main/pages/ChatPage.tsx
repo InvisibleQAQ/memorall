@@ -19,12 +19,12 @@ import {
 	useSmartSelectContext,
 } from "@/main/modules/chat/components";
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
-import { AgentIcon } from "@/components/AgentIcon";
+import { AgentIcon, type AgentScreenContent } from "@/components/AgentIcon";
 import { Button } from "@/main/components/ui/button";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import { AgentSettingsPanel } from "@/main/modules/chat/components/AgentSettingsPanel";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
-import type { Topic } from "@/services/database/types";
+import type { Flow, Topic } from "@/services/database/types";
 import {
 	useDownloadProgress,
 	ModelDownloadingScreen,
@@ -36,6 +36,46 @@ import { RuntimeSessionsPanel } from "@/main/components/molecules/RuntimeSession
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { isPopupSurface } from "@/utils/dom";
 import { useIsWideViewport } from "@/main/hooks/use-viewport";
+import { getAgentIconScreenFromMetadata } from "@/main/modules/agents/types";
+
+type AgentFlowOption = Pick<Flow, "id" | "name" | "metadata">;
+
+const OPEN_SCREEN_AGENT_ICON_MOODS: NonNullable<
+	React.ComponentProps<typeof AgentIcon>["moods"]
+> = [
+	{ animation: "idle", duration: 4200 },
+	{ animation: "blink", duration: 3800 },
+	{ animation: "happy", duration: 4600 },
+	{ animation: "look-around", duration: 4300 },
+	{ animation: "thinking", duration: 5000 },
+	{ animation: "talk", duration: 4200 },
+	{ animation: "excited", duration: 4400 },
+	{ animation: "wink", duration: 4100 },
+	{ animation: "scan", duration: 4700 },
+	{ animation: "giggle", duration: 4500 },
+];
+
+const toAgentScreenContent = (
+	iconScreen: ReturnType<typeof getAgentIconScreenFromMetadata>,
+): AgentScreenContent | undefined =>
+	iconScreen
+		? {
+				kind: iconScreen.kind,
+				value: iconScreen.value,
+				color: iconScreen.color,
+				scale: iconScreen.kind === "emoji" ? 0.72 : 0.52,
+			}
+		: undefined;
+
+const buildOpenScreenMoods = (
+	screenContent: AgentScreenContent | undefined,
+): React.ComponentProps<typeof AgentIcon>["moods"] | undefined => {
+	if (!screenContent) return undefined;
+
+	return OPEN_SCREEN_AGENT_ICON_MOODS.map((mood, index) =>
+		index % 3 === 0 ? { ...mood, screenContent } : mood,
+	);
+};
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
@@ -48,12 +88,10 @@ export const ChatPage: React.FC = () => {
 		setQuickDownloadModel,
 	} = useDownloadProgress();
 	const [topics, setTopics] = React.useState<
-		Array<Pick<Topic, "id" | "name" | "growType" | "recallType">>
+		Array<Pick<Topic, "id" | "name" | "agentId" | "growType" | "recallType">>
 	>([]);
 	const [isLoadingTopics, setIsLoadingTopics] = React.useState(false);
-	const [agentFlows, setAgentFlows] = React.useState<
-		Array<{ id: string; name: string }>
-	>([]);
+	const [agentFlows, setAgentFlows] = React.useState<AgentFlowOption[]>([]);
 	const { isOpen, open, close } = useAgentConfigStore();
 	const refreshRuntimeSessions = useRuntimeSessionsStore(
 		(state) => state.refresh,
@@ -63,6 +101,7 @@ export const ChatPage: React.FC = () => {
 	const [attachedDocumentRefs, setAttachedDocumentRefs] = React.useState<
 		AttachedDocumentRef[]
 	>([]);
+	const topicSelectionSourceRef = useRef<"auto" | "manual">("auto");
 	const { smartSelectContext, setSmartSelectContext } = useSmartSelectContext();
 	const [isChatInputModelReady, setIsChatInputModelReady] =
 		React.useState(true);
@@ -168,6 +207,7 @@ export const ChatPage: React.FC = () => {
 						result.map((topic) => ({
 							id: topic.id,
 							name: topic.name,
+							agentId: topic.agentId,
 							growType: topic.growType,
 							recallType: topic.recallType,
 						})),
@@ -190,7 +230,11 @@ export const ChatPage: React.FC = () => {
 					await serviceManager.flowBuilderService.listPredefinedFlows(
 						"knowledge-rag",
 					);
-				const mapped = flows.map((flow) => ({ id: flow.id, name: flow.name }));
+				const mapped = flows.map((flow) => ({
+					id: flow.id,
+					name: flow.name,
+					metadata: flow.metadata,
+				}));
 				setAgentFlows(mapped);
 				if (!selectedAgentFlowId && mapped.length > 0) {
 					setSelectedAgentFlowId(mapped[0].id);
@@ -201,6 +245,42 @@ export const ChatPage: React.FC = () => {
 		};
 		loadFlows();
 	}, [selectedAgentFlowId, setSelectedAgentFlowId]);
+
+	const getAgentTopicId = React.useCallback(
+		(flowId: string) =>
+			flowId === "chat"
+				? "default"
+				: (topics.find((topic) => topic.agentId === flowId)?.id ?? "default"),
+		[topics],
+	);
+
+	const handleSelectAgentFlow = React.useCallback(
+		(flowId: string) => {
+			topicSelectionSourceRef.current = "auto";
+			setSelectedAgentFlowId(flowId);
+			setSelectedTopic(getAgentTopicId(flowId));
+		},
+		[getAgentTopicId, setSelectedAgentFlowId, setSelectedTopic],
+	);
+
+	const handleSelectTopic = React.useCallback(
+		(topicId: string) => {
+			topicSelectionSourceRef.current = "manual";
+			setSelectedTopic(topicId);
+		},
+		[setSelectedTopic],
+	);
+
+	useEffect(() => {
+		if (!selectedAgentFlowId || topicSelectionSourceRef.current === "manual") {
+			return;
+		}
+
+		const agentTopicId = getAgentTopicId(selectedAgentFlowId);
+		if (selectedTopic !== agentTopicId) {
+			setSelectedTopic(agentTopicId);
+		}
+	}, [getAgentTopicId, selectedAgentFlowId, selectedTopic, setSelectedTopic]);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -217,9 +297,14 @@ export const ChatPage: React.FC = () => {
 					"knowledge-rag",
 					name,
 				);
-			const nextFlows = [{ id: created.id, name: created.name }, ...agentFlows];
+			const nextFlows = [
+				{ id: created.id, name: created.name, metadata: created.metadata },
+				...agentFlows,
+			];
 			setAgentFlows(nextFlows);
+			topicSelectionSourceRef.current = "auto";
 			setSelectedAgentFlowId(created.id);
+			setSelectedTopic("default");
 			if (isOpen) {
 				await useAgentConfigStore.getState().initialize(created.id);
 			}
@@ -234,6 +319,18 @@ export const ChatPage: React.FC = () => {
 	};
 
 	const isWideChatRuntimeRailVisible = isWideViewport && !isPopupSurface();
+	const selectedAgentIconScreenContent = useMemo(() => {
+		const selectedAgent = agentFlows.find(
+			(flow) => flow.id === selectedAgentFlowId,
+		);
+		return toAgentScreenContent(
+			getAgentIconScreenFromMetadata(selectedAgent?.metadata),
+		);
+	}, [agentFlows, selectedAgentFlowId]);
+	const openScreenAgentMoods = useMemo(
+		() => buildOpenScreenMoods(selectedAgentIconScreenContent),
+		[selectedAgentIconScreenContent],
+	);
 
 	if (!isInitialized) {
 		return <LoadingScreen />;
@@ -305,7 +402,11 @@ export const ChatPage: React.FC = () => {
 
 						{latestGroupIsEmpty ? (
 							<div className="flex min-h-[calc(100vh-12rem)] flex-1 flex-col items-center justify-center gap-5 py-12">
-								<AgentIcon size={132} aria-label="Agent" />
+								<AgentIcon
+									size={132}
+									aria-label="Agent"
+									moods={openScreenAgentMoods}
+								/>
 							</div>
 						) : latestGroup ? (
 							<MessageGroup
@@ -342,7 +443,7 @@ export const ChatPage: React.FC = () => {
 					model={model}
 					status={status}
 					selectedTopic={selectedTopic}
-					setSelectedTopic={setSelectedTopic}
+					setSelectedTopic={handleSelectTopic}
 					onInsertSeparator={insertSeparator}
 					onStop={handleStop}
 					onDeleteChat={deleteMessages}
@@ -351,7 +452,7 @@ export const ChatPage: React.FC = () => {
 					topics={topics}
 					agentFlows={agentFlows}
 					selectedAgentFlowId={selectedAgentFlowId}
-					setSelectedAgentFlowId={setSelectedAgentFlowId}
+					setSelectedAgentFlowId={handleSelectAgentFlow}
 					onCreateAgentFlow={handleCreateAgentFlow}
 					attachedImages={attachedImages}
 					onAttachedImagesChange={setAttachedImages}

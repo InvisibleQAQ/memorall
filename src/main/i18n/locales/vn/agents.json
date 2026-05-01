@@ -52,6 +52,12 @@
 		"namePlaceholder": "Đặt tên rõ ràng, dễ quét cho preset này",
 		"description": "Mô tả",
 		"descriptionPlaceholder": "Mô tả vai trò, đối tượng hoặc ràng buộc vận hành của preset",
+		"iconScreen": "Màn hình biểu tượng",
+		"iconScreenText": "Chữ",
+		"iconScreenEmoji": "Emoji",
+		"iconScreenPlaceholder": "Chữ hoặc emoji",
+		"iconScreenColor": "Màu chữ trên biểu tượng",
+		"iconScreenDefault": "Mặc định",
 		"status": "Trạng thái"
 	},
 	"status": {

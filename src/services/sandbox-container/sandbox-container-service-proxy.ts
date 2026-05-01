@@ -4,7 +4,10 @@ import { documentFileSystemService } from "@/services/filesystem/document-filesy
 import type { ISandboxContainerService } from "./interfaces/sandbox-container-service.interface";
 import {
 	decodeSwResponseBodyPreview,
+	delay,
+	getLocalBuildRetryDelayMs,
 	hasSwTransformErrorHeader,
+	isLikelyPendingLocalBuildResponse,
 } from "./sw-response-utils";
 import type {
 	SandboxCommandResult,
@@ -54,6 +57,7 @@ import type {
 } from "./types";
 
 const SANDBOX_OPERATION_JOB_NAME = "sandbox-operation" as const;
+const EMPTY_LOCAL_BUILD_RETRY_ATTEMPTS = 20;
 
 interface SandboxOperationJobResult {
 	operation: SandboxOperation;
@@ -308,40 +312,65 @@ export class SandboxContainerServiceProxy implements ISandboxContainerService {
 		const makeRequest = () =>
 			this.request("server.handleSwRequest", params, 120_000);
 
-		let result = await makeRequest();
-		const shouldInspectBody =
-			(result.statusCode ?? 200) >= 400 || hasSwTransformErrorHeader(result);
+		const retriedMissingPaths = new Set<string>();
+		let lastResult: SandboxHandleSwRequestResult | null = null;
 
-		if (shouldInspectBody) {
-			const bodyText = decodeSwResponseBodyPreview(result, 1200);
+		for (
+			let attempt = 0;
+			attempt <= EMPTY_LOCAL_BUILD_RETRY_ATTEMPTS;
+			attempt++
+		) {
+			const result = await makeRequest();
+			lastResult = result;
+			const shouldInspectBody =
+				(result.statusCode ?? 200) >= 400 || hasSwTransformErrorHeader(result);
 
-			const match = bodyText.match(
-				/Workspace file not materialized: (\/workspaces\/[^\s]+|\/workspace\/[^\s]+)/,
-			);
-			const missingPath = match?.[1] ?? null;
+			if (shouldInspectBody) {
+				const bodyText = decodeSwResponseBodyPreview(result, 1200);
 
-			if (missingPath) {
-				try {
-					const bytes =
-						await documentFileSystemService.getWorkspaceFileContent(
-							missingPath,
+				const match = bodyText.match(
+					/Workspace file not materialized: (\/workspaces\/[^\s]+|\/workspace\/[^\s]+)/,
+				);
+				const missingPath = match?.[1] ?? null;
+
+				if (missingPath && !retriedMissingPaths.has(missingPath)) {
+					retriedMissingPaths.add(missingPath);
+					try {
+						const bytes =
+							await documentFileSystemService.getWorkspaceFileContent(
+								missingPath,
+							);
+						const content = new TextDecoder().decode(bytes);
+						await this.request("fs.materializeWorkspaceFile", {
+							path: missingPath,
+							content,
+						});
+						continue;
+					} catch (err) {
+						logWarn(
+							"[SW relay proxy] Failed to materialize workspace file for retry",
+							{ missingPath, err },
 						);
-					const content = new TextDecoder().decode(bytes);
-					await this.request("fs.materializeWorkspaceFile", {
-						path: missingPath,
-						content,
-					});
-					result = await makeRequest();
-				} catch (err) {
-					logWarn(
-						"[SW relay proxy] Failed to materialize workspace file for retry",
-						{ missingPath, err },
-					);
+					}
 				}
 			}
+
+			if (
+				attempt < EMPTY_LOCAL_BUILD_RETRY_ATTEMPTS &&
+				isLikelyPendingLocalBuildResponse(result, params)
+			) {
+				const delayMs = getLocalBuildRetryDelayMs(attempt);
+				logInfo(
+					`[SW relay proxy] ${params.method} ${params.path} returned empty build asset; retrying in ${delayMs}ms (${attempt + 1}/${EMPTY_LOCAL_BUILD_RETRY_ATTEMPTS})`,
+				);
+				await delay(delayMs);
+				continue;
+			}
+
+			return result;
 		}
 
-		return result;
+		return lastResult ?? makeRequest();
 	}
 }
 

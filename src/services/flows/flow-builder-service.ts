@@ -465,6 +465,7 @@ export class FlowBuilderService {
 					name: normalizedName,
 					description: updates.description?.trim() || null,
 					status: updates.status,
+					...(updates.metadata ? { metadata: updates.metadata } : {}),
 					updatedAt: new Date(),
 				})
 				.where(eq(schema.flows.id, flowId))

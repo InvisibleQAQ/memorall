@@ -1,0 +1,491 @@
+import React from "react";
+import { useTranslation } from "react-i18next";
+import {
+	useAgentWizard,
+	type AgentWizardDraft,
+} from "@/main/modules/agent-wizard";
+import { serviceManager } from "@/services";
+import { topicService } from "@/main/modules/topics/services/topic-service";
+import { useAgentConfigStore } from "@/main/stores/agent-config";
+import {
+	DEFAULT_GROW_TYPE,
+	DEFAULT_RECALL_TYPE,
+} from "@/services/database/entities/topic-types";
+import type { AgentConfigFormActions } from "../components/AgentConfigForm";
+import type {
+	CreateAgentOptions,
+	CreateAgentTopicOptions,
+} from "../components/AgentMemoryTypeControls";
+import { metadataWithAgentIconScreen } from "../types";
+import { useAgentPresets } from "./use-agent-presets";
+import { useAgentMemoryTopic } from "./use-agent-memory-topic";
+import { useAgentConfigSummary } from "./use-agent-config-summary";
+import { useAgentsWorkspacePanels } from "./use-agents-workspace-panels";
+import { useUnsavedAgentWorkspaceGuard } from "./use-unsaved-agent-workspace-guard";
+
+export const useAgentsWorkspaceController = () => {
+	const { t } = useTranslation(["agents", "chat", "common"]);
+	const {
+		filteredPresets,
+		selectedPreset,
+		selectedPresetId,
+		searchQuery,
+		metadataDraft,
+		hasMetadataChanges,
+		isLoading: isPresetListLoading,
+		isCreating,
+		isDeleting,
+		isSavingMetadata,
+		error,
+		canDeleteSelectedPreset,
+		setSearchQuery,
+		selectPreset,
+		updateMetadataField,
+		refreshPresets,
+		createPreset,
+		revertMetadata,
+		deleteSelectedPreset,
+	} = useAgentPresets();
+	const {
+		draftConfig,
+		draftFeatures,
+		draftMultiAgentAccessibleAgentIds,
+		draftMCPServers,
+		draftEnabledSkillNames,
+		featureDefinitions,
+		availableTools,
+		currentGraphType,
+		initialize,
+		isLegacyConfig,
+		isDirty: hasConfigChanges,
+		isLoading: isConfigLoading,
+		isSaving: isConfigSaving,
+		setGraphType,
+		setEnabledSkills,
+		setMCPServers,
+		setAccessibleAgents,
+		toggleFeature,
+		save,
+		revert,
+		resetToDefaults,
+		close,
+	} = useAgentConfigStore();
+	const { containerRef, handleResizeStart, isDesktop, panelSizes } =
+		useAgentsWorkspacePanels();
+	const { memoryTopic, setMemoryTopic } = useAgentMemoryTopic(selectedPresetId);
+
+	const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+	const [isAgentWizardMode, setIsAgentWizardMode] = React.useState(false);
+	const [isWizardTemplateChooserOpen, setIsWizardTemplateChooserOpen] =
+		React.useState(false);
+	const [isSavingPage, setIsSavingPage] = React.useState(false);
+	const [isMemoryTypeDialogOpen, setIsMemoryTypeDialogOpen] =
+		React.useState(false);
+	const [activeCompactTab, setActiveCompactTab] = React.useState("list");
+	const [draftMemoryOptions, setDraftMemoryOptions] =
+		React.useState<CreateAgentTopicOptions>({
+			growType: DEFAULT_GROW_TYPE,
+			recallType: DEFAULT_RECALL_TYPE,
+		});
+	const [wizardInitialDraft, setWizardInitialDraft] =
+		React.useState<AgentWizardDraft | null>(null);
+	const [wizardInitialMessage, setWizardInitialMessage] = React.useState<
+		string | undefined
+	>(undefined);
+
+	const hasUnsavedChanges = hasMetadataChanges || hasConfigChanges;
+	useUnsavedAgentWorkspaceGuard(hasUnsavedChanges);
+
+	React.useEffect(() => {
+		close();
+	}, [close]);
+
+	React.useEffect(() => {
+		if (!selectedPresetId) return;
+		void initialize(selectedPresetId);
+	}, [initialize, selectedPresetId]);
+
+	const configSummary = useAgentConfigSummary({
+		availableTools,
+		currentGraphType,
+		draftConfig,
+		draftFeatures,
+		draftMultiAgentAccessibleAgentIds,
+		featureDefinitions,
+		selectedPreset,
+	});
+
+	const isBusy =
+		isPresetListLoading ||
+		isConfigLoading ||
+		isCreating ||
+		isDeleting ||
+		isSavingMetadata ||
+		isConfigSaving ||
+		isSavingPage;
+
+	const canSave =
+		Boolean(selectedPresetId) &&
+		Boolean(metadataDraft.name.trim()) &&
+		(hasMetadataChanges ||
+			hasConfigChanges ||
+			metadataDraft.status === "draft") &&
+		!isLegacyConfig &&
+		!isBusy;
+
+	const handlePresetSelection = React.useCallback(
+		(presetId: string) => {
+			if (presetId === selectedPresetId) return;
+			if (
+				hasUnsavedChanges &&
+				!window.confirm(t("agents:confirm.discardSelection"))
+			)
+				return;
+			selectPreset(presetId);
+			if (!isDesktop) setActiveCompactTab("config");
+		},
+		[hasUnsavedChanges, isDesktop, selectPreset, selectedPresetId, t],
+	);
+
+	const handleCreatePreset = React.useCallback(
+		async (name: string, options?: CreateAgentOptions) => {
+			if (
+				hasUnsavedChanges &&
+				!window.confirm(t("agents:confirm.discardSelection"))
+			)
+				return null;
+			const created = await createPreset(
+				name,
+				options ?? {
+					growType: DEFAULT_GROW_TYPE,
+					recallType: DEFAULT_RECALL_TYPE,
+					status: "active",
+				},
+			);
+			if (!isDesktop) setActiveCompactTab("config");
+			return created;
+		},
+		[createPreset, hasUnsavedChanges, isDesktop, t],
+	);
+
+	const applyWizardDraftToEditor = React.useCallback(
+		(draft: AgentWizardDraft) => {
+			setIsWizardTemplateChooserOpen(false);
+			updateMetadataField(
+				"name",
+				draft.name || t("agents:wizard.draftAgentName"),
+			);
+			updateMetadataField("description", draft.description);
+			updateMetadataField("status", draft.status);
+			updateMetadataField("iconScreen", draft.iconScreen);
+
+			const state = useAgentConfigStore.getState();
+			if (state.currentGraphType !== draft.graphType) {
+				setGraphType(draft.graphType);
+			}
+
+			const nextState = useAgentConfigStore.getState();
+			nextState.updateField("systemPrompt", draft.systemPrompt);
+			nextState.updateField("contextPrompt", draft.contextPrompt);
+			nextState.updateField("tools", draft.enabledToolNames);
+			nextState.updateField(
+				"enableContextRetrieval",
+				draft.enabledFeatureNames.includes("knowledge-retrieval") ||
+					Boolean(draft.contextPrompt.trim()),
+			);
+			nextState.updateField(
+				"enableCitations",
+				draft.enabledFeatureNames.includes("citations"),
+			);
+			nextState.updateField("retrievalMode", draft.recallType);
+			setDraftMemoryOptions({
+				growType: draft.growType,
+				recallType: draft.recallType,
+			});
+			setEnabledSkills(draft.enabledSkillNames);
+			setMCPServers(draft.mcpServers);
+			setAccessibleAgents(draft.multiAgentAccessibleAgentIds);
+
+			const enabledFeatures = new Set(draft.enabledFeatureNames);
+			for (const feature of useAgentConfigStore.getState().featureDefinitions) {
+				if (feature.type !== "catalog") continue;
+				const shouldEnable = enabledFeatures.has(feature.name);
+				if (
+					Boolean(
+						useAgentConfigStore.getState().draftFeatures[feature.name],
+					) !== shouldEnable
+				) {
+					toggleFeature(feature.name);
+				}
+			}
+		},
+		[
+			setAccessibleAgents,
+			setEnabledSkills,
+			setGraphType,
+			setMCPServers,
+			t,
+			toggleFeature,
+			updateMetadataField,
+		],
+	);
+
+	const buildCurrentAgentWizardDraft =
+		React.useCallback((): AgentWizardDraft => {
+			const enabledFeatureNames = new Set<string>();
+			if (
+				draftConfig.enableContextRetrieval ||
+				draftConfig.contextPrompt.trim()
+			) {
+				enabledFeatureNames.add("knowledge-retrieval");
+			}
+			if (draftConfig.enableCitations) {
+				enabledFeatureNames.add("citations");
+			}
+			if (
+				draftConfig.tools.length > 0 ||
+				draftMultiAgentAccessibleAgentIds.length > 0
+			) {
+				enabledFeatureNames.add("agent-node");
+			}
+			for (const [featureName, enabled] of Object.entries(draftFeatures)) {
+				if (enabled) enabledFeatureNames.add(featureName);
+			}
+
+			return {
+				name: metadataDraft.name,
+				description: metadataDraft.description,
+				status: metadataDraft.status,
+				graphType: currentGraphType,
+				systemPrompt: draftConfig.systemPrompt,
+				contextPrompt: draftConfig.contextPrompt,
+				enabledFeatureNames: [...enabledFeatureNames],
+				enabledToolNames: [...draftConfig.tools],
+				enabledSkillNames: [...draftEnabledSkillNames],
+				mcpServers: [...draftMCPServers],
+				multiAgentAccessibleAgentIds: [...draftMultiAgentAccessibleAgentIds],
+				growType: draftMemoryOptions.growType,
+				recallType: draftMemoryOptions.recallType,
+				templateId: null,
+				iconScreen: metadataDraft.iconScreen,
+			};
+		}, [
+			currentGraphType,
+			draftConfig.contextPrompt,
+			draftConfig.enableCitations,
+			draftConfig.enableContextRetrieval,
+			draftConfig.systemPrompt,
+			draftConfig.tools,
+			draftEnabledSkillNames,
+			draftFeatures,
+			draftMCPServers,
+			draftMemoryOptions.growType,
+			draftMemoryOptions.recallType,
+			draftMultiAgentAccessibleAgentIds,
+			metadataDraft.description,
+			metadataDraft.iconScreen,
+			metadataDraft.name,
+			metadataDraft.status,
+		]);
+
+	const handleOpenAgentWizard = React.useCallback(async () => {
+		setWizardInitialDraft(null);
+		setWizardInitialMessage(undefined);
+		const created = await handleCreatePreset(
+			t("agents:wizard.draftAgentName"),
+			{
+				growType: DEFAULT_GROW_TYPE,
+				recallType: DEFAULT_RECALL_TYPE,
+				status: "draft",
+			},
+		);
+		if (!created) return;
+		await refreshPresets(created.id);
+		setIsAgentWizardMode(true);
+		setIsWizardTemplateChooserOpen(true);
+		updateMetadataField("status", "draft");
+		if (!isDesktop) setActiveCompactTab("config");
+	}, [handleCreatePreset, isDesktop, refreshPresets, t, updateMetadataField]);
+
+	const handleOptimizeCurrentAgent = React.useCallback(() => {
+		if (!selectedPresetId || isLegacyConfig || isBusy) return;
+		setWizardInitialDraft(buildCurrentAgentWizardDraft());
+		setWizardInitialMessage(t("agents:wizard.optimizeInitialMessage"));
+		setIsAgentWizardMode(true);
+		setIsWizardTemplateChooserOpen(false);
+		if (!isDesktop) setActiveCompactTab("list");
+	}, [
+		buildCurrentAgentWizardDraft,
+		isBusy,
+		isDesktop,
+		isLegacyConfig,
+		selectedPresetId,
+		t,
+	]);
+
+	const handleWizardCreated = React.useCallback(
+		async (flowId: string) => {
+			await refreshPresets(flowId);
+			setIsAgentWizardMode(false);
+			if (!isDesktop) setActiveCompactTab("config");
+		},
+		[isDesktop, refreshPresets],
+	);
+
+	const agentWizard = useAgentWizard({
+		open: isAgentWizardMode,
+		createPreset: handleCreatePreset,
+		onCreated: handleWizardCreated,
+		onClose: () => {
+			setIsAgentWizardMode(false);
+			setIsWizardTemplateChooserOpen(false);
+			setWizardInitialDraft(null);
+			setWizardInitialMessage(undefined);
+		},
+		onDraftChange: applyWizardDraftToEditor,
+		initialDraft: wizardInitialDraft,
+		initialAssistantMessage: wizardInitialMessage,
+	});
+
+	const handleSelectWizardTemplate = React.useCallback(
+		(template: Parameters<typeof agentWizard.applyTemplate>[0]) => {
+			agentWizard.applyTemplate(template);
+			setIsWizardTemplateChooserOpen(false);
+		},
+		[agentWizard],
+	);
+
+	const handleSavePage = React.useCallback(
+		async (memoryOptionsOverride?: CreateAgentTopicOptions) => {
+			if (!canSave || !selectedPresetId) return;
+			const isPublishingDraft = metadataDraft.status === "draft";
+			if (isPublishingDraft && !memoryTopic && !memoryOptionsOverride) {
+				setIsMemoryTypeDialogOpen(true);
+				return;
+			}
+
+			const memoryOptions = memoryOptionsOverride ?? draftMemoryOptions;
+			setIsSavingPage(true);
+			try {
+				if (hasMetadataChanges || isPublishingDraft) {
+					await serviceManager.flowBuilderService.updateFlowMetadata(
+						selectedPresetId,
+						{
+							name: metadataDraft.name,
+							description: metadataDraft.description,
+							status: isPublishingDraft ? "active" : metadataDraft.status,
+							metadata: metadataWithAgentIconScreen(
+								selectedPreset?.metadata,
+								metadataDraft.iconScreen,
+							),
+						},
+					);
+				}
+				if (hasConfigChanges) await save();
+				if (isPublishingDraft) {
+					const existingTopic =
+						await topicService.getTopicByAgentId(selectedPresetId);
+					if (!existingTopic) {
+						const createdTopic = await topicService.createTopic({
+							name: metadataDraft.name,
+							description: metadataDraft.description,
+							agentId: selectedPresetId,
+							growType: memoryOptions.growType,
+							recallType: memoryOptions.recallType,
+						});
+						setMemoryTopic(createdTopic);
+					} else {
+						setMemoryTopic(existingTopic);
+					}
+					updateMetadataField("status", "active");
+				}
+				await refreshPresets(selectedPresetId);
+			} finally {
+				setIsSavingPage(false);
+			}
+		},
+		[
+			canSave,
+			draftMemoryOptions,
+			hasConfigChanges,
+			hasMetadataChanges,
+			memoryTopic,
+			metadataDraft.description,
+			metadataDraft.iconScreen,
+			metadataDraft.name,
+			metadataDraft.status,
+			refreshPresets,
+			save,
+			selectedPreset?.metadata,
+			selectedPresetId,
+			setMemoryTopic,
+			updateMetadataField,
+		],
+	);
+
+	const handleRevertPage = React.useCallback(() => {
+		revertMetadata();
+		revert();
+	}, [revert, revertMetadata]);
+
+	const handleDeletePreset = React.useCallback(async () => {
+		await deleteSelectedPreset();
+	}, [deleteSelectedPreset]);
+
+	const formActions: AgentConfigFormActions | undefined = selectedPreset
+		? {
+				canSave,
+				isBusy,
+				hasUnsavedChanges,
+				saveLabel:
+					metadataDraft.status === "draft"
+						? t("agents:actions.submit")
+						: undefined,
+				canOptimize: Boolean(selectedPresetId) && !isLegacyConfig && !isBusy,
+				onOptimize: handleOptimizeCurrentAgent,
+				canDelete: canDeleteSelectedPreset,
+				isDeleting,
+				onSave: () => void handleSavePage(),
+				onRevert: handleRevertPage,
+				onDelete: () => void handleDeletePreset(),
+				onResetConfig: resetToDefaults,
+			}
+		: undefined;
+
+	return {
+		activeCompactTab,
+		agentWizard,
+		configSummary,
+		containerRef,
+		draftMemoryOptions,
+		error,
+		filteredPresets,
+		formActions,
+		handleCreatePreset,
+		handleOpenAgentWizard,
+		handlePresetSelection,
+		handleResizeStart,
+		handleSavePage,
+		handleSelectWizardTemplate,
+		isAgentWizardMode,
+		isCreateDialogOpen,
+		isCreating,
+		isDesktop,
+		isMemoryTypeDialogOpen,
+		isPresetListLoading,
+		isSavingPage,
+		isWizardTemplateChooserOpen,
+		memoryTopic,
+		metadataDraft,
+		panelSizes,
+		searchQuery,
+		selectedPreset,
+		selectedPresetId,
+		setActiveCompactTab,
+		setDraftMemoryOptions,
+		setIsCreateDialogOpen,
+		setIsMemoryTypeDialogOpen,
+		setSearchQuery,
+		updateMetadataField,
+	};
+};

@@ -37,7 +37,7 @@ import {
 import { serviceManager } from "@/services";
 import { eq } from "drizzle-orm";
 import { logError } from "@/utils/logger";
-import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
+import { DocumentSaveFolderDialog } from "./DocumentSaveFolderDialog";
 
 // Performance optimization: Define plugins and components outside component
 const remarkPlugins = [remarkGfm, remarkMath];
@@ -46,26 +46,37 @@ const SEPARATE_RENDER_STREAM = false;
 
 type SaveState = "idle" | "saving" | "saved";
 
+const CODE_FILE_META: Record<string, { extension: string; mimeType: string }> =
+	{
+		css: { extension: "css", mimeType: "text/css" },
+		html: { extension: "html", mimeType: "text/html" },
+		js: { extension: "js", mimeType: "text/javascript" },
+		json: { extension: "json", mimeType: "application/json" },
+		jsx: { extension: "jsx", mimeType: "text/javascript" },
+		md: { extension: "md", mimeType: "text/markdown" },
+		py: { extension: "py", mimeType: "text/x-python" },
+		ts: { extension: "ts", mimeType: "text/typescript" },
+		tsx: { extension: "tsx", mimeType: "text/typescript" },
+		txt: { extension: "txt", mimeType: "text/plain" },
+	};
+
+const getCodeFileMeta = (language: string) =>
+	CODE_FILE_META[language.toLowerCase()] ?? {
+		extension: language.toLowerCase() || "txt",
+		mimeType: "text/plain",
+	};
+
 const HtmlCodePreview: React.FC<{ code: string }> = React.memo(({ code }) => {
 	const { actualTheme } = useTheme();
 	const isDark = actualTheme === "dark";
 	const [showCode, setShowCode] = useState(false);
 	const [saveState, setSaveState] = useState<SaveState>("idle");
+	const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 	const { t } = useTranslation("chat");
 
-	const handleSave = async () => {
+	const handleSave = () => {
 		if (saveState !== "idle") return;
-		setSaveState("saving");
-		try {
-			const fileName = `preview-${Date.now()}.html`;
-			const file = new File([code], fileName, { type: "text/html" });
-			await documentFileSystemService.uploadFile(file, "/");
-			setSaveState("saved");
-			setTimeout(() => setSaveState("idle"), 2000);
-		} catch (err) {
-			logError("Failed to save HTML to documents:", err);
-			setSaveState("idle");
-		}
+		setSaveDialogOpen(true);
 	};
 
 	return (
@@ -127,6 +138,87 @@ const HtmlCodePreview: React.FC<{ code: string }> = React.memo(({ code }) => {
 					title="HTML Preview"
 				/>
 			)}
+			<DocumentSaveFolderDialog
+				open={saveDialogOpen}
+				content={code}
+				initialFileName={`preview-${Date.now()}.html`}
+				mimeType="text/html"
+				onOpenChange={setSaveDialogOpen}
+				onSaved={() => {
+					setSaveState("saved");
+					setTimeout(() => setSaveState("idle"), 2000);
+				}}
+				onError={(err) => {
+					logError("Failed to save HTML to documents:", err);
+					setSaveState("idle");
+				}}
+			/>
+		</div>
+	);
+});
+
+const CodeBlockWithSave: React.FC<{
+	code: string;
+	language: string;
+	isDark: boolean;
+}> = React.memo(({ code, language, isDark }) => {
+	const [saveState, setSaveState] = useState<SaveState>("idle");
+	const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+	const { t } = useTranslation("chat");
+	const fileMeta = getCodeFileMeta(language);
+	const fileName = `code-${Date.now()}.${fileMeta.extension}`;
+
+	return (
+		<div className="my-2 overflow-hidden rounded-md border border-border">
+			<div className="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
+				<span className="truncate text-xs text-muted-foreground">
+					{language || t("htmlPreview.code")}
+				</span>
+				<button
+					type="button"
+					onClick={() => setSaveDialogOpen(true)}
+					disabled={saveState !== "idle"}
+					className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50 disabled:opacity-60"
+				>
+					{saveState === "saved" ? (
+						<>
+							<Check className="w-3 h-3" /> {t("htmlPreview.saved")}
+						</>
+					) : (
+						<>
+							<Save className="w-3 h-3" /> {t("htmlPreview.save")}
+						</>
+					)}
+				</button>
+			</div>
+			<SyntaxHighlighter
+				style={isDark ? oneDark : oneLight}
+				language={language}
+				PreTag="div"
+				className="text-sm"
+				customStyle={{
+					margin: 0,
+					padding: "1rem",
+					backgroundColor: isDark ? "hsl(220 13% 18%)" : "hsl(210 40% 98%)",
+				}}
+			>
+				{code}
+			</SyntaxHighlighter>
+			<DocumentSaveFolderDialog
+				open={saveDialogOpen}
+				content={code}
+				initialFileName={fileName}
+				mimeType={fileMeta.mimeType}
+				onOpenChange={setSaveDialogOpen}
+				onSaved={() => {
+					setSaveState("saved");
+					setTimeout(() => setSaveState("idle"), 2000);
+				}}
+				onError={(err) => {
+					logError("Failed to save code block to documents:", err);
+					setSaveState("idle");
+				}}
+			/>
 		</div>
 	);
 });
@@ -587,9 +679,9 @@ const markdownComponents = {
 		</td>
 	),
 	pre: ({ children, ...props }: { children?: React.ReactNode }) => (
-		<pre className="overflow-x-auto" {...props}>
+		<div className="overflow-x-auto" {...props}>
 			{children}
-		</pre>
+		</div>
 	),
 	// Style other elements
 	blockquote: ({ children, ...props }: { children?: React.ReactNode }) => (
@@ -727,20 +819,11 @@ const MarkdownMessageComponent: React.FC<MarkdownMessageProps> = ({
 			}
 
 			return (
-				<SyntaxHighlighter
-					style={isDark ? oneDark : oneLight}
+				<CodeBlockWithSave
+					code={String(children).replace(/\n$/, "")}
 					language={language}
-					PreTag="div"
-					className="rounded-md text-sm"
-					customStyle={{
-						margin: 0,
-						padding: "1rem",
-						backgroundColor: isDark ? "hsl(220 13% 18%)" : "hsl(210 40% 98%)",
-					}}
-					{...props}
-				>
-					{String(children).replace(/\n$/, "")}
-				</SyntaxHighlighter>
+					isDark={isDark}
+				/>
 			);
 		};
 	}, [isDark]);

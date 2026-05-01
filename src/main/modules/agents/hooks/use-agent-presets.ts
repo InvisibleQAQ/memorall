@@ -3,6 +3,7 @@ import { serviceManager } from "@/services";
 import { logError } from "@/utils/logger";
 import {
 	createAgentPresetDraft,
+	metadataWithAgentIconScreen,
 	type AgentPresetDraft,
 	type AgentPresetStatus,
 } from "../types";
@@ -55,6 +56,7 @@ const createEmptyDraft = (): AgentPresetDraft => ({
 	name: "",
 	description: "",
 	status: "active",
+	iconScreen: null,
 });
 
 const hasDraftChanges = (
@@ -63,7 +65,8 @@ const hasDraftChanges = (
 ): boolean =>
 	saved.name !== draft.name ||
 	saved.description !== draft.description ||
-	saved.status !== draft.status;
+	saved.status !== draft.status ||
+	JSON.stringify(saved.iconScreen) !== JSON.stringify(draft.iconScreen);
 
 export const useAgentPresets = (): UseAgentPresetsResult => {
 	const [presets, setPresets] = React.useState<Flow[]>([]);
@@ -239,6 +242,9 @@ export const useAgentPresets = (): UseAgentPresetsResult => {
 		if (!selectedPresetId) {
 			return null;
 		}
+		const selectedPreset = presets.find(
+			(preset) => preset.id === selectedPresetId,
+		);
 
 		setIsSavingMetadata(true);
 		setError(null);
@@ -251,6 +257,10 @@ export const useAgentPresets = (): UseAgentPresetsResult => {
 						name: metadataDraft.name,
 						description: metadataDraft.description,
 						status: metadataDraft.status,
+						metadata: metadataWithAgentIconScreen(
+							selectedPreset?.metadata,
+							metadataDraft.iconScreen,
+						),
 					},
 				);
 
@@ -273,8 +283,10 @@ export const useAgentPresets = (): UseAgentPresetsResult => {
 		}
 	}, [
 		metadataDraft.description,
+		metadataDraft.iconScreen,
 		metadataDraft.name,
 		metadataDraft.status,
+		presets,
 		selectedPresetId,
 	]);
 

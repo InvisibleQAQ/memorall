@@ -52,6 +52,12 @@
 		"namePlaceholder": "Give this preset a clear, scannable name",
 		"description": "Description",
 		"descriptionPlaceholder": "Describe the role, audience, or operating constraints for this preset",
+		"iconScreen": "Icon screen",
+		"iconScreenText": "Text",
+		"iconScreenEmoji": "Emoji",
+		"iconScreenPlaceholder": "Text or emoji",
+		"iconScreenColor": "Icon screen text color",
+		"iconScreenDefault": "Default",
 		"status": "Status"
 	},
 	"status": {

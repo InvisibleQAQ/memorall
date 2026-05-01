@@ -140,6 +140,15 @@
 		"preview": "Preview",
 		"code": "Code"
 	},
+	"saveDialog": {
+		"title": "Select folder to store",
+		"folder": "Folder",
+		"fileName": "File name",
+		"cancel": "Cancel",
+		"save": "Save to documents",
+		"saving": "Saving...",
+		"failed": "Failed to save"
+	},
 	"smartSelect": {
 		"title": "Smart Select context",
 		"label": "Smart Select",

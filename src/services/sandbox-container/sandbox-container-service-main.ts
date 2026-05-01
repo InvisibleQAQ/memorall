@@ -6,7 +6,10 @@ import {
 import type { ISandboxContainerService } from "./interfaces/sandbox-container-service.interface";
 import {
 	decodeSwResponseBodyPreview,
+	delay,
+	getLocalBuildRetryDelayMs,
 	hasSwTransformErrorHeader,
+	isLikelyPendingLocalBuildResponse,
 } from "./sw-response-utils";
 import type {
 	SandboxCommandResult,
@@ -81,6 +84,7 @@ const DEFAULT_LOAD_TIMEOUT_MS = 20_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_COMMAND_WAIT_TIMEOUT_MS = 10_000;
 const COMMAND_REQUEST_TIMEOUT_BUFFER_MS = 5_000;
+const EMPTY_LOCAL_BUILD_RETRY_ATTEMPTS = 20;
 const WORKSPACES_ROOT = "/workspaces";
 const WORKSPACE_LEGACY_ROOT = "/workspace";
 const SANDBOX_RUNTIME_WORKSPACE_SYNC = "memorall-sandbox-workspace-sync";
@@ -380,34 +384,61 @@ export class SandboxContainerServiceMain implements ISandboxContainerService {
 				120_000,
 			);
 
-		let result = await makeRequest();
-		const shouldInspectBody =
-			(result.statusCode ?? 200) >= 400 || hasSwTransformErrorHeader(result);
+		const retriedMissingPaths = new Set<string>();
+		let lastResult: SandboxHandleSwRequestResult | null = null;
 
-		if (shouldInspectBody) {
-			const bodyText = decodeSwResponseBodyPreview(result, 1200);
-			const transformError = hasSwTransformErrorHeader(result);
+		for (
+			let attempt = 0;
+			attempt <= EMPTY_LOCAL_BUILD_RETRY_ATTEMPTS;
+			attempt++
+		) {
+			const result = await makeRequest();
+			lastResult = result;
+			const shouldInspectBody =
+				(result.statusCode ?? 200) >= 400 || hasSwTransformErrorHeader(result);
 
-			logInfo(
-				`[SW relay] ${params.method} ${params.path} → ${result.statusCode ?? 200} | transformError=${transformError} | bodyBase64 length=${result.bodyBase64?.length ?? 0} | bodyText=${bodyText || "(empty)"}`,
-			);
+			if (shouldInspectBody) {
+				const bodyText = decodeSwResponseBodyPreview(result, 1200);
+				const transformError = hasSwTransformErrorHeader(result);
 
-			const missingPath = this.extractUnmaterializedWorkspacePath(bodyText);
-			if (missingPath) {
 				logInfo(
-					`[SW relay] materializing ${missingPath} and retrying ${params.method} ${params.path}`,
+					`[SW relay] ${params.method} ${params.path} → ${result.statusCode ?? 200} | transformError=${transformError} | bodyBase64 length=${result.bodyBase64?.length ?? 0} | bodyText=${bodyText || "(empty)"}`,
 				);
-				await this.materializeMountedWorkspaceFile(missingPath);
-				result = await makeRequest();
-			} else if ((result.statusCode ?? 200) >= 400 || transformError) {
-				logError(
-					`[SW relay] ${params.method} ${params.path} → ${result.statusCode ?? 200} no retry match`,
-					bodyText || "(no body)",
-				);
+
+				const missingPath = this.extractUnmaterializedWorkspacePath(bodyText);
+				if (missingPath && !retriedMissingPaths.has(missingPath)) {
+					retriedMissingPaths.add(missingPath);
+					logInfo(
+						`[SW relay] materializing ${missingPath} and retrying ${params.method} ${params.path}`,
+					);
+					await this.materializeMountedWorkspaceFile(missingPath);
+					continue;
+				}
+
+				if ((result.statusCode ?? 200) >= 400 || transformError) {
+					logError(
+						`[SW relay] ${params.method} ${params.path} → ${result.statusCode ?? 200} no retry match`,
+						bodyText || "(no body)",
+					);
+				}
 			}
+
+			if (
+				attempt < EMPTY_LOCAL_BUILD_RETRY_ATTEMPTS &&
+				isLikelyPendingLocalBuildResponse(result, params)
+			) {
+				const delayMs = getLocalBuildRetryDelayMs(attempt);
+				logInfo(
+					`[SW relay] ${params.method} ${params.path} returned empty build asset; retrying in ${delayMs}ms (${attempt + 1}/${EMPTY_LOCAL_BUILD_RETRY_ATTEMPTS})`,
+				);
+				await delay(delayMs);
+				continue;
+			}
+
+			return result;
 		}
 
-		return result;
+		return lastResult ?? makeRequest();
 	}
 
 	private async relaySwMessage(msg: {

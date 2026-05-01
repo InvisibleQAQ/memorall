@@ -20,7 +20,7 @@ import {
 	GRAPH_REGISTRY,
 } from "@/main/stores/agent-config";
 import { Button } from "@/main/components/ui/button";
-import { AgentIcon } from "@/components/AgentIcon";
+import { AgentIcon, type AgentScreenContent } from "@/components/AgentIcon";
 import { Separator } from "@/main/components/ui/separator";
 import { Label } from "@/main/components/ui/label";
 import {
@@ -59,7 +59,11 @@ import { SystemPromptEditor } from "./SystemPromptEditor";
 import { HoverBadgeList } from "./AgentHoverInfo";
 import { CursorPoint } from "@/components/AgentCursor";
 import { AGENT_WIZARD_CURSOR_KEYS } from "@/main/modules/agent-wizard";
-import type { AgentConfigSummary, AgentPresetDraft } from "../types";
+import type {
+	AgentConfigSummary,
+	AgentPresetDraft,
+	AgentPresetIconScreenKind,
+} from "../types";
 import type { Topic } from "@/services/database/types";
 
 const SkillsSection = React.lazy(() =>
@@ -169,6 +173,18 @@ const PromptPill: React.FC<{
 	</HoverCard>
 );
 
+const toAgentScreenContent = (
+	iconScreen: AgentPresetDraft["iconScreen"],
+): AgentScreenContent | undefined =>
+	iconScreen
+		? {
+				kind: iconScreen.kind,
+				value: iconScreen.value,
+				color: iconScreen.color,
+				scale: iconScreen.kind === "emoji" ? 0.72 : 0.52,
+			}
+		: undefined;
+
 // ---------------------------------------------------------------------------
 // Main form
 // ---------------------------------------------------------------------------
@@ -195,6 +211,9 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 	const [showBaseGraph, setShowBaseGraph] = React.useState(false);
 	const [deleteOpen, setDeleteOpen] = React.useState(false);
 	const [resetOpen, setResetOpen] = React.useState(false);
+	const iconScreenContent = toAgentScreenContent(
+		metadataDraft?.iconScreen ?? null,
+	);
 
 	const currentGraphMeta = GRAPH_REGISTRY.find(
 		(graph) => graph.id === currentGraphType,
@@ -218,9 +237,11 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 					<div className="space-y-3">
 						{/* Icon + Name row + inline actions */}
 						<div className="flex items-center gap-3">
-							<div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center">
-								<AgentIcon size="xl" />
-							</div>
+							<CursorPoint cursorKey={AGENT_WIZARD_CURSOR_KEYS.iconScreen}>
+								<div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center">
+									<AgentIcon size="xl" screenContent={iconScreenContent} />
+								</div>
+							</CursorPoint>
 
 							<CursorPoint
 								cursorKey={AGENT_WIZARD_CURSOR_KEYS.name}
@@ -327,6 +348,88 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 								rows={2}
 								className="w-full bg-transparent p-0 text-sm text-muted-foreground placeholder:text-muted-foreground/40 border-0 outline-none resize-none"
 							/>
+						</CursorPoint>
+
+						<CursorPoint
+							cursorKey={AGENT_WIZARD_CURSOR_KEYS.iconScreen}
+							className="flex flex-wrap items-center gap-2"
+						>
+							<Label className="text-xs text-muted-foreground">
+								{ta("fields.iconScreen")}
+							</Label>
+							<Select
+								value={metadataDraft.iconScreen?.kind ?? "text"}
+								onValueChange={(value) => {
+									const kind = value as AgentPresetIconScreenKind;
+									const current = metadataDraft.iconScreen;
+									onMetadataChange("iconScreen", {
+										kind,
+										value: current?.value || (kind === "emoji" ? "✨" : "hi"),
+										color:
+											kind === "text"
+												? (current?.color ?? "#17e7e7")
+												: undefined,
+									});
+								}}
+							>
+								<SelectTrigger className="h-8 w-24 text-xs">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="text">
+										{ta("fields.iconScreenText")}
+									</SelectItem>
+									<SelectItem value="emoji">
+										{ta("fields.iconScreenEmoji")}
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							<input
+								value={metadataDraft.iconScreen?.value ?? ""}
+								onChange={(event) => {
+									const value = event.target.value.slice(0, 24);
+									onMetadataChange(
+										"iconScreen",
+										value.trim()
+											? {
+													kind: metadataDraft.iconScreen?.kind ?? "text",
+													value,
+													color:
+														(metadataDraft.iconScreen?.kind ?? "text") ===
+														"text"
+															? (metadataDraft.iconScreen?.color ?? "#17e7e7")
+															: undefined,
+												}
+											: null,
+									);
+								}}
+								placeholder={ta("fields.iconScreenPlaceholder")}
+								className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-xs outline-none transition-colors focus:border-ring"
+							/>
+							{metadataDraft.iconScreen?.kind === "text" ? (
+								<input
+									type="color"
+									value={metadataDraft.iconScreen.color ?? "#17e7e7"}
+									onChange={(event) =>
+										onMetadataChange("iconScreen", {
+											...metadataDraft.iconScreen!,
+											color: event.target.value,
+										})
+									}
+									aria-label={ta("fields.iconScreenColor")}
+									className="h-8 w-9 rounded-md border border-border bg-background p-1"
+								/>
+							) : null}
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="h-8 px-2 text-xs"
+								onClick={() => onMetadataChange("iconScreen", null)}
+								disabled={!metadataDraft.iconScreen}
+							>
+								{ta("fields.iconScreenDefault")}
+							</Button>
 						</CursorPoint>
 
 						{/* Compact stats row */}

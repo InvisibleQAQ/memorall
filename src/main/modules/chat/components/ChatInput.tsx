@@ -36,7 +36,7 @@ export interface ChatInputProps {
 	onStop: () => void;
 	abortController: AbortController | null;
 	isLoadingTopics: boolean;
-	topics: Array<{ id: string; name: string }>;
+	topics: Array<{ id: string; name: string; agentId?: string | null }>;
 	agentFlows: Array<{ id: string; name: string }>;
 	selectedAgentFlowId: string | null;
 	setSelectedAgentFlowId: (flowId: string) => void;

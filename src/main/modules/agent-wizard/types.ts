@@ -5,6 +5,7 @@ import type {
 	GrowType,
 	RecallType,
 } from "@/services/database/entities/topic-types";
+import type { AgentPresetIconScreen } from "@/main/modules/agents/types";
 
 export interface AgentWizardDraft {
 	name: string;
@@ -21,6 +22,7 @@ export interface AgentWizardDraft {
 	growType: GrowType;
 	recallType: RecallType;
 	templateId: string | null;
+	iconScreen: AgentPresetIconScreen | null;
 }
 
 export interface AgentWizardTemplate {
@@ -61,6 +63,7 @@ export type AgentWizardPatch = Partial<
 		| "multiAgentAccessibleAgentIds"
 		| "growType"
 		| "recallType"
+		| "iconScreen"
 	>
 >;
 
@@ -85,7 +88,8 @@ export type AgentWizardToolPatch =
 	| { type: "disable_feature"; name: string }
 	| { type: "update_instruction"; systemPrompt: string }
 	| { type: "update_grow_type"; growType: GrowType }
-	| { type: "update_recall_type"; recallType: RecallType };
+	| { type: "update_recall_type"; recallType: RecallType }
+	| { type: "update_icon_screen"; iconScreen: AgentPresetIconScreen | null };
 
 export interface AgentWizardCatalog {
 	featureNames: string[];

@@ -17,6 +17,7 @@ import type {
 	AgentWizardMessage,
 	AgentWizardTemplate,
 } from "../types";
+import { metadataWithAgentIconScreen } from "@/main/modules/agents/types";
 import {
 	AGENT_WIZARD_TEMPLATES,
 	createBlankAgentWizardDraft,
@@ -483,11 +484,19 @@ export const useAgentWizard = ({
 			});
 			if (!created) throw new Error("Failed to create agent");
 
-			if (draft.description.trim() || draft.status !== "active") {
+			if (
+				draft.description.trim() ||
+				draft.status !== "active" ||
+				draft.iconScreen
+			) {
 				await serviceManager.flowBuilderService.updateFlowMetadata(created.id, {
 					name: draft.name.trim(),
 					description: draft.description,
 					status: draft.status,
+					metadata: metadataWithAgentIconScreen(
+						created.metadata,
+						draft.iconScreen,
+					),
 				});
 			}
 

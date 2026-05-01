@@ -41,6 +41,7 @@ export interface FlowMetadataUpdateInput {
 	name: string;
 	description?: string;
 	status: string;
+	metadata?: Record<string, unknown>;
 }
 
 export interface FlowStateInput {

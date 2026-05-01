@@ -3,6 +3,7 @@ import { jumpTo, jumTo, moveTo } from "@/components/AgentCursor";
 export const AGENT_WIZARD_CURSOR_KEYS = {
 	name: "agent-wizard:name",
 	description: "agent-wizard:description",
+	iconScreen: "agent-wizard:icon-screen",
 	status: "agent-wizard:status",
 	graphType: "agent-wizard:graph-type",
 	systemPrompt: "agent-wizard:system-prompt",

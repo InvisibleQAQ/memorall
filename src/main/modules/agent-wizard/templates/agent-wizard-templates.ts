@@ -19,6 +19,7 @@ export const createBlankAgentWizardDraft = (): AgentWizardDraft => ({
 	growType: DEFAULT_GROW_TYPE,
 	recallType: DEFAULT_RECALL_TYPE,
 	templateId: null,
+	iconScreen: null,
 });
 
 export const AGENT_WIZARD_TEMPLATES: AgentWizardTemplate[] = [
@@ -198,4 +199,11 @@ export const draftFromTemplate = (
 	growType: template.growType ?? DEFAULT_GROW_TYPE,
 	recallType: template.recallType ?? DEFAULT_RECALL_TYPE,
 	templateId: template.id,
+	iconScreen:
+		template.id === "blank"
+			? null
+			: {
+					kind: "emoji",
+					value: template.icon,
+				},
 });

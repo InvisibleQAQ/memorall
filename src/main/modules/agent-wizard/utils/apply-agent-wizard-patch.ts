@@ -18,6 +18,7 @@ import {
 	AGENT_WIZARD_CURSOR_KEYS,
 	moveAgentWizardCursorTo,
 } from "./agent-wizard-cursor";
+import { normalizeAgentIconScreen } from "@/main/modules/agents/types";
 
 const MAX_PROMPT_LENGTH = 24000;
 
@@ -149,6 +150,9 @@ const announcePatchCursorMoves = (patch: AgentWizardPatch): void => {
 			"Updating description",
 		);
 	}
+	if ("iconScreen" in patch) {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.iconScreen, "Updating icon");
+	}
 	if (patch.status === "active" || patch.status === "draft") {
 		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.status, "Updating status");
 	}
@@ -209,6 +213,9 @@ const announceToolPatchCursorMove = (patch: AgentWizardToolPatch): void => {
 				"Updating description",
 			);
 			break;
+		case "update_icon_screen":
+			announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.iconScreen, "Updating icon");
+			break;
 		case "add_skills":
 		case "remove_skills":
 			announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.skills, "Updating skills");
@@ -263,6 +270,9 @@ export const applyAgentWizardPatch = (
 	}
 	if (patch.status === "active" || patch.status === "draft") {
 		next.status = patch.status;
+	}
+	if ("iconScreen" in patch) {
+		next.iconScreen = normalizeAgentIconScreen(patch.iconScreen);
 	}
 	if (patch.graphType === "agent" || patch.graphType === "knowledge-rag") {
 		next.graphType = patch.graphType;
@@ -338,6 +348,9 @@ export const applyAgentWizardToolPatch = (
 			break;
 		case "update_description":
 			next.description = patch.description.slice(0, 500);
+			break;
+		case "update_icon_screen":
+			next.iconScreen = patch.iconScreen;
 			break;
 		case "add_skills":
 			next.enabledSkillNames = addUniqueStrings(
@@ -463,6 +476,18 @@ export const agentWizardToolPatchFromCall = (
 						recallType: args.recallType as RecallType,
 					}
 				: null;
+		case AGENT_WIZARD_TOOL_NAMES.updateIconScreen:
+			if (args.value === null) {
+				return { type: "update_icon_screen", iconScreen: null };
+			}
+			return {
+				type: "update_icon_screen",
+				iconScreen: normalizeAgentIconScreen({
+					kind: args.kind,
+					value: args.value,
+					color: args.color,
+				}),
+			};
 		default:
 			return null;
 	}
