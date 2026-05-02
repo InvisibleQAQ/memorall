@@ -7,6 +7,7 @@ import {
 	RefreshCw,
 	Server,
 	Terminal,
+	X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
@@ -18,10 +19,18 @@ import { RuntimeSessionsSectionList } from "../RuntimeSessions/RuntimeSessionsSe
 
 interface ChatSidePanelProps {
 	onShowConversationGroup?: (groupId: string) => void;
+	defaultCollapsed?: boolean;
+	allowCollapse?: boolean;
+	allowResize?: boolean;
+	onClose?: () => void;
 }
 
 export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 	onShowConversationGroup = () => undefined,
+	defaultCollapsed = true,
+	allowCollapse = true,
+	allowResize = true,
+	onClose,
 }) => {
 	const commands = useRuntimeSessionsStore((state) => state.commands);
 	const servers = useRuntimeSessionsStore((state) => state.servers);
@@ -37,7 +46,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 	);
 	const loadConversations = useChatStore((state) => state.loadConversations);
 	const { t } = useTranslation();
-	const [collapsed, setCollapsed] = useState(true);
+	const [collapsed, setCollapsed] = useState(defaultCollapsed);
 	const [width, setWidth] = useState(320);
 	const isDraggingRef = useRef(false);
 	const dragStartXRef = useRef(0);
@@ -82,12 +91,18 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 
 	return (
 		<div
-			className="relative z-10 flex-shrink-0"
-			style={collapsed ? { width: 56 } : { width }}
+			className="relative z-10 h-full min-h-0 flex-shrink-0"
+			style={
+				allowCollapse && collapsed
+					? { width: 56 }
+					: allowResize
+						? { width }
+						: { width: "100%" }
+			}
 		>
 			<div
 				className={cn(
-					"flex h-full flex-col border-r",
+					"flex h-full min-h-0 flex-col border-r",
 					collapsed ? "bg-background" : "bg-card",
 				)}
 			>
@@ -99,7 +114,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 							: "flex items-center gap-2 border-b bg-muted/20 px-2 py-2",
 					)}
 				>
-					{collapsed ? (
+					{allowCollapse && collapsed ? (
 						<button
 							type="button"
 							onClick={() => setCollapsed(false)}
@@ -126,21 +141,33 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 								>
 									<RefreshCw size={14} />
 								</button>
-								<button
-									type="button"
-									onClick={() => setCollapsed(true)}
-									className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-									title={t("sandboxPanel.collapse")}
-									aria-label={t("sandboxPanel.collapse")}
-								>
-									<ChevronLeft size={18} />
-								</button>
+								{allowCollapse ? (
+									<button
+										type="button"
+										onClick={() => setCollapsed(true)}
+										className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+										title={t("sandboxPanel.collapse")}
+										aria-label={t("sandboxPanel.collapse")}
+									>
+										<ChevronLeft size={18} />
+									</button>
+								) : onClose ? (
+									<button
+										type="button"
+										onClick={onClose}
+										className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+										title="Close"
+										aria-label="Close chat side panel"
+									>
+										<X size={16} />
+									</button>
+								) : null}
 							</div>
 						</>
 					)}
 				</div>
 
-				{collapsed ? (
+				{allowCollapse && collapsed ? (
 					<div className="flex flex-1 flex-col items-center gap-1 px-2 py-2">
 						<CollapsedRailItem
 							icon={<MessageSquare size={17} />}
@@ -178,7 +205,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 						) : null}
 					</div>
 				) : (
-					<div className="flex-1 overflow-y-auto p-2">
+					<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
 						<div className="space-y-5">
 							<ConversationListSection onShowGroup={onShowConversationGroup} />
 							<div className="space-y-2 border-t border-border/70 pt-4">
@@ -198,7 +225,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 					</div>
 				)}
 			</div>
-			{!collapsed && (
+			{allowResize && !collapsed && (
 				<div
 					onMouseDown={handleResizeMouseDown}
 					className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/40 transition-colors"

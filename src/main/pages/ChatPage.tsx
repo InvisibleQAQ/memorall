@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, ArrowUp, Sparkles, X } from "lucide-react";
+import { ArrowRight, ArrowUp, MessagesSquare, Sparkles, X } from "lucide-react";
 import {
 	Conversation,
 	ConversationContent,
@@ -125,6 +125,11 @@ export const ChatPage: React.FC = () => {
 	const [isChatInputModelReady, setIsChatInputModelReady] =
 		React.useState(true);
 	const [showPreviousGroups, setShowPreviousGroups] = React.useState(false);
+	const [isCompactSidePanelOpen, setIsCompactSidePanelOpen] =
+		React.useState(false);
+	const [expandedMessageGroupId, setExpandedMessageGroupId] = React.useState<
+		string | null
+	>(null);
 	const latestPreviousGroupRef = useRef<HTMLDivElement | null>(null);
 	const completedGroupRefs = useRef(new Map<string, HTMLDivElement>());
 	const shouldScrollToPreviousGroupsRef = useRef(false);
@@ -220,6 +225,7 @@ export const ChatPage: React.FC = () => {
 					inProgressMessage={null}
 					defaultCollapsed={true}
 					selectedTopic={selectedTopic}
+					forceExpanded={expandedMessageGroupId === group.id}
 					suppressSeparator={
 						!showPreviousGroups &&
 						latestGroupIsEmpty &&
@@ -237,6 +243,7 @@ export const ChatPage: React.FC = () => {
 		loadMessageGroup,
 		selectedTopic,
 		setCompletedGroupRef,
+		expandedMessageGroupId,
 		showPreviousGroups,
 	]);
 
@@ -277,10 +284,12 @@ export const ChatPage: React.FC = () => {
 			const group = messageGroups.find((item) => item.id === groupId);
 			if (!group || group.isLatest) {
 				setShowPreviousGroups(false);
+				setExpandedMessageGroupId(null);
 				return;
 			}
 
 			pendingGroupScrollRef.current = groupId;
+			setExpandedMessageGroupId(groupId);
 			setShowPreviousGroups(true);
 			if (showPreviousGroups) {
 				requestAnimationFrame(() => scrollToGroup(groupId));
@@ -553,6 +562,7 @@ export const ChatPage: React.FC = () => {
 	};
 
 	const isWideChatSidePanelVisible = isWideViewport && !isPopupSurface();
+	const isCompactSidePanelAvailable = !isWideChatSidePanelVisible;
 	const selectedAgent = useMemo(
 		() => agentFlows.find((flow) => flow.id === selectedAgentFlowId),
 		[agentFlows, selectedAgentFlowId],
@@ -623,6 +633,21 @@ export const ChatPage: React.FC = () => {
 			) : null}
 			<div className="flex flex-col flex-1 min-w-0">
 				<Conversation className="flex-1 min-h-0">
+					{isCompactSidePanelAvailable ? (
+						<div className="absolute left-3 top-3 z-30">
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="h-9 w-9 text-muted-foreground hover:bg-transparent hover:text-foreground"
+								aria-label="Open chat side panel"
+								onClick={() => setIsCompactSidePanelOpen(true)}
+							>
+								<MessagesSquare size={19} />
+							</Button>
+						</div>
+					) : null}
+
 					{completedGroups.length > 0 ? (
 						<div className="pointer-events-none absolute left-0 right-0 top-4 z-20 flex justify-center">
 							<Button
@@ -635,10 +660,12 @@ export const ChatPage: React.FC = () => {
 								{showPreviousGroups ? (
 									<>
 										<ArrowUp size={13} />
-										<span>Scroll up to view history</span>
+										<span>{t("history.scrollUp")}</span>
 									</>
 								) : (
-									`Show previous chats (${completedGroups.length})`
+									t("history.showPrevious", {
+										count: completedGroups.length,
+									})
 								)}
 							</Button>
 							{showPreviousGroups ? (
@@ -647,7 +674,7 @@ export const ChatPage: React.FC = () => {
 									variant="ghost"
 									size="icon"
 									className="pointer-events-auto ml-2 h-8 w-8 rounded-full border border-border/70 bg-background/90 text-muted-foreground shadow-sm backdrop-blur hover:bg-accent/60 hover:text-foreground"
-									aria-label="Hide previous chats"
+									aria-label={t("history.hidePrevious")}
 									onClick={() => setShowPreviousGroups(false)}
 								>
 									<X size={14} />
@@ -757,6 +784,37 @@ export const ChatPage: React.FC = () => {
 			</div>
 
 			<AnimatePresence>
+				{isCompactSidePanelAvailable && isCompactSidePanelOpen ? (
+					<>
+						<motion.div
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.18, ease: "easeOut" }}
+							className="fixed inset-0 z-40 bg-black/50"
+							onClick={() => setIsCompactSidePanelOpen(false)}
+						/>
+						<motion.div
+							initial={{ opacity: 0, x: -24 }}
+							animate={{ opacity: 1, x: 0 }}
+							exit={{ opacity: 0, x: -24 }}
+							transition={{ duration: 0.2, ease: "easeOut" }}
+							className="fixed bottom-0 left-0 right-0 top-12 z-50 bg-background shadow-xl"
+						>
+							<ChatSidePanel
+								defaultCollapsed={false}
+								allowCollapse={false}
+								allowResize={false}
+								onClose={() => setIsCompactSidePanelOpen(false)}
+								onShowConversationGroup={(groupId) => {
+									handleConversationGroupSelect(groupId);
+									setIsCompactSidePanelOpen(false);
+								}}
+							/>
+						</motion.div>
+					</>
+				) : null}
+
 				{isOpen && (
 					<>
 						<motion.div

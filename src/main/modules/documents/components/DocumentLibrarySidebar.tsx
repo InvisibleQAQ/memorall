@@ -46,7 +46,7 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 	const [workspaceExpanded, setWorkspaceExpanded] = useState(true);
 
 	return (
-		<div className="hidden md:flex md:flex-col md:w-48 lg:w-64 border-r bg-card overflow-hidden flex-shrink-0">
+		<div className="hidden h-full bg-background md:flex md:flex-col overflow-hidden flex-shrink-0">
 			{/* Documents Section */}
 			<button
 				className={cn(

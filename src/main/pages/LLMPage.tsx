@@ -231,8 +231,7 @@ export const LLMPage: React.FC = () => {
 											<div className="min-w-0 flex-1">
 												<div className="flex min-w-0 items-center gap-2">
 													<div className="truncate font-semibold text-foreground">
-														{currentLocalModel?.displayName ??
-															current.modelId}
+														{currentLocalModel?.displayName ?? current.modelId}
 													</div>
 													{currentLocalModel && (
 														<Tooltip>
@@ -307,9 +306,7 @@ export const LLMPage: React.FC = () => {
 																			<>
 																				<div>
 																					<span className="text-muted-foreground">
-																						{t(
-																							"currentModel.details.runtime",
-																						)}
+																						{t("currentModel.details.runtime")}
 																					</span>{" "}
 																					{
 																						currentLocalModel.runnerConfig
@@ -318,14 +315,9 @@ export const LLMPage: React.FC = () => {
 																				</div>
 																				<div>
 																					<span className="text-muted-foreground">
-																						{t(
-																							"currentModel.details.dtype",
-																						)}
+																						{t("currentModel.details.dtype")}
 																					</span>{" "}
-																					{
-																						currentLocalModel.runnerConfig
-																							.dtype
-																					}
+																					{currentLocalModel.runnerConfig.dtype}
 																				</div>
 																			</>
 																		)}
@@ -432,9 +424,7 @@ export const LLMPage: React.FC = () => {
 									<Home size={20} />
 									{t("yourModels.title")}
 								</CardTitle>
-								<CardDescription>
-									{t("yourModels.description")}
-								</CardDescription>
+								<CardDescription>{t("yourModels.description")}</CardDescription>
 							</CardHeader>
 							<CardContent className="p-3">
 								<YourModels

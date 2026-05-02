@@ -71,10 +71,16 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 					>
 						<div className="border-b bg-background/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
 							<TabsList className="grid h-11 w-full grid-cols-2 rounded-xl bg-muted/60 p-1">
-								<TabsTrigger value="list" className="text-xs sm:text-sm">
+								<TabsTrigger
+									value="list"
+									className="h-full rounded-lg text-xs sm:text-sm"
+								>
 									{t("list.title")}
 								</TabsTrigger>
-								<TabsTrigger value="config" className="text-xs sm:text-sm">
+								<TabsTrigger
+									value="config"
+									className="h-full rounded-lg text-xs sm:text-sm"
+								>
 									{t("config.title")}
 								</TabsTrigger>
 							</TabsList>

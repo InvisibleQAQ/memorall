@@ -51,6 +51,11 @@
 		"title": "Tạo tác nhân cho đúng công việc của bạn",
 		"description": "Tạo tác nhân tập trung với bộ nhớ, công cụ và hành vi phù hợp để giải quyết yêu cầu của bạn."
 	},
+	"history": {
+		"scrollUp": "Cuộn lên để xem lịch sử",
+		"showPrevious": "Hiển thị trò chuyện trước đó ({{count}})",
+		"hidePrevious": "Ẩn trò chuyện trước đó"
+	},
 	"actions": {
 		"deleteChat": "Xóa cuộc trò chuyện",
 		"moreActions": "Thêm hành động",

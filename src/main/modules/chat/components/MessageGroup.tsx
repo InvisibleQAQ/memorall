@@ -13,6 +13,7 @@ interface MessageGroupProps {
 	defaultCollapsed?: boolean;
 	selectedTopic?: string;
 	suppressSeparator?: boolean;
+	forceExpanded?: boolean;
 	onLoadMessages?: (groupId: string) => Promise<void>;
 }
 
@@ -23,6 +24,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 		defaultCollapsed = false,
 		selectedTopic,
 		suppressSeparator = false,
+		forceExpanded = false,
 		onLoadMessages,
 	}) => {
 		const { t } = useTranslation("chat");
@@ -31,6 +33,25 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 		);
 
 		const showCollapseControls = !group.isLatest;
+
+		React.useEffect(() => {
+			if (!forceExpanded || group.isLatest) return;
+
+			if (!group.isLoaded) {
+				void onLoadMessages?.(group.id).then(() => {
+					setIsCollapsed(false);
+				});
+				return;
+			}
+
+			setIsCollapsed(false);
+		}, [
+			forceExpanded,
+			group.id,
+			group.isLatest,
+			group.isLoaded,
+			onLoadMessages,
+		]);
 
 		const toggleCollapsed = useCallback(async () => {
 			if (!group.isLoaded && !group.isLatest) {

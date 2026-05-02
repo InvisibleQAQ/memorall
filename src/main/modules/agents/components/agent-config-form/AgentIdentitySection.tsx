@@ -10,10 +10,7 @@ import type { Topic } from "@/services/database/types";
 import { AgentInlineActions } from "./AgentInlineActions";
 import { AgentCompactStatsRow } from "./AgentCompactStatsRow";
 import { AgentPromptPills } from "./AgentPromptPills";
-import type {
-	AgentConfigFormActions,
-	AgentMetadataChange,
-} from "./types";
+import type { AgentConfigFormActions, AgentMetadataChange } from "./types";
 
 const toAgentScreenContent = (
 	iconScreen: AgentPresetDraft["iconScreen"],

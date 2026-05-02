@@ -51,6 +51,11 @@
 		"title": "Build an agent for your exact work",
 		"description": "Create a focused agent with the right memory, tools, and behavior to solve your requirements."
 	},
+	"history": {
+		"scrollUp": "Scroll up to view history",
+		"showPrevious": "Show previous chats ({{count}})",
+		"hidePrevious": "Hide previous chats"
+	},
 	"actions": {
 		"deleteChat": "Delete Chat",
 		"moreActions": "More actions",

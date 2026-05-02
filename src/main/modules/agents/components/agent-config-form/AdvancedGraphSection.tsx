@@ -1,10 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
-import {
-	GRAPH_REGISTRY,
-	type GraphType,
-} from "@/main/stores/agent-config";
+import { GRAPH_REGISTRY, type GraphType } from "@/main/stores/agent-config";
 import { Label } from "@/main/components/ui/label";
 import {
 	Select,

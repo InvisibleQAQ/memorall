@@ -80,7 +80,9 @@ const definition = defineStep<Input, Output, Services, Config>({
 		const mentionedNames: string[] = [];
 
 		if (lastUserIdx >= 0) {
-			const lastUserMsg = input.messages[lastUserIdx] as ChatCompletionUserMessageParam;
+			const lastUserMsg = input.messages[
+				lastUserIdx
+			] as ChatCompletionUserMessageParam;
 			const textContent = messageContentToText(lastUserMsg.content);
 
 			for (const match of textContent.matchAll(/@skill:([\w-]+)/g)) {
@@ -155,16 +157,20 @@ const definition = defineStep<Input, Output, Services, Config>({
 			"---",
 			"Available skills — use the `load_skill` tool to load one before applying it:",
 			index,
-			'IMPORTANT: PLEASE ACTIVE LOAD SKILL THAT RELATED TO YOUR REQUIREMNT',
+			"IMPORTANT: PLEASE ACTIVE LOAD SKILL THAT RELATED TO YOUR REQUIREMNT",
 		].join("\n");
 
 		logInfo(
 			`[ADD_SKILL_CONTEXT] Appending ${remainingSkills.length} skill(s) to system prompt`,
 		);
 
-		const finalMessages = GraphBase.chat.systemMessage(updatedMessages, skillSection, {
-			placement: "append",
-		});
+		const finalMessages = GraphBase.chat.systemMessage(
+			updatedMessages,
+			skillSection,
+			{
+				placement: "append",
+			},
+		);
 
 		return { output: { messages: finalMessages, tools: updatedTools } };
 	},

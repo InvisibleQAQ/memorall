@@ -45,9 +45,12 @@ export const queueAgentWizardCursorMoveTo = (
 	const scheduledAt = Math.max(now, nextQueuedCursorMoveAt);
 	nextQueuedCursorMoveAt = scheduledAt + AGENT_WIZARD_CURSOR_FLOW_STEP_MS;
 
-	window.setTimeout(() => {
-		moveAgentWizardCursorTo(targetKey, message, mode);
-	}, Math.max(0, scheduledAt - now));
+	window.setTimeout(
+		() => {
+			moveAgentWizardCursorTo(targetKey, message, mode);
+		},
+		Math.max(0, scheduledAt - now),
+	);
 };
 
 export const jumpAgentWizardCursorTo = (

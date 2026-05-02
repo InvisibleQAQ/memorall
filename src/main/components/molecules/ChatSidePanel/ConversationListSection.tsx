@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquarePlus } from "lucide-react";
 import { useChatStore, type ChatMessageGroup } from "@/main/stores/chat";
 import type { Conversation } from "@/services/database/types";
@@ -24,10 +24,26 @@ export const ConversationListSection: React.FC<
 	const loadConversations = useChatStore((state) => state.loadConversations);
 	const loadMessageGroup = useChatStore((state) => state.loadMessageGroup);
 	const deleteConversation = useChatStore((state) => state.deleteConversation);
+	const previousConversationIdRef = useRef<string | null>(null);
+	const [expandedConversationIds, setExpandedConversationIds] = useState<
+		Set<string>
+	>(() => new Set());
 
 	useEffect(() => {
 		void loadConversations();
 	}, [loadConversations]);
+
+	useEffect(() => {
+		const currentId = currentConversation?.id ?? null;
+		if (!currentId || previousConversationIdRef.current === currentId) return;
+
+		previousConversationIdRef.current = currentId;
+		setExpandedConversationIds((prev) => {
+			const next = new Set(prev);
+			next.add(currentId);
+			return next;
+		});
+	}, [currentConversation?.id]);
 
 	const visibleConversations = useMemo(() => {
 		const byId = new Map(conversations.map((item) => [item.id, item]));
@@ -43,8 +59,24 @@ export const ConversationListSection: React.FC<
 	};
 
 	const handleSelectConversation = async (conversationId: string) => {
-		if (conversationId === currentConversation?.id) return;
+		if (conversationId === currentConversation?.id) {
+			setExpandedConversationIds((prev) => {
+				const next = new Set(prev);
+				if (next.has(conversationId)) {
+					next.delete(conversationId);
+				} else {
+					next.add(conversationId);
+				}
+				return next;
+			});
+			return;
+		}
 		await loadConversation(conversationId);
+		setExpandedConversationIds((prev) => {
+			const next = new Set(prev);
+			next.add(conversationId);
+			return next;
+		});
 	};
 
 	const handleDeleteConversation = async (conversation: Conversation) => {
@@ -83,12 +115,14 @@ export const ConversationListSection: React.FC<
 				<div className="space-y-1">
 					{visibleConversations.map((conversation) => {
 						const isActive = conversation.id === currentConversation?.id;
+						const isExpanded =
+							isActive && expandedConversationIds.has(conversation.id);
 						return (
 							<ConversationRow
 								key={conversation.id}
 								conversation={conversation}
 								isActive={isActive}
-								isExpanded={isActive}
+								isExpanded={isExpanded}
 								onSelect={() => void handleSelectConversation(conversation.id)}
 								onDelete={() => void handleDeleteConversation(conversation)}
 							>
