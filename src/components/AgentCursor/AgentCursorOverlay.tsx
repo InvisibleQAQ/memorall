@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, useMotionValue } from "motion/react";
 import { AgentCursorUI } from "./AgentCursorUI";
 
 const AGENT_CURSOR_EVENT = "memorall:agent-cursor";
@@ -163,6 +163,8 @@ export const AgentCursorOverlay: React.FC = () => {
 	});
 	const [visible, setVisible] = React.useState(false);
 	const [message, setMessage] = React.useState("Updating");
+	const cursorX = useMotionValue(position.x);
+	const cursorY = useMotionValue(position.y);
 	const hideTimerRef = React.useRef<number | null>(null);
 	const settleTimerRef = React.useRef<number | null>(null);
 	const scrollFrameRef = React.useRef<number | null>(null);
@@ -172,6 +174,11 @@ export const AgentCursorOverlay: React.FC = () => {
 	React.useEffect(() => {
 		setMounted(true);
 	}, []);
+
+	React.useEffect(() => {
+		cursorX.set(position.x);
+		cursorY.set(position.y);
+	}, [cursorX, cursorY, position]);
 
 	React.useEffect(() => {
 		const clearTimers = () => {
@@ -306,25 +313,7 @@ export const AgentCursorOverlay: React.FC = () => {
 	return createPortal(
 		<AnimatePresence>
 			{visible ? (
-				<motion.div
-					className="pointer-events-none fixed left-0 top-0 z-[10000]"
-					initial={{ opacity: 0, scale: 0.92 }}
-					animate={{
-						opacity: 1,
-						scale: 1,
-						x: position.x,
-						y: position.y,
-					}}
-					exit={{ opacity: 0, scale: 0.92 }}
-					transition={{
-						x: { type: "spring", stiffness: 170, damping: 24, mass: 0.65 },
-						y: { type: "spring", stiffness: 170, damping: 24, mass: 0.65 },
-						opacity: { duration: 0.16 },
-						scale: { duration: 0.18 },
-					}}
-				>
-					<AgentCursorUI message={message} />
-				</motion.div>
+				<AgentCursorUI message={message} x={cursorX} y={cursorY} />
 			) : null}
 		</AnimatePresence>,
 		document.body,

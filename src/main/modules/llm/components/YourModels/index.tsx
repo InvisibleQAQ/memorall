@@ -32,6 +32,8 @@ interface YourModelsProps {
 	title?: string;
 	/** Show quick download section */
 	showQuickDownload?: boolean;
+	/** Show downloaded/currently available models section */
+	showDownloadedModels?: boolean;
 	/** Filter which providers to show (defaults to all) */
 	allowedProviders?: ServiceProvider[];
 }
@@ -42,6 +44,7 @@ export const YourModels: React.FC<YourModelsProps> = ({
 	onDownloadMore,
 	title,
 	showQuickDownload = true,
+	showDownloadedModels = true,
 	allowedProviders,
 }) => {
 	const { t } = useTranslation("llm");
@@ -130,19 +133,21 @@ export const YourModels: React.FC<YourModelsProps> = ({
 			/>
 
 			{/* Existing Downloaded Models */}
-			<DownloadedModelsSection
-				downloadedOnly={downloadedOnly}
-				current={current}
-				title={title || ""}
-				modelsLoading={modelsLoading}
-				loading={loading}
-				fetchDownloadedModels={fetchDownloadedModels}
-				loadDownloadedModel={loadDownloadedModel}
-				unloadDownloadedModel={unloadDownloadedModel}
-				deleteDownloadedModel={deleteDownloadedModel}
-				showDownloadMoreButton={showDownloadMoreButton}
-				onDownloadMore={onDownloadMore}
-			/>
+			{showDownloadedModels && (
+				<DownloadedModelsSection
+					downloadedOnly={downloadedOnly}
+					current={current}
+					title={title || ""}
+					modelsLoading={modelsLoading}
+					loading={loading}
+					fetchDownloadedModels={fetchDownloadedModels}
+					loadDownloadedModel={loadDownloadedModel}
+					unloadDownloadedModel={unloadDownloadedModel}
+					deleteDownloadedModel={deleteDownloadedModel}
+					showDownloadMoreButton={showDownloadMoreButton}
+					onDownloadMore={onDownloadMore}
+				/>
+			)}
 
 			{/* Quick Download Recommended Models */}
 			{showQuickDownload && (

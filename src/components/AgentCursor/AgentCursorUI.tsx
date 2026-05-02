@@ -1,10 +1,11 @@
 import React from "react";
-import { motion } from "motion/react";
 import {
-	AgentIcon,
-	type AgentIconAnimation,
-	type AgentScreenContent,
-} from "@/components/AgentIcon";
+	motion,
+	useMotionValue,
+	useSpring,
+	type MotionValue,
+} from "motion/react";
+import { AgentIcon } from "@/components/AgentIcon";
 import { cn } from "@/lib/utils";
 
 interface AgentCursorPointerProps {
@@ -24,93 +25,32 @@ export interface AgentCursorBadgeProps extends AgentCursorBubbleProps {
 export interface AgentCursorUIProps extends AgentCursorBadgeProps {
 	className?: string;
 	pointerClassName?: string;
+	x?: MotionValue<number>;
+	y?: MotionValue<number>;
 }
-
-interface AgentCursorBadgeIcon {
-	animation: AgentIconAnimation;
-	screenContent?: AgentScreenContent;
-	accentClassName: string;
-	statusClassName: string;
-}
-
-const BADGE_ICONS: AgentCursorBadgeIcon[] = [
-	{
-		animation: "happy",
-		accentClassName: "from-emerald-500/30 via-sky-500/20 to-background",
-		statusClassName: "bg-emerald-400",
-	},
-	{
-		animation: "curious",
-		screenContent: {
-			value: "?",
-			color: "#60a5fa",
-			scale: 0.68,
-		},
-		accentClassName: "from-sky-500/30 via-cyan-500/20 to-background",
-		statusClassName: "bg-sky-400",
-	},
-	{
-		animation: "sparkle",
-		screenContent: {
-			value: "*",
-			color: "#f59e0b",
-			scale: 0.68,
-		},
-		accentClassName: "from-fuchsia-500/25 via-amber-400/20 to-background",
-		statusClassName: "bg-amber-300",
-	},
-	{
-		animation: "thinking",
-		screenContent: {
-			value: "...",
-			color: "#a78bfa",
-			scale: 0.5,
-		},
-		accentClassName: "from-violet-500/25 via-slate-400/20 to-background",
-		statusClassName: "bg-violet-400",
-	},
-	{
-		animation: "cheer",
-		accentClassName: "from-rose-500/25 via-emerald-400/20 to-background",
-		statusClassName: "bg-rose-400",
-	},
-	{
-		animation: "scan",
-		screenContent: {
-			value: "01",
-			color: "#34d399",
-			scale: 0.52,
-		},
-		accentClassName: "from-teal-500/25 via-lime-400/20 to-background",
-		statusClassName: "bg-teal-400",
-	},
-];
-
-const getRandomBadgeIcon = () =>
-	BADGE_ICONS[Math.floor(Math.random() * BADGE_ICONS.length)] ?? BADGE_ICONS[0];
 
 export const AgentCursorPointer: React.FC<AgentCursorPointerProps> = ({
 	className,
 }) => (
 	<svg
-		className={cn("drop-shadow-[0_7px_16px_rgba(0,0,0,0.25)]", className)}
-		width="28"
-		height="30"
-		viewBox="0 0 28 30"
+		className={cn(
+			"text-primary drop-shadow-[0_8px_18px_rgb(0_0_0/0.18)]",
+			className,
+		)}
+		width="25"
+		height="27"
+		viewBox="0 0 25 27"
 		fill="none"
 		aria-hidden="true"
 	>
 		<path
-			d="M3.8 2.7 25 13.2c1.4.7 1.2 2.8-.3 3.2l-8 2.1a3 3 0 0 0-1.8 1.3l-4.3 7.1c-.8 1.4-2.9 1-3.2-.6L1.5 5c-.4-1.6.9-3 2.3-2.3Z"
-			fill="hsl(var(--background))"
-			stroke="hsl(var(--foreground))"
-			strokeWidth="1.6"
-		/>
-		<path
-			d="m8.4 9 6.1 10.1"
-			stroke="hsl(var(--muted-foreground))"
-			strokeWidth="1.25"
-			strokeLinecap="round"
+			d="M4.2 2.9 21.4 12c1.35.72 1.1 2.72-.38 3.08l-6.66 1.62a2.8 2.8 0 0 0-1.72 1.24L9.18 23.8c-.8 1.34-2.86.92-3.08-.62L2.02 5.08C1.7 3.62 2.9 2.2 4.2 2.9Z"
+			fill="currentColor"
+			fillOpacity="0.84"
+			stroke="hsl(var(--background))"
+			strokeOpacity="0.72"
+			strokeWidth="1.45"
+			strokeLinejoin="round"
 		/>
 	</svg>
 );
@@ -122,14 +62,15 @@ export const AgentCursorBubble: React.FC<AgentCursorBubbleProps> = ({
 }) => {
 	const content = (
 		<>
-			<span className="absolute -left-1.5 bottom-2 h-3 w-3 rotate-45 border-b border-l border-border/70 bg-background" />
+			<span className="absolute -left-1 bottom-2 h-2.5 w-2.5 rotate-45 border-b border-l border-white/35 bg-background/70 backdrop-blur-md" />
 			<span className="relative line-clamp-2">{message}</span>
 		</>
 	);
 
 	const bubbleClassName = cn(
-		"relative mb-0.5 max-w-[220px] rounded-2xl border border-border/70 bg-background px-3 py-1.5",
-		"text-xs font-medium text-foreground shadow-xl shadow-black/15",
+		"relative mb-0.5 max-w-[220px] rounded-xl border border-white/35 bg-background/70 px-3 py-1.5",
+		"text-xs font-medium text-foreground shadow-lg shadow-black/10 backdrop-blur-md",
+		"supports-[backdrop-filter]:bg-background/55",
 		className,
 	);
 
@@ -156,31 +97,19 @@ export const AgentCursorBadge: React.FC<AgentCursorBadgeProps> = ({
 	animateMessage = true,
 	iconSize = 38,
 }) => {
-	const [badgeIcon] = React.useState(getRandomBadgeIcon);
-
 	return (
 		<div className={cn("flex items-end gap-2", className)}>
 			<motion.div
-				className="relative flex shrink-0 items-center justify-center rounded-2xl pr-2"
-				initial={{ rotate: -3, scale: 0.96 }}
+				className="relative flex shrink-0 items-center justify-center"
+				initial={{ y: 4, scale: 0.96 }}
 				animate={{ rotate: 0, scale: 1 }}
 				transition={{ type: "spring", stiffness: 380, damping: 28 }}
 			>
-				<div
-					className={cn(
-						"absolute inset-0 rounded-2xl",
-						badgeIcon.accentClassName,
-					)}
+				<AgentIcon
+					size={Math.max(36, Math.min(iconSize, 44))}
+					animation="happy"
+					reactive={false}
 				/>
-				<div className="absolute inset-[3px] rounded-[14px]" />
-				<div className="relative flex items-center justify-center">
-					<AgentIcon
-						size={iconSize}
-						animation={badgeIcon.animation}
-						screenContent={badgeIcon.screenContent}
-						reactive={false}
-					/>
-				</div>
 			</motion.div>
 			<AgentCursorBubble message={message} animateMessage={animateMessage} />
 		</div>
@@ -193,14 +122,89 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 	pointerClassName,
 	animateMessage = true,
 	iconSize,
-}) => (
-	<div className={cn("-translate-x-[10px] -translate-y-[10px]", className)}>
-		<AgentCursorPointer className={pointerClassName} />
+	x,
+	y,
+}) => {
+	const localX = useMotionValue(0);
+	const localY = useMotionValue(0);
+	const sourceX = x ?? localX;
+	const sourceY = y ?? localY;
+	const pointerX = useSpring(sourceX, {
+		stiffness: 170,
+		damping: 24,
+		mass: 0.65,
+		bounce: 0,
+	});
+	const pointerY = useSpring(sourceY, {
+		stiffness: 170,
+		damping: 24,
+		mass: 0.65,
+		bounce: 0,
+	});
+	const followX = useSpring(pointerX, {
+		stiffness: 220,
+		damping: 32,
+		bounce: 0,
+	});
+	const followY = useSpring(pointerY, {
+		stiffness: 220,
+		damping: 32,
+		bounce: 0,
+	});
+
+	const pointer = <AgentCursorPointer className={pointerClassName} />;
+	const badge = (
 		<AgentCursorBadge
 			message={message}
 			animateMessage={animateMessage}
 			iconSize={iconSize}
-			className="mt-1"
 		/>
-	</div>
-);
+	);
+
+	if (x && y) {
+		return (
+			<div className={cn("text-primary", className)}>
+				<motion.div
+					className="pointer-events-none fixed left-0 top-0 z-[10000]"
+					style={{ x: pointerX, y: pointerY }}
+					initial={{ opacity: 0, scale: 0.92 }}
+					animate={{ opacity: 1, scale: 1 }}
+					exit={{ opacity: 0, scale: 0.92 }}
+					transition={{
+						opacity: { duration: 0.16 },
+						scale: { duration: 0.18 },
+					}}
+				>
+					<div className="-translate-x-[10px] -translate-y-[10px]">
+						{pointer}
+					</div>
+				</motion.div>
+				<motion.div
+					className="pointer-events-none fixed left-0 top-0 z-[9999]"
+					style={{ x: followX, y: followY }}
+					initial={{ opacity: 0, scale: 0.96 }}
+					animate={{ opacity: 1, scale: 1 }}
+					exit={{ opacity: 0, scale: 0.96 }}
+					transition={{
+						opacity: { duration: 0.16 },
+						scale: { duration: 0.18 },
+					}}
+				>
+					<div className="translate-x-[18px] translate-y-[24px]">{badge}</div>
+				</motion.div>
+			</div>
+		);
+	}
+
+	return (
+		<div
+			className={cn(
+				"-translate-x-[10px] -translate-y-[10px] text-primary",
+				className,
+			)}
+		>
+			{pointer}
+			<div className="mt-1">{badge}</div>
+		</div>
+	);
+};

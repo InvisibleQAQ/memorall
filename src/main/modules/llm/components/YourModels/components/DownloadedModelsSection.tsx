@@ -52,7 +52,7 @@ export const DownloadedModelsSection: React.FC<
 
 	return (
 		<div className="space-y-3">
-			<div className="flex items-center justify-between">
+			<div className="flex items-center justify-between gap-2">
 				<div className="flex items-center gap-2 min-w-0">
 					<h3 className="text-sm font-semibold flex items-center gap-2 shrink-0">
 						<Bot size={16} />
@@ -75,6 +75,7 @@ export const DownloadedModelsSection: React.FC<
 					size="sm"
 					onClick={fetchDownloadedModels}
 					disabled={modelsLoading}
+					className="shrink-0"
 				>
 					{modelsLoading ? (
 						<Loader2 className="w-4 h-4 animate-spin" />
@@ -88,10 +89,10 @@ export const DownloadedModelsSection: React.FC<
 				{downloadedOnly.map((model) => (
 					<div
 						key={model.id}
-						className="flex items-center justify-between p-3 border rounded-lg bg-card"
+						className="flex flex-col gap-3 p-3 border rounded-lg bg-card"
 					>
-						<div className="flex-1">
-							<div className="font-medium text-sm">
+						<div className="min-w-0">
+							<div className="font-medium text-sm break-words">
 								{model.name || model.id}
 							</div>
 							<div className="text-xs text-muted-foreground">
@@ -114,10 +115,11 @@ export const DownloadedModelsSection: React.FC<
 								)}
 							</div>
 						</div>
-						<div className="flex gap-2">
+						<div className="flex flex-wrap gap-2">
 							<Button
 								variant="outline"
 								size="sm"
+								className="flex-1"
 								onClick={() =>
 									deleteDownloadedModel(
 										model,
@@ -139,6 +141,7 @@ export const DownloadedModelsSection: React.FC<
 								<Button
 									variant="outline"
 									size="sm"
+									className="flex-1"
 									onClick={() =>
 										unloadDownloadedModel(
 											model,
@@ -157,6 +160,7 @@ export const DownloadedModelsSection: React.FC<
 							) : (
 								<Button
 									size="sm"
+									className="flex-1"
 									onClick={() =>
 										loadDownloadedModel(
 											model,

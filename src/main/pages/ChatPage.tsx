@@ -661,7 +661,7 @@ export const ChatPage: React.FC = () => {
 						) : null}
 
 						{latestGroupIsEmpty ? (
-							<div className="flex min-h-[calc(100vh-12rem)] flex-1 flex-col items-center justify-center gap-5 py-12">
+							<div className="flex min-h-[calc(100vh-15rem)] flex-1 flex-col items-center justify-center gap-5 py-12">
 								<AgentIcon
 									size={132}
 									aria-label="Agent"

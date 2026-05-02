@@ -50,6 +50,43 @@ import { logError, logInfo } from "@/utils/logger";
 type TopicWithCount = Topic & { fileCount: number };
 
 const DEFAULT_TOPIC_ID = "default" as const;
+const PANEL_STORAGE_KEY = "memorall.knowledge.workspace-panels.v2";
+const DEFAULT_PANEL_SIZES = [22, 78] as const;
+const MIN_PANEL_SIZES = [16, 36] as const;
+const DESKTOP_BREAKPOINT = 1180;
+const DESKTOP_SEPARATOR_TRACK = 2;
+
+const clampPair = (
+	nextPrimary: number,
+	total: number,
+	minPrimary: number,
+	minSecondary: number,
+): [number, number] => {
+	const clampedPrimary = Math.min(
+		total - minSecondary,
+		Math.max(minPrimary, nextPrimary),
+	);
+	return [clampedPrimary, total - clampedPrimary];
+};
+
+const readStoredPanelSizes = (): [number, number] => {
+	if (typeof window === "undefined") return [...DEFAULT_PANEL_SIZES];
+	try {
+		const raw = window.localStorage.getItem(PANEL_STORAGE_KEY);
+		if (!raw) return [...DEFAULT_PANEL_SIZES];
+		const parsed = JSON.parse(raw);
+		if (
+			Array.isArray(parsed) &&
+			parsed.length === 2 &&
+			parsed.every((value) => typeof value === "number")
+		) {
+			return [parsed[0], parsed[1]];
+		}
+	} catch {
+		// Fall back to defaults when localStorage is unavailable or corrupt.
+	}
+	return [...DEFAULT_PANEL_SIZES];
+};
 
 const GROW_LABELS: Record<GrowType, string> = {
 	"knowledge-graph": "Graph",
@@ -198,10 +235,66 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 	const [selectedTopicId, setSelectedTopicId] =
 		useState<string>(DEFAULT_TOPIC_ID);
 	const [deletingTopicId, setDeletingTopicId] = useState<string | null>(null);
+	const [panelSizes, setPanelSizes] =
+		useState<[number, number]>(readStoredPanelSizes);
+	const [isDesktop, setIsDesktop] = useState(false);
+	const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+	const handleResizeStart = React.useCallback(
+		(event: React.MouseEvent<HTMLDivElement>) => {
+			if (!isDesktop || !containerRef.current) return;
+			event.preventDefault();
+			const startX = event.clientX;
+			const startSizes = panelSizes;
+			const containerWidth = containerRef.current.getBoundingClientRect().width;
+			document.body.style.cursor = "col-resize";
+			document.body.style.userSelect = "none";
+			const handlePointerMove = (pointerEvent: MouseEvent) => {
+				const deltaInFr =
+					((pointerEvent.clientX - startX) / containerWidth) *
+					(startSizes[0] + startSizes[1]);
+				setPanelSizes(() => {
+					const [left, right] = clampPair(
+						startSizes[0] + deltaInFr,
+						startSizes[0] + startSizes[1],
+						MIN_PANEL_SIZES[0],
+						MIN_PANEL_SIZES[1],
+					);
+					return [left, right];
+				});
+			};
+			const handlePointerUp = () => {
+				document.body.style.cursor = "";
+				document.body.style.userSelect = "";
+				window.removeEventListener("mousemove", handlePointerMove);
+				window.removeEventListener("mouseup", handlePointerUp);
+			};
+			window.addEventListener("mousemove", handlePointerMove);
+			window.addEventListener("mouseup", handlePointerUp);
+		},
+		[isDesktop, panelSizes],
+	);
 
 	useEffect(() => {
 		loadTopics();
 	}, []);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const handleViewportChange = () => {
+			const isPopupSurface =
+				document.documentElement.dataset.uiSurface === "popup";
+			setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT && !isPopupSurface);
+		};
+		handleViewportChange();
+		window.addEventListener("resize", handleViewportChange);
+		return () => window.removeEventListener("resize", handleViewportChange);
+	}, []);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		window.localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(panelSizes));
+	}, [panelSizes]);
 
 	useEffect(() => {
 		const topicId = searchParams.get("topicId");
@@ -350,11 +443,31 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 	);
 
 	return (
-		<div className="flex flex-col sm:flex-row h-full overflow-hidden bg-background">
+		<div
+			ref={containerRef}
+			className={
+				isDesktop
+					? "grid h-full overflow-hidden bg-background"
+					: "flex h-full flex-col overflow-hidden bg-background"
+			}
+			style={
+				isDesktop
+					? {
+							gridTemplateColumns: `${panelSizes[0]}fr ${DESKTOP_SEPARATOR_TRACK}px ${panelSizes[1]}fr`,
+						}
+					: undefined
+			}
+		>
 			{/* ----------------------------------------------------------------
 			    Sidebar – visible on sm+ screens
 			    ---------------------------------------------------------------- */}
-			<div className="hidden sm:flex sm:flex-col sm:w-72 border-r border-border bg-card overflow-hidden">
+			<div
+				className={
+					isDesktop
+						? "flex min-h-0 flex-col overflow-hidden bg-background"
+						: "hidden"
+				}
+			>
 				{/* Topics Panel */}
 				<div className="flex-shrink-0 border-b border-border">
 					{/* Header */}
@@ -463,12 +576,31 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 				</div>
 			</div>
 
+			<div
+				role="separator"
+				aria-orientation="vertical"
+				className={
+					isDesktop
+						? "group relative z-10 -mx-[5px] flex w-3 cursor-col-resize items-center justify-center bg-transparent"
+						: "hidden"
+				}
+				onMouseDown={handleResizeStart}
+			>
+				<div className="h-full w-px bg-border/80 transition-all group-hover:w-[2px] group-hover:bg-foreground/20" />
+			</div>
+
 			{/* ----------------------------------------------------------------
 			    Main graph area
 			    ---------------------------------------------------------------- */}
 			<div className="flex-1 flex flex-col overflow-hidden">
 				{/* Mobile bar – topic selector + new-topic button (<sm) */}
-				<div className="sm:hidden flex items-center gap-2 p-3 border-b border-border bg-card">
+				<div
+					className={
+						isDesktop
+							? "hidden"
+							: "flex items-center gap-2 border-b border-border bg-card p-3"
+					}
+				>
 					<Select value={selectedTopicId} onValueChange={handleTopicSelect}>
 						<SelectTrigger className="flex-1">
 							<SelectValue placeholder={t("topic.selectPlaceholder")} />
