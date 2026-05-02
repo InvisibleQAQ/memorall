@@ -17,7 +17,11 @@ export interface AgentCursorBubbleProps {
 	animateMessage?: boolean;
 }
 
-export interface AgentCursorUIProps extends AgentCursorBubbleProps {
+export interface AgentCursorBadgeProps extends AgentCursorBubbleProps {
+	iconSize?: number;
+}
+
+export interface AgentCursorUIProps extends AgentCursorBadgeProps {
 	className?: string;
 	pointerClassName?: string;
 }
@@ -146,10 +150,11 @@ export const AgentCursorBubble: React.FC<AgentCursorBubbleProps> = ({
 	);
 };
 
-export const AgentCursorBadge: React.FC<AgentCursorBubbleProps> = ({
+export const AgentCursorBadge: React.FC<AgentCursorBadgeProps> = ({
 	message = "Updating",
 	className,
 	animateMessage = true,
+	iconSize = 38,
 }) => {
 	const [badgeIcon] = React.useState(getRandomBadgeIcon);
 
@@ -170,7 +175,7 @@ export const AgentCursorBadge: React.FC<AgentCursorBubbleProps> = ({
 				<div className="absolute inset-[3px] rounded-[14px]" />
 				<div className="relative flex items-center justify-center">
 					<AgentIcon
-						size={38}
+						size={iconSize}
 						animation={badgeIcon.animation}
 						screenContent={badgeIcon.screenContent}
 						reactive={false}
@@ -187,12 +192,14 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 	className,
 	pointerClassName,
 	animateMessage = true,
+	iconSize,
 }) => (
 	<div className={cn("-translate-x-[10px] -translate-y-[10px]", className)}>
 		<AgentCursorPointer className={pointerClassName} />
 		<AgentCursorBadge
 			message={message}
 			animateMessage={animateMessage}
+			iconSize={iconSize}
 			className="mt-1"
 		/>
 	</div>
