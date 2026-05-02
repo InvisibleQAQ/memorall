@@ -6,10 +6,12 @@ import type {
 import { stepRegistry } from "@/services/flows/step-registry";
 import type {
 	ChatMessage,
-	ChatCompletionContentPartText,
 	ChatCompletionUserMessageParam,
 } from "@/types/openai";
-import { normalizeChatMessages } from "@/services/flows/graph/graph.base";
+import {
+	messageContentToText,
+	GraphBase,
+} from "@/services/flows/graph/graph.base";
 import type { GraphTool, ToolName } from "@/services/flows/graph/graph.base";
 import { skillFileSystemService } from "@/services/filesystem/skill-filesystem";
 import { logInfo } from "@/utils/logger";
@@ -34,40 +36,6 @@ type Services = Record<string, never>;
 interface Config {
 	enabledSkillNames?: string[];
 }
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-const extractTextContent = (
-	content: ChatCompletionUserMessageParam["content"],
-): string => {
-	if (typeof content === "string") return content;
-	const part = content.find(
-		(p): p is ChatCompletionContentPartText => p.type === "text",
-	);
-	return part?.text ?? "";
-};
-
-const patchUserMessageText = (
-	messages: ChatMessage[],
-	idx: number,
-	newText: string,
-): ChatMessage[] => {
-	const original = messages[idx] as ChatCompletionUserMessageParam;
-	const newContent: ChatCompletionUserMessageParam["content"] =
-		typeof original.content === "string"
-			? newText
-			: original.content.map((p) =>
-					p.type === "text" ? { ...p, text: newText } : p,
-				);
-
-	return [
-		...messages.slice(0, idx),
-		{ ...original, content: newContent },
-		...messages.slice(idx + 1),
-	];
-};
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -112,9 +80,8 @@ const definition = defineStep<Input, Output, Services, Config>({
 		const mentionedNames: string[] = [];
 
 		if (lastUserIdx >= 0) {
-			const textContent = extractTextContent(
-				(input.messages[lastUserIdx] as ChatCompletionUserMessageParam).content,
-			);
+			const lastUserMsg = input.messages[lastUserIdx] as ChatCompletionUserMessageParam;
+			const textContent = messageContentToText(lastUserMsg.content);
 
 			for (const match of textContent.matchAll(/@skill:([\w-]+)/g)) {
 				const name = match[1];
@@ -143,7 +110,7 @@ const definition = defineStep<Input, Output, Services, Config>({
 
 					// Remove matched @skill:name markers; preserve other @mentions
 					const cleaned = textContent
-						.replace(/@skill:([\w-]+)/g, (full, name) =>
+						.replace(/@skill:([\w-]+)/g, (full: string, name: string) =>
 							mentionedNames.includes(name) ? "" : full,
 						)
 						.trim();
@@ -152,11 +119,17 @@ const definition = defineStep<Input, Output, Services, Config>({
 						? `${skillBlocks}\n\n${cleaned}`
 						: skillBlocks;
 
-					updatedMessages = patchUserMessageText(
-						input.messages,
-						lastUserIdx,
-						newText,
-					);
+					const newContent: ChatCompletionUserMessageParam["content"] =
+						typeof lastUserMsg.content === "string"
+							? newText
+							: lastUserMsg.content.map((p) =>
+									p.type === "text" ? { ...p, text: newText } : p,
+								);
+					updatedMessages = [
+						...input.messages.slice(0, lastUserIdx),
+						{ ...lastUserMsg, content: newContent },
+						...input.messages.slice(lastUserIdx + 1),
+					];
 
 					logInfo(
 						`[ADD_SKILL_CONTEXT] Injected ${loaded.length} mentioned skill(s) into user message`,
@@ -182,13 +155,14 @@ const definition = defineStep<Input, Output, Services, Config>({
 			"---",
 			"Available skills — use the `load_skill` tool to load one before applying it:",
 			index,
+			'IMPORTANT: PLEASE ACTIVE LOAD SKILL THAT RELATED TO YOUR REQUIREMNT',
 		].join("\n");
 
 		logInfo(
 			`[ADD_SKILL_CONTEXT] Appending ${remainingSkills.length} skill(s) to system prompt`,
 		);
 
-		const finalMessages = normalizeChatMessages(updatedMessages, skillSection, {
+		const finalMessages = GraphBase.chat.systemMessage(updatedMessages, skillSection, {
 			placement: "append",
 		});
 
