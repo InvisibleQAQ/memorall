@@ -1,5 +1,6 @@
 import type {
 	AgentWizardCatalog,
+	AgentWizardCronJobDraft,
 	AgentWizardDraft,
 	AgentWizardFeatureConfig,
 	AgentWizardPatch,
@@ -19,6 +20,8 @@ import {
 	moveAgentWizardCursorTo,
 } from "./agent-wizard-cursor";
 import { normalizeAgentIconScreen } from "@/main/modules/agents/types";
+import { getLocalTimezone, validateCronExpression } from "@/services/cron-jobs";
+import { isUuid, v4 } from "@/utils/uuid";
 
 const MAX_PROMPT_LENGTH = 24000;
 
@@ -107,6 +110,58 @@ const removeStrings = (existing: string[], values: string[]): string[] => {
 const normalizeFeatureConfig = (value: unknown): AgentWizardFeatureConfig =>
 	isRecord(value) ? (value as AgentWizardFeatureConfig) : {};
 
+const normalizeCronJobStatus = (
+	value: unknown,
+): AgentWizardCronJobDraft["status"] =>
+	value === "active" || value === "paused" || value === "draft"
+		? value
+		: "draft";
+
+const normalizeCronJobs = (
+	value: unknown,
+	rejected: string[],
+): AgentWizardCronJobDraft[] => {
+	if (!Array.isArray(value)) return [];
+	return value
+		.filter(isRecord)
+		.map((item): AgentWizardCronJobDraft | null => {
+			const scheduleExpression =
+				typeof item.scheduleExpression === "string"
+					? item.scheduleExpression.trim()
+					: "";
+			const prompt = truncatePrompt(item.prompt)?.trim() ?? "";
+			const validation = validateCronExpression(scheduleExpression);
+			if (!validation.valid || !prompt) {
+				rejected.push(
+					`schedule: ${
+						typeof item.name === "string" ? item.name : scheduleExpression
+					}`,
+				);
+				return null;
+			}
+
+			return {
+				id: typeof item.id === "string" && isUuid(item.id) ? item.id : v4(),
+				name:
+					typeof item.name === "string" && item.name.trim()
+						? item.name.trim().slice(0, 120)
+						: "Scheduled prompt",
+				status: normalizeCronJobStatus(item.status),
+				scheduleExpression,
+				timezone:
+					typeof item.timezone === "string" && item.timezone.trim()
+						? item.timezone.trim()
+						: getLocalTimezone(),
+				prompt,
+				allowOverlap: Boolean(item.allowOverlap),
+				conversationId:
+					typeof item.conversationId === "string" ? item.conversationId : null,
+				metadata: isRecord(item.metadata) ? item.metadata : {},
+			};
+		})
+		.filter((item): item is AgentWizardCronJobDraft => Boolean(item));
+};
+
 const applyFeatureConfig = (
 	draft: AgentWizardDraft,
 	config: AgentWizardFeatureConfig | undefined,
@@ -192,6 +247,9 @@ const announcePatchCursorMoves = (patch: AgentWizardPatch): void => {
 			"Updating agent access",
 		);
 	}
+	if ("cronJobs" in patch) {
+		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.cronJobs, "Updating schedules");
+	}
 	if ("growType" in patch) {
 		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.growType, "Updating memory");
 	}
@@ -215,6 +273,12 @@ const announceToolPatchCursorMove = (patch: AgentWizardToolPatch): void => {
 			break;
 		case "update_icon_screen":
 			announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.iconScreen, "Updating icon");
+			break;
+		case "update_cron_jobs":
+			announceCursorMove(
+				AGENT_WIZARD_CURSOR_KEYS.cronJobs,
+				"Updating schedules",
+			);
 			break;
 		case "add_skills":
 		case "remove_skills":
@@ -315,6 +379,9 @@ export const applyAgentWizardPatch = (
 	if ("mcpServers" in patch) {
 		next.mcpServers = normalizeMcpServers(patch.mcpServers);
 	}
+	if ("cronJobs" in patch) {
+		next.cronJobs = normalizeCronJobs(patch.cronJobs, rejected);
+	}
 
 	const growType =
 		"growType" in patch ? normalizeGrowType(patch.growType) : next.growType;
@@ -351,6 +418,9 @@ export const applyAgentWizardToolPatch = (
 			break;
 		case "update_icon_screen":
 			next.iconScreen = patch.iconScreen;
+			break;
+		case "update_cron_jobs":
+			next.cronJobs = normalizeCronJobs(patch.cronJobs, rejected);
 			break;
 		case "add_skills":
 			next.enabledSkillNames = addUniqueStrings(
@@ -487,6 +557,11 @@ export const agentWizardToolPatchFromCall = (
 					value: args.value,
 					color: args.color,
 				}),
+			};
+		case AGENT_WIZARD_TOOL_NAMES.updateCronJobs:
+			return {
+				type: "update_cron_jobs",
+				cronJobs: normalizeCronJobs(args.cronJobs, []),
 			};
 		default:
 			return null;

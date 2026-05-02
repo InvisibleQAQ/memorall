@@ -751,7 +751,7 @@ export const SkillsSection: React.FC = () => {
 				cursorKey={AGENT_WIZARD_CURSOR_KEYS.skills}
 				className="flex min-h-[32px] items-center gap-3"
 			>
-				<span className="w-12 shrink-0 text-sm text-muted-foreground">
+				<span className="w-20 shrink-0 text-sm text-muted-foreground">
 					{t("skills.label", { ns: "agents" })}
 				</span>
 

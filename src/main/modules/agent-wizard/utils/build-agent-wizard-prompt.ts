@@ -12,6 +12,7 @@ export const AGENT_WIZARD_TOOL_NAMES = {
 	updateGrowType: "update_agent_grow_type",
 	updateRecallType: "update_agent_recall_type",
 	updateIconScreen: "update_agent_icon_screen",
+	updateCronJobs: "update_agent_cron_jobs",
 } as const;
 
 export type AgentWizardToolName =
@@ -50,9 +51,14 @@ ${catalog.skillNames.map((name) => `- ${name}`).join("\n")}
 - Only use feature, tool, and skill names from the lists above.
 - Use graphType "knowledge-rag" unless the user asks for a simple tool-only agent.
 - Prefer feature names over raw tools when a feature covers the capability.
+- Act by updating the draft when the user's intent is clear. Do not ask the user to confirm a change before making it unless the requested change is destructive, irreversible, or has multiple materially different interpretations.
 - Treat tools, contextPrompt, and multi-agent access as feature configuration. Use enable_agent_feature with config instead of raw draft fields.
+- When the user asks the agent to create, edit, or write files or documents, prefer enabling "fs-feature" when it exists. Use legacy document-only features such as "documents-fs-feature" or "documents-feature" only when "fs-feature" is unavailable or the user explicitly asks for document-only access.
+- When the user asks for UI, visual output, prototypes, dashboards, mockups, charts, diagrams, or anything intended to be shown visually, consider enabling "artifact-feature" and relevant visual/artifact-building skills from the catalog when available.
 - Use update_agent_icon_screen when the user asks for a custom agent screen icon, emoji, display text, face text, badge, or visual marker.
-- Keep agent instructions concrete and structured: role, user/audience, core tasks, capability use, constraints, uncertainty handling, and response format.
+- Use update_agent_cron_jobs when the user asks the agent to run on a schedule, at a specific time, daily, weekly, or by cron expression. Use standard 5-field Linux cron only.
+- Draft agents may include schedules, but schedules are stored as draft until the agent is active unless the user explicitly pauses them.
+- Keep agent instructions concrete and structured: role, user/audience, core tasks, capability use, constraints, uncertainty handling, and response format. The agent's user-facing answers should be concise, natural language, and focused on the user's outcome rather than explaining internal features, skills, or tool choices.
 - Ask concise questions only when required information is missing. Otherwise make a reasonable draft update.
 - Use the smallest available tool for each inferred change. Multiple small tool calls are preferred over one broad update.
 - Do not claim the preset is created; it is only created when the user clicks Create agent.`;
@@ -183,12 +189,16 @@ STRUCTURE (use markdown headers to separate each section):
 2. Audience — who the agent serves and their assumed knowledge level.
 3. Core Tasks — a numbered list of the 3–6 primary things this agent does.
 4. Capability Use — which tools/features to use and when; prefer specific features over raw tools; specify sequencing or parallelism where it matters.
-5. Constraints — explicit hard limits ("never do X", "always confirm before Y"); use numeric limits where possible (e.g. "max 3 suggestions").
+5. Constraints — explicit hard limits ("never do X", "ask before deleting user data"); use numeric limits where possible (e.g. "max 3 suggestions").
 6. Uncertainty Handling — what to do when information is missing or ambiguous (ask, default, or escalate); pick one default per scenario.
-7. Response Format — tone (professional / conversational / technical), structure (markdown / plain / JSON), length target; include a short canonical example when format is non-obvious.
+7. Response Format — concise natural-language answers by default; use markdown, JSON, or technical detail only when it helps the user's requested output. Include a short canonical example when format is non-obvious.
 
 QUALITY RULES:
 - Be concrete: "List up to 5 items" beats "be concise". Avoid vague adjectives like "creative" or "helpful" without boundaries.
+- Prefer doing the requested work over asking for confirmation. Ask only when required information is missing, the request has multiple materially different interpretations, or the action is destructive/irreversible.
+- If the agent writes files or documents, instruct it to use "fs-feature" when available instead of document-only filesystem features such as "documents-fs-feature" or "documents-feature".
+- If the user asks for UI, visual presentation, prototypes, dashboards, mockups, charts, or diagrams, instruct the agent to consider artifact output and relevant skills so the result can be shown visually.
+- Keep user-facing responses short and natural. Do not explain internal feature, tool, or skill choices unless the user asks or the choice affects the outcome.
 - No conditional cascades: if a case needs very different behavior, it belongs in a separate agent, not an if-else chain.
 - No exhaustive edge-case lists: define the role well enough that edge cases resolve naturally.
 - Include at least one worked example per non-trivial behavior.
@@ -268,6 +278,41 @@ ANTI-PATTERNS TO AVOID:
 					},
 				},
 				required: ["kind", "value"],
+				additionalProperties: false,
+			},
+		},
+	},
+	{
+		type: "function" as const,
+		function: {
+			name: AGENT_WIZARD_TOOL_NAMES.updateCronJobs,
+			description:
+				"Replace the agent's scheduled prompts. Use 5-field Linux cron expressions such as '0 9 * * *'.",
+			parameters: {
+				type: "object",
+				properties: {
+					cronJobs: {
+						type: "array",
+						items: {
+							type: "object",
+							properties: {
+								id: { type: "string" },
+								name: { type: "string" },
+								status: {
+									type: "string",
+									enum: ["active", "paused", "draft"],
+								},
+								scheduleExpression: { type: "string" },
+								timezone: { type: "string" },
+								prompt: { type: "string" },
+								allowOverlap: { type: "boolean" },
+							},
+							required: ["name", "status", "scheduleExpression", "prompt"],
+							additionalProperties: false,
+						},
+					},
+				},
+				required: ["cronJobs"],
 				additionalProperties: false,
 			},
 		},

@@ -11,6 +11,7 @@ import { listDefaultSkills } from "@/services/filesystem/default-skills";
 import type { Flow } from "@/services/database/types";
 import type { ChatMessage } from "@/types/openai";
 import { logError } from "@/utils/logger";
+import { isUuid } from "@/utils/uuid";
 import type {
 	AgentWizardCatalog,
 	AgentWizardDraft,
@@ -219,6 +220,27 @@ const persistDraftToFlow = async (
 	}
 
 	await useAgentConfigStore.getState().save();
+
+	await serviceManager.cronJobService.saveManyForAgent(
+		flowId,
+		draft.cronJobs.map((cronJob) => ({
+			id: isUuid(cronJob.id) ? cronJob.id : undefined,
+			name: cronJob.name,
+			status: cronJob.status,
+			scheduleExpression: cronJob.scheduleExpression,
+			timezone: cronJob.timezone,
+			actionType: "agent_chat" as const,
+			actionPayload: {
+				prompt: cronJob.prompt,
+				agentFlowId: flowId,
+			},
+			agentFlowId: flowId,
+			conversationId: cronJob.conversationId ?? null,
+			allowOverlap: cronJob.allowOverlap,
+			metadata: cronJob.metadata ?? {},
+		})),
+		{ activateDrafts: draft.status === "active" },
+	);
 };
 
 export const useAgentWizard = ({

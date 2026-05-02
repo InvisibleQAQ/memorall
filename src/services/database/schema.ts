@@ -28,6 +28,7 @@ import * as flowServicesSchema from "./entities/flow-services";
 import * as flowStepsSchema from "./entities/flow-steps";
 import * as flowConnectionsSchema from "./entities/flow-connections";
 import * as flowConfigsSchema from "./entities/flow-configs";
+import * as cronJobsSchema from "./entities/cron-jobs";
 
 // Export consolidated schema object
 export const schema = {
@@ -57,4 +58,5 @@ export const schema = {
 	flowSteps: flowStepsSchema.flowSteps,
 	flowConnections: flowConnectionsSchema.flowConnections,
 	flowConfigs: flowConfigsSchema.flowConfigs,
+	cronJobs: cronJobsSchema.cronJobs,
 };

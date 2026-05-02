@@ -89,5 +89,15 @@ export type {
 
 export type { FlowConfig, NewFlowConfig } from "./entities/flow-configs";
 
+export type {
+	CronJob,
+	NewCronJob,
+	CronJobStatus,
+	CronJobLastStatus,
+	CronJobActionType,
+	AgentChatCronPayload,
+	CronJobActionPayload,
+} from "./entities/cron-jobs";
+
 // Re-export lightweight runtime utilities that don't depend on drizzle
 export { getEffectiveSourceStatus } from "./utils/source-utils";

@@ -37,7 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import { serviceManager } from "@/services";
 import type { AttachedDocumentRef } from "@/types/chat";
-import { RuntimeSessionsPanel } from "@/main/components/molecules/RuntimeSessions";
+import { ChatSidePanel } from "@/main/components/molecules/ChatSidePanel";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { isPopupSurface } from "@/utils/dom";
 import { useIsWideViewport } from "@/main/hooks/use-viewport";
@@ -126,7 +126,9 @@ export const ChatPage: React.FC = () => {
 		React.useState(true);
 	const [showPreviousGroups, setShowPreviousGroups] = React.useState(false);
 	const latestPreviousGroupRef = useRef<HTMLDivElement | null>(null);
+	const completedGroupRefs = useRef(new Map<string, HTMLDivElement>());
 	const shouldScrollToPreviousGroupsRef = useRef(false);
+	const pendingGroupScrollRef = useRef<string | null>(null);
 
 	const {
 		inputValue,
@@ -190,16 +192,28 @@ export const ChatPage: React.FC = () => {
 		[completedGroups],
 	);
 
+	const setCompletedGroupRef = React.useCallback(
+		(groupId: string, element: HTMLDivElement | null) => {
+			if (element) {
+				completedGroupRefs.current.set(groupId, element);
+				return;
+			}
+			completedGroupRefs.current.delete(groupId);
+		},
+		[],
+	);
+
 	// Memoized completed components - only re-render when completed groups actually change
 	const completedMessageGroups = useMemo(() => {
 		return completedGroups.map((group, index) => (
 			<div
 				key={group.id}
-				ref={
-					index === completedGroups.length - 1
-						? latestPreviousGroupRef
-						: undefined
-				}
+				ref={(element) => {
+					setCompletedGroupRef(group.id, element);
+					if (index === completedGroups.length - 1) {
+						latestPreviousGroupRef.current = element;
+					}
+				}}
 			>
 				<MessageGroup
 					group={group}
@@ -222,6 +236,7 @@ export const ChatPage: React.FC = () => {
 		latestGroupIsEmpty,
 		loadMessageGroup,
 		selectedTopic,
+		setCompletedGroupRef,
 		showPreviousGroups,
 	]);
 
@@ -231,6 +246,21 @@ export const ChatPage: React.FC = () => {
 			block: "end",
 		});
 	}, []);
+
+	const scrollToGroup = React.useCallback(
+		(groupId: string) => {
+			const groupElement = completedGroupRefs.current.get(groupId);
+			if (groupElement) {
+				groupElement.scrollIntoView({
+					behavior: "smooth",
+					block: "center",
+				});
+				return;
+			}
+			scrollToPreviousGroups();
+		},
+		[scrollToPreviousGroups],
+	);
 
 	const handlePreviousGroupsClick = React.useCallback(() => {
 		if (showPreviousGroups) {
@@ -242,6 +272,23 @@ export const ChatPage: React.FC = () => {
 		setShowPreviousGroups(true);
 	}, [scrollToPreviousGroups, showPreviousGroups]);
 
+	const handleConversationGroupSelect = React.useCallback(
+		(groupId: string) => {
+			const group = messageGroups.find((item) => item.id === groupId);
+			if (!group || group.isLatest) {
+				setShowPreviousGroups(false);
+				return;
+			}
+
+			pendingGroupScrollRef.current = groupId;
+			setShowPreviousGroups(true);
+			if (showPreviousGroups) {
+				requestAnimationFrame(() => scrollToGroup(groupId));
+			}
+		},
+		[messageGroups, scrollToGroup, showPreviousGroups],
+	);
+
 	useEffect(() => {
 		if (!showPreviousGroups || !shouldScrollToPreviousGroupsRef.current) return;
 
@@ -250,6 +297,16 @@ export const ChatPage: React.FC = () => {
 			scrollToPreviousGroups();
 		});
 	}, [scrollToPreviousGroups, showPreviousGroups]);
+
+	useEffect(() => {
+		if (!showPreviousGroups || !pendingGroupScrollRef.current) return;
+
+		const groupId = pendingGroupScrollRef.current;
+		pendingGroupScrollRef.current = null;
+		requestAnimationFrame(() => {
+			scrollToGroup(groupId);
+		});
+	}, [scrollToGroup, showPreviousGroups]);
 
 	// Fetch topics when knowledge mode is selected
 	useEffect(() => {
@@ -495,7 +552,7 @@ export const ChatPage: React.FC = () => {
 		navigate("/llm");
 	};
 
-	const isWideChatRuntimeRailVisible = isWideViewport && !isPopupSurface();
+	const isWideChatSidePanelVisible = isWideViewport && !isPopupSurface();
 	const selectedAgent = useMemo(
 		() => agentFlows.find((flow) => flow.id === selectedAgentFlowId),
 		[agentFlows, selectedAgentFlowId],
@@ -559,7 +616,11 @@ export const ChatPage: React.FC = () => {
 
 	return (
 		<div className="flex h-full bg-background">
-			{isWideChatRuntimeRailVisible ? <RuntimeSessionsPanel /> : null}
+			{isWideChatSidePanelVisible ? (
+				<ChatSidePanel
+					onShowConversationGroup={handleConversationGroupSelect}
+				/>
+			) : null}
 			<div className="flex flex-col flex-1 min-w-0">
 				<Conversation className="flex-1 min-h-0">
 					{completedGroups.length > 0 ? (

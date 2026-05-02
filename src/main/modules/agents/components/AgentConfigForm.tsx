@@ -48,6 +48,7 @@ import { MCPServersSection } from "./MCPServersSection";
 import { FeaturesGrid } from "./FeaturesGrid";
 import { SystemPromptEditor } from "./SystemPromptEditor";
 import { AgentIconScreenPicker } from "./AgentIconScreenPicker";
+import { AgentCronJobsSection } from "./AgentCronJobsSection";
 import {
 	AgentDeleteDialog,
 	AgentResetConfigDialog,
@@ -57,6 +58,7 @@ import { CursorPoint } from "@/components/AgentCursor";
 import { AGENT_WIZARD_CURSOR_KEYS } from "@/main/modules/agent-wizard";
 import type { AgentConfigSummary, AgentPresetDraft } from "../types";
 import type { Topic } from "@/services/database/types";
+import type { AgentCronJobDraft } from "../hooks/use-agent-cron-jobs";
 
 const SkillsSection = React.lazy(() =>
 	import("./SkillsSection").then((module) => ({
@@ -79,6 +81,16 @@ export interface AgentConfigFormActions {
 	onResetConfig: () => void;
 }
 
+export interface AgentCronJobFormState {
+	drafts: AgentCronJobDraft[];
+	isLoading: boolean;
+	isSaving: boolean;
+	error: string | null;
+	onAdd: (status: "active" | "paused" | "draft") => void;
+	onUpdate: (id: string, updates: Partial<AgentCronJobDraft>) => void;
+	onRemove: (id: string) => void;
+}
+
 interface AgentConfigFormProps {
 	className?: string;
 	metadataDraft?: AgentPresetDraft;
@@ -89,6 +101,7 @@ interface AgentConfigFormProps {
 		value: AgentPresetDraft[K],
 	) => void;
 	formActions?: AgentConfigFormActions;
+	cronJobs?: AgentCronJobFormState;
 }
 
 // ─── Compact summary helpers ──────────────────────────────────────────────────
@@ -187,6 +200,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 	memoryTopic,
 	onMetadataChange,
 	formActions,
+	cronJobs,
 }) => {
 	const { t } = useTranslation(["chat", "agents", "common"]);
 	const ta = (key: string, opts?: Record<string, unknown>) =>
@@ -495,7 +509,7 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 				<React.Suspense
 					fallback={
 						<div className="flex min-h-[32px] items-center gap-3">
-							<span className="w-12 shrink-0 text-sm text-muted-foreground">
+							<span className="w-20 shrink-0 text-sm text-muted-foreground">
 								{ta("skills.label")}
 							</span>
 							<span className="text-[11px] text-muted-foreground/50">…</span>
@@ -505,6 +519,20 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 					<SkillsSection />
 				</React.Suspense>
 				<MCPServersSection />
+				{metadataDraft && cronJobs ? (
+					<CursorPoint cursorKey={AGENT_WIZARD_CURSOR_KEYS.cronJobs}>
+						<AgentCronJobsSection
+							agentStatus={metadataDraft.status}
+							drafts={cronJobs.drafts}
+							isLoading={cronJobs.isLoading}
+							isSaving={cronJobs.isSaving}
+							error={cronJobs.error}
+							onAdd={cronJobs.onAdd}
+							onUpdate={cronJobs.onUpdate}
+							onRemove={cronJobs.onRemove}
+						/>
+					</CursorPoint>
+				) : null}
 			</div>
 
 			<Separator />
@@ -526,6 +554,8 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 			<CursorPoint cursorKey={AGENT_WIZARD_CURSOR_KEYS.systemPrompt}>
 				<SystemPromptEditor />
 			</CursorPoint>
+
+			<Separator />
 
 			{/* ── Advanced (base graph) ──────────────────────────────────── */}
 			<div>

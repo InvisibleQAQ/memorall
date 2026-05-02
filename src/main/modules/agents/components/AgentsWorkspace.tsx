@@ -35,6 +35,7 @@ export const AgentsWorkspace: React.FC = () => {
 		setSearchQuery,
 		updateMetadataField,
 		configSummary,
+		cronJobs,
 		containerRef,
 		draftMemoryOptions,
 		formActions,
@@ -120,6 +121,7 @@ export const AgentsWorkspace: React.FC = () => {
 								memoryTopic={memoryTopic}
 								onMetadataChange={updateMetadataField}
 								formActions={formActions}
+								cronJobs={cronJobs}
 							/>
 						) : (
 							<div className="flex flex-1 items-center justify-center px-6 py-12 text-center text-sm text-muted-foreground">
@@ -149,6 +151,7 @@ export const AgentsWorkspace: React.FC = () => {
 									memoryTopic={memoryTopic}
 									onMetadataChange={updateMetadataField}
 									formActions={formActions}
+									cronJobs={cronJobs}
 								/>
 							</div>
 						) : (

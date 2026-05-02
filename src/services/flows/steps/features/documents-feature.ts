@@ -42,6 +42,7 @@ const SYSTEMP_PROMPT_INSTRUCTION = `
 # DOCUMENT's FILES ACCESS
 You can access to a document space to handle users documents
 Always use: "doc_search", "doc_read", "doc_write", "doc_edit", "doc_remove", "doc_move" tools when user mention about "documents"
+After writing or editing a document, do not include the file content in assistant message content. Only mention the path of the file that was created or updated.
 `;
 export const DOCUMENTS_FEATURE_SYSTEM_PROMPT =
 	SYSTEMP_PROMPT_INSTRUCTION.trim();

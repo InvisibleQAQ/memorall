@@ -3,6 +3,7 @@ import type { IEmbeddingService } from "@/services/embedding";
 import type { ISandboxContainerService } from "@/services/sandbox-container";
 import type { IWebBrowserService } from "@/services/web-browser";
 import type { ILLMService } from "@/services/llm/interfaces/llm-service.interface";
+import type { ICronJobService } from "@/services/cron-jobs";
 import { FlowsService } from "./flows";
 import { FlowBuilderService } from "./flows/flow-builder-service";
 import { DatabaseMode } from "./database/constants";
@@ -32,6 +33,7 @@ export class ServiceManager {
 		webBrowser: false,
 		flows: false,
 		flowBuilder: false,
+		cronJobs: false,
 		topic: false,
 	};
 
@@ -43,6 +45,7 @@ export class ServiceManager {
 	public databaseService!: IDatabaseService;
 	public flowsService!: FlowsService;
 	public flowBuilderService!: FlowBuilderService;
+	public cronJobService!: ICronJobService;
 
 	// Progress tracking
 	private progressListeners = new Set<
@@ -147,10 +150,12 @@ export class ServiceManager {
 				const { LLMServiceProxy } = await import(
 					"@/services/llm/llm-service-proxy"
 				);
+				const { CronJobServiceProxy } = await import("@/services/cron-jobs");
 
 				this.databaseService = new DatabaseServiceProxy();
 				await this.initializeDatabase({ mode: DatabaseMode.PROXY });
 				this.flowBuilderService = new FlowBuilderService(this.databaseService);
+				this.cronJobService = new CronJobServiceProxy(this.databaseService);
 
 				this.embeddingService = new EmbeddingServiceProxy();
 				this.sandboxContainerService = sandboxContainerServiceProxy;
@@ -179,10 +184,12 @@ export class ServiceManager {
 				const { LLMServiceMain } = await import(
 					"@/services/llm/llm-service-main"
 				);
+				const { CronJobServiceMain } = await import("@/services/cron-jobs");
 
 				this.databaseService = new DatabaseServiceMain();
 				await this.initializeDatabase({ mode: DatabaseMode.MAIN });
 				this.flowBuilderService = new FlowBuilderService(this.databaseService);
+				this.cronJobService = new CronJobServiceMain(this.databaseService);
 
 				this.embeddingService = new EmbeddingServiceMain();
 				this.sandboxContainerService = sandboxContainerMainService;
@@ -222,6 +229,10 @@ export class ServiceManager {
 
 			options.callback?.("flow", 0);
 			await this.initializeFlowsService();
+
+			options.callback?.("cronJobs", 0);
+			await this.initializeCronJobService(options.proxy ?? false);
+			options.callback?.("cronJobs", 100);
 
 			this.serviceStatus.flowBuilder = true;
 			this.updateProgress("All services ready", 100, "flows");
@@ -368,6 +379,27 @@ export class ServiceManager {
 		}
 	}
 
+	private async initializeCronJobService(
+		liteMode: boolean = false,
+	): Promise<void> {
+		try {
+			logInfo(
+				`⏰ Initializing cron job service${liteMode ? " (lite mode)" : ""}...`,
+			);
+			if (!this.cronJobService) {
+				this.serviceStatus.cronJobs = false;
+				return;
+			}
+			await this.cronJobService.initialize();
+			this.serviceStatus.cronJobs = true;
+			logInfo("✅ Cron job service initialized");
+		} catch (error) {
+			logError("❌ Cron job service initialization failed:", error);
+			this.serviceStatus.cronJobs = false;
+			logWarn("⚠️ Continuing without cron job service");
+		}
+	}
+
 	isInitialized(): boolean {
 		return this.initialized;
 	}
@@ -436,6 +468,10 @@ export class ServiceManager {
 		return this.flowBuilderService;
 	}
 
+	getCronJobService() {
+		return this.cronJobService;
+	}
+
 	// Generic service getter for dynamic access
 	getService<K extends keyof ServiceRegistry>(
 		serviceName: K,
@@ -455,6 +491,8 @@ export class ServiceManager {
 				return this.flowsService as ServiceRegistry[K];
 			case "flowBuilder":
 				return this.flowBuilderService as ServiceRegistry[K];
+			case "cronJobs":
+				return this.cronJobService as ServiceRegistry[K];
 			default:
 				return undefined;
 		}
@@ -470,4 +508,5 @@ interface ServiceRegistry {
 	webBrowser: IWebBrowserService;
 	flows: FlowsService;
 	flowBuilder: FlowBuilderService;
+	cronJobs: ICronJobService;
 }

@@ -37,6 +37,10 @@ import {
 	up as addGrowRecallTypeUp,
 	down as addGrowRecallTypeDown,
 } from "./010_add_grow_recall_type_to_topics";
+import {
+	up as addCronJobsUp,
+	down as addCronJobsDown,
+} from "./011_add_cron_jobs";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -125,6 +129,13 @@ export const migrations: Migration[] = [
 			"Add grow_type and recall_type to topics — grow_type is immutable (knowledge-graph|structmem), recall_type is mutable per-memory retrieval strategy",
 		up: addGrowRecallTypeUp,
 		down: addGrowRecallTypeDown,
+	},
+	{
+		id: "add_cron_jobs",
+		version: 11,
+		description: "Add durable agent cron jobs and link conversations to agents",
+		up: addCronJobsUp,
+		down: addCronJobsDown,
 	},
 	// Example of how to add future migrations:
 	// {

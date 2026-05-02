@@ -38,7 +38,7 @@ export const createDocWriteTool: ToolFactory<Input, Services> = (
 ): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Create or overwrite a document file. If the file exists, updates its content. If new, creates it (with parent folders by default). Only supports text-based files; PDF/Excel are not supported for writing.",
+		"Create or overwrite a document file. If the file exists, updates its content. If new, creates it (with parent folders by default). Only supports text-based files; PDF/Excel are not supported for writing. After using this tool, assistant messages should mention only the created or updated file path, not the file content.",
 	schema,
 	execute: async (input) => {
 		const { file_path, content, create_folders = true } = input;

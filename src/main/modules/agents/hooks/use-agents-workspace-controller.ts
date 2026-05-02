@@ -25,6 +25,7 @@ import { useAgentMemoryTopic } from "./use-agent-memory-topic";
 import { useAgentConfigSummary } from "./use-agent-config-summary";
 import { useAgentsWorkspacePanels } from "./use-agents-workspace-panels";
 import { useUnsavedAgentWorkspaceGuard } from "./use-unsaved-agent-workspace-guard";
+import { useAgentCronJobs } from "./use-agent-cron-jobs";
 
 export const useAgentsWorkspaceController = () => {
 	const { t } = useTranslation(["agents", "chat", "common"]);
@@ -78,6 +79,7 @@ export const useAgentsWorkspaceController = () => {
 	const { containerRef, handleResizeStart, isDesktop, panelSizes } =
 		useAgentsWorkspacePanels();
 	const { memoryTopic, setMemoryTopic } = useAgentMemoryTopic(selectedPresetId);
+	const agentCronJobs = useAgentCronJobs(selectedPresetId);
 
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
 	const [isAgentWizardMode, setIsAgentWizardMode] = React.useState(false);
@@ -99,7 +101,8 @@ export const useAgentsWorkspaceController = () => {
 	>(undefined);
 	const didAutoOpenWizardRef = React.useRef(false);
 
-	const hasUnsavedChanges = hasMetadataChanges || hasConfigChanges;
+	const hasUnsavedChanges =
+		hasMetadataChanges || hasConfigChanges || agentCronJobs.hasChanges;
 	useUnsavedAgentWorkspaceGuard(hasUnsavedChanges);
 
 	React.useEffect(() => {
@@ -128,6 +131,8 @@ export const useAgentsWorkspaceController = () => {
 		isDeleting ||
 		isSavingMetadata ||
 		isConfigSaving ||
+		agentCronJobs.isLoading ||
+		agentCronJobs.isSaving ||
 		isSavingPage;
 
 	const canSave =
@@ -135,6 +140,7 @@ export const useAgentsWorkspaceController = () => {
 		Boolean(metadataDraft.name.trim()) &&
 		(hasMetadataChanges ||
 			hasConfigChanges ||
+			agentCronJobs.hasChanges ||
 			metadataDraft.status === "draft") &&
 		!isLegacyConfig &&
 		!isBusy;
@@ -211,6 +217,15 @@ export const useAgentsWorkspaceController = () => {
 			setEnabledSkills(draft.enabledSkillNames);
 			setMCPServers(draft.mcpServers);
 			setAccessibleAgents(draft.multiAgentAccessibleAgentIds);
+			agentCronJobs.replaceDrafts(
+				draft.cronJobs.map((cronJob) => ({
+					...cronJob,
+					status:
+						draft.status === "draft" && cronJob.status === "active"
+							? "draft"
+							: cronJob.status,
+				})),
+			);
 
 			const enabledFeatures = new Set(draft.enabledFeatureNames);
 			for (const feature of useAgentConfigStore.getState().featureDefinitions) {
@@ -230,6 +245,7 @@ export const useAgentsWorkspaceController = () => {
 			setEnabledSkills,
 			setGraphType,
 			setMCPServers,
+			agentCronJobs,
 			t,
 			toggleFeature,
 			updateMetadataField,
@@ -274,8 +290,10 @@ export const useAgentsWorkspaceController = () => {
 				recallType: draftMemoryOptions.recallType,
 				templateId: null,
 				iconScreen: metadataDraft.iconScreen,
+				cronJobs: agentCronJobs.drafts,
 			};
 		}, [
+			agentCronJobs.drafts,
 			currentGraphType,
 			draftConfig.contextPrompt,
 			draftConfig.enableCitations,
@@ -411,6 +429,9 @@ export const useAgentsWorkspaceController = () => {
 					);
 				}
 				if (hasConfigChanges) await save();
+				if (agentCronJobs.hasChanges || isPublishingDraft) {
+					await agentCronJobs.save({ activateDrafts: isPublishingDraft });
+				}
 				if (isPublishingDraft) {
 					const existingTopic =
 						await topicService.getTopicByAgentId(selectedPresetId);
@@ -441,6 +462,7 @@ export const useAgentsWorkspaceController = () => {
 		},
 		[
 			canSave,
+			agentCronJobs,
 			draftMemoryOptions,
 			hasConfigChanges,
 			hasMetadataChanges,
@@ -462,7 +484,8 @@ export const useAgentsWorkspaceController = () => {
 	const handleRevertPage = React.useCallback(() => {
 		revertMetadata();
 		revert();
-	}, [revert, revertMetadata]);
+		agentCronJobs.revert();
+	}, [agentCronJobs, revert, revertMetadata]);
 
 	const handleDeletePreset = React.useCallback(
 		async (options?: { deleteLinkedMemory: boolean }) => {
@@ -505,6 +528,15 @@ export const useAgentsWorkspaceController = () => {
 		activeCompactTab,
 		agentWizard,
 		configSummary,
+		cronJobs: {
+			drafts: agentCronJobs.drafts,
+			isLoading: agentCronJobs.isLoading,
+			isSaving: agentCronJobs.isSaving,
+			error: agentCronJobs.error,
+			onAdd: agentCronJobs.addDraft,
+			onUpdate: agentCronJobs.updateDraft,
+			onRemove: agentCronJobs.removeDraft,
+		},
 		containerRef,
 		draftMemoryOptions,
 		error,

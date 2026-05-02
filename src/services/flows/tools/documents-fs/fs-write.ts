@@ -28,7 +28,7 @@ export const createFsWriteTool: ToolFactory<Input, Services> = (
 ): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Create or overwrite a text file. If the file exists its content is replaced. Parent directories are created automatically by default.",
+		"Create or overwrite a text file. If the file exists its content is replaced. Parent directories are created automatically by default. After using this tool, assistant messages should mention only the created or updated file path, not the file content.",
 	schema,
 	execute: async (input) => {
 		const { file_path, content, create_dirs = true } = input;

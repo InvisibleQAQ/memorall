@@ -13,12 +13,14 @@ export const AGENT_WIZARD_CURSOR_KEYS = {
 	skills: "agent-wizard:skills",
 	mcpServers: "agent-wizard:mcp-servers",
 	multiAgent: "agent-wizard:multi-agent",
+	cronJobs: "agent-wizard:cron-jobs",
 	growType: "agent-wizard:grow-type",
 	recallType: "agent-wizard:recall-type",
 	templates: "agent-wizard:templates",
 	template: (id: string) => `agent-wizard:template:${id}`,
 	feature: (name: string) => `agent-wizard:feature:${name}`,
 	skill: (name: string) => `agent-wizard:skill:${name}`,
+	cronJob: (id: string) => `agent-wizard:cron-job:${id}`,
 } as const;
 
 export const moveAgentWizardCursorTo = (

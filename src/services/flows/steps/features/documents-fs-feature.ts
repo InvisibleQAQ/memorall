@@ -73,6 +73,7 @@ The workspace root is "/" — all paths are absolute virtual paths (e.g. "/notes
 - \`document_fs_edit\` replaces an exact string within an existing file. Use this for targeted edits to avoid rewriting the whole file.
   - \`old_string\` must match exactly (including whitespace and newlines).
   - Set \`replace_all: true\` to replace every occurrence; default replaces only the first.
+- After writing or editing a file, do not include the file content in assistant message content. Only mention the path of the file that was created or updated.
 
 ### Searching content
 - \`document_fs_grep\` accepts a regex \`pattern\` and returns results in \`file:line:content\` format.

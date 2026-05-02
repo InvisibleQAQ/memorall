@@ -165,6 +165,9 @@ export const AgentCursorOverlay: React.FC = () => {
 	const [message, setMessage] = React.useState("Updating");
 	const hideTimerRef = React.useRef<number | null>(null);
 	const settleTimerRef = React.useRef<number | null>(null);
+	const scrollFrameRef = React.useRef<number | null>(null);
+	const activeElementRef = React.useRef<HTMLElement | null>(null);
+	const visibleRef = React.useRef(false);
 
 	React.useEffect(() => {
 		setMounted(true);
@@ -180,6 +183,16 @@ export const AgentCursorOverlay: React.FC = () => {
 				window.clearTimeout(settleTimerRef.current);
 				settleTimerRef.current = null;
 			}
+			if (scrollFrameRef.current !== null) {
+				window.cancelAnimationFrame(scrollFrameRef.current);
+				scrollFrameRef.current = null;
+			}
+		};
+
+		const hideCursor = () => {
+			activeElementRef.current = null;
+			visibleRef.current = false;
+			setVisible(false);
 		};
 
 		const scheduleHide = () => {
@@ -187,9 +200,28 @@ export const AgentCursorOverlay: React.FC = () => {
 				window.clearTimeout(hideTimerRef.current);
 			}
 			hideTimerRef.current = window.setTimeout(() => {
-				setVisible(false);
+				hideCursor();
 				hideTimerRef.current = null;
 			}, CURSOR_HIDE_DELAY_MS);
+		};
+
+		const updateFromActiveElement = () => {
+			scrollFrameRef.current = null;
+			const element = activeElementRef.current;
+			if (!visibleRef.current || !element) return;
+			if (!element.isConnected) {
+				hideCursor();
+				return;
+			}
+			setPosition(getTargetPosition(element));
+		};
+
+		const schedulePositionUpdate = () => {
+			if (!visibleRef.current || !activeElementRef.current) return;
+			if (scrollFrameRef.current !== null) return;
+			scrollFrameRef.current = window.requestAnimationFrame(
+				updateFromActiveElement,
+			);
 		};
 
 		const moveToElement = (
@@ -198,11 +230,18 @@ export const AgentCursorOverlay: React.FC = () => {
 		) => {
 			const isJump = detail.mode === "jumpTo" || detail.mode === "jumTo";
 			const behavior: ScrollBehavior = isJump ? "auto" : "smooth";
+			activeElementRef.current = element;
 			centerElementInScrollParents(element, behavior);
 
 			const updatePosition = () => {
+				if (activeElementRef.current !== element) return;
+				if (!element.isConnected) {
+					hideCursor();
+					return;
+				}
 				setPosition(getTargetPosition(element));
 				setMessage(detail.message || "Updating");
+				visibleRef.current = true;
 				setVisible(true);
 				scheduleHide();
 			};
@@ -247,9 +286,18 @@ export const AgentCursorOverlay: React.FC = () => {
 		};
 
 		window.addEventListener(AGENT_CURSOR_EVENT, handleCursorEvent);
+		window.addEventListener("scroll", schedulePositionUpdate, {
+			capture: true,
+			passive: true,
+		});
+		window.addEventListener("resize", schedulePositionUpdate);
 		return () => {
 			clearTimers();
 			window.removeEventListener(AGENT_CURSOR_EVENT, handleCursorEvent);
+			window.removeEventListener("scroll", schedulePositionUpdate, {
+				capture: true,
+			});
+			window.removeEventListener("resize", schedulePositionUpdate);
 		};
 	}, []);
 

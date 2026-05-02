@@ -83,8 +83,7 @@ const BADGE_ICONS: AgentCursorBadgeIcon[] = [
 ];
 
 const getRandomBadgeIcon = () =>
-	BADGE_ICONS[Math.floor(Math.random() * BADGE_ICONS.length)] ??
-	BADGE_ICONS[0];
+	BADGE_ICONS[Math.floor(Math.random() * BADGE_ICONS.length)] ?? BADGE_ICONS[0];
 
 export const AgentCursorPointer: React.FC<AgentCursorPointerProps> = ({
 	className,

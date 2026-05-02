@@ -6,6 +6,19 @@ import type {
 	RecallType,
 } from "@/services/database/entities/topic-types";
 import type { AgentPresetIconScreen } from "@/main/modules/agents/types";
+import type { CronJobStatus } from "@/services/database/types";
+
+export interface AgentWizardCronJobDraft {
+	id: string;
+	name: string;
+	status: CronJobStatus;
+	scheduleExpression: string;
+	timezone: string;
+	prompt: string;
+	allowOverlap: boolean;
+	conversationId?: string | null;
+	metadata?: Record<string, unknown>;
+}
 
 export interface AgentWizardDraft {
 	name: string;
@@ -23,6 +36,7 @@ export interface AgentWizardDraft {
 	recallType: RecallType;
 	templateId: string | null;
 	iconScreen: AgentPresetIconScreen | null;
+	cronJobs: AgentWizardCronJobDraft[];
 }
 
 export interface AgentWizardTemplate {
@@ -64,6 +78,7 @@ export type AgentWizardPatch = Partial<
 		| "growType"
 		| "recallType"
 		| "iconScreen"
+		| "cronJobs"
 	>
 >;
 
@@ -89,7 +104,8 @@ export type AgentWizardToolPatch =
 	| { type: "update_instruction"; systemPrompt: string }
 	| { type: "update_grow_type"; growType: GrowType }
 	| { type: "update_recall_type"; recallType: RecallType }
-	| { type: "update_icon_screen"; iconScreen: AgentPresetIconScreen | null };
+	| { type: "update_icon_screen"; iconScreen: AgentPresetIconScreen | null }
+	| { type: "update_cron_jobs"; cronJobs: AgentWizardCronJobDraft[] };
 
 export interface AgentWizardCatalog {
 	featureNames: string[];

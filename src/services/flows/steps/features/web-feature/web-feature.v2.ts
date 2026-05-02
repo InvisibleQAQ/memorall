@@ -51,6 +51,7 @@ Multiple web sessions can be open simultaneously. Use sessionId to target a spec
 - If web_open returns renderReady=false, the page may have timed out or still be loading.
 - Use web_read immediately after a timeout to check what content is currently available.
 - If partial content is sufficient, continue with it. If not, use web_wait with waitMode="render" to wait for the page to stabilize, then retry web_read.
+- If web_read returns empty content, only navigation/login/redirect scaffolding, or content that is clearly incomplete for the requested task, assume the page may still be loading or hydrating. Call web_wait with waitMode="render" or waitMode="time" for a short delay, then retry web_read before deciding the page has no useful content.
 - Only stop if repeated web_read attempts return no useful content.
 
 ## SELECTOR GUIDELINES
@@ -78,6 +79,7 @@ Multiple web sessions can be open simultaneously. Use sessionId to target a spec
 7. Use web_wait again after navigation-heavy UI actions or when waiting for specific selectors.
 8. Keep using the same sessionId until the task on that page is complete.
 9. For web_read with a selector, use only selectors you have already confirmed. If the result is empty, retry with a different confirmed selector instead of assuming the selector or page is correct.
+10. Before reporting that a page has no relevant data, try at least one additional wait plus web_read cycle when the page may be slow, JavaScript-rendered, or still loading.
 `;
 
 export const WEB_FEATURE_SYSTEM_PROMPT = SYSTEM_PROMPT_INSTRUCTION.trim();

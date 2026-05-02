@@ -7,6 +7,8 @@ import "./process-llm-operations";
 import "./process-topic-operations";
 import "./process-flow-operations";
 import "./process-chat";
+import "./process-cron-operations";
+import "./process-cron-trigger";
 import "./process-activity-tracking";
 import "./process-sandbox-operations";
 import "./process-web-browser-operations";

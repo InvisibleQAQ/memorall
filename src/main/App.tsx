@@ -321,10 +321,7 @@ const App: React.FC = () => {
 						align="bottom-right"
 						transition={{ stiffness: 260, damping: 34, bounce: 0 }}
 					>
-						<AgentCursorBadge
-							message="Your Memorall"
-							animateMessage={false}
-						/>
+						<AgentCursorBadge message="Your Memorall" animateMessage={false} />
 					</CursorFollow>
 					<AppLoadingScreen
 						error={servicesStatus === "error" ? initError : null}

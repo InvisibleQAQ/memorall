@@ -89,8 +89,8 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 	const isDebugSelected = debugItems.some(
 		(item) => item.path === location.pathname,
 	);
-	const isWideChatRuntimeRailVisible = !isPopupSurface() && isWideViewport;
-	const showRuntimeTrigger = !isWideChatRuntimeRailVisible;
+	const isWideChatSidePanelVisible = !isPopupSurface() && isWideViewport;
+	const showRuntimeTrigger = !isWideChatSidePanelVisible;
 
 	React.useEffect(() => {
 		void refreshRuntimeSessions();

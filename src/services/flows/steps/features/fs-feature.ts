@@ -83,6 +83,7 @@ All paths are absolute. Always prefix paths with the appropriate namespace root:
 - \`fs_edit\` replaces an exact string within an existing file. Use for targeted edits.
   - \`old_string\` must match exactly (including whitespace and newlines).
   - Set \`replace_all: true\` to replace every occurrence; default replaces only the first.
+- After writing or editing a file, do not include the file content in assistant message content. Only mention the path of the file that was created or updated.
 
 ### Searching content
 - \`fs_grep\` accepts a regex \`pattern\` and returns results in \`file:line:content\` format.

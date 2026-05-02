@@ -51,11 +51,16 @@ Use this feature when the agent needs to work with web pages, including:
 - web_dom_action: query DOM nodes, click, input text, read node details, focus, scroll.
 - web_wait: wait for timeout or selector appear/disappear.
 
+## SLOW PAGE HANDLING
+- Some pages need extra time after web_open before their content appears because they are still loading, redirecting, or hydrating JavaScript.
+- If web_read returns empty content, only navigation/login/redirect scaffolding, or content that is clearly incomplete for the requested task, call web_wait for a short delay, then retry web_read before deciding the page has no useful content.
+
 ## RECOMMENDED WORKFLOW
 1. Use web_open with keepSession=true to create a session.
 2. Use web_read or web_find_in_page to inspect content.
 3. Use web_dom_action for field fill/click interactions.
 4. Use web_wait after navigation-heavy UI actions.
+5. Before reporting that a page has no relevant data, try at least one additional wait plus web_read cycle when the page may be slow or still loading.
 `;
 
 export const WEB_FEATURE_SYSTEM_PROMPT = SYSTEM_PROMPT_INSTRUCTION.trim();

@@ -20,6 +20,7 @@ export const createBlankAgentWizardDraft = (): AgentWizardDraft => ({
 	recallType: DEFAULT_RECALL_TYPE,
 	templateId: null,
 	iconScreen: null,
+	cronJobs: [],
 });
 
 export const AGENT_WIZARD_TEMPLATES: AgentWizardTemplate[] = [

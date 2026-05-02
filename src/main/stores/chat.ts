@@ -24,6 +24,7 @@ interface ChatStore {
 	// State
 	messages: Message[];
 	messageGroups: ChatMessageGroup[];
+	conversations: Conversation[];
 	currentConversation: Conversation | null;
 	isLoading: boolean;
 	chatMode: ChatMode;
@@ -35,9 +36,11 @@ interface ChatStore {
 	updateMessage: (id: string, message: Partial<Message>) => void;
 	finalizeMessage: (id: string, message: Partial<Message>) => Promise<void>;
 	loadConversation: (id: string) => Promise<void>;
+	loadConversations: () => Promise<void>;
 	loadMessageGroup: (groupId: string) => Promise<void>;
 	createNewConversation: (title?: string) => Promise<Conversation>;
 	ensureMainConversation: () => Promise<Conversation>;
+	deleteConversation: (id: string) => Promise<void>;
 	clearMessages: () => void;
 	deleteMessages: () => void;
 	setLoading: (loading: boolean) => void;
@@ -227,6 +230,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
 		messages: [],
 		messageGroups: [createLatestGroup(null)],
 		currentConversation: null,
+		conversations: [],
 		isLoading: false,
 		chatMode: "knowledge",
 		selectedTopic: "default",
@@ -390,6 +394,12 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
 				set({
 					currentConversation: conversation,
+					conversations: [
+						conversation,
+						...get().conversations.filter(
+							(item) => item.id !== conversation.id,
+						),
+					],
 					messageGroups: [createLatestGroup(null)],
 					messages: [],
 				});
@@ -397,6 +407,26 @@ export const useChatStore = create<ChatStore>((set, get) => {
 			} catch (error) {
 				logError("Failed to create conversation:", error);
 				throw error;
+			}
+		},
+
+		loadConversations: async () => {
+			try {
+				const conversations = await serviceManager.databaseService.use(
+					({ db, schema }) =>
+						db
+							.select()
+							.from(schema.conversations)
+							.orderBy(
+								desc(schema.conversations.updatedAt),
+								desc(schema.conversations.createdAt),
+							)
+							.limit(50),
+				);
+
+				set({ conversations });
+			} catch (error) {
+				logError("Failed to load conversations:", error);
 			}
 		},
 
@@ -441,6 +471,54 @@ export const useChatStore = create<ChatStore>((set, get) => {
 				await hydrateConversation(conversation);
 			} catch (error) {
 				logError("Failed to load conversation:", error);
+				throw error;
+			}
+		},
+
+		deleteConversation: async (id: string) => {
+			try {
+				let nextConversation: Conversation | undefined;
+
+				await serviceManager.databaseService.use(async ({ db, schema }) => {
+					await db
+						.delete(schema.messages)
+						.where(eq(schema.messages.conversationId, id));
+					await db
+						.delete(schema.conversations)
+						.where(eq(schema.conversations.id, id));
+
+					const [next] = await db
+						.select()
+						.from(schema.conversations)
+						.orderBy(
+							desc(schema.conversations.updatedAt),
+							desc(schema.conversations.createdAt),
+						)
+						.limit(1);
+					nextConversation = next;
+				});
+
+				set((state) => ({
+					conversations: state.conversations.filter(
+						(conversation) => conversation.id !== id,
+					),
+				}));
+
+				if (get().currentConversation?.id === id) {
+					if (nextConversation) {
+						await hydrateConversation(nextConversation);
+					} else {
+						set({
+							currentConversation: null,
+							messages: [],
+							messageGroups: [createLatestGroup(null)],
+						});
+					}
+				}
+
+				await get().loadConversations();
+			} catch (error) {
+				logError("Failed to delete conversation:", error);
 				throw error;
 			}
 		},
