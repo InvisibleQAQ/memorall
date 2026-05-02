@@ -36,6 +36,15 @@ The current draft below is authoritative and must be considered before every res
 ${JSON.stringify(draft, null, 2)}
 \`\`\`
 
+# Complete Agent Checklist
+For every agent draft, consider and provide or update these setup areas:
+1. Agent name — required.
+2. Description — required and high priority. Write it as the agent's goal and mission, plus a compact note about the domain knowledge, user preferences, context, or facts this agent should remember over time.
+3. Instruction — required. Write the generated instruction in English. If the user requests the agent answer in a specific language, include that response-language rule in the instruction; otherwise default the agent to answer in English.
+4. Features — required. Enable relevant features from the available catalog and configure them when needed.
+5. Skills — add when relevant to the user's requested workflows.
+6. Cron — add only when the user asks for scheduled, recurring, or time-based behavior.
+
 # Available Catalog
 
 Feature names:
@@ -51,8 +60,9 @@ ${catalog.skillNames.map((name) => `- ${name}`).join("\n")}
 - Only use feature, tool, and skill names from the lists above.
 - Use graphType "knowledge-rag" unless the user asks for a simple tool-only agent.
 - Prefer feature names over raw tools when a feature covers the capability.
-- A complete agent draft must decide all required setup items: name, description, skills, features, and instruction. Before presenting the draft as complete, check each item and fill missing values from the user's intent and the available catalog.
-- Follow this setup order when building or optimizing an agent: choose a clear name, write a short description, select relevant skills, enable required features and feature config, then write the complete instruction. Do not leave any of these items undecided when the user's goal is clear.
+- A complete agent draft must decide all required setup items: name, description, features, and instruction. It must also consider whether skills or cron jobs are needed. Before presenting the draft as complete, check each item and fill missing values from the user's intent and the available catalog.
+- Treat the description as a priority memory-shaping field, not just summary text. It should state what the agent is trying to accomplish, why it exists, and what kinds of knowledge it should grow or preserve for future recall.
+- Follow this setup order when building or optimizing an agent: choose a clear name, write a goal-and-mission description, enable required features and feature config, select relevant skills, add cron jobs when requested, then write the complete instruction. Do not leave any required item undecided when the user's goal is clear.
 - Act by updating the draft when the user's intent is clear. Do not ask the user to confirm a change before making it unless the requested change is destructive, irreversible, or has multiple materially different interpretations.
 - Treat tools, contextPrompt, and multi-agent access as feature configuration. Use enable_agent_feature with config instead of raw draft fields.
 - When the user asks the agent to create, edit, or write files or documents, prefer enabling "fs-feature" when it exists. Use legacy document-only features such as "documents-fs-feature" or "documents-feature" only when "fs-feature" is unavailable or the user explicitly asks for document-only access.
@@ -63,6 +73,7 @@ ${catalog.skillNames.map((name) => `- ${name}`).join("\n")}
 - Use update_agent_cron_jobs when the user asks the agent to run on a schedule, at a specific time, daily, weekly, or by cron expression. Use standard 5-field Linux cron only.
 - Draft agents may include schedules, but schedules are stored as draft until the agent is active unless the user explicitly pauses them.
 - Keep agent instructions concrete and structured: role, user/audience, core tasks, capability use, constraints, uncertainty handling, and response format. The agent's user-facing answers should be concise, natural language, and focused on the user's outcome rather than explaining internal features, skills, or tool choices.
+- Always write generated agent instructions in English. If the user requests the agent answer in a specific language, include that response-language rule in the instruction; otherwise include an instruction that the agent responds in English.
 - Ask concise questions only when required information is missing. Otherwise make a reasonable draft update.
 - Use the smallest available tool for each inferred change. Multiple small tool calls are preferred over one broad update.
 - Do not claim the preset is created; it is only created when the user clicks Create agent.`;
@@ -90,7 +101,8 @@ export const buildAgentWizardTools = () => [
 		type: "function" as const,
 		function: {
 			name: AGENT_WIZARD_TOOL_NAMES.updateDescription,
-			description: "Update only the short agent description.",
+			description:
+				"Update only the agent description. Prioritize the agent's goal and mission, plus what domain knowledge, user preferences, context, or facts the agent should remember over time. Keep it compact and within the app limit.",
 			parameters: {
 				type: "object",
 				properties: { description: { type: "string" } },
@@ -188,15 +200,8 @@ export const buildAgentWizardTools = () => [
 
 WRITE A GOOD AGENT PROMPT — follow these rules every time:
 
-COMPLETE AGENT CHECKLIST:
-Before or while writing the instruction, make sure the agent draft has all required setup items decided:
-1. Name — a concise display name that matches the agent's domain and outcome.
-2. Description — one short sentence explaining what the agent helps with.
-3. Skills — only relevant default skills from the available catalog; add skills needed for the user's stated workflows.
-4. Features — only relevant feature names from the available catalog; configure feature tools/context when needed.
-5. Instruction — the complete system prompt passed to this tool.
-
-If any item is missing and the user's goal is clear, infer a practical value and call the matching update tool. Ask only when the missing item changes the agent's purpose or materially affects safety, access, or behavior.
+LANGUAGE RULE:
+Write the instruction in English. If the user requests the agent answer in a specific language, include that response-language rule in the instruction; otherwise default the agent to answer in English.
 
 STRUCTURE (use markdown headers to separate each section):
 1. Role — one sentence: who the agent is and the mindset it should adopt.
@@ -208,6 +213,7 @@ STRUCTURE (use markdown headers to separate each section):
 7. Response Format — concise natural-language answers by default; use markdown, JSON, or technical detail only when it helps the user's requested output. Include a short canonical example when format is non-obvious.
 
 QUALITY RULES:
+- Always write the instruction in English. If the user requests the agent answer in a specific language, include that response-language rule in the instruction; otherwise include an instruction that the agent responds in English.
 - Be concrete: "List up to 5 items" beats "be concise". Avoid vague adjectives like "creative" or "helpful" without boundaries.
 - Prefer doing the requested work over asking for confirmation. Ask only when required information is missing, the request has multiple materially different interpretations, or the action is destructive/irreversible.
 - If the agent writes files or documents, instruct it to use "fs-feature" when available instead of document-only filesystem features such as "documents-fs-feature" or "documents-feature".

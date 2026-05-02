@@ -11,7 +11,6 @@ import "./i18n/config"; // Initialize i18n
 
 import {
 	Cursor,
-	CursorFollow,
 	CursorProvider,
 } from "./components/ui/shadcn-io/animated-cursor";
 import { logError, logInfo } from "@/utils/logger";
@@ -52,9 +51,8 @@ import { FlowBuilderPage } from "./pages/FlowBuilderPage/FlowBuilderPage";
 import { registerAllEditors } from "@/main/modules/documents/editors";
 import { useAuthInit } from "@/main/modules/supabase";
 import {
-	AgentCursorBadge,
+	AgentCursorUI,
 	AgentCursorOverlay,
-	AgentCursorPointer,
 } from "@/components/AgentCursor";
 
 type EncryptionFormat = "master" | "legacy" | "none";
@@ -314,15 +312,8 @@ const App: React.FC = () => {
 			<ThemeProvider defaultTheme="system">
 				<CursorProvider>
 					<Cursor>
-						<AgentCursorPointer />
+						<AgentCursorUI message="Your Memorall" animateMessage={false} />
 					</Cursor>
-					<CursorFollow
-						sideOffset={18}
-						align="bottom-right"
-						transition={{ stiffness: 260, damping: 34, bounce: 0 }}
-					>
-						<AgentCursorBadge message="Your Memorall" animateMessage={false} />
-					</CursorFollow>
 					<AppLoadingScreen
 						error={servicesStatus === "error" ? initError : null}
 						uiProgress={uiProgress}

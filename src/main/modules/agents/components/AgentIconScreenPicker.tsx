@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Palette, Smile, Type } from "lucide-react";
 import { AgentIcon, type AgentScreenContent } from "@/components/AgentIcon";
 import { Button } from "@/main/components/ui/button";
@@ -83,15 +84,14 @@ interface AgentIconScreenPickerProps {
 		field: K,
 		value: AgentPresetDraft[K],
 	) => void;
-	ta: (key: string, opts?: Record<string, unknown>) => string;
 }
 
 export const AgentIconScreenPicker: React.FC<AgentIconScreenPickerProps> = ({
 	metadataDraft,
 	iconScreenContent,
 	onMetadataChange,
-	ta,
 }) => {
+	const { t } = useTranslation("agents");
 	const currentKind = metadataDraft.iconScreen?.kind ?? "text";
 	const currentValue =
 		metadataDraft.iconScreen?.value ?? getIconScreenDefaultValue(currentKind);
@@ -118,12 +118,12 @@ export const AgentIconScreenPicker: React.FC<AgentIconScreenPickerProps> = ({
 			<PopoverTrigger asChild>
 				<button
 					type="button"
-					aria-label={ta("fields.iconScreenEdit")}
+					aria-label={t("fields.iconScreenEdit")}
 					className="group relative flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				>
 					<AgentIcon size="xl" screenContent={iconScreenContent} />
 					<span className="pointer-events-none absolute inset-x-2 bottom-1 rounded bg-background/85 px-1 py-0.5 text-[10px] font-medium text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-						{ta("fields.iconScreenEditShort")}
+						{t("fields.iconScreenEditShort")}
 					</span>
 				</button>
 			</PopoverTrigger>
@@ -134,10 +134,10 @@ export const AgentIconScreenPicker: React.FC<AgentIconScreenPickerProps> = ({
 					</div>
 					<div className="min-w-0">
 						<p className="text-sm font-semibold text-foreground">
-							{ta("fields.iconScreen")}
+							{t("fields.iconScreen")}
 						</p>
 						<p className="text-xs text-muted-foreground">
-							{ta("fields.iconScreenHint")}
+							{t("fields.iconScreenHint")}
 						</p>
 					</div>
 				</div>
@@ -161,7 +161,7 @@ export const AgentIconScreenPicker: React.FC<AgentIconScreenPickerProps> = ({
 						)}
 					>
 						<Type size={14} />
-						{ta("fields.iconScreenText")}
+						{t("fields.iconScreenText")}
 					</button>
 					<button
 						type="button"
@@ -181,22 +181,22 @@ export const AgentIconScreenPicker: React.FC<AgentIconScreenPickerProps> = ({
 						)}
 					>
 						<Smile size={14} />
-						{ta("fields.iconScreenEmoji")}
+						{t("fields.iconScreenEmoji")}
 					</button>
 				</div>
 
 				<div className="space-y-2">
 					<Label className="text-xs text-muted-foreground">
 						{currentKind === "emoji"
-							? ta("fields.iconScreenEmoji")
-							: ta("fields.iconScreenText")}
+							? t("fields.iconScreenEmoji")
+							: t("fields.iconScreenText")}
 					</Label>
 					<input
 						value={currentValue}
 						onChange={(event) =>
 							updateIconScreen(currentKind, event.target.value, currentColor)
 						}
-						placeholder={ta("fields.iconScreenPlaceholder")}
+						placeholder={t("fields.iconScreenPlaceholder")}
 						className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-ring"
 					/>
 				</div>
@@ -223,7 +223,7 @@ export const AgentIconScreenPicker: React.FC<AgentIconScreenPickerProps> = ({
 					<div className="space-y-2">
 						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 							<Palette size={13} />
-							{ta("fields.iconScreenColor")}
+							{t("fields.iconScreenColor")}
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
 							{ICON_COLOR_SWATCHES.map((color) => (
@@ -247,7 +247,7 @@ export const AgentIconScreenPicker: React.FC<AgentIconScreenPickerProps> = ({
 								onChange={(event) =>
 									updateIconScreen("text", currentValue, event.target.value)
 								}
-								aria-label={ta("fields.iconScreenColor")}
+								aria-label={t("fields.iconScreenColor")}
 								className="h-7 w-9 rounded-md border border-border bg-background p-1"
 							/>
 						</div>
@@ -262,7 +262,7 @@ export const AgentIconScreenPicker: React.FC<AgentIconScreenPickerProps> = ({
 					onClick={() => onMetadataChange("iconScreen", null)}
 					disabled={!metadataDraft.iconScreen}
 				>
-					{ta("fields.iconScreenDefault")}
+					{t("fields.iconScreenDefault")}
 				</Button>
 			</PopoverContent>
 		</Popover>

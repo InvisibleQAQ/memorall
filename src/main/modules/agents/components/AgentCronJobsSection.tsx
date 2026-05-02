@@ -321,12 +321,12 @@ export const AgentCronJobsSection: React.FC<AgentCronJobsSectionProps> = ({
 					)}
 					<button
 						type="button"
-						onClick={handleAdd}
+						onClick={() => openManage()}
 						disabled={isLoading || isSaving}
 						className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
 					>
-						<Plus size={12} />
-						Add
+						<CalendarClock size={12} />
+						Manage
 					</button>
 				</div>
 			</div>

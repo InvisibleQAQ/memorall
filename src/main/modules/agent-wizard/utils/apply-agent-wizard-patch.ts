@@ -17,7 +17,7 @@ import {
 } from "@/services/database/entities/topic-types";
 import {
 	AGENT_WIZARD_CURSOR_KEYS,
-	moveAgentWizardCursorTo,
+	queueAgentWizardCursorMoveTo,
 } from "./agent-wizard-cursor";
 import { normalizeAgentIconScreen } from "@/main/modules/agents/types";
 import { getLocalTimezone, validateCronExpression } from "@/services/cron-jobs";
@@ -190,7 +190,7 @@ const applyFeatureConfig = (
 };
 
 const announceCursorMove = (targetKey: string, message: string): void => {
-	window.setTimeout(() => moveAgentWizardCursorTo(targetKey, message), 0);
+	queueAgentWizardCursorMoveTo(targetKey, message);
 };
 
 const announcePatchCursorMoves = (patch: AgentWizardPatch): void => {
