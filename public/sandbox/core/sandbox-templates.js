@@ -209,54 +209,22 @@ export default defineConfig({
 		"/src/main.jsx": `import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-import './style.css';
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
 `,
-		"/src/App.jsx": `import React, { useState } from 'react';
+		"/src/App.jsx": `import React from 'react';
 import Counter from './Counter.jsx';
 
 function App() {
-  const [theme, setTheme] = useState('light');
-
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
-
   return (
-    <div className={\`app \${theme}\`}>
-      <header>
-        <h1>⚡ React + Vite in Browser</h1>
-        <p>Running with shimmed Node.js APIs</p>
-      </header>
-
-      <main>
-        <Counter />
-
-        <div className="theme-toggle">
-          <button onClick={toggleTheme}>
-            {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
-          </button>
-        </div>
-
-        <div className="info-card">
-          <h3>How it works</h3>
-          <ul>
-            <li>VirtualFS stores all files in memory</li>
-            <li>Node.js APIs are shimmed for the browser</li>
-            <li>Edit files on the left to see HMR updates</li>
-          </ul>
-        </div>
-      </main>
-
-      <footer>
-        Made with 💜 WebContainers
-      </footer>
-    </div>
+    <main>
+      <h1>React + Vite</h1>
+      <p>Edit <code>src/App.jsx</code> and save to test HMR.</p>
+      <Counter />
+    </main>
   );
 }
 
@@ -268,151 +236,18 @@ function Counter() {
   const [count, setCount] = useState(0);
 
   return (
-    <div className="counter-card">
-      <h2>Interactive Counter</h2>
-      <div className="counter-display">{count}</div>
-      <div className="counter-buttons">
-        <button onClick={() => setCount(c => c - 1)}>➖</button>
+    <section>
+      <h2>Count: {count}</h2>
+      <p>
+        <button onClick={() => setCount(c => c - 1)}>-</button>
         <button onClick={() => setCount(0)}>Reset</button>
-        <button onClick={() => setCount(c => c + 1)}>➕</button>
-      </div>
-    </div>
+        <button onClick={() => setCount(c => c + 1)}>+</button>
+      </p>
+    </section>
   );
 }
 
 export default Counter;
-`,
-		"/src/style.css": `* {
-  box-sizing: border-box;
-}
-
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-}
-
-.app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  transition: all 0.3s ease;
-}
-
-.app.light {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.app.dark {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  color: #eee;
-}
-
-header {
-  text-align: center;
-  padding: 2rem;
-}
-
-header h1 {
-  font-size: 2.5rem;
-  margin: 0 0 0.5rem 0;
-}
-
-header p {
-  opacity: 0.8;
-  margin: 0;
-}
-
-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 1rem;
-}
-
-.counter-card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 2rem;
-  text-align: center;
-  min-width: 280px;
-}
-
-.counter-card h2 {
-  margin: 0 0 1rem 0;
-}
-
-.counter-display {
-  font-size: 4rem;
-  font-weight: bold;
-  margin: 1rem 0;
-}
-
-.counter-buttons {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-button {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 500;
-  border: none;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.2);
-  color: inherit;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-button:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-button:active {
-  transform: translateY(0);
-}
-
-.theme-toggle button {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.info-card {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 1.5rem;
-  max-width: 400px;
-}
-
-.info-card h3 {
-  margin: 0 0 1rem 0;
-}
-
-.info-card ul {
-  margin: 0;
-  padding-left: 1.5rem;
-}
-
-.info-card li {
-  margin: 0.5rem 0;
-  opacity: 0.9;
-}
-
-footer {
-  text-align: center;
-  padding: 1.5rem;
-  opacity: 0.7;
-}
 `,
 	},
 

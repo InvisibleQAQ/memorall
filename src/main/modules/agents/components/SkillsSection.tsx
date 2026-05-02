@@ -414,6 +414,24 @@ const matchesSkillQuery = (skill: SkillSummary, query: string): boolean => {
 		.some((value) => value!.toLowerCase().includes(normalizedQuery));
 };
 
+const orderEnabledSkillsFirst = (
+	skills: SkillSummary[],
+	enabledSkillNameSet: Set<string>,
+): SkillSummary[] => {
+	const enabled: SkillSummary[] = [];
+	const disabled: SkillSummary[] = [];
+
+	for (const skill of skills) {
+		if (enabledSkillNameSet.has(skill.name)) {
+			enabled.push(skill);
+		} else {
+			disabled.push(skill);
+		}
+	}
+
+	return [...enabled, ...disabled];
+};
+
 const ManageSkillsDialog: React.FC<ManageSkillsDialogProps> = ({
 	open,
 	onOpenChange,
@@ -432,12 +450,19 @@ const ManageSkillsDialog: React.FC<ManageSkillsDialogProps> = ({
 	const { t } = useTranslation(["agents", "common"]);
 	const filteredDefaultSkills = useMemo(
 		() =>
-			defaultSkills.filter((skill) => matchesSkillQuery(skill, searchQuery)),
-		[defaultSkills, searchQuery],
+			orderEnabledSkillsFirst(
+				defaultSkills.filter((skill) => matchesSkillQuery(skill, searchQuery)),
+				enabledSkillNameSet,
+			),
+		[defaultSkills, enabledSkillNameSet, searchQuery],
 	);
 	const filteredCustomSkills = useMemo(
-		() => customSkills.filter((skill) => matchesSkillQuery(skill, searchQuery)),
-		[customSkills, searchQuery],
+		() =>
+			orderEnabledSkillsFirst(
+				customSkills.filter((skill) => matchesSkillQuery(skill, searchQuery)),
+				enabledSkillNameSet,
+			),
+		[customSkills, enabledSkillNameSet, searchQuery],
 	);
 
 	return (

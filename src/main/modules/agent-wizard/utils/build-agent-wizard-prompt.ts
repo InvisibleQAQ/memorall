@@ -51,10 +51,14 @@ ${catalog.skillNames.map((name) => `- ${name}`).join("\n")}
 - Only use feature, tool, and skill names from the lists above.
 - Use graphType "knowledge-rag" unless the user asks for a simple tool-only agent.
 - Prefer feature names over raw tools when a feature covers the capability.
+- A complete agent draft must decide all required setup items: name, description, skills, features, and instruction. Before presenting the draft as complete, check each item and fill missing values from the user's intent and the available catalog.
+- Follow this setup order when building or optimizing an agent: choose a clear name, write a short description, select relevant skills, enable required features and feature config, then write the complete instruction. Do not leave any of these items undecided when the user's goal is clear.
 - Act by updating the draft when the user's intent is clear. Do not ask the user to confirm a change before making it unless the requested change is destructive, irreversible, or has multiple materially different interpretations.
 - Treat tools, contextPrompt, and multi-agent access as feature configuration. Use enable_agent_feature with config instead of raw draft fields.
 - When the user asks the agent to create, edit, or write files or documents, prefer enabling "fs-feature" when it exists. Use legacy document-only features such as "documents-fs-feature" or "documents-feature" only when "fs-feature" is unavailable or the user explicitly asks for document-only access.
 - When the user asks for UI, visual output, prototypes, dashboards, mockups, charts, diagrams, or anything intended to be shown visually, consider enabling "artifact-feature" and relevant visual/artifact-building skills from the catalog when available.
+- When the user wants an agent that builds, develops, iterates on, previews, or tests a web page/web app, prioritize "nodejs-sandbox-feature" when it exists. Also enable "fs-feature" for persistent source files under /workspaces and "artifact-feature" for chat previews when those features exist.
+- For web page/web app agents, the instruction must describe this workflow: create or edit source files in /workspaces, start or restart the sandbox server, use the URL returned by the sandbox server tools, and render that URL with artifact output so the user can interact with the live server preview in chat.
 - Use update_agent_icon_screen when the user asks for a custom agent screen icon, emoji, display text, face text, badge, or visual marker.
 - Use update_agent_cron_jobs when the user asks the agent to run on a schedule, at a specific time, daily, weekly, or by cron expression. Use standard 5-field Linux cron only.
 - Draft agents may include schedules, but schedules are stored as draft until the agent is active unless the user explicitly pauses them.
@@ -184,6 +188,16 @@ export const buildAgentWizardTools = () => [
 
 WRITE A GOOD AGENT PROMPT — follow these rules every time:
 
+COMPLETE AGENT CHECKLIST:
+Before or while writing the instruction, make sure the agent draft has all required setup items decided:
+1. Name — a concise display name that matches the agent's domain and outcome.
+2. Description — one short sentence explaining what the agent helps with.
+3. Skills — only relevant default skills from the available catalog; add skills needed for the user's stated workflows.
+4. Features — only relevant feature names from the available catalog; configure feature tools/context when needed.
+5. Instruction — the complete system prompt passed to this tool.
+
+If any item is missing and the user's goal is clear, infer a practical value and call the matching update tool. Ask only when the missing item changes the agent's purpose or materially affects safety, access, or behavior.
+
 STRUCTURE (use markdown headers to separate each section):
 1. Role — one sentence: who the agent is and the mindset it should adopt.
 2. Audience — who the agent serves and their assumed knowledge level.
@@ -198,6 +212,7 @@ QUALITY RULES:
 - Prefer doing the requested work over asking for confirmation. Ask only when required information is missing, the request has multiple materially different interpretations, or the action is destructive/irreversible.
 - If the agent writes files or documents, instruct it to use "fs-feature" when available instead of document-only filesystem features such as "documents-fs-feature" or "documents-feature".
 - If the user asks for UI, visual presentation, prototypes, dashboards, mockups, charts, or diagrams, instruct the agent to consider artifact output and relevant skills so the result can be shown visually.
+- If the user asks for a web page/web app builder or developer, instruct the agent to use the sandbox workflow: write source code to /workspaces, run it with "nodejs-sandbox-feature", use the actual URL returned by the sandbox server tools, then call artifact rendering with the URL for an embedded local-server preview.
 - Keep user-facing responses short and natural. Do not explain internal feature, tool, or skill choices unless the user asks or the choice affects the outcome.
 - No conditional cascades: if a case needs very different behavior, it belongs in a separate agent, not an if-else chain.
 - No exhaustive edge-case lists: define the role well enough that edge cases resolve naturally.

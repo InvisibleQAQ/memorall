@@ -134,6 +134,66 @@ const detectServerKind = (containerInstance, rootDir, requestedKind) => {
 	return kind;
 };
 
+const VITE_EXTENSIONLESS_RESOLVE_EXTENSIONS = [
+	".jsx",
+	".tsx",
+	".ts",
+	".js",
+	".mjs",
+	".json",
+	".css",
+];
+
+const hasPathExtension = (pathname) => {
+	const basename = pathname.split("/").pop() || "";
+	return basename.lastIndexOf(".") > 0;
+};
+
+const isExistingFile = (vfs, path) => {
+	try {
+		return vfs.existsSync(path) && !vfs.statSync(path).isDirectory();
+	} catch {
+		return false;
+	}
+};
+
+const toViteFsPath = (rootDir, pathname) =>
+	normalizePath(rootDir === "/" ? pathname : `${rootDir}/${pathname}`);
+
+const resolveViteExtensionlessModulePath = (vfs, rootDir, requestPath) => {
+	let url;
+	try {
+		url = new URL(requestPath, "http://localhost");
+	} catch {
+		return requestPath;
+	}
+
+	const pathname = url.pathname;
+	if (pathname === "/" || pathname.endsWith("/") || hasPathExtension(pathname)) {
+		return requestPath;
+	}
+
+	const fsBasePath = toViteFsPath(rootDir, pathname);
+	if (isExistingFile(vfs, fsBasePath)) {
+		return requestPath;
+	}
+
+	for (const extension of VITE_EXTENSIONLESS_RESOLVE_EXTENSIONS) {
+		if (isExistingFile(vfs, `${fsBasePath}${extension}`)) {
+			return `${pathname}${extension}${url.search}${url.hash}`;
+		}
+	}
+
+	for (const extension of VITE_EXTENSIONLESS_RESOLVE_EXTENSIONS) {
+		const indexPath = normalizePath(`${fsBasePath}/index${extension}`);
+		if (isExistingFile(vfs, indexPath)) {
+			return `${pathname}/index${extension}${url.search}${url.hash}`;
+		}
+	}
+
+	return requestPath;
+};
+
 const getServerOrThrow = (port) => {
 	const server = runtimeState.servers.get(port);
 	if (!server) {
@@ -168,7 +228,16 @@ const createViteServerState = async ({
 			unregisterBridgeServer(bridge, port);
 		},
 		handleRequest: (method, path, headers, body) =>
-			viteServer.handleRequest(method, path, headers, body),
+			viteServer.handleRequest(
+				method,
+				resolveViteExtensionlessModulePath(
+					containerInstance.vfs,
+					rootDir,
+					path,
+				),
+				headers,
+				body,
+			),
 		notifyFileChange: async (path) => {
 			if (typeof viteServer.handleFileChange === "function") {
 				await viteServer.handleFileChange(path);
