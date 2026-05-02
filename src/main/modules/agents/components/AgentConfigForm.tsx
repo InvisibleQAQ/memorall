@@ -289,9 +289,9 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 									{formActions.onOptimize ? (
 										<Button
 											type="button"
-											variant="secondary"
+											variant="ghost"
 											size="sm"
-											className="h-8 px-2.5 text-xs"
+											className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
 											onClick={formActions.onOptimize}
 											disabled={!formActions.canOptimize || formActions.isBusy}
 										>

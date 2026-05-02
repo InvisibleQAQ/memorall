@@ -41,7 +41,7 @@ interface LayoutProps {
 const navigation = [
 	{ nameKey: "navigation.chat", path: "/", icon: MessageCircle },
 	{ nameKey: "navigation.documents", path: "/documents", icon: FileText },
-	{ nameKey: "navigation.agents", path: "/agents", icon: BrainCircuit },
+	{ nameKey: "navigation.agents", path: "/agents", icon: Bot },
 	{
 		nameKey: "navigation.knowledgeGraph",
 		path: "/knowledge-graph",
@@ -49,7 +49,7 @@ const navigation = [
 	},
 	// { nameKey: "navigation.flowBuilder", path: "/flow-builder", icon: GitBranch },
 	// { nameKey: "navigation.activities", path: "/activities", icon: BrainCircuit },
-	{ nameKey: "navigation.models", path: "/llm", icon: Bot },
+	{ nameKey: "navigation.models", path: "/llm", icon: BrainCircuit },
 ];
 
 const debugItems = [

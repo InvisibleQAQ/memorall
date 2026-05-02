@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
 	useAgentWizard,
 	type AgentWizardDraft,
@@ -9,6 +9,7 @@ import { serviceManager } from "@/services";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import { logError } from "@/utils/logger";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
+import { useChatStore } from "@/main/stores/chat";
 import {
 	DEFAULT_GROW_TYPE,
 	DEFAULT_RECALL_TYPE,
@@ -28,6 +29,7 @@ import { useUnsavedAgentWorkspaceGuard } from "./use-unsaved-agent-workspace-gua
 export const useAgentsWorkspaceController = () => {
 	const { t } = useTranslation(["agents", "chat", "common"]);
 	const location = useLocation();
+	const navigate = useNavigate();
 	const {
 		filteredPresets,
 		selectedPreset,
@@ -346,6 +348,7 @@ export const useAgentsWorkspaceController = () => {
 			setWizardInitialDraft(null);
 			setWizardInitialMessage(undefined);
 		},
+		shouldConfirmClose: hasUnsavedChanges,
 		onDraftChange: applyWizardDraftToEditor,
 		initialDraft: wizardInitialDraft,
 		initialAssistantMessage: wizardInitialMessage,
@@ -426,6 +429,12 @@ export const useAgentsWorkspaceController = () => {
 					updateMetadataField("status", "active");
 				}
 				await refreshPresets(selectedPresetId);
+				if (isPublishingDraft) {
+					useChatStore.getState().setSelectedAgentFlowId(selectedPresetId);
+					navigate("/", {
+						state: { selectedAgentFlowId: selectedPresetId },
+					});
+				}
 			} finally {
 				setIsSavingPage(false);
 			}
@@ -440,6 +449,7 @@ export const useAgentsWorkspaceController = () => {
 			metadataDraft.iconScreen,
 			metadataDraft.name,
 			metadataDraft.status,
+			navigate,
 			refreshPresets,
 			save,
 			selectedPreset?.metadata,

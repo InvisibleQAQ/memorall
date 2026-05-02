@@ -17,7 +17,7 @@ export const Message = ({ className, from, ...props }: MessageProps) => (
 			from === "user" ? "is-user" : "is-assistant flex-row-reverse justify-end",
 			from === "user"
 				? "[&>div]:max-w-[80%]"
-				: "[&>div]:w-full [&>div]:max-w-full",
+				: "[&>div]:max-w-full",
 			className,
 		)}
 		{...props}

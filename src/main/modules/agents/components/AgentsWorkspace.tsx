@@ -1,6 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { Sparkles } from "lucide-react";
 import { CreateFlowDialog } from "@/main/modules/flow-builder/components";
+import { Button } from "@/main/components/ui/button";
+import { Separator } from "@/main/components/ui/separator";
 import {
 	AgentWizardChatPanel,
 	AgentWizardTemplatePanel,
@@ -85,7 +88,6 @@ export const AgentsWorkspace: React.FC = () => {
 					onSearchChange={setSearchQuery}
 					onSelectPreset={handlePresetSelection}
 					onCreatePreset={() => setIsCreateDialogOpen(true)}
-					onOpenAgentWizard={() => void handleOpenAgentWizard()}
 				/>
 			)}
 		</section>
@@ -179,6 +181,44 @@ export const AgentsWorkspace: React.FC = () => {
 				description={t("createDialog.description")}
 				namePlaceholder={t("createDialog.namePlaceholder")}
 				submitLabel={t("actions.create")}
+				afterFooter={
+					<div className="space-y-4 pt-5">
+						<div className="relative flex items-center justify-center">
+							<Separator />
+							<span className="absolute bg-background px-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+								{t("createDialog.or")}
+							</span>
+						</div>
+						<div className="rounded-lg border bg-muted/20 p-3">
+							<div className="flex items-start gap-3">
+								<div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+									<Sparkles size={16} />
+								</div>
+								<div className="min-w-0 flex-1 space-y-1">
+									<p className="text-sm font-medium">
+										{t("createDialog.aiTitle")}
+									</p>
+									<p className="text-xs leading-relaxed text-muted-foreground">
+										{t("createDialog.aiDescription")}
+									</p>
+								</div>
+							</div>
+							<Button
+								type="button"
+								variant="secondary"
+								className="mt-3 h-9 w-full justify-center border border-border/70 bg-background/70 hover:bg-background"
+								onClick={() => {
+									setIsCreateDialogOpen(false);
+									void handleOpenAgentWizard();
+								}}
+								disabled={isCreating}
+							>
+								<Sparkles size={14} className="mr-1.5" />
+								{t("createDialog.aiAction")}
+							</Button>
+						</div>
+					</div>
+				}
 			>
 				{({ resetToken, setExtra }) => (
 					<AgentMemoryTypeFields resetToken={resetToken} setExtra={setExtra} />

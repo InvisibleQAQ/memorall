@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, ArrowUp, Sparkles, X } from "lucide-react";
@@ -92,6 +92,7 @@ const buildOpenScreenMoods = (
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const { t } = useTranslation(["chat"]);
 	const { model, current, isInitialized, handleModelLoaded } =
 		useCurrentModel();
@@ -413,6 +414,39 @@ export const ChatPage: React.FC = () => {
 		},
 		[setSelectedTopic],
 	);
+
+	useEffect(() => {
+		const requestedAgentFlowId = (
+			location.state as { selectedAgentFlowId?: string } | null
+		)?.selectedAgentFlowId;
+		if (!requestedAgentFlowId) return;
+		if (
+			requestedAgentFlowId !== "chat" &&
+			!agentFlows.some((flow) => flow.id === requestedAgentFlowId)
+		) {
+			return;
+		}
+
+		topicSelectionSourceRef.current = "auto";
+		if (selectedAgentFlowId !== requestedAgentFlowId) {
+			setSelectedAgentFlowId(requestedAgentFlowId);
+		}
+		setSelectedTopic(getAgentTopicId(requestedAgentFlowId));
+		navigate(`${location.pathname}${location.search}`, {
+			replace: true,
+			state: null,
+		});
+	}, [
+		agentFlows,
+		getAgentTopicId,
+		location.pathname,
+		location.search,
+		location.state,
+		navigate,
+		selectedAgentFlowId,
+		setSelectedAgentFlowId,
+		setSelectedTopic,
+	]);
 
 	useEffect(() => {
 		if (!selectedAgentFlowId || topicSelectionSourceRef.current === "manual") {

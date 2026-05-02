@@ -23,6 +23,7 @@ interface CreateFlowDialogProps<TExtra = undefined> {
 		resetToken: number;
 		setExtra: (extra: TExtra) => void;
 	}) => React.ReactNode;
+	afterFooter?: React.ReactNode;
 }
 
 export const CreateFlowDialog = <TExtra,>({
@@ -34,6 +35,7 @@ export const CreateFlowDialog = <TExtra,>({
 	namePlaceholder,
 	submitLabel,
 	children,
+	afterFooter,
 }: CreateFlowDialogProps<TExtra>) => {
 	const { t } = useTranslation();
 	const [newFlowName, setNewFlowName] = React.useState("");
@@ -96,6 +98,7 @@ export const CreateFlowDialog = <TExtra,>({
 						{submitLabel ?? t("buttons.save", { defaultValue: "Save" })}
 					</Button>
 				</DialogFooter>
+				{afterFooter}
 			</DialogContent>
 		</Dialog>
 	);

@@ -302,7 +302,11 @@
 	"createDialog": {
 		"title": "Create agent preset",
 		"description": "Name the new preset. It will start from the default predefined configuration so you can customize it immediately.",
-		"namePlaceholder": "Agent preset name"
+		"namePlaceholder": "Agent preset name",
+		"or": "Or",
+		"aiTitle": "Generate with AI",
+		"aiDescription": "Describe the agent you want and let AI draft the name, instructions, tools, skills, and memory settings.",
+		"aiAction": "Build with AI"
 	},
 	"delete": {
 		"title": "Delete agent preset",

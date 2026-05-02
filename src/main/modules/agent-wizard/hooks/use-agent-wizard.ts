@@ -44,6 +44,7 @@ interface UseAgentWizardOptions {
 	createPreset: CreatePreset;
 	onCreated: (flowId: string) => Promise<void> | void;
 	onClose: () => void;
+	shouldConfirmClose?: boolean;
 	onDraftChange?: (draft: AgentWizardDraft) => void;
 	initialDraft?: AgentWizardDraft | null;
 	initialAssistantMessage?: string;
@@ -225,6 +226,7 @@ export const useAgentWizard = ({
 	createPreset,
 	onCreated,
 	onClose,
+	shouldConfirmClose = false,
 	onDraftChange,
 	initialDraft,
 	initialAssistantMessage,
@@ -514,20 +516,14 @@ export const useAgentWizard = ({
 	}, [createPreset, draft, isCreating, onClose, onCreated]);
 
 	const requestClose = React.useCallback(() => {
-		const hasDraft =
-			Boolean(draft.name.trim()) ||
-			Boolean(draft.description.trim()) ||
-			Boolean(draft.systemPrompt.trim()) ||
-			draft.enabledFeatureNames.length > 0 ||
-			messages.length > 1;
 		if (
-			hasDraft &&
+			shouldConfirmClose &&
 			!window.confirm("Discard this agent wizard draft and close?")
 		) {
 			return;
 		}
 		onClose();
-	}, [draft, messages.length, onClose]);
+	}, [onClose, shouldConfirmClose]);
 
 	return {
 		templates: AGENT_WIZARD_TEMPLATES,

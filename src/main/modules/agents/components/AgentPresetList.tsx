@@ -18,7 +18,6 @@ interface AgentPresetListProps {
 	onSearchChange: (value: string) => void;
 	onSelectPreset: (presetId: string) => void;
 	onCreatePreset: () => void;
-	onOpenAgentWizard?: () => void;
 }
 
 const getStatusBadgeClassName = (
@@ -38,7 +37,6 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 	onSearchChange,
 	onSelectPreset,
 	onCreatePreset,
-	onOpenAgentWizard,
 }) => {
 	const { t } = useTranslation("agents");
 
@@ -50,37 +48,26 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 			)}
 		>
 			<div className="border-b px-4 py-4">
-				<div className="space-y-1">
-					<p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-						{t("list.eyebrow")}
-					</p>
-					<h2 className="text-lg font-semibold">{t("list.title")}</h2>
-					<p className="text-sm text-muted-foreground">{t("list.subtitle")}</p>
-				</div>
-
-				<div className="mt-4 grid grid-cols-2 gap-2">
+				<div className="flex items-start justify-between gap-3">
+					<div className="min-w-0 space-y-1">
+						<p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
+							{t("list.eyebrow")}
+						</p>
+						<h2 className="text-lg font-semibold">{t("list.title")}</h2>
+						<p className="text-sm text-muted-foreground">
+							{t("list.subtitle")}
+						</p>
+					</div>
 					<Button
 						type="button"
 						size="sm"
 						onClick={onCreatePreset}
 						disabled={isCreating}
-						className="h-9 justify-center"
+						className="h-8 shrink-0 px-3 text-xs"
 					>
-						<Plus size={14} className="mr-1.5" />
+						<Plus size={13} className="mr-1" />
 						{t("actions.create")}
 					</Button>
-					{onOpenAgentWizard ? (
-						<Button
-							type="button"
-							size="sm"
-							variant="secondary"
-							onClick={onOpenAgentWizard}
-							className="h-9 justify-center border border-border/70 bg-muted/60 hover:bg-muted"
-						>
-							<Sparkles size={14} className="mr-1.5" />
-							{t("actions.build")}
-						</Button>
-					) : null}
 				</div>
 
 				<div className="mt-4 flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 transition-colors focus-within:border-ring/60 focus-within:bg-muted/30">
