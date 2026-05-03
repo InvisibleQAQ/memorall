@@ -232,6 +232,7 @@ export const DocumentLibraryPage: React.FC = () => {
 							selectedSection={lib.selectedSection}
 							selectedNodeId={lib.selectedNode?.id ?? null}
 							docsTitle={t("title")}
+							onSelectDocumentsRoot={lib.handleSelectDocumentsSection}
 							onSelectDocNode={lib.handleSelectDocNode}
 							onSelectWorkspaceNode={lib.handleSelectWorkspaceNode}
 							onSelectWorkspaceRoot={lib.handleSelectWorkspaceSection}

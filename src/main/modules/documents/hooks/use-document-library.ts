@@ -20,6 +20,7 @@ import { UploadProgressDialog, CreateDocumentDialog } from "../modals";
 import {
 	findNodeById,
 	findNodeByPath,
+	expandNodePath,
 	toggleNodeExpand,
 } from "../utils/tree-utils";
 
@@ -326,7 +327,16 @@ export function useDocumentLibrary() {
 			? workspaceTreeRef.current
 			: treeRef.current;
 		const node = findNodeById(activeTree, id);
-		if (node) setSelectedNode(node);
+		if (node) {
+			setSelectedNode(node);
+			if (node.type === "folder") {
+				if (isWorkspaceSectionRef.current) {
+					setWorkspaceTree((prev) => expandNodePath(prev, node.path));
+				} else {
+					setTree((prev) => expandNodePath(prev, node.path));
+				}
+			}
+		}
 	}, []);
 
 	/** Navigate to a folder by path in the currently active tree. */
@@ -339,7 +349,14 @@ export function useDocumentLibrary() {
 			? workspaceTreeRef.current
 			: treeRef.current;
 		const node = findNodeByPath(activeTree, path);
-		if (node) setSelectedNode(node);
+		if (node) {
+			setSelectedNode(node);
+			if (isWorkspaceSectionRef.current) {
+				setWorkspaceTree((prev) => expandNodePath(prev, path));
+			} else {
+				setTree((prev) => expandNodePath(prev, path));
+			}
+		}
 	}, []);
 
 	/** Go to parent folder when closing a file viewer. */

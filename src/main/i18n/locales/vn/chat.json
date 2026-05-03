@@ -143,11 +143,16 @@
 	},
 	"htmlPreview": {
 		"label": "HTML",
+		"title": "Xem trước HTML",
 		"save": "Lưu",
 		"saving": "Đang lưu…",
 		"saved": "Đã lưu",
 		"preview": "Xem trước",
-		"code": "Mã nguồn"
+		"code": "Mã nguồn",
+		"artifactActions": "Hành động artifact",
+		"openInNewTab": "Mở trong tab mới",
+		"resolvingSandboxPreview": "Đang chuẩn bị bản xem trước sandbox...",
+		"unsupportedUrl": "URL artifact không được hỗ trợ: {{url}}"
 	},
 	"saveDialog": {
 		"title": "Chọn thư mục để lưu",

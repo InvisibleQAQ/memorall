@@ -40,7 +40,7 @@ const schema = z.object({
 		.describe(
 			"Scaffold a starter project into projectDir when the folder is empty, then npm-install before starting. " +
 				'"express" – Express.js REST/HTML app; ' +
-				'"vite-react" – Vite + React SPA; ' +
+				'"vite-react" – Vite + React SPA with Tailwind and shadcn-compatible UI primitives; ' +
 				'"next-pages" – Next.js Pages Router; ' +
 				'"next-app" – Next.js App Router. ' +
 				"Omit when project files already exist.",

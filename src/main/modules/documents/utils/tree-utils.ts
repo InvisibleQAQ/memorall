@@ -39,3 +39,20 @@ export function toggleNodeExpand(
 		return node;
 	});
 }
+
+export function expandNodePath(
+	nodes: DocumentTreeNode[],
+	targetPath: string,
+): DocumentTreeNode[] {
+	return nodes.map((node) => {
+		if (node.path === targetPath) return { ...node, isExpanded: true };
+		if (!targetPath.startsWith(`${node.path}/`) || !node.children?.length) {
+			return node;
+		}
+		return {
+			...node,
+			isExpanded: true,
+			children: expandNodePath(node.children, targetPath),
+		};
+	});
+}

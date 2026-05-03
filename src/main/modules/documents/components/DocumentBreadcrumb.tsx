@@ -26,6 +26,7 @@ export const DocumentBreadcrumb: React.FC<DocumentBreadcrumbProps> = ({
 	homeTitle,
 }) => {
 	const { t } = useTranslation("documents");
+	const rootTitle = homeTitle || t("library.home");
 
 	// Split path into segments
 	const pathSegments = currentPath.split("/").filter(Boolean);
@@ -70,10 +71,17 @@ export const DocumentBreadcrumb: React.FC<DocumentBreadcrumbProps> = ({
 			{/* Home button */}
 			<button
 				onClick={handleHomeClick}
-				className="flex items-center gap-1 hover:text-foreground transition-colors flex-shrink-0"
-				title={homeTitle || t("library.home")}
+				className="flex min-w-0 items-center gap-1 hover:text-foreground transition-colors flex-shrink-0"
+				title={rootTitle}
 			>
 				<Home className="h-3.5 w-3.5 md:h-4 md:w-4" />
+				<span
+					className={`truncate max-w-[110px] ${
+						pathSegments.length === 0 ? "font-medium text-foreground" : ""
+					}`}
+				>
+					{rootTitle}
+				</span>
 			</button>
 
 			{/* Path segments */}

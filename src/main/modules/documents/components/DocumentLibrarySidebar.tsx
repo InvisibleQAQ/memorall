@@ -1,4 +1,4 @@
-import React, { memo, useState } from "react";
+import React, { memo, useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DocumentTreeDraggable } from "./DocumentTreeDraggable";
@@ -12,6 +12,7 @@ interface DocumentLibrarySidebarProps {
 	selectedSection: "documents" | "workspace";
 	selectedNodeId: string | null;
 	docsTitle: string;
+	onSelectDocumentsRoot: () => void;
 	onSelectDocNode: (node: DocumentTreeNode) => void;
 	onSelectWorkspaceNode: (node: DocumentTreeNode) => void;
 	/** Called when the user clicks the "Workspace" section header. */
@@ -33,6 +34,7 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 	selectedSection,
 	selectedNodeId,
 	docsTitle,
+	onSelectDocumentsRoot,
 	onSelectDocNode,
 	onSelectWorkspaceNode,
 	onSelectWorkspaceRoot,
@@ -46,12 +48,18 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 	const [docsExpanded, setDocsExpanded] = useState(true);
 	const [workspaceExpanded, setWorkspaceExpanded] = useState(true);
 
+	useEffect(() => {
+		setDocsExpanded(selectedSection === "documents");
+		setWorkspaceExpanded(selectedSection === "workspace");
+	}, [selectedSection]);
+
 	return (
 		<div className="hidden h-full bg-background md:flex md:flex-col overflow-hidden flex-shrink-0">
 			<PageHeader
 				icon={<FileText size={20} />}
 				title={docsTitle}
 				description={t("description")}
+				className="h-[102px]"
 			/>
 
 			{/* Documents Section */}
@@ -62,7 +70,13 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 						? "text-foreground"
 						: "text-muted-foreground hover:text-foreground",
 				)}
-				onClick={() => setDocsExpanded((v) => !v)}
+				onClick={() => {
+					if (selectedSection === "documents") {
+						setDocsExpanded((v) => !v);
+						return;
+					}
+					onSelectDocumentsRoot();
+				}}
 			>
 				{docsExpanded ? (
 					<ChevronDown className="h-3 w-3 flex-shrink-0" />
@@ -77,7 +91,11 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 					<DocumentTreeDraggable
 						tree={tree}
 						selectedId={selectedSection === "documents" ? selectedNodeId : null}
-						onSelectNode={onSelectDocNode}
+						onSelectNode={(node) => {
+							setDocsExpanded(true);
+							setWorkspaceExpanded(false);
+							onSelectDocNode(node);
+						}}
 						onToggleExpand={onToggleExpand}
 						onMove={onMove}
 						onRename={onRenameNode}
@@ -95,7 +113,10 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 						: "text-muted-foreground hover:text-foreground",
 				)}
 				onClick={() => {
-					setWorkspaceExpanded((v) => !v);
+					if (selectedSection === "workspace") {
+						setWorkspaceExpanded((v) => !v);
+						return;
+					}
 					onSelectWorkspaceRoot();
 				}}
 			>
@@ -108,11 +129,15 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 			</button>
 
 			{workspaceExpanded && (
-				<div className="overflow-hidden flex-shrink-0 max-h-48 lg:max-h-64">
+				<div className="flex-1 overflow-hidden min-h-0">
 					<DocumentTreeDraggable
 						tree={workspaceTree}
 						selectedId={selectedSection === "workspace" ? selectedNodeId : null}
-						onSelectNode={onSelectWorkspaceNode}
+						onSelectNode={(node) => {
+							setWorkspaceExpanded(true);
+							setDocsExpanded(false);
+							onSelectWorkspaceNode(node);
+						}}
 						onToggleExpand={onToggleExpandWorkspace}
 						onRename={onRenameNode}
 						onDelete={onDeleteNode}

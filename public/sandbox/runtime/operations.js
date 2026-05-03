@@ -357,7 +357,15 @@ export const handleOperation = async (request) => {
 			return { reset: true };
 		default:
 			if (request.operation.startsWith("fs.")) {
-				return handleFsOperation(request.operation, payload, containerInstance);
+				const result = await handleFsOperation(
+					request.operation,
+					payload,
+					containerInstance,
+				);
+				if (request.operation === "fs.materializeWorkspaceFile" && result?.path) {
+					await notifyWorkspaceFileChanges([result.path]);
+				}
+				return result;
 			}
 			throw new Error(`Unsupported sandbox operation: ${request.operation}`);
 	}

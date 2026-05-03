@@ -1,8 +1,8 @@
 {
   "private": true,
   "name": "memorall",
-  "description": "Memorall - AI-powered memory and knowledge management browser extension built with Extension.js, TypeScript, and React.",
-  "version": "0.2.24",
+  "description": "Memorall - AI-powered memory and knowledge management browser.",
+  "version": "0.2.25",
   "license": "MIT",
   "type": "module",
   "homepage": "https://zrg-team.github.io/memorall",

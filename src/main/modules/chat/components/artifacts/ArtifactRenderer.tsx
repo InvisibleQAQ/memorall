@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Globe, Code2, Save, Check, ExternalLink } from "lucide-react";
+import { Save, Check, ExternalLink, MoreHorizontal } from "lucide-react";
+import { Button } from "@/main/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/main/components/ui/dropdown-menu";
 import { serviceManager } from "@/services";
 import type { SandboxHandleSwRequestResult } from "@/services/sandbox-container";
 import { logError } from "@/utils/logger";
@@ -121,24 +128,52 @@ const toSafeFileName = (value?: string) => {
 	return name || "artifact";
 };
 
-const ArtifactHeader: React.FC<{
-	icon: React.ReactNode;
+interface ArtifactAction {
 	label: string;
-	title?: string;
-	actions?: React.ReactNode;
-}> = ({ icon, label, title, actions }) => (
-	<div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 bg-muted/30">
-		<div className="flex min-w-0 items-center gap-2">
-			<span className="shrink-0 text-muted-foreground">{icon}</span>
-			<span className="truncate text-xs text-muted-foreground">
-				{title || label}
-			</span>
+	icon: React.ReactNode;
+	onClick: () => void;
+	disabled?: boolean;
+}
+
+const ArtifactActionsMenu: React.FC<{
+	actions: ArtifactAction[];
+	label: string;
+}> = ({ actions, label }) => {
+	if (actions.length === 0) {
+		return null;
+	}
+
+	return (
+		<div className="absolute right-2 top-2 z-10">
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						title={label}
+						className="h-7 w-7 bg-background/75 text-muted-foreground opacity-80 shadow-sm backdrop-blur transition-opacity hover:bg-background/90 hover:text-foreground hover:opacity-100"
+					>
+						<MoreHorizontal size={15} />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end">
+					{actions.map((action) => (
+						<DropdownMenuItem
+							key={action.label}
+							onClick={action.onClick}
+							disabled={action.disabled}
+							className="flex items-center gap-2"
+						>
+							{action.icon}
+							<span>{action.label}</span>
+						</DropdownMenuItem>
+					))}
+				</DropdownMenuContent>
+			</DropdownMenu>
 		</div>
-		{actions ? (
-			<div className="flex shrink-0 items-center gap-1">{actions}</div>
-		) : null}
-	</div>
-);
+	);
+};
 
 const HtmlArtifact: React.FC<ArtifactProps> = ({
 	content,
@@ -155,32 +190,27 @@ const HtmlArtifact: React.FC<ArtifactProps> = ({
 	};
 
 	return (
-		<div className="rounded-md overflow-hidden border border-border my-2">
-			<ArtifactHeader
-				icon={<Code2 size={13} />}
-				label={t("htmlPreview.label")}
-				title={title}
-				actions={
-					<button
-						type="button"
-						onClick={handleSave}
-						disabled={saveState !== "idle"}
-						className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50 disabled:opacity-60"
-					>
-						{saveState === "saved" ? (
-							<>
-								<Check className="w-3 h-3" /> {t("htmlPreview.saved")}
-							</>
-						) : (
-							<>
-								<Save className="w-3 h-3" />{" "}
-								{saveState === "saving"
+		<div className="relative my-2 overflow-hidden rounded-md">
+			<ArtifactActionsMenu
+				label={t("htmlPreview.artifactActions")}
+				actions={[
+					{
+						label:
+							saveState === "saved"
+								? t("htmlPreview.saved")
+								: saveState === "saving"
 									? t("htmlPreview.saving")
-									: t("htmlPreview.save")}
-							</>
-						)}
-					</button>
-				}
+									: t("htmlPreview.save"),
+						icon:
+							saveState === "saved" ? (
+								<Check className="h-3.5 w-3.5" />
+							) : (
+								<Save className="h-3.5 w-3.5" />
+							),
+						onClick: handleSave,
+						disabled: saveState !== "idle",
+					},
+				]}
 			/>
 			<DocumentSaveFolderDialog
 				open={saveDialogOpen}
@@ -202,13 +232,14 @@ const HtmlArtifact: React.FC<ArtifactProps> = ({
 				sandbox="allow-scripts allow-same-origin"
 				className="w-full bg-white"
 				style={{ height: "60vh", border: "none" }}
-				title={title || "HTML Preview"}
+				title={title || t("htmlPreview.title")}
 			/>
 		</div>
 	);
 };
 
 const UrlArtifact: React.FC<ArtifactProps> = ({ content, title }) => {
+	const { t } = useTranslation("chat");
 	const url = content.trim();
 	const iframeRef = useRef<HTMLIFrameElement | null>(null);
 	const virtualLocation = useMemo(() => getVirtualSandboxLocation(url), [url]);
@@ -308,22 +339,19 @@ const UrlArtifact: React.FC<ArtifactProps> = ({ content, title }) => {
 	};
 
 	return (
-		<div className="rounded-md overflow-hidden border border-border my-2">
-			<ArtifactHeader
-				icon={<Globe size={13} />}
-				label={url}
-				title={title}
+		<div className="relative my-2 overflow-hidden rounded-md">
+			<ArtifactActionsMenu
+				label={t("htmlPreview.artifactActions")}
 				actions={
-					iframeSrc ? (
-						<button
-							type="button"
-							title="Open in new tab"
-							onClick={openInTab}
-							className="inline-flex items-center justify-center rounded border border-border/50 bg-muted/80 p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-						>
-							<ExternalLink className="w-3 h-3" />
-						</button>
-					) : null
+					iframeSrc
+						? [
+								{
+									label: t("htmlPreview.openInNewTab"),
+									icon: <ExternalLink className="h-3.5 w-3.5" />,
+									onClick: openInTab,
+								},
+							]
+						: []
 				}
 			/>
 			{iframeSrc ? (
@@ -338,11 +366,11 @@ const UrlArtifact: React.FC<ArtifactProps> = ({ content, title }) => {
 				/>
 			) : virtualLocation ? (
 				<div className="px-3 py-4 text-sm text-muted-foreground">
-					Resolving sandbox preview...
+					{t("htmlPreview.resolvingSandboxPreview")}
 				</div>
 			) : (
 				<div className="px-3 py-4 text-sm text-muted-foreground">
-					Unsupported artifact URL: {url}
+					{t("htmlPreview.unsupportedUrl", { url })}
 				</div>
 			)}
 		</div>

@@ -89,9 +89,11 @@ const ensureDefaultAgentFeatures = async (flowId: string) => {
 			return;
 		}
 
-		const config = await serviceManager.flowBuilderService.getUnifiedFlowConfig({
-			flowId,
-		});
+		const config = await serviceManager.flowBuilderService.getUnifiedFlowConfig(
+			{
+				flowId,
+			},
+		);
 		const { config: nextConfig, changed } = enableDefaultAgentFeatures(config);
 
 		if (!changed) {

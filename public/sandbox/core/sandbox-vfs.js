@@ -7,6 +7,7 @@ export const DOCUMENTS_MOUNT_ROOT = "/documents";
 export const WORKSPACES_MOUNT_ROOT = "/workspaces";
 export const WORKSPACE_LEGACY_MOUNT_ROOT = "/workspace";
 export const VFS_DOCUMENTS_OVERLAY_FLAG = "__documentsOverlayInstalled";
+export const VFS_WORKSPACE_MATERIALIZE_SYNC = "__memorallMaterializeWorkspaceFileSync";
 
 // Boolean mount state — exported as an object so callers can assign across
 // the ES module boundary (primitive re-assignment doesn't propagate in ESM).
@@ -468,6 +469,25 @@ export const installDocumentsVfsOverlay = (vfs) => {
 				content: materializedWorkspaceFiles.get(path) || "",
 			});
 		}
+	};
+
+	vfs[VFS_WORKSPACE_MATERIALIZE_SYNC] = (inputPath, content) => {
+		const path = toCanonicalMountedPath(String(inputPath));
+		if (!isWorkspacePath(path)) {
+			throw new Error(`Materialized workspace file must be under ${WORKSPACES_MOUNT_ROOT}: ${path}`);
+		}
+		assertWorkspaceMountLoaded();
+		const text = readMountedTextContent(content);
+		materializeMountedWorkspaceFileContent(path, text);
+		if (original.mkdirSync) {
+			try {
+				original.mkdirSync(dirname(path), { recursive: true });
+			} catch (_) {}
+		}
+		if (original.writeFileSync) {
+			original.writeFileSync(path, text);
+		}
+		return path;
 	};
 
 	vfs.mkdirSync = (inputPath, options, ...rest) => {

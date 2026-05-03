@@ -1,6 +1,7 @@
 import {
 	DOCUMENTS_MOUNT_ROOT,
 	WORKSPACES_MOUNT_ROOT,
+	VFS_WORKSPACE_MATERIALIZE_SYNC,
 	vfsBoolState,
 	mountedDocumentFiles,
 	mountedDocumentDirectories,
@@ -127,8 +128,11 @@ export const handleFsOperation = async (operation, payload, c) => {
 		}
 		case "fs.materializeWorkspaceFile": {
 			const p = toCanonicalMountedPath(payload.path);
-			if (!mountedWorkspaceFiles.has(p)) throw new Error(`Mounted file not found: ${p}`);
-			materializeMountedWorkspaceFileContent(p, payload.content);
+			if (typeof c.vfs?.[VFS_WORKSPACE_MATERIALIZE_SYNC] === "function") {
+				c.vfs[VFS_WORKSPACE_MATERIALIZE_SYNC](p, payload.content);
+			} else {
+				materializeMountedWorkspaceFileContent(p, payload.content);
+			}
 			return { path: p, materialized: true };
 		}
 		case "fs.flushWorkspaceWrites": {

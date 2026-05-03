@@ -76,7 +76,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 
 	if (compact) {
 		return (
-			<div className="border-b bg-card">
+			<div className="border-b bg-card !shadow-none">
 				<div className="flex items-center gap-2 border-b px-2 py-2">
 					<DocumentBreadcrumb
 						currentPath={currentPath}
@@ -185,7 +185,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 	}
 
 	return (
-		<div className="border-b bg-card">
+		<div className="border-b bg-card !shadow-none">
 			{/* Row 1: Breadcrumb + Actions */}
 			<div className="flex items-center justify-between gap-2 border-b px-2 py-2 md:px-3">
 				<DocumentBreadcrumb

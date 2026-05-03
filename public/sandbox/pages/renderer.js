@@ -128,25 +128,18 @@
 		console.log('[renderer] html length=' + html.length);
 		console.log('[renderer] html head (first 1000):', html.slice(0, 1000));
 
-		// Extract import maps before stripping inline scripts. They are declarative,
-		// CSP-safe, and needed when the browser executes modules before the SW has a
-		// chance to rewrite bare specifiers.
-		const importMapMatches = html.match(/<script\b[^>]*\btype\s*=\s*["']importmap["'][^>]*>[\s\S]*?<\/script>/gi) || [];
-
 		// Strip inline <script> blocks that have no src= — CSP blocks them; renderer-utils.js provides stubs.
-		html = html.replace(/<script\b(?![^>]*\bsrc\s*=)(?![^>]*\btype\s*=\s*["']importmap["'])[^>]*>[\s\S]*?<\/script>/gi, '');
+		// Import maps are sent to the service worker out-of-band, so inline import maps are removed too.
+		html = html.replace(/<script\b(?![^>]*\bsrc\s*=)[^>]*>[\s\S]*?<\/script>/gi, '');
 
 		// Rewrite absolute-path HTML attributes to relative so <base href> routes them.
 		html = html.replace(/((?:src|href|action)=)"\/(?!\/)/g, '$1"');
 
 		// ── Inject utilities into <head> ──────────────────────────────────────
-		// Reinsert any import maps explicitly. The earlier strip keeps only the
-		// import-map blocks, but downstream rewrites should not have to rely on
-		// that implicit preservation.
 		const utilsUrl = chrome.runtime.getURL('sandbox/pages/renderer-utils.js');
 		const utilsScript = '<script src="' + utilsUrl + '"><\/script>';
 		const baseTag = '<base href="/__virtual__/' + port + '/">';
-		const headInjection = utilsScript + baseTag + importMapMatches.join('');
+		const headInjection = utilsScript + baseTag;
 		html = html.replace(/(<head[^>]*>)/i, '$1' + headInjection);
 
 		window._memorallRenderId = window.name;

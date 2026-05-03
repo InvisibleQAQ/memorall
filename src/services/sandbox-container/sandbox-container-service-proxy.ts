@@ -59,6 +59,20 @@ import type {
 const SANDBOX_OPERATION_JOB_NAME = "sandbox-operation" as const;
 const EMPTY_LOCAL_BUILD_RETRY_ATTEMPTS = 20;
 
+const DIRECT_WORKSPACE_CONTENT_TYPES: Record<string, string> = {
+	".js": "application/javascript; charset=utf-8",
+	".mjs": "application/javascript; charset=utf-8",
+	".json": "application/json; charset=utf-8",
+	".svg": "image/svg+xml",
+	".png": "image/png",
+	".jpg": "image/jpeg",
+	".jpeg": "image/jpeg",
+	".gif": "image/gif",
+	".webp": "image/webp",
+	".ico": "image/x-icon",
+	".txt": "text/plain; charset=utf-8",
+};
+
 interface SandboxOperationJobResult {
 	operation: SandboxOperation;
 	result: unknown;
@@ -353,6 +367,15 @@ export class SandboxContainerServiceProxy implements ISandboxContainerService {
 						);
 					}
 				}
+				if (missingPath && retriedMissingPaths.has(missingPath)) {
+					const directResponse = await this.tryServeDirectWorkspaceFile({
+						method: params.method,
+						missingPath,
+					});
+					if (directResponse) {
+						return directResponse;
+					}
+				}
 			}
 
 			if (
@@ -371,6 +394,67 @@ export class SandboxContainerServiceProxy implements ISandboxContainerService {
 		}
 
 		return lastResult ?? makeRequest();
+	}
+
+	private encodeBytesBase64(bytes: Uint8Array): string {
+		if (bytes.byteLength === 0) return "";
+		let binary = "";
+		const chunkSize = 8192;
+		for (let i = 0; i < bytes.byteLength; i += chunkSize) {
+			binary += String.fromCharCode(
+				...bytes.subarray(i, Math.min(i + chunkSize, bytes.byteLength)),
+			);
+		}
+		return btoa(binary);
+	}
+
+	private getDirectWorkspaceContentType(sandboxPath: string): string | null {
+		const lowerPath = sandboxPath.toLowerCase();
+		const extension = Object.keys(DIRECT_WORKSPACE_CONTENT_TYPES).find((ext) =>
+			lowerPath.endsWith(ext),
+		);
+		return extension ? DIRECT_WORKSPACE_CONTENT_TYPES[extension] : null;
+	}
+
+	private async tryServeDirectWorkspaceFile(params: {
+		method: string;
+		missingPath: string;
+	}): Promise<SandboxHandleSwRequestResult | null> {
+		const method = params.method.toUpperCase();
+		if (method !== "GET" && method !== "HEAD") {
+			return null;
+		}
+
+		const contentType = this.getDirectWorkspaceContentType(params.missingPath);
+		if (!contentType) {
+			return null;
+		}
+
+		try {
+			const bytes = await documentFileSystemService.getWorkspaceFileContent(
+				params.missingPath,
+			);
+			logInfo(
+				`[SW relay proxy] serving ${params.missingPath} directly from workspace storage after materialization miss`,
+			);
+			return {
+				statusCode: 200,
+				statusMessage: "OK",
+				headers: {
+					"Content-Type": contentType,
+					"Content-Length": String(bytes.byteLength),
+					"Cache-Control": "no-cache",
+					"X-Workspace-Direct-Fallback": "true",
+				},
+				bodyBase64: method === "HEAD" ? "" : this.encodeBytesBase64(bytes),
+			};
+		} catch (error) {
+			logWarn("[SW relay proxy] direct workspace file fallback failed", {
+				missingPath: params.missingPath,
+				error,
+			});
+			return null;
+		}
 	}
 }
 

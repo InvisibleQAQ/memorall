@@ -473,27 +473,29 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 					icon={<Network size={20} />}
 					title={t("title")}
 					description={t("description")}
+					actions={
+						<Button
+							type="button"
+							size="sm"
+							onClick={handleCreateTopic}
+							className="h-8 shrink-0 px-3 text-xs"
+						>
+							<Plus size={13} className="mr-1" />
+							{tTopics("manage.newTopic")}
+						</Button>
+					}
 				/>
 
 				{/* Topics Panel */}
 				<div className="flex-shrink-0 border-b border-border">
 					{/* Header */}
-					<div className="flex items-center justify-between px-3 py-2">
+					<div className="flex items-center gap-1.5 px-3 py-2">
 						<div className="flex items-center gap-1.5">
 							<Tags className="h-3.5 w-3.5 text-muted-foreground" />
 							<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
 								{t("topics.title")}
 							</span>
 						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleCreateTopic}
-							className="h-6 w-6 p-0"
-							title={tTopics("manage.newTopic")}
-						>
-							<Plus className="h-3.5 w-3.5" />
-						</Button>
 					</div>
 
 					{/* Topic list – scrollable up to ~6 rows */}
@@ -604,14 +606,25 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 					icon={<Network size={20} />}
 					title={t("title")}
 					description={t("description")}
+					actions={
+						<Button
+							type="button"
+							size="sm"
+							onClick={handleCreateTopic}
+							className="h-8 shrink-0 px-3 text-xs"
+						>
+							<Plus size={13} className="mr-1" />
+							{tTopics("manage.newTopic")}
+						</Button>
+					}
 					className={isDesktop ? "hidden" : ""}
 				/>
-				{/* Mobile bar – topic selector + new-topic button (<sm) */}
+				{/* Mobile bar – topic selector (<sm) */}
 				<div
 					className={
 						isDesktop
 							? "hidden"
-							: "flex items-center gap-2 border-b border-border bg-card p-3"
+							: "flex items-center border-b border-border bg-card p-3"
 					}
 				>
 					<Select value={selectedTopicId} onValueChange={handleTopicSelect}>
@@ -629,16 +642,6 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 							))}
 						</SelectContent>
 					</Select>
-
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleCreateTopic}
-						className="flex-shrink-0 h-10 w-10 p-0"
-						title={tTopics("manage.newTopic")}
-					>
-						<Plus className="h-4 w-4" />
-					</Button>
 				</div>
 
 				{/* Graph canvas */}

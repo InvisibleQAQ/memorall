@@ -108,7 +108,7 @@ If user require to write code, execute code please use this actively to write an
 | template      | kind    | default port | use case                    |
 |---------------|---------|-------------|------------------------------|
 | express       | express | 3000        | REST API, HTML pages         |
-| vite-react    | vite    | 5173        | React SPA with HMR           |
+| vite-react    | vite    | 5173        | React SPA with HMR + shadcn UI |
 | next-pages    | next    | 3000        | Next.js Pages Router         |
 | next-app      | next    | 3000        | Next.js App Router           |
 `;

@@ -143,11 +143,16 @@
 	},
 	"htmlPreview": {
 		"label": "HTML",
+		"title": "HTML Preview",
 		"save": "Save",
 		"saving": "Saving…",
 		"saved": "Saved",
 		"preview": "Preview",
-		"code": "Code"
+		"code": "Code",
+		"artifactActions": "Artifact actions",
+		"openInNewTab": "Open in new tab",
+		"resolvingSandboxPreview": "Resolving sandbox preview...",
+		"unsupportedUrl": "Unsupported artifact URL: {{url}}"
 	},
 	"saveDialog": {
 		"title": "Select folder to store",
