@@ -21,7 +21,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/main/components/ui/tooltip";
-import { Home, Brain, CheckCircle2, Info } from "lucide-react";
+import { Brain, CheckCircle2, Info } from "lucide-react";
 import { useCurrentModel } from "@/main/hooks/use-current-model";
 import { useTranslation } from "react-i18next";
 import { getModel } from "@/services/llm/registry/model-registry";
@@ -215,8 +215,7 @@ export const LLMPage: React.FC = () => {
 							data-copilot="current-model"
 						>
 							<CardHeader className="p-3 pb-0">
-								<CardTitle className="flex items-center gap-2 text-sm">
-									<Brain size={16} />
+								<CardTitle className="text-lg">
 									{t("currentModel.title")}
 								</CardTitle>
 								<CardDescription>
@@ -420,8 +419,7 @@ export const LLMPage: React.FC = () => {
 							data-copilot="quick-setup"
 						>
 							<CardHeader className="p-3">
-								<CardTitle className="flex items-center gap-2">
-									<Home size={20} />
+								<CardTitle className="text-lg">
 									{t("yourModels.title")}
 								</CardTitle>
 								<CardDescription>{t("yourModels.description")}</CardDescription>
@@ -453,8 +451,7 @@ export const LLMPage: React.FC = () => {
 					<div className="mx-auto w-full max-w-5xl space-y-3 p-0 sm:p-4">
 						<Card className="rounded-none md:rounded-lg">
 							<CardHeader className="p-3">
-								<CardTitle className="flex items-center gap-2">
-									<Home size={20} />
+								<CardTitle className="text-lg">
 									{t("yourModels.quickDownload")}
 								</CardTitle>
 								<CardDescription>{t("yourModels.description")}</CardDescription>

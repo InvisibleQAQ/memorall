@@ -39,9 +39,19 @@
 	},
 	"yourModels": {
 		"title": "Mô hình của tôi",
-		"description": "Không gian mô hình cục bộ của bạn - tải xuống mô hình được đề xuất hoặc quản lý mô hình hiện có.",
+		"description": "Không gian mô hình của bạn - quản lý mô hình từ xa và mô hình cục bộ đã tải xuống.",
 		"quickDownload": "Tải xuống nhanh",
-		"loadingModels": "Đang tải mô hình {{provider}}..."
+		"loadingModels": "Đang tải mô hình {{provider}}...",
+		"remoteModels": "Mô hình từ xa",
+		"downloadedModels": "Mô hình đã tải xuống",
+		"remote": "Từ xa",
+		"downloaded": "Đã tải xuống",
+		"remoteModelsCount": "{{count}} mô hình",
+		"availableRemoteModels": "{{count}} có sẵn",
+		"availableDownloadedModels": "{{count}} đã tải xuống",
+		"noRemoteModels": "Không có mô hình từ xa.",
+		"searchModels": "Tìm kiếm mô hình...",
+		"noModelsMatch": "Không có mô hình khớp \"{{search}}\"."
 	},
 	"model": {
 		"name": "Tên mô hình",

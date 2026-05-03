@@ -2,7 +2,16 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/main/components/ui/button";
 import { Badge } from "@/main/components/ui/badge";
-import { Loader2, Download, Play, Square, Bot, Trash2 } from "lucide-react";
+import { Input } from "@/main/components/ui/input";
+import {
+	Loader2,
+	Download,
+	Play,
+	Square,
+	Trash2,
+	ChevronDown,
+	Search,
+} from "lucide-react";
 import type { ModelInfo } from "@/services/llm";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 import type { CurrentModel } from "@/main/hooks/use-current-model";
@@ -46,6 +55,27 @@ export const DownloadedModelsSection: React.FC<
 	onDownloadMore,
 }) => {
 	const { t } = useTranslation("llm");
+	const [collapsedProviders, setCollapsedProviders] = React.useState<
+		Record<string, boolean>
+	>({});
+	const [searchFilters, setSearchFilters] = React.useState<
+		Record<string, string>
+	>({});
+	const groupedModels = React.useMemo(() => {
+		const groups = new Map<ServiceProvider, ModelInfo[]>();
+		for (const model of downloadedOnly) {
+			const provider = model.provider as ServiceProvider;
+			if (!groups.has(provider)) {
+				groups.set(provider, []);
+			}
+			groups.get(provider)!.push(model);
+		}
+		return Array.from(groups.entries()).map(([provider, models]) => ({
+			provider,
+			models,
+		}));
+	}, [downloadedOnly]);
+
 	if (downloadedOnly.length === 0) {
 		return null;
 	}
@@ -54,10 +84,7 @@ export const DownloadedModelsSection: React.FC<
 		<div className="space-y-3">
 			<div className="flex items-center justify-between gap-2">
 				<div className="flex items-center gap-2 min-w-0">
-					<h3 className="text-sm font-semibold flex items-center gap-2 shrink-0">
-						<Bot size={16} />
-						{title}
-					</h3>
+					<h3 className="text-sm font-semibold shrink-0">{title}</h3>
 					{current && (
 						<Badge
 							variant="secondary"
@@ -85,101 +112,170 @@ export const DownloadedModelsSection: React.FC<
 					{t("model.refresh")}
 				</Button>
 			</div>
-			<div className="space-y-2">
-				{downloadedOnly.map((model) => (
-					<div
-						key={model.id}
-						className="flex flex-col gap-3 p-3 border rounded-lg bg-card"
-					>
-						<div className="min-w-0">
-							<div className="font-medium text-sm break-words">
-								{model.name || model.id}
-							</div>
-							<div className="text-xs text-muted-foreground">
-								{model.loaded ? (
-									<span className="text-green-600 font-medium">
-										● {t("model.loaded")}
-									</span>
-								) : (
-									<span className="text-gray-500">
-										○ {t("model.available")}
-									</span>
-								)}
-								{model.filename && (
-									<span className="ml-2">• {model.filename}</span>
-								)}
-								{model.size && (
-									<span className="ml-2">
-										({(model.size / (1024 * 1024)).toFixed(0)} MB)
-									</span>
-								)}
-							</div>
-						</div>
-						<div className="flex flex-wrap gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								className="flex-1"
-								onClick={() =>
-									deleteDownloadedModel(
-										model,
-										model.provider as ServiceProvider,
-									)
-								}
-								disabled={loading}
-							>
-								{loading ? (
-									<Loader2 className="w-4 h-4 animate-spin" />
-								) : (
-									<Trash2 className="w-4 h-4" />
-								)}
-								{t("model.delete")}
-							</Button>
-							{model.loaded &&
-							current?.modelId === model.id &&
-							(!model.provider || current.provider === model.provider) ? (
-								<Button
-									variant="outline"
-									size="sm"
-									className="flex-1"
+			<div className="space-y-3">
+				{groupedModels.map(({ provider, models }) => {
+					const collapsed = collapsedProviders[provider] ?? false;
+					const searchFilter = searchFilters[provider] ?? "";
+					const filteredModels = searchFilter.trim()
+						? models.filter((model) => {
+								const query = searchFilter.toLowerCase();
+								return `${model.name || ""} ${model.id} ${model.filename || ""}`
+									.toLowerCase()
+									.includes(query);
+							})
+						: models;
+
+					return (
+						<div
+							key={provider}
+							className="space-y-2 rounded-lg border bg-card p-3"
+						>
+							<div className="flex items-center justify-between gap-2">
+								<button
+									type="button"
+									className="flex min-w-0 flex-1 items-center gap-2 text-left"
 									onClick={() =>
-										unloadDownloadedModel(
-											model,
-											model.provider as ServiceProvider,
-										)
+										setCollapsedProviders((previous) => ({
+											...previous,
+											[provider]: !collapsed,
+										}))
 									}
-									disabled={loading}
+									aria-expanded={!collapsed}
 								>
-									{loading ? (
-										<Loader2 className="w-4 h-4 animate-spin" />
+									<ChevronDown
+										className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+											collapsed ? "-rotate-90" : ""
+										}`}
+									/>
+									<div className="min-w-0">
+										<div className="truncate text-sm font-medium">
+											{t(`providers.${provider}`, { defaultValue: provider })}
+										</div>
+										<div className="text-xs text-muted-foreground">
+											{t("yourModels.availableDownloadedModels", {
+												count: models.length,
+											})}
+										</div>
+									</div>
+								</button>
+								<Badge variant="secondary" className="text-xs">
+									{t("yourModels.downloaded")}
+								</Badge>
+							</div>
+
+							{collapsed ? null : (
+								<div className="space-y-2">
+									<div className="relative">
+										<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+										<Input
+											type="text"
+											value={searchFilter}
+											onChange={(event) =>
+												setSearchFilters((previous) => ({
+													...previous,
+													[provider]: event.target.value,
+												}))
+											}
+											placeholder={t("yourModels.searchModels")}
+											className="h-9 pl-9"
+										/>
+									</div>
+									{filteredModels.length === 0 ? (
+										<div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+											{t("yourModels.noModelsMatch", {
+												search: searchFilter,
+											})}
+										</div>
 									) : (
-										<Square className="w-4 h-4" />
+										<div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+											{filteredModels.map((model) => {
+												const isLoaded =
+													model.loaded &&
+													current?.modelId === model.id &&
+													(!model.provider ||
+														current.provider === model.provider);
+
+												return (
+													<div
+														key={model.id}
+														className="flex items-center justify-between gap-3 rounded-md border p-2"
+													>
+														<div className="min-w-0 flex-1">
+															<div className="truncate text-sm font-medium">
+																{model.name || model.id}
+															</div>
+															<div className="truncate text-xs text-muted-foreground">
+																{model.loaded
+																	? t("model.loaded")
+																	: t("model.available")}
+																{model.filename ? ` • ${model.filename}` : ""}
+																{model.size
+																	? ` • ${(model.size / (1024 * 1024)).toFixed(
+																			0,
+																		)} MB`
+																	: ""}
+															</div>
+														</div>
+														<div className="flex shrink-0 items-center gap-2">
+															<Button
+																variant="outline"
+																size="icon"
+																className="h-9 w-9"
+																aria-label={t("model.delete")}
+																onClick={() =>
+																	deleteDownloadedModel(model, provider)
+																}
+																disabled={loading}
+															>
+																{loading ? (
+																	<Loader2 className="h-4 w-4 animate-spin" />
+																) : (
+																	<Trash2 className="h-4 w-4" />
+																)}
+															</Button>
+															{isLoaded ? (
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() =>
+																		unloadDownloadedModel(model, provider)
+																	}
+																	disabled={loading}
+																>
+																	{loading ? (
+																		<Loader2 className="h-4 w-4 animate-spin" />
+																	) : (
+																		<Square className="h-4 w-4" />
+																	)}
+																	{t("model.unload")}
+																</Button>
+															) : (
+																<Button
+																	size="sm"
+																	onClick={() =>
+																		loadDownloadedModel(model, provider)
+																	}
+																	disabled={loading}
+																>
+																	{loading ? (
+																		<Loader2 className="h-4 w-4 animate-spin" />
+																	) : (
+																		<Play className="h-4 w-4" />
+																	)}
+																	{t("model.load")}
+																</Button>
+															)}
+														</div>
+													</div>
+												);
+											})}
+										</div>
 									)}
-									{t("model.unload")}
-								</Button>
-							) : (
-								<Button
-									size="sm"
-									className="flex-1"
-									onClick={() =>
-										loadDownloadedModel(
-											model,
-											model.provider as ServiceProvider,
-										)
-									}
-									disabled={loading}
-								>
-									{loading ? (
-										<Loader2 className="w-4 h-4 animate-spin" />
-									) : (
-										<Play className="w-4 h-4" />
-									)}
-									{t("model.load")}
-								</Button>
+								</div>
 							)}
 						</div>
-					</div>
-				))}
+					);
+				})}
 			</div>
 			{showDownloadMoreButton && (
 				<div className="pt-4 border-t">

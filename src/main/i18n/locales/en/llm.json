@@ -39,9 +39,19 @@
 	},
 	"yourModels": {
 		"title": "My Models",
-		"description": "Your local model space - download recommended models or manage existing ones.",
+		"description": "Your model space - manage remote models and downloaded local models.",
 		"quickDownload": "Quick Download",
-		"loadingModels": "Loading {{provider}} models..."
+		"loadingModels": "Loading {{provider}} models...",
+		"remoteModels": "Remote Models",
+		"downloadedModels": "Downloaded Models",
+		"remote": "Remote",
+		"downloaded": "Downloaded",
+		"remoteModelsCount": "{{count}} models",
+		"availableRemoteModels": "{{count}} available",
+		"availableDownloadedModels": "{{count}} downloaded",
+		"noRemoteModels": "No remote models available.",
+		"searchModels": "Search models...",
+		"noModelsMatch": "No models match \"{{search}}\"."
 	},
 	"model": {
 		"name": "Model Name",

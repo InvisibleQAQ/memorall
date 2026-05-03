@@ -19,6 +19,7 @@ import { DownloadedModelsSection } from "./components/DownloadedModelsSection";
 import { ProviderSelector } from "./components/ProviderSelector";
 import { LocalModelsList } from "./components/LocalModelsList";
 import { QuickDownloadModels } from "./components/QuickDownloadModels";
+import { RemoteModelsSection } from "./components/RemoteModelsSection";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 
 interface YourModelsProps {
@@ -85,6 +86,12 @@ export const YourModels: React.FC<YourModelsProps> = ({
 				? openrouterState.ready
 				: undefined,
 	);
+	const { localModels: openaiModels, localModelsLoading: openaiModelsLoading } =
+		useLocalModels("openai", null, openaiState.ready);
+	const {
+		localModels: openrouterModels,
+		localModelsLoading: openrouterModelsLoading,
+	} = useLocalModels("openrouter", null, openrouterState.ready);
 
 	const {
 		downloadProgress,
@@ -107,6 +114,38 @@ export const YourModels: React.FC<YourModelsProps> = ({
 		downloadedModels,
 		onModelLoaded,
 	});
+	const remoteModelProviders: React.ComponentProps<
+		typeof RemoteModelsSection
+	>["providers"] = React.useMemo(
+		() =>
+			[
+				{
+					provider: "openai" as const,
+					models: openaiModels,
+					loading: openaiModelsLoading,
+					ready: openaiState.ready,
+				},
+				{
+					provider: "openrouter" as const,
+					models: openrouterModels,
+					loading: openrouterModelsLoading,
+					ready: openrouterState.ready,
+				},
+			].filter(
+				(providerState) =>
+					!allowedProviders ||
+					allowedProviders.includes(providerState.provider),
+			),
+		[
+			allowedProviders,
+			openaiModels,
+			openaiModelsLoading,
+			openaiState.ready,
+			openrouterModels,
+			openrouterModelsLoading,
+			openrouterState.ready,
+		],
+	);
 
 	// Ensure quickProvider is one of the allowed providers
 	useEffect(() => {
@@ -134,19 +173,27 @@ export const YourModels: React.FC<YourModelsProps> = ({
 
 			{/* Existing Downloaded Models */}
 			{showDownloadedModels && (
-				<DownloadedModelsSection
-					downloadedOnly={downloadedOnly}
-					current={current}
-					title={title || ""}
-					modelsLoading={modelsLoading}
-					loading={loading}
-					fetchDownloadedModels={fetchDownloadedModels}
-					loadDownloadedModel={loadDownloadedModel}
-					unloadDownloadedModel={unloadDownloadedModel}
-					deleteDownloadedModel={deleteDownloadedModel}
-					showDownloadMoreButton={showDownloadMoreButton}
-					onDownloadMore={onDownloadMore}
-				/>
+				<>
+					<RemoteModelsSection
+						providers={remoteModelProviders}
+						current={current}
+						loading={loading}
+						onModelLoaded={onModelLoaded}
+					/>
+					<DownloadedModelsSection
+						downloadedOnly={downloadedOnly}
+						current={current}
+						title={title || t("yourModels.downloadedModels")}
+						modelsLoading={modelsLoading}
+						loading={loading}
+						fetchDownloadedModels={fetchDownloadedModels}
+						loadDownloadedModel={loadDownloadedModel}
+						unloadDownloadedModel={unloadDownloadedModel}
+						deleteDownloadedModel={deleteDownloadedModel}
+						showDownloadMoreButton={showDownloadMoreButton}
+						onDownloadMore={onDownloadMore}
+					/>
+				</>
 			)}
 
 			{/* Quick Download Recommended Models */}
