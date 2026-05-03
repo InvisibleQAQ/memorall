@@ -1,7 +1,8 @@
 import React, { memo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DocumentTreeDraggable } from "./DocumentTreeDraggable";
+import { PageHeader } from "@/main/components/ui/page-header";
 import type { DocumentTreeNode } from "@/types/document-library";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,12 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 
 	return (
 		<div className="hidden h-full bg-background md:flex md:flex-col overflow-hidden flex-shrink-0">
+			<PageHeader
+				icon={<FileText size={20} />}
+				title={docsTitle}
+				description={t("description")}
+			/>
+
 			{/* Documents Section */}
 			<button
 				className={cn(

@@ -25,6 +25,7 @@ import { Brain, CheckCircle2, Info } from "lucide-react";
 import { useCurrentModel } from "@/main/hooks/use-current-model";
 import { useTranslation } from "react-i18next";
 import { getModel } from "@/services/llm/registry/model-registry";
+import { PageHeader } from "@/main/components/ui/page-header";
 
 // No local quick-connect card; configuration handled in AdvancedSection
 
@@ -190,17 +191,11 @@ export const LLMPage: React.FC = () => {
 							: "bg-background"
 					}
 				>
-					<div className="border-b border-border px-4 py-4">
-						<div className="flex items-center gap-2">
-							<Brain size={20} className="text-primary" />
-							<h1 className="text-lg font-semibold tracking-normal">
-								{t("title")}
-							</h1>
-						</div>
-						<p className="mt-1 text-sm text-muted-foreground">
-							{t("yourModels.description")}
-						</p>
-					</div>
+					<PageHeader
+						icon={<Brain size={20} />}
+						title={t("title")}
+						description={t("yourModels.description")}
+					/>
 
 					<div
 						className={

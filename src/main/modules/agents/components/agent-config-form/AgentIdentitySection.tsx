@@ -124,25 +124,29 @@ export const AgentIdentitySection: React.FC<{
 	return (
 		<>
 			<div className="space-y-3">
-				<div className="flex items-center gap-3">
-					<CursorPoint cursorKey={AGENT_WIZARD_CURSOR_KEYS.iconScreen}>
-						<AgentIconScreenPicker
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+					<div className="order-2 flex min-w-0 items-center gap-3 sm:order-1 sm:flex-1">
+						<CursorPoint cursorKey={AGENT_WIZARD_CURSOR_KEYS.iconScreen}>
+							<AgentIconScreenPicker
+								metadataDraft={metadataDraft}
+								iconScreenContent={iconScreenContent}
+								onMetadataChange={onMetadataChange}
+							/>
+						</CursorPoint>
+
+						<AgentNameField
 							metadataDraft={metadataDraft}
-							iconScreenContent={iconScreenContent}
 							onMetadataChange={onMetadataChange}
 						/>
-					</CursorPoint>
+					</div>
 
-					<AgentNameField
-						metadataDraft={metadataDraft}
-						onMetadataChange={onMetadataChange}
-					/>
-
-					<AgentInlineActions
-						formActions={formActions}
-						metadataDraft={metadataDraft}
-						memoryTopic={memoryTopic}
-					/>
+					<div className="order-1 flex justify-end sm:order-2">
+						<AgentInlineActions
+							formActions={formActions}
+							metadataDraft={metadataDraft}
+							memoryTopic={memoryTopic}
+						/>
+					</div>
 				</div>
 
 				<AgentDescriptionField

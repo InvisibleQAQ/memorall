@@ -12,6 +12,13 @@ import { Button } from "@/main/components/ui/button";
 import { Input } from "@/main/components/ui/input";
 import { Label } from "@/main/components/ui/label";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/main/components/ui/select";
+import {
 	Tabs,
 	TabsContent,
 	TabsList,
@@ -37,6 +44,7 @@ import {
 } from "@/main/components/ui/alert-dialog";
 import { CursorPoint } from "@/components/AgentCursor";
 import { AGENT_WIZARD_CURSOR_KEYS } from "@/main/modules/agent-wizard";
+import { cn } from "@/lib/utils";
 
 interface SkillEditorDialogProps {
 	open: boolean;
@@ -348,7 +356,7 @@ const SkillPreviewDialog: React.FC<SkillPreviewDialogProps> = ({
 								<Badge variant="outline">{skill.publisher}</Badge>
 							) : null}
 							{skill.collection ? (
-								<Badge variant="outline">{skill.collection}</Badge>
+								<SkillCategoryBadge collection={skill.collection} />
 							) : null}
 							{skill.sourceUrl ? (
 								<a
@@ -389,6 +397,8 @@ interface ManageSkillsDialogProps {
 	enabledSkillNameSet: Set<string>;
 	searchQuery: string;
 	onSearchQueryChange: (value: string) => void;
+	categoryFilter: string;
+	onCategoryFilterChange: (value: string) => void;
 	onOpenCreate: () => void;
 	onOpenEdit: (skill: SkillSummary) => void;
 	onOpenPreview: (skill: SkillSummary) => void;
@@ -414,6 +424,17 @@ const matchesSkillQuery = (skill: SkillSummary, query: string): boolean => {
 		.some((value) => value!.toLowerCase().includes(normalizedQuery));
 };
 
+const matchesSkillCategory = (
+	skill: SkillSummary,
+	categoryFilter: string,
+): boolean => {
+	if (categoryFilter === "all") return true;
+	if (!skill.collection) return false;
+	return (
+		getSkillCategoryLabel(skill.collection).toLowerCase() === categoryFilter
+	);
+};
+
 const orderEnabledSkillsFirst = (
 	skills: SkillSummary[],
 	enabledSkillNameSet: Set<string>,
@@ -432,6 +453,68 @@ const orderEnabledSkillsFirst = (
 	return [...enabled, ...disabled];
 };
 
+const getSkillCategoryLabel = (collection: string): string => {
+	const normalized = collection.trim().toLowerCase();
+	if (normalized === "design-skills" || normalized.includes("open-design")) {
+		return "design";
+	}
+	return collection;
+};
+
+const getSkillCategoryBadgeClassName = (collection: string): string => {
+	const normalized = collection.trim().toLowerCase();
+
+	if (normalized === "design-skills" || normalized.includes("open-design")) {
+		return "border-cyan-400/35 bg-cyan-400/10 text-cyan-200";
+	}
+	if (normalized.includes("engineering")) {
+		return "border-blue-400/35 bg-blue-400/10 text-blue-200";
+	}
+	if (normalized.includes("tooling")) {
+		return "border-amber-400/35 bg-amber-400/10 text-amber-200";
+	}
+	if (normalized.includes("documentation")) {
+		return "border-violet-400/35 bg-violet-400/10 text-violet-200";
+	}
+	if (normalized.includes("api")) {
+		return "border-emerald-400/35 bg-emerald-400/10 text-emerald-200";
+	}
+	if (normalized.includes("web")) {
+		return "border-sky-400/35 bg-sky-400/10 text-sky-200";
+	}
+	if (normalized.includes("project")) {
+		return "border-rose-400/35 bg-rose-400/10 text-rose-200";
+	}
+	if (normalized.includes("anthropic")) {
+		return "border-orange-400/35 bg-orange-400/10 text-orange-200";
+	}
+	return "border-border/70 bg-muted/40 text-muted-foreground";
+};
+
+const SkillCategoryBadge: React.FC<{ collection: string }> = ({
+	collection,
+}) => (
+	<Badge
+		variant="outline"
+		className={cn("capitalize", getSkillCategoryBadgeClassName(collection))}
+	>
+		{getSkillCategoryLabel(collection)}
+	</Badge>
+);
+
+const getSkillCategoryOptions = (skills: SkillSummary[]): string[] =>
+	[
+		...new Set(
+			skills
+				.map((skill) =>
+					skill.collection
+						? getSkillCategoryLabel(skill.collection).toLowerCase()
+						: null,
+				)
+				.filter((category): category is string => Boolean(category)),
+		),
+	].sort((a, b) => a.localeCompare(b));
+
 const ManageSkillsDialog: React.FC<ManageSkillsDialogProps> = ({
 	open,
 	onOpenChange,
@@ -440,6 +523,8 @@ const ManageSkillsDialog: React.FC<ManageSkillsDialogProps> = ({
 	enabledSkillNameSet,
 	searchQuery,
 	onSearchQueryChange,
+	categoryFilter,
+	onCategoryFilterChange,
 	onOpenCreate,
 	onOpenEdit,
 	onOpenPreview,
@@ -448,21 +533,29 @@ const ManageSkillsDialog: React.FC<ManageSkillsDialogProps> = ({
 	onImport,
 }) => {
 	const { t } = useTranslation(["agents", "common"]);
+	const categoryOptions = useMemo(
+		() => getSkillCategoryOptions([...defaultSkills, ...customSkills]),
+		[defaultSkills, customSkills],
+	);
 	const filteredDefaultSkills = useMemo(
 		() =>
 			orderEnabledSkillsFirst(
-				defaultSkills.filter((skill) => matchesSkillQuery(skill, searchQuery)),
+				defaultSkills
+					.filter((skill) => matchesSkillQuery(skill, searchQuery))
+					.filter((skill) => matchesSkillCategory(skill, categoryFilter)),
 				enabledSkillNameSet,
 			),
-		[defaultSkills, enabledSkillNameSet, searchQuery],
+		[categoryFilter, defaultSkills, enabledSkillNameSet, searchQuery],
 	);
 	const filteredCustomSkills = useMemo(
 		() =>
 			orderEnabledSkillsFirst(
-				customSkills.filter((skill) => matchesSkillQuery(skill, searchQuery)),
+				customSkills
+					.filter((skill) => matchesSkillQuery(skill, searchQuery))
+					.filter((skill) => matchesSkillCategory(skill, categoryFilter)),
 				enabledSkillNameSet,
 			),
-		[customSkills, enabledSkillNameSet, searchQuery],
+		[categoryFilter, customSkills, enabledSkillNameSet, searchQuery],
 	);
 
 	return (
@@ -473,13 +566,29 @@ const ManageSkillsDialog: React.FC<ManageSkillsDialogProps> = ({
 				</DialogHeader>
 
 				<div className="border-b px-5 py-4">
-					<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+					<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-center">
 						<Input
 							value={searchQuery}
 							onChange={(event) => onSearchQueryChange(event.target.value)}
 							placeholder={t("skills.searchPlaceholder", { ns: "agents" })}
 							className="h-9"
 						/>
+						<Select
+							value={categoryFilter}
+							onValueChange={onCategoryFilterChange}
+						>
+							<SelectTrigger className="h-9">
+								<SelectValue placeholder="All categories" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All categories</SelectItem>
+								{categoryOptions.map((category) => (
+									<SelectItem key={category} value={category}>
+										<span className="capitalize">{category}</span>
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 						<div className="flex flex-wrap items-center gap-2">
 							<Badge variant="secondary">
 								{t("skills.defaultCount", {
@@ -536,7 +645,7 @@ const ManageSkillsDialog: React.FC<ManageSkillsDialogProps> = ({
 													<Badge variant="outline">{skill.publisher}</Badge>
 												) : null}
 												{skill.collection ? (
-													<Badge variant="outline">{skill.collection}</Badge>
+													<SkillCategoryBadge collection={skill.collection} />
 												) : null}
 											</div>
 											<p className="text-xs leading-relaxed text-muted-foreground">
@@ -675,6 +784,7 @@ export const SkillsSection: React.FC = () => {
 	const [previewSkill, setPreviewSkill] = useState<SkillSummary | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [categoryFilter, setCategoryFilter] = useState("all");
 
 	const loadSkills = useCallback(async () => {
 		setLoading(true);
@@ -823,6 +933,7 @@ export const SkillsSection: React.FC = () => {
 					setManageOpen(open);
 					if (!open) {
 						setSearchQuery("");
+						setCategoryFilter("all");
 					}
 				}}
 				defaultSkills={defaultSkills}
@@ -830,6 +941,8 @@ export const SkillsSection: React.FC = () => {
 				enabledSkillNameSet={enabledSkillNameSet}
 				searchQuery={searchQuery}
 				onSearchQueryChange={setSearchQuery}
+				categoryFilter={categoryFilter}
+				onCategoryFilterChange={setCategoryFilter}
 				onOpenCreate={handleOpenCreate}
 				onOpenEdit={(skill) => void handleOpenEdit(skill)}
 				onOpenPreview={handleOpenPreview}

@@ -1,9 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Search, Sparkles } from "lucide-react";
+import { Bot, Plus, Search, Sparkles } from "lucide-react";
 import { Button } from "@/main/components/ui/button";
 import { Input } from "@/main/components/ui/input";
 import { Badge } from "@/main/components/ui/badge";
+import { PageHeader } from "@/main/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { coerceDate, normalizeAgentPresetStatus } from "../types";
 import type { Flow } from "@/services/database/types";
@@ -47,17 +48,11 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 				scrollMode === "contained" ? "h-full min-h-0" : "",
 			)}
 		>
-			<div className="border-b px-4 py-4">
-				<div className="flex items-start justify-between gap-3">
-					<div className="min-w-0 space-y-1">
-						<p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-							{t("list.eyebrow")}
-						</p>
-						<h2 className="text-lg font-semibold">{t("list.title")}</h2>
-						<p className="text-sm text-muted-foreground">
-							{t("list.subtitle")}
-						</p>
-					</div>
+			<PageHeader
+				icon={<Bot size={20} />}
+				title={t("list.title")}
+				description={t("list.subtitle")}
+				actions={
 					<Button
 						type="button"
 						size="sm"
@@ -68,18 +63,8 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 						<Plus size={13} className="mr-1" />
 						{t("actions.create")}
 					</Button>
-				</div>
-
-				<div className="mt-4 flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 transition-colors focus-within:border-ring/60 focus-within:bg-muted/30">
-					<Search size={14} className="text-muted-foreground" />
-					<Input
-						value={searchQuery}
-						onChange={(event) => onSearchChange(event.target.value)}
-						placeholder={t("list.searchPlaceholder")}
-						className="h-7 rounded-none border-0 bg-transparent px-0 py-0 shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-					/>
-				</div>
-			</div>
+				}
+			/>
 
 			<div
 				className={cn(
@@ -87,6 +72,15 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 				)}
 			>
 				<div className="space-y-2 p-3">
+					<div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 transition-colors focus-within:border-ring/60 focus-within:bg-muted/30">
+						<Search size={14} className="text-muted-foreground" />
+						<Input
+							value={searchQuery}
+							onChange={(event) => onSearchChange(event.target.value)}
+							placeholder={t("list.searchPlaceholder")}
+							className="h-7 rounded-none border-0 bg-transparent px-0 py-0 shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+						/>
+					</div>
 					<div className="flex items-center justify-between px-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
 						<span>{t("list.count", { count: presets.length })}</span>
 						<span>{t("list.caption")}</span>

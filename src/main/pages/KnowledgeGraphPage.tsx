@@ -31,6 +31,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/main/components/ui/dropdown-menu";
+import { PageHeader } from "@/main/components/ui/page-header";
 
 import { D3KnowledgeGraph } from "@/main/modules/knowledge/components/D3KnowledgeGraph";
 import {
@@ -468,6 +469,12 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 						: "hidden"
 				}
 			>
+				<PageHeader
+					icon={<Network size={20} />}
+					title={t("title")}
+					description={t("description")}
+				/>
+
 				{/* Topics Panel */}
 				<div className="flex-shrink-0 border-b border-border">
 					{/* Header */}
@@ -593,6 +600,12 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 			    Main graph area
 			    ---------------------------------------------------------------- */}
 			<div className="flex-1 flex flex-col overflow-hidden">
+				<PageHeader
+					icon={<Network size={20} />}
+					title={t("title")}
+					description={t("description")}
+					className={isDesktop ? "hidden" : ""}
+				/>
 				{/* Mobile bar – topic selector + new-topic button (<sm) */}
 				<div
 					className={

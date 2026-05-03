@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	AgentIconCanvas,
@@ -16,200 +16,24 @@ import {
 	type AgentGreetingContext,
 	type AgentGreetingPhrases,
 } from "./agentGreetings";
-
-type AgentIconMood = {
-	animation: AgentIconAnimation;
-	screenContent?: AgentScreenContent;
-	duration: number;
-};
+import { getDefaultMood } from "./agentMoods";
+import type { AgentIconMood } from "./agentIconTypes";
+import {
+	usePrefersReducedMotion,
+	useSmartAgentMood,
+} from "./use-smart-agent-mood";
 
 export interface AgentIconProps
 	extends Omit<AgentIconCanvasProps, "animation" | "screenContent"> {
 	animation?: AgentIconAnimation;
 	screenContent?: AgentScreenContent;
+	ambientScreenContent?: AgentScreenContent;
 	reactive?: boolean;
 	moods?: AgentIconMood[];
 	speechBubble?: AgentIconSpeechBubble | string;
 	autoGreeting?: boolean;
 	greetingContext?: AgentGreetingContext;
 }
-
-const DEFAULT_EMOJI = [
-	"✨",
-	"💡",
-	"⚡",
-	"☕",
-	"🌙",
-	"☀️",
-	"💭",
-	"🎯",
-	"🥰",
-	"😊",
-	"🌸",
-	"🎀",
-	"🍵",
-	"🌈",
-	"💫",
-	"🦋",
-	"🎵",
-	"💝",
-	"🐱",
-	"🌺",
-	"🎶",
-	"💕",
-	"🌟",
-	"🍀",
-	"🌻",
-	"🎪",
-	"🫧",
-	"🐾",
-	"🌼",
-	"🎠",
-];
-const DEFAULT_TEXT = [
-	"hi!",
-	"hey!",
-	"yay",
-	"uwu",
-	"heh",
-	"ok!",
-	"wow",
-	"sure",
-	"hmm",
-	"omg",
-	"^w^",
-	"nya~",
-	"lol",
-	"eep",
-	":3",
-	"zzz",
-	"run",
-	"01",
-	"HI",
-	"OK",
-	"bzz",
-	"yes",
-	"nah",
-	"...",
-	"on!",
-];
-const TEXT_COLORS = ["#facc15", "#f472b6", "#a78bfa", "#34d399", "#60a5fa"];
-// weighted: calm moods appear more often, rare emotions less so
-const DEFAULT_ANIMATIONS: AgentIconAnimation[] = [
-	"idle",
-	"idle",
-	"blink",
-	"blink",
-	"look-around",
-	"happy",
-	"thinking",
-	"talk",
-	"wink",
-	"shy",
-	"excited",
-	"scan",
-	"loading",
-	"love",
-	"giggle",
-	"surprised",
-	"confused",
-	"sleepy",
-];
-
-const getTimeSeed = () => {
-	const now = new Date();
-	return (
-		now.getFullYear() * 1000000 +
-		(now.getMonth() + 1) * 10000 +
-		now.getDate() * 100 +
-		now.getHours()
-	);
-};
-
-const hashSeed = (value: number) => {
-	let seed = value || 1;
-	seed ^= seed << 13;
-	seed ^= seed >> 17;
-	seed ^= seed << 5;
-	return Math.abs(seed);
-};
-
-const pick = <T,>(items: readonly T[], seed: number) =>
-	items[seed % items.length] as T;
-
-const animationDuration = (
-	animation: AgentIconAnimation,
-	seed: number,
-): number => {
-	switch (animation) {
-		case "surprised":
-			return 2600 + (seed % 1400);
-		case "giggle":
-			return 3000 + (seed % 1800);
-		case "confused":
-			return 3200 + (seed % 1800);
-		case "wink":
-			return 3500 + (seed % 1600);
-		case "love":
-			return 5200 + (seed % 2200);
-		case "shy":
-			return 4800 + (seed % 2200);
-		case "sleepy":
-			return 5500 + (seed % 2500);
-		default:
-			return 4200 + (seed % 2200);
-	}
-};
-
-const getDefaultMood = (tick: number): AgentIconMood => {
-	const seed = hashSeed(getTimeSeed() + tick * 17);
-	const showText = seed % 5 === 0;
-	const showEmoji = !showText && seed % 3 === 0;
-	const animation = pick(DEFAULT_ANIMATIONS, seed);
-
-	if (showText) {
-		return {
-			animation,
-			duration: 5200 + (seed % 1800),
-			screenContent: {
-				value: pick(DEFAULT_TEXT, Math.floor(seed / 3)),
-				color: pick(TEXT_COLORS, Math.floor(seed / 7)),
-				scale: 0.52,
-			},
-		};
-	}
-
-	if (showEmoji) {
-		return {
-			animation,
-			duration: 4800 + (seed % 2200),
-			screenContent: {
-				kind: "emoji",
-				value: pick(DEFAULT_EMOJI, Math.floor(seed / 5)),
-				scale: 0.72,
-			},
-		};
-	}
-
-	return {
-		animation,
-		duration: animationDuration(animation, seed),
-	};
-};
-
-const usePrefersReducedMotion = () => {
-	const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-
-	useEffect(() => {
-		const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-		const handleChange = () => setPrefersReducedMotion(media.matches);
-		handleChange();
-		media.addEventListener("change", handleChange);
-		return () => media.removeEventListener("change", handleChange);
-	}, []);
-
-	return prefersReducedMotion;
-};
 
 const toStringArray = (value: unknown): string[] =>
 	Array.isArray(value)
@@ -219,6 +43,7 @@ const toStringArray = (value: unknown): string[] =>
 export const AgentIcon: React.FC<AgentIconProps> = ({
 	animation,
 	screenContent,
+	ambientScreenContent,
 	reactive = true,
 	moods,
 	speechBubble,
@@ -228,16 +53,23 @@ export const AgentIcon: React.FC<AgentIconProps> = ({
 	...props
 }) => {
 	const { t } = useTranslation("agents");
+	const containerRef = useRef<HTMLSpanElement | null>(null);
 	const prefersReducedMotion = usePrefersReducedMotion();
 	const [tick, setTick] = useState(0);
 	const [greetingTick, setGreetingTick] = useState(0);
+	const smartMood = useSmartAgentMood(
+		containerRef,
+		reactive && !prefersReducedMotion && !animation && !screenContent,
+	);
 	const mood = useMemo(() => {
+		if (smartMood) return smartMood;
+
 		if (moods?.length) {
 			return moods[tick % moods.length] ?? moods[0];
 		}
 
 		return getDefaultMood(tick);
-	}, [moods, tick]);
+	}, [moods, smartMood, tick]);
 
 	useEffect(() => {
 		if (!reactive || prefersReducedMotion || animation || screenContent) return;
@@ -463,22 +295,29 @@ export const AgentIcon: React.FC<AgentIconProps> = ({
 		<AgentIconCanvas
 			{...props}
 			animation={animation ?? mood.animation}
-			screenContent={screenContent ?? mood.screenContent}
+			screenContent={
+				screenContent ?? mood.screenContent ?? ambientScreenContent
+			}
 			variant={variant}
 		/>
 	);
 
-	if (!resolvedSpeechBubble) return canvas;
-
-	return (
-		<span className="relative inline-flex items-center justify-center overflow-visible align-middle">
+	const content = (
+		<span
+			ref={containerRef}
+			className="relative inline-flex items-center justify-center overflow-visible align-middle"
+		>
 			{canvas}
-			<AgentSpeechBubble
-				bubble={resolvedSpeechBubble}
-				reducedMotion={prefersReducedMotion}
-			/>
+			{resolvedSpeechBubble ? (
+				<AgentSpeechBubble
+					bubble={resolvedSpeechBubble}
+					reducedMotion={prefersReducedMotion}
+				/>
+			) : null}
 		</span>
 	);
+
+	return content;
 };
 
 export type {

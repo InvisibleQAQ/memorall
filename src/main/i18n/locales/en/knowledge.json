@@ -1,5 +1,6 @@
 {
 	"title": "Knowledge Graph",
+	"description": "Explore saved memory as connected topics, entities, and relationships.",
 	"topic": {
 		"label": "Memory",
 		"selectPlaceholder": "Select memory",

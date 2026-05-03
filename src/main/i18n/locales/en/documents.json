@@ -1,5 +1,6 @@
 {
 	"title": "Documents",
+	"description": "Manage files, folders, workspaces, and knowledge conversion.",
 	"library": {
 		"title": "Document Library",
 		"home": "Home",

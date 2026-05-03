@@ -1,5 +1,6 @@
 {
 	"title": "Đồ thị tri thức",
+	"description": "Khám phá bộ nhớ đã lưu dưới dạng chủ đề, thực thể và mối quan hệ được kết nối.",
 	"topic": {
 		"label": "Bộ nhớ",
 		"selectPlaceholder": "Chọn bộ nhớ",

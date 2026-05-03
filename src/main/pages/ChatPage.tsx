@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, ArrowUp, MessagesSquare, Sparkles, X } from "lucide-react";
+import { ArrowUp, MessagesSquare, X } from "lucide-react";
 import {
 	Conversation,
 	ConversationContent,
@@ -13,6 +13,7 @@ import {
 	LoadingScreen,
 	NoModelsScreen,
 	ChatInput,
+	ChatEmptyState,
 	useCurrentModel,
 	useChat,
 	ModelLoadPrompt,
@@ -20,10 +21,9 @@ import {
 	useSmartSelectContext,
 } from "@/main/modules/chat/components";
 import { MessageGroup } from "@/main/modules/chat/components/MessageGroup";
-import {
-	AgentIcon,
-	type AgentGreetingContext,
-	type AgentScreenContent,
+import type {
+	AgentGreetingContext,
+	AgentScreenContent,
 } from "@/components/AgentIcon";
 import { Button } from "@/main/components/ui/button";
 import { topicService } from "@/main/modules/topics/services/topic-service";
@@ -52,43 +52,6 @@ const RETRIEVAL_STEP_NAMES = new Set([
 	"context-llm-retrieve",
 	"structmem-retrieval",
 ]);
-
-const OPEN_SCREEN_AGENT_ICON_MOODS: NonNullable<
-	React.ComponentProps<typeof AgentIcon>["moods"]
-> = [
-	{ animation: "idle", duration: 4200 },
-	{ animation: "blink", duration: 3800 },
-	{ animation: "happy", duration: 4600 },
-	{ animation: "look-around", duration: 4300 },
-	{ animation: "thinking", duration: 5000 },
-	{ animation: "talk", duration: 4200 },
-	{ animation: "excited", duration: 4400 },
-	{ animation: "wink", duration: 4100 },
-	{ animation: "scan", duration: 4700 },
-	{ animation: "giggle", duration: 4500 },
-];
-
-const toAgentScreenContent = (
-	iconScreen: ReturnType<typeof getAgentIconScreenFromMetadata>,
-): AgentScreenContent | undefined =>
-	iconScreen
-		? {
-				kind: iconScreen.kind,
-				value: iconScreen.value,
-				color: iconScreen.color,
-				scale: iconScreen.kind === "emoji" ? 0.72 : 0.52,
-			}
-		: undefined;
-
-const buildOpenScreenMoods = (
-	screenContent: AgentScreenContent | undefined,
-): React.ComponentProps<typeof AgentIcon>["moods"] | undefined => {
-	if (!screenContent) return undefined;
-
-	return OPEN_SCREEN_AGENT_ICON_MOODS.map((mood, index) =>
-		index % 3 === 0 ? { ...mood, screenContent } : mood,
-	);
-};
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
@@ -568,9 +531,15 @@ export const ChatPage: React.FC = () => {
 		[agentFlows, selectedAgentFlowId],
 	);
 	const selectedAgentIconScreenContent = useMemo(() => {
-		return toAgentScreenContent(
-			getAgentIconScreenFromMetadata(selectedAgent?.metadata),
-		);
+		const iconScreen = getAgentIconScreenFromMetadata(selectedAgent?.metadata);
+		if (!iconScreen) return undefined;
+
+		return {
+			kind: iconScreen.kind,
+			value: iconScreen.value,
+			color: iconScreen.color,
+			scale: iconScreen.kind === "emoji" ? 0.72 : 0.52,
+		} satisfies AgentScreenContent;
 	}, [selectedAgent]);
 	const agentGreetingContext = useMemo<AgentGreetingContext>(
 		() => ({
@@ -586,10 +555,6 @@ export const ChatPage: React.FC = () => {
 			selectedAgentFeatureLabels,
 			selectedAgentFeatureNames,
 		],
-	);
-	const openScreenAgentMoods = useMemo(
-		() => buildOpenScreenMoods(selectedAgentIconScreenContent),
-		[selectedAgentIconScreenContent],
 	);
 	const shouldShowAgentBuilderCallout = agentFlows.length === 1;
 	const handleOpenAgentWizard = React.useCallback(() => {
@@ -688,40 +653,12 @@ export const ChatPage: React.FC = () => {
 						) : null}
 
 						{latestGroupIsEmpty ? (
-							<div className="flex min-h-[calc(100vh-15rem)] flex-1 flex-col items-center justify-center gap-5 py-12">
-								<AgentIcon
-									size={132}
-									aria-label="Agent"
-									moods={openScreenAgentMoods}
-									autoGreeting
-									greetingContext={agentGreetingContext}
-								/>
-								{shouldShowAgentBuilderCallout ? (
-									<button
-										type="button"
-										onClick={handleOpenAgentWizard}
-										className="group w-full max-w-md rounded-lg border border-blue-500/25 bg-blue-500/10 px-4 py-3 text-left shadow-[0_10px_30px_rgba(59,130,246,0.08)] transition-colors hover:border-blue-500/45 hover:bg-blue-500/15"
-									>
-										<span className="flex items-start gap-3">
-											<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-500/15 text-blue-500">
-												<Sparkles size={18} />
-											</span>
-											<span className="min-w-0 flex-1">
-												<span className="block text-sm font-semibold text-foreground">
-													{t("agentBuilderCallout.title")}
-												</span>
-												<span className="mt-1 block text-xs leading-5 text-muted-foreground">
-													{t("agentBuilderCallout.description")}
-												</span>
-											</span>
-											<ArrowRight
-												size={16}
-												className="mt-1 shrink-0 text-blue-500 transition-transform group-hover:translate-x-0.5"
-											/>
-										</span>
-									</button>
-								) : null}
-							</div>
+							<ChatEmptyState
+								screenContent={selectedAgentIconScreenContent}
+								greetingContext={agentGreetingContext}
+								showAgentBuilderCallout={shouldShowAgentBuilderCallout}
+								onOpenAgentWizard={handleOpenAgentWizard}
+							/>
 						) : latestGroup ? (
 							<MessageGroup
 								key={latestGroup.id}

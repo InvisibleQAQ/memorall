@@ -3,6 +3,7 @@ import { ANTHROPIC_DEFAULT_SKILLS } from "./anthropic";
 import { BUNDLED_DEFAULT_SKILLS } from "./bundled";
 import { SECONDSKY_DEFAULT_SKILLS } from "./secondsky";
 import { ANDREJ_KARPATHY_SKILLS } from "./andrej-karpathy";
+import { DESIGN_DEFAULT_SKILLS } from "./design";
 import { NEXU_DEFAULT_SKILLS } from "./nexu";
 import type { DefaultSkillManifestEntry } from "./types";
 
@@ -14,6 +15,7 @@ const DEFAULT_SKILL_MANIFEST = [
 	...BUNDLED_DEFAULT_SKILLS,
 	...ANDREJ_KARPATHY_SKILLS,
 	...NEXU_DEFAULT_SKILLS,
+	...DESIGN_DEFAULT_SKILLS,
 ];
 
 const defaultSkillIndex = new Map(
@@ -79,17 +81,24 @@ export const readDefaultSkill = async (
 			};
 		}
 
-		const response = await fetch(manifestEntry.rawUrl!);
-		if (!response.ok) {
-			throw new Error(
-				`Failed to load default skill "${name}" from ${manifestEntry.repo}: HTTP ${response.status}`,
-			);
-		}
+		const rawUrls =
+			manifestEntry.rawUrls ?? [manifestEntry.rawUrl].filter(Boolean);
+		const parts = await Promise.all(
+			rawUrls.map(async (rawUrl) => {
+				const response = await fetch(rawUrl!);
+				if (!response.ok) {
+					throw new Error(
+						`Failed to load default skill "${name}" from ${manifestEntry.repo}: HTTP ${response.status}`,
+					);
+				}
 
-		const text = await response.text();
+				return stripFrontmatter(await response.text());
+			}),
+		);
+
 		return {
 			...toSummary(manifestEntry),
-			body: stripFrontmatter(text),
+			body: parts.join("\n\n---\n\n"),
 		};
 	})();
 
