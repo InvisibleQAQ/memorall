@@ -284,8 +284,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 	return (
 		<TooltipProvider>
-			<div className="px-4 py-2 w-full flex-shrink-0">
-				<div className="max-w-3xl mx-auto relative">
+			<div className="w-full flex-shrink-0 bg-background/90 px-4 pb-4 pt-3 shadow-[0_-18px_45px_hsl(var(--background)/0.92)] backdrop-blur-xl">
+				<div className="relative mx-auto max-w-4xl">
 					<input
 						ref={fileInputRef}
 						type="file"
@@ -305,7 +305,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 						onSelect={handleSelectMention}
 					/>
 
-					<PromptInput onSubmit={handleSubmitWithImages}>
+					<PromptInput
+						className="divide-border/50 rounded-2xl border-border/70 bg-card/95 shadow-[0_18px_55px_hsl(var(--foreground)/0.10)]"
+						onSubmit={handleSubmitWithImages}
+					>
 						<div>
 							{hasAttachments && (
 								<AttachmentList
@@ -325,7 +328,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 									isModelReady ? t("input.placeholder") : t("model.notLoaded")
 								}
 								disabled={isLoading || !isModelReady}
-								className="!border-0 !border-t-0 !shadow-none focus:!border-0 focus:!ring-0 focus:!ring-offset-0 focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0"
+								className="min-h-[92px] !border-0 !border-t-0 px-4 py-4 text-[15px] leading-6 !shadow-none focus:!border-0 focus:!ring-0 focus:!ring-offset-0 focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0"
 							/>
 						</div>
 

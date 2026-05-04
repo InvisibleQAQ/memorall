@@ -21,7 +21,7 @@ import type { AgentIconMood } from "./agentIconTypes";
 import {
 	usePrefersReducedMotion,
 	useSmartAgentMood,
-} from "./use-smart-agent-mood";
+} from "./hooks/use-smart-agent-mood";
 
 export interface AgentIconProps
 	extends Omit<AgentIconCanvasProps, "animation" | "screenContent"> {

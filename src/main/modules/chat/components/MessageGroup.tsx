@@ -142,7 +142,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 			<div className="message-group">
 				{showCollapseControls && (
 					<div
-						className="flex items-center gap-2 py-2 mb-2 cursor-pointer hover:bg-accent/50 rounded-md px-2 -mx-2 transition-colors duration-150"
+						className="mb-3 flex cursor-pointer items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-2 shadow-sm transition-colors duration-150 hover:bg-accent/60"
 						onClick={toggleCollapsed}
 					>
 						<div className="text-muted-foreground hover:text-foreground transition-colors duration-150">
@@ -172,21 +172,21 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 				)}
 
 				{!isCollapsed && group.isLoaded && (
-					<div className="space-y-2">
+					<div className="space-y-5">
 						{messageComponents}
 						{inProgressMessageComponent}
 					</div>
 				)}
 
 				{displaySeparator || showLatestEmptyIcon ? (
-					<div className="my-4 flex flex-col items-center gap-3">
+					<div className="my-6 flex flex-col items-center gap-3">
 						{displaySeparator ? (
 							<div className="flex w-full items-center">
-								<div className="flex-1 border-t border-border"></div>
-								<div className="mx-4 text-xs font-medium text-muted-foreground">
+								<div className="flex-1 border-t border-border/60"></div>
+								<div className="mx-4 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
 									{separatorDate}
 								</div>
-								<div className="flex-1 border-t border-border"></div>
+								<div className="flex-1 border-t border-border/60"></div>
 							</div>
 						) : null}
 						{showLatestEmptyIcon ? (

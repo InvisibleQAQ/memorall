@@ -62,7 +62,6 @@ export const AgentCursorBubble: React.FC<AgentCursorBubbleProps> = ({
 }) => {
 	const content = (
 		<>
-			<span className="absolute -left-1 bottom-2 h-2.5 w-2.5 rotate-45 border-b border-l border-white/35 bg-background/70 backdrop-blur-md" />
 			<span className="relative line-clamp-2">{message}</span>
 		</>
 	);

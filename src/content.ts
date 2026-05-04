@@ -681,6 +681,7 @@ async function handleShowChatModal(
 		// Create new chat modal
 		createEmbeddedChatModal({
 			mode: message.mode || "general",
+			displayMode: message.displayMode,
 			pageUrl: window.location.href,
 			pageTitle: document.title,
 			contextOptions,

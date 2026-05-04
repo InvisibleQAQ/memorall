@@ -650,14 +650,14 @@ export const ChatPage: React.FC = () => {
 	}
 
 	return (
-		<div className="flex h-full bg-background">
+		<div className="flex h-full bg-background text-foreground [background-image:linear-gradient(180deg,hsl(var(--muted)/0.28)_0%,transparent_190px)]">
 			{isWideChatSidePanelVisible ? (
 				<ChatSidePanel
 					onShowConversationGroup={handleConversationGroupSelect}
 				/>
 			) : null}
-			<div className="flex flex-col flex-1 min-w-0">
-				<Conversation className="flex-1 min-h-0">
+			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+				<Conversation className="min-h-0 flex-1 bg-transparent">
 					{isCompactSidePanelAvailable ? (
 						<div className="absolute left-3 top-3 z-30">
 							<Button
@@ -679,7 +679,7 @@ export const ChatPage: React.FC = () => {
 								type="button"
 								variant="ghost"
 								size="sm"
-								className="pointer-events-auto h-8 rounded-full border border-border/70 bg-background/90 px-3 text-xs text-muted-foreground shadow-sm backdrop-blur hover:bg-accent/60 hover:text-foreground"
+								className="pointer-events-auto h-9 rounded-full border border-border/70 bg-background/90 px-4 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-xl hover:bg-accent/70 hover:text-foreground"
 								onClick={handlePreviousGroupsClick}
 							>
 								{showPreviousGroups ? (
@@ -698,7 +698,7 @@ export const ChatPage: React.FC = () => {
 									type="button"
 									variant="ghost"
 									size="icon"
-									className="pointer-events-auto ml-2 h-8 w-8 rounded-full border border-border/70 bg-background/90 text-muted-foreground shadow-sm backdrop-blur hover:bg-accent/60 hover:text-foreground"
+									className="pointer-events-auto ml-2 h-9 w-9 rounded-full border border-border/70 bg-background/90 text-muted-foreground shadow-sm backdrop-blur-xl hover:bg-accent/70 hover:text-foreground"
 									aria-label={t("history.hidePrevious")}
 									onClick={() => setShowPreviousGroups(false)}
 								>
@@ -707,9 +707,9 @@ export const ChatPage: React.FC = () => {
 							) : null}
 						</div>
 					) : null}
-					<ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col space-y-6">
+					<ConversationContent className="mx-auto flex min-h-full w-full max-w-4xl flex-col space-y-8 px-4 pb-8 pt-16 sm:px-6 lg:px-8">
 						{showPreviousGroups ? (
-							<div className="space-y-6">{completedMessageGroups}</div>
+							<div className="space-y-8">{completedMessageGroups}</div>
 						) : null}
 
 						{latestGroupIsEmpty ? (

@@ -13,9 +13,11 @@ export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 export const Message = ({ className, from, ...props }: MessageProps) => (
 	<div
 		className={cn(
-			"group flex w-full items-end justify-end gap-2 py-0",
-			from === "user" ? "is-user" : "is-assistant flex-row-reverse justify-end",
-			from === "user" ? "[&>div]:max-w-[80%]" : "[&>div]:max-w-full",
+			"group flex w-full items-end gap-2 py-0",
+			from === "user" ? "is-user justify-end" : "is-assistant justify-start",
+			from === "user"
+				? "[&>div]:max-w-[min(82%,42rem)]"
+				: "[&>div]:max-w-[min(100%,50rem)]",
 			className,
 		)}
 		{...props}
@@ -31,14 +33,14 @@ export const MessageContent = ({
 }: MessageContentProps) => (
 	<div
 		className={cn(
-			"flex flex-col gap-2 overflow-hidden rounded-lg text-foreground text-sm",
-			"group-[.is-user]:bg-transparent group-[.is-user]:border group-[.is-user]:border-border group-[.is-user]:px-4 group-[.is-user]:py-3",
-			"group-[.is-assistant]:bg-secondary group-[.is-assistant]:px-4 group-[.is-assistant]:py-3",
+			"relative flex flex-col gap-2 overflow-hidden text-sm leading-relaxed transition-colors",
+			"group-[.is-user]:rounded-2xl group-[.is-user]:rounded-br-md group-[.is-user]:border group-[.is-user]:border-border/60 group-[.is-user]:bg-background/45 group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground group-[.is-user]:shadow-sm",
+			"group-[.is-assistant]:rounded-2xl group-[.is-assistant]:rounded-bl-md group-[.is-assistant]:border group-[.is-assistant]:border-border/70 group-[.is-assistant]:bg-card/95 group-[.is-assistant]:px-5 group-[.is-assistant]:py-4 group-[.is-assistant]:text-card-foreground group-[.is-assistant]:shadow-sm",
 			className,
 		)}
 		{...props}
 	>
-		<div className="is-user:dark whitespace-pre-wrap">{children}</div>
+		<div className="whitespace-pre-wrap break-words">{children}</div>
 	</div>
 );
 

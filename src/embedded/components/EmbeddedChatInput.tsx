@@ -58,7 +58,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 	];
 
 	return (
-		<div className="border-t p-3 flex-shrink-0">
+		<div className="memorall-composer">
 			<PromptInput onSubmit={onSubmit}>
 				<PromptInputTextarea
 					value={inputValue}
@@ -71,16 +71,16 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 					disabled={isTyping || !modelAvailable}
 				/>
 				<PromptInputToolbar>
-					<div className="flex items-center gap-2 min-w-0 flex-1">
+					<div className="memorall-composer-row">
 						{/* Scrollable tools container */}
-						<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+						<div className="memorall-composer-scroll">
 							<PromptInputTools>
-								<div className="flex items-center gap-1.5">
+								<div className="memorall-select-wrap">
 									<select
 										value={selectedAgentFlowId}
 										onChange={(e) => setSelectedAgentFlowId(e.target.value)}
 										disabled={isTyping}
-										className="text-xs px-2 py-1 rounded-md border bg-background text-foreground border-border min-w-24 hover:border-accent-foreground focus:border-primary focus:outline-none"
+										className="memorall-select"
 										onKeyDown={(e) => e.stopPropagation()}
 										onKeyUp={(e) => e.stopPropagation()}
 										onKeyPress={(e) => e.stopPropagation()}
@@ -95,12 +95,12 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 
 								{/* Topic Selector - Only show when in knowledge mode */}
 								{isKnowledgeMode && (
-									<div className="flex items-center gap-1.5">
+									<div className="memorall-select-wrap">
 										<select
 											value={selectedTopic}
 											onChange={(e) => setSelectedTopic(e.target.value)}
 											disabled={topicsLoading}
-											className="text-xs px-2 py-1 rounded-md border bg-background text-foreground border-border min-w-24 hover:border-accent-foreground focus:border-primary focus:outline-none"
+											className="memorall-select"
 											onKeyDown={(e) => e.stopPropagation()}
 											onKeyUp={(e) => e.stopPropagation()}
 											onKeyPress={(e) => e.stopPropagation()}
@@ -125,7 +125,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 									<button
 										type="button"
 										onClick={onOpenSettings}
-										className="flex items-center justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+										className="memorall-icon-button memorall-icon-button--compact"
 										onKeyDown={(e) => e.stopPropagation()}
 										onKeyUp={(e) => e.stopPropagation()}
 										onKeyPress={(e) => e.stopPropagation()}
@@ -155,12 +155,12 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 							</PromptInputTools>
 						</div>
 						{/* Actions and Submit button */}
-						<div className="flex items-center gap-2 flex-shrink-0">
+						<div className="memorall-composer-actions">
 							{/* Clear Chat Button */}
 							{messages.length > 0 && (
 								<button
 									onClick={onDeleteChat}
-									className="flex items-center justify-center p-2 text-red-600 hover:text-white hover:bg-red-600 rounded-md transition-colors"
+									className="memorall-icon-button memorall-icon-button--danger memorall-icon-button--compact"
 									onKeyDown={(e) => e.stopPropagation()}
 									onKeyUp={(e) => e.stopPropagation()}
 									onKeyPress={(e) => e.stopPropagation()}

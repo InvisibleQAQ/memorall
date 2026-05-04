@@ -1,8 +1,15 @@
-import { Loader } from "lucide-react";
+import {
+	ExternalLink,
+	Loader,
+	MessageCircle,
+	PanelRight,
+	SquarePen,
+} from "lucide-react";
 import React, { type FormEventHandler } from "react";
 import { CloseIcon } from "./Icons";
 import { EMBEDDED_TRANSLATIONS } from "../language";
 import { DEFAULT_LANGUAGE } from "@/constants/language";
+import type { EmbeddedChatDisplayMode } from "@/embedded/types";
 
 // Workflow type (matches api-types from workflows module)
 export interface Workflow {
@@ -50,7 +57,7 @@ export const ConversationContent: React.FC<{
 	className?: string;
 	children: React.ReactNode;
 }> = ({ className, children }) => (
-	<div className={`overflow-y-auto px-4 py-4 ${className || ""}`}>
+	<div className={`memorall-conversation-content ${className || ""}`}>
 		{children}
 	</div>
 );
@@ -59,24 +66,14 @@ export const Message: React.FC<{
 	role: "user" | "assistant";
 	children: React.ReactNode;
 }> = ({ role, children }) => (
-	<div
-		className={`flex flex-col gap-2 ${role === "user" ? "items-end" : "items-start"}`}
-	>
-		{children}
-	</div>
+	<div className={`memorall-message memorall-message--${role}`}>{children}</div>
 );
 
 export const MessageContent: React.FC<{
 	role: "user" | "assistant";
 	children: React.ReactNode;
 }> = ({ role, children }) => (
-	<div
-		className={`text-sm ${
-			role === "user"
-				? "ml-auto bg-primary text-primary-foreground p-3 rounded-lg max-w-[85%]"
-				: "text-foreground max-w-[100%]"
-		}`}
-	>
+	<div className={`memorall-message-content memorall-message-content--${role}`}>
 		{children}
 	</div>
 );
@@ -173,10 +170,7 @@ export const PromptInput: React.FC<{
 	onSubmit: FormEventHandler<HTMLFormElement>;
 	children: React.ReactNode;
 }> = ({ onSubmit, children }) => (
-	<form
-		onSubmit={onSubmit}
-		className="relative border rounded-lg bg-background"
-	>
+	<form onSubmit={onSubmit} className="memorall-prompt-input">
 		{children}
 	</form>
 );
@@ -192,7 +186,7 @@ export const PromptInputTextarea: React.FC<{
 		onChange={onChange}
 		placeholder={placeholder}
 		disabled={disabled}
-		className="w-full resize-none border-0 bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 min-h-[50px] max-h-32"
+		className="memorall-prompt-textarea"
 		onKeyDown={(e) => {
 			// Stop all keyboard events from propagating to the host page
 			e.stopPropagation();
@@ -218,15 +212,11 @@ export const PromptInputTextarea: React.FC<{
 
 export const PromptInputToolbar: React.FC<{ children: React.ReactNode }> = ({
 	children,
-}) => (
-	<div className="flex items-center justify-between border-t px-3 py-2">
-		{children}
-	</div>
-);
+}) => <div className="memorall-prompt-toolbar">{children}</div>;
 
 export const PromptInputTools: React.FC<{ children: React.ReactNode }> = ({
 	children,
-}) => <div className="flex items-center gap-1">{children}</div>;
+}) => <div className="memorall-prompt-tools">{children}</div>;
 
 // Simple Workflow Select Component
 export const WorkflowDropdown: React.FC<{
@@ -294,12 +284,14 @@ export const PromptInputSubmit: React.FC<{
 		type={status === "streaming" ? "button" : "submit"}
 		disabled={disabled}
 		onClick={status === "streaming" ? onStop : undefined}
-		className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-3"
+		className="memorall-submit-button"
+		aria-label={status === "streaming" ? texts.stop : texts.send}
+		title={status === "streaming" ? texts.stop : texts.send}
 	>
 		{status === "streaming" ? (
 			<>
 				<Loader size={14} />
-				<span className="ml-1">{texts.stop}</span>
+				<span>{texts.stop}</span>
 			</>
 		) : (
 			texts.send
@@ -310,6 +302,9 @@ export const PromptInputSubmit: React.FC<{
 // Header Component
 interface ChatHeaderProps {
 	mode: "general" | "topic" | "recall";
+	displayMode: EmbeddedChatDisplayMode;
+	onToggleDisplayMode: () => void;
+	onNewChat: () => void;
 	onOpenFullVersion: () => void;
 	onClose: () => void;
 	modelId?: string;
@@ -319,7 +314,9 @@ interface ChatHeaderProps {
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
-	mode,
+	displayMode,
+	onToggleDisplayMode,
+	onNewChat,
 	onOpenFullVersion,
 	onClose,
 	modelId,
@@ -327,66 +324,79 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 	modelAvailable,
 	texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].messageControl,
 }) => {
+	const displayToggleLabel =
+		displayMode === "panel" ? texts.switchToPopup : texts.switchToPanel;
+
 	return (
-		<div className="border-b bg-muted/50 px-4 py-3 flex-shrink-0">
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3 min-w-0 flex-1">
+		<div className="memorall-chat-header">
+			<div className="memorall-chat-header-inner">
+				<div className="memorall-chat-title">
 					<img
 						src={chrome.runtime.getURL("logo.png")}
 						alt="Memorall"
-						className="w-6 h-6 flex-shrink-0"
+						className="memorall-chat-logo"
 					/>
-					<span className="font-semibold text-base flex-shrink-0">
-						{texts.recall}
-					</span>
+					<span className="memorall-chat-brand">{texts.recall}</span>
 					{modelAvailable && modelId && provider ? (
-						<div className="flex items-center gap-1 text-xs min-w-0">
-							<div className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-							<span className="text-foreground font-medium truncate min-w-0 flex-1">
-								{modelId}
-							</span>
+						<div className="memorall-model-chip memorall-model-chip--ready">
+							<div className="memorall-model-dot" />
+							<span className="memorall-model-name">{modelId}</span>
 						</div>
 					) : (
-						<div className="flex items-center gap-1 text-xs">
-							<div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-							<span className="text-muted-foreground">{texts.noModel}</span>
+						<div className="memorall-model-chip memorall-model-chip--empty">
+							<div className="memorall-model-dot" />
+							<span>{texts.noModel}</span>
 						</div>
 					)}
 				</div>
-				<div className="flex items-center gap-1">
+				<div className="memorall-header-actions">
+					<button
+						onClick={onNewChat}
+						className="memorall-icon-button"
+						aria-label={texts.newChat}
+						title={texts.newChat}
+						onKeyDown={(e) => e.stopPropagation()}
+						onKeyUp={(e) => e.stopPropagation()}
+						onKeyPress={(e) => e.stopPropagation()}
+					>
+						<SquarePen size={16} />
+					</button>
+					<button
+						onClick={onToggleDisplayMode}
+						className="memorall-icon-button"
+						aria-label={displayToggleLabel}
+						title={displayToggleLabel}
+						onKeyDown={(e) => e.stopPropagation()}
+						onKeyUp={(e) => e.stopPropagation()}
+						onKeyPress={(e) => e.stopPropagation()}
+					>
+						{displayMode === "panel" ? (
+							<MessageCircle size={16} />
+						) : (
+							<PanelRight size={16} />
+						)}
+					</button>
 					<button
 						onClick={onOpenFullVersion}
-						className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
+						className="memorall-icon-button"
 						aria-label={texts.openFullVersion}
 						title={texts.openFullVersion}
 						onKeyDown={(e) => e.stopPropagation()}
 						onKeyUp={(e) => e.stopPropagation()}
 						onKeyPress={(e) => e.stopPropagation()}
 					>
-						<svg
-							className="w-4 h-4"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={2}
-								d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-							/>
-						</svg>
+						<ExternalLink size={16} />
 					</button>
 					<button
 						onClick={onClose}
-						className="h-8 w-8 p-0 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
+						className="memorall-icon-button"
 						aria-label={texts.close}
 						title={texts.close}
 						onKeyDown={(e) => e.stopPropagation()}
 						onKeyUp={(e) => e.stopPropagation()}
 						onKeyPress={(e) => e.stopPropagation()}
 					>
-						<CloseIcon className="w-4 h-4" />
+						<CloseIcon className="memorall-icon" />
 					</button>
 				</div>
 			</div>

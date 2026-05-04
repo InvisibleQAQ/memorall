@@ -74,6 +74,7 @@ export const AgentSpeechBubble: React.FC<AgentSpeechBubbleProps> = ({
 	const tone = bubble.tone ?? "neutral";
 	const isThought = variant === "thought";
 	const characterCount = Math.max(message.length, 1);
+	const shouldTypewrite = !reducedMotion && characterCount <= 36;
 
 	return (
 		<div
@@ -99,8 +100,10 @@ export const AgentSpeechBubble: React.FC<AgentSpeechBubbleProps> = ({
 				<span
 					key={message}
 					className={cn(
-						"relative z-[1] inline-block max-w-[12rem] overflow-hidden whitespace-nowrap pr-1 align-bottom",
-						!reducedMotion && "agent-speech-bubble-type",
+						"relative z-[1] inline-block max-w-[12rem] align-bottom",
+						shouldTypewrite
+							? "overflow-hidden whitespace-nowrap pr-1 agent-speech-bubble-type"
+							: "whitespace-normal break-words",
 					)}
 					style={
 						{

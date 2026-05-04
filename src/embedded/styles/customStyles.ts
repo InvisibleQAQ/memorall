@@ -718,6 +718,1154 @@ export const customStyles = `
     animation-duration: 300ms !important;
   }
 
+  /* Memorall embedded chat shell */
+  .memorall-chat-container .memorall-embedded-root {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 999999 !important;
+    pointer-events: none !important;
+    font-family: inherit !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell {
+    position: fixed !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    border-color: hsl(var(--border)) !important;
+    box-shadow:
+      0 18px 56px rgba(0, 0, 0, 0.22),
+      0 2px 12px rgba(0, 0, 0, 0.12) !important;
+    pointer-events: auto !important;
+    animation: slideInFromRight 220ms ease-out both !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--panel {
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: clamp(380px, 32vw, 520px) !important;
+    max-width: calc(100vw - 16px) !important;
+    border-left: 1px solid hsl(var(--border)) !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--popup {
+    right: 12px !important;
+    bottom: 12px !important;
+    width: min(420px, calc(100vw - 24px)) !important;
+    height: min(640px, calc(100vh - 24px)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--smart {
+    top: 12px !important;
+    right: 12px !important;
+    bottom: auto !important;
+    width: min(340px, calc(100vw - 24px)) !important;
+    height: auto !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--background) / 0.96) !important;
+    backdrop-filter: blur(12px) !important;
+  }
+
+  .memorall-chat-container .memorall-chat-header {
+    flex-shrink: 0 !important;
+    border-bottom: 1px solid hsl(var(--border)) !important;
+    background: hsl(var(--background) / 0.96) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .memorall-chat-container .memorall-chat-header-inner {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    min-height: 52px !important;
+    padding: 8px 12px !important;
+  }
+
+  .memorall-chat-container .memorall-chat-title {
+    display: flex !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-chat-logo,
+  .memorall-chat-container .memorall-empty-logo-image {
+    width: 24px !important;
+    height: 24px !important;
+    object-fit: contain !important;
+    flex-shrink: 0 !important;
+  }
+
+  .memorall-chat-container .memorall-chat-brand {
+    flex-shrink: 0 !important;
+    color: hsl(var(--foreground)) !important;
+    font-size: 14px !important;
+    font-weight: 650 !important;
+    line-height: 1 !important;
+  }
+
+  .memorall-chat-container .memorall-model-chip {
+    display: inline-flex !important;
+    min-width: 0 !important;
+    max-width: 52% !important;
+    align-items: center !important;
+    gap: 6px !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 999px !important;
+    padding: 4px 8px !important;
+    background: hsl(var(--muted) / 0.55) !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+  }
+
+  .memorall-chat-container .memorall-model-dot {
+    width: 6px !important;
+    height: 6px !important;
+    flex-shrink: 0 !important;
+    border-radius: 999px !important;
+    background: hsl(142 70% 45%) !important;
+  }
+
+  .memorall-chat-container .memorall-model-chip--empty .memorall-model-dot {
+    background: hsl(0 84% 60%) !important;
+  }
+
+  .memorall-chat-container .memorall-model-name {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .memorall-chat-container .memorall-header-actions,
+  .memorall-chat-container .memorall-composer-actions {
+    display: flex !important;
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  .memorall-chat-container .memorall-icon-button {
+    display: inline-flex !important;
+    width: 40px !important;
+    height: 40px !important;
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    color: hsl(var(--muted-foreground)) !important;
+    cursor: pointer !important;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease,
+      transform 150ms ease !important;
+  }
+
+  .memorall-chat-container .memorall-icon-button:hover {
+    background: hsl(var(--muted)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-icon-button:focus-visible,
+  .memorall-chat-container .memorall-submit-button:focus-visible,
+  .memorall-chat-container .memorall-suggested-prompt:focus-visible,
+  .memorall-chat-container .memorall-context-cta:focus-visible {
+    outline: 2px solid hsl(var(--ring)) !important;
+    outline-offset: 2px !important;
+  }
+
+  .memorall-chat-container .memorall-icon-button--compact {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .memorall-chat-container .memorall-icon-button--danger:hover {
+    background: hsl(0 84% 60%) !important;
+    color: white !important;
+  }
+
+  .memorall-chat-container .memorall-icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .memorall-chat-container .memorall-conversation-content {
+    min-height: 100% !important;
+    overflow-y: auto !important;
+    padding: 18px 16px !important;
+  }
+
+  .memorall-chat-container .memorall-message {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-message--user {
+    align-items: flex-end !important;
+  }
+
+  .memorall-chat-container .memorall-message--assistant {
+    align-items: flex-start !important;
+  }
+
+  .memorall-chat-container .memorall-message-content {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    font-size: 13px !important;
+    line-height: 1.55 !important;
+  }
+
+  .memorall-chat-container .memorall-message-content--user {
+    max-width: 86% !important;
+    border: 1px solid hsl(var(--primary) / 0.18) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    padding: 10px 12px !important;
+    text-align: left !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .memorall-chat-container .memorall-submit-button *,
+  .memorall-chat-container .memorall-user-text {
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-user-text--with-context {
+    overflow-wrap: anywhere !important;
+    line-height: 1.45 !important;
+  }
+
+  .memorall-chat-container .memorall-user-context {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-user-text-card {
+    border-color: hsl(var(--border)) !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-user-context-card {
+    border-color: hsl(var(--border)) !important;
+    background: hsl(var(--card)) !important;
+    color: hsl(var(--card-foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-user-context-card-header {
+    background: hsl(var(--card)) !important;
+    color: hsl(var(--card-foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-user-context-card-header:hover,
+  .memorall-chat-container .memorall-user-context-icon-button:hover {
+    background: hsl(var(--accent)) !important;
+  }
+
+  .memorall-chat-container .memorall-user-context-card-title,
+  .memorall-chat-container .memorall-user-context-pre {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-user-context-card-subtitle,
+  .memorall-chat-container .memorall-user-context-card-icon {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-user-context-expanded {
+    background: hsl(var(--muted) / 0.3) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-message-content--assistant {
+    width: 100% !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-assistant-content {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .memorall-chat-container .memorall-markdown {
+    color: hsl(var(--foreground)) !important;
+    font-size: 14px !important;
+    line-height: 1.65 !important;
+  }
+
+  .memorall-chat-container .memorall-markdown > *:first-child {
+    margin-top: 0 !important;
+  }
+
+  .memorall-chat-container .memorall-markdown > *:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  .memorall-chat-container .memorall-markdown p,
+  .memorall-chat-container .memorall-markdown ul,
+  .memorall-chat-container .memorall-markdown ol,
+  .memorall-chat-container .memorall-markdown blockquote,
+  .memorall-chat-container .memorall-markdown pre,
+  .memorall-chat-container .memorall-markdown table {
+    margin: 0 0 12px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown h1,
+  .memorall-chat-container .memorall-markdown h2,
+  .memorall-chat-container .memorall-markdown h3 {
+    margin: 18px 0 8px !important;
+    color: hsl(var(--foreground)) !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+  }
+
+  .memorall-chat-container .memorall-markdown h1 {
+    font-size: 20px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown h2 {
+    font-size: 17px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown h3 {
+    font-size: 15px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown ul,
+  .memorall-chat-container .memorall-markdown ol {
+    padding-left: 22px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown li {
+    margin: 4px 0 !important;
+    padding-left: 2px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown a {
+    color: hsl(211 90% 56%) !important;
+    text-decoration: underline !important;
+    text-underline-offset: 2px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown blockquote {
+    border-left: 3px solid hsl(var(--border)) !important;
+    color: hsl(var(--muted-foreground)) !important;
+    padding-left: 12px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown-inline-code {
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 5px !important;
+    background: hsl(var(--muted) / 0.75) !important;
+    color: hsl(var(--foreground)) !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-size: 0.88em !important;
+    padding: 1px 5px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown-codeblock {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--muted) / 0.55) !important;
+    padding: 12px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown-codeblock code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-size: 12px !important;
+    white-space: pre !important;
+  }
+
+  .memorall-chat-container .memorall-markdown-table-wrap {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 0 !important;
+  }
+
+  .memorall-chat-container .memorall-markdown th,
+  .memorall-chat-container .memorall-markdown td {
+    border-bottom: 1px solid hsl(var(--border)) !important;
+    padding: 8px 10px !important;
+    text-align: left !important;
+    vertical-align: top !important;
+  }
+
+  .memorall-chat-container .memorall-markdown th {
+    background: hsl(var(--muted) / 0.75) !important;
+    font-weight: 650 !important;
+  }
+
+  .memorall-chat-container .memorall-markdown tr:last-child td {
+    border-bottom: 0 !important;
+  }
+
+  .memorall-chat-container .memorall-markdown img {
+    max-width: 100% !important;
+    height: auto !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-markdown-checkbox {
+    display: inline-flex !important;
+    width: 14px !important;
+    height: 14px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 4px !important;
+    background: hsl(var(--muted) / 0.45) !important;
+    color: hsl(var(--foreground)) !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    margin-right: 6px !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary {
+    width: 100% !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--muted) / 0.35) !important;
+    padding: 9px 10px !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary-main {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    list-style: none !important;
+    cursor: default !important;
+  }
+
+  .memorall-chat-container details.memorall-tool-summary .memorall-tool-summary-main {
+    cursor: pointer !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary-main::-webkit-details-marker {
+    display: none !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary-dot {
+    width: 7px !important;
+    height: 7px !important;
+    flex-shrink: 0 !important;
+    border-radius: 999px !important;
+    background: hsl(142 70% 45%) !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary-dot--active {
+    background: hsl(211 90% 56%) !important;
+    box-shadow: 0 0 0 3px hsl(211 90% 56% / 0.16) !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary-title {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary-status {
+    flex-shrink: 0 !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 999px !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    padding: 4px 7px !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary-description {
+    margin-top: 6px !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+
+  .memorall-chat-container .memorall-tool-summary-code {
+    max-height: 180px !important;
+    overflow: auto !important;
+    margin: 8px 0 0 !important;
+    border-radius: 6px !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-size: 11px !important;
+    padding: 8px !important;
+    white-space: pre-wrap !important;
+  }
+
+  .memorall-chat-container .memorall-artifact-card {
+    width: 100% !important;
+    overflow: hidden !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--card)) !important;
+  }
+
+  .memorall-chat-container .memorall-artifact-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    border-bottom: 1px solid hsl(var(--border)) !important;
+    padding: 9px 10px !important;
+  }
+
+  .memorall-chat-container .memorall-artifact-title {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+  }
+
+  .memorall-chat-container .memorall-artifact-open {
+    flex-shrink: 0 !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 7px !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    padding: 5px 8px !important;
+  }
+
+  .memorall-chat-container .memorall-artifact-frame {
+    display: block !important;
+    width: 100% !important;
+    height: 300px !important;
+    border: 0 !important;
+    background: white !important;
+  }
+
+  .memorall-chat-container .memorall-artifact-frame--url {
+    height: 240px !important;
+    border-top: 1px solid hsl(var(--border)) !important;
+  }
+
+  .memorall-chat-container .memorall-artifact-url-text {
+    overflow-wrap: anywhere !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 12px !important;
+    padding: 10px !important;
+  }
+
+  .memorall-chat-container .memorall-empty-state {
+    display: flex !important;
+    min-height: 100% !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 28px 18px !important;
+    text-align: center !important;
+  }
+
+  .memorall-chat-container .memorall-empty-logo {
+    display: flex !important;
+    width: 48px !important;
+    height: 48px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 999px !important;
+    background: hsl(var(--muted)) !important;
+    margin-bottom: 12px !important;
+  }
+
+  .memorall-chat-container .memorall-empty-kicker {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+    margin-bottom: 6px !important;
+  }
+
+  .memorall-chat-container .memorall-empty-title {
+    margin: 0 0 8px !important;
+    color: hsl(var(--foreground)) !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+  }
+
+  .memorall-chat-container .memorall-empty-description {
+    max-width: 320px !important;
+    margin: 0 !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 12px !important;
+    line-height: 1.55 !important;
+  }
+
+  .memorall-chat-container .memorall-suggested-prompts {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    margin-top: 16px !important;
+  }
+
+  .memorall-chat-container .memorall-suggested-prompt,
+  .memorall-chat-container .memorall-context-cta {
+    min-height: 34px !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    padding: 8px 10px !important;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease !important;
+  }
+
+  .memorall-chat-container .memorall-suggested-prompt:hover,
+  .memorall-chat-container .memorall-context-cta:hover {
+    border-color: hsl(var(--primary) / 0.35) !important;
+    background: hsl(var(--muted)) !important;
+  }
+
+  .memorall-chat-container .memorall-context-cta {
+    margin-top: 12px !important;
+    background: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-composer {
+    flex-shrink: 0 !important;
+    border-top: 1px solid hsl(var(--border)) !important;
+    background: hsl(var(--background)) !important;
+    padding: 10px !important;
+  }
+
+  .memorall-chat-container .memorall-prompt-input {
+    position: relative !important;
+    overflow: hidden !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--background)) !important;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03) !important;
+  }
+
+  .memorall-chat-container .memorall-prompt-input:focus-within {
+    border-color: hsl(var(--ring)) !important;
+  }
+
+  .memorall-chat-container .memorall-prompt-textarea {
+    display: block !important;
+    width: 100% !important;
+    min-height: 64px !important;
+    max-height: 144px !important;
+    resize: none !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: hsl(var(--foreground)) !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+    outline: none !important;
+    padding: 10px 12px !important;
+  }
+
+  .memorall-chat-container .memorall-prompt-textarea:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.55 !important;
+  }
+
+  .memorall-chat-container .memorall-prompt-toolbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    border-top: 1px solid hsl(var(--border)) !important;
+    padding: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-composer-row {
+    display: flex !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-composer-scroll {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .memorall-chat-container .memorall-composer-scroll::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .memorall-chat-container .memorall-prompt-tools {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  .memorall-chat-container .memorall-select-wrap {
+    min-width: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .memorall-chat-container .memorall-select {
+    max-width: 156px !important;
+    min-height: 34px !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    outline: none !important;
+    padding: 0 28px 0 10px !important;
+  }
+
+  .memorall-chat-container .memorall-select:focus {
+    border-color: hsl(var(--ring)) !important;
+  }
+
+  .memorall-chat-container .memorall-submit-button {
+    display: inline-flex !important;
+    min-width: 58px !important;
+    height: 36px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    padding: 0 12px !important;
+    transition:
+      opacity 150ms ease,
+      transform 150ms ease !important;
+  }
+
+  .memorall-chat-container .memorall-submit-button:not(:disabled):hover {
+    transform: translateY(-1px) !important;
+  }
+
+  .memorall-chat-container .memorall-submit-button:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.5 !important;
+  }
+
+  .memorall-chat-container .memorall-context-section {
+    flex-shrink: 0 !important;
+    max-height: min(300px, 38vh) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    border-top: 1px solid hsl(var(--border)) !important;
+    background: hsl(var(--muted) / 0.24) !important;
+    padding: 12px 14px !important;
+  }
+
+  .memorall-chat-container .memorall-context-reveal {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+    border-top: 1px solid hsl(var(--border)) !important;
+    background: hsl(var(--muted) / 0.18) !important;
+    padding: 8px 12px !important;
+  }
+
+  .memorall-chat-container .memorall-context-reveal-button,
+  .memorall-chat-container .memorall-context-reveal-smart-button {
+    display: inline-flex !important;
+    min-height: 34px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    color: hsl(var(--muted-foreground)) !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+    line-height: 1 !important;
+    padding: 0 10px !important;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease !important;
+  }
+
+  .memorall-chat-container .memorall-context-reveal-smart-button {
+    flex-shrink: 0 !important;
+    border-color: hsl(var(--border)) !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    font-weight: 700 !important;
+    padding: 0 12px !important;
+  }
+
+  .memorall-chat-container .memorall-context-reveal-button:hover,
+  .memorall-chat-container .memorall-context-reveal-smart-button:hover {
+    border-color: hsl(var(--border)) !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-context-reveal-smart-button:hover {
+    border-color: hsl(var(--primary) / 0.28) !important;
+    background: hsl(var(--muted)) !important;
+  }
+
+  .memorall-chat-container .memorall-context-reveal-icon {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .memorall-chat-container .memorall-context-section::-webkit-scrollbar {
+    width: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-context-section::-webkit-scrollbar-thumb {
+    border: 2px solid transparent !important;
+    border-radius: 999px !important;
+    background: hsl(var(--muted-foreground) / 0.24) !important;
+    background-clip: content-box !important;
+  }
+
+  .memorall-chat-container .memorall-context-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .memorall-chat-container .memorall-context-title-wrap {
+    display: flex !important;
+    min-width: 0 !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-context-toggle,
+  .memorall-chat-container .memorall-context-preview-button {
+    display: inline-flex !important;
+    width: 30px !important;
+    height: 30px !important;
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    color: hsl(var(--muted-foreground)) !important;
+    cursor: pointer !important;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease !important;
+  }
+
+  .memorall-chat-container .memorall-context-toggle:hover,
+  .memorall-chat-container .memorall-context-preview-button:hover {
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-context-toggle-icon,
+  .memorall-chat-container .memorall-smart-select-icon {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .memorall-chat-container .memorall-context-title {
+    overflow: hidden !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+    line-height: 1.2 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .memorall-chat-container .memorall-context-actions {
+    display: flex !important;
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-smart-select-button {
+    display: inline-flex !important;
+    min-height: 36px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    padding: 0 12px !important;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease !important;
+  }
+
+  .memorall-chat-container .memorall-smart-select-button:hover {
+    border-color: hsl(var(--primary) / 0.28) !important;
+    background: hsl(var(--muted)) !important;
+  }
+
+  .memorall-chat-container .memorall-context-group {
+    margin-top: 10px !important;
+  }
+
+  .memorall-chat-container .memorall-context-group:first-of-type {
+    margin-top: 0 !important;
+  }
+
+  .memorall-chat-container .memorall-context-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-context-grid--attached {
+    grid-template-columns: 1fr !important;
+  }
+
+  .memorall-chat-container .memorall-context-tile {
+    display: flex !important;
+    min-width: 0 !important;
+    min-height: 48px !important;
+    align-items: center !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--background)) !important;
+    padding: 8px 8px 8px 10px !important;
+  }
+
+  .memorall-chat-container .memorall-context-tile--attached {
+    background: hsl(var(--muted) / 0.34) !important;
+  }
+
+  .memorall-chat-container .memorall-context-attach-button {
+    display: flex !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: hsl(var(--foreground)) !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    padding: 0 !important;
+    text-align: left !important;
+  }
+
+  .memorall-chat-container .memorall-context-attach-button:hover .memorall-context-label {
+    color: hsl(var(--primary)) !important;
+  }
+
+  .memorall-chat-container .memorall-context-label,
+  .memorall-chat-container .memorall-context-attached-label-wrap {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .memorall-chat-container .memorall-context-attached-label-wrap {
+    flex: 1 1 auto !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+  }
+
+  .memorall-chat-container .memorall-context-attach-text {
+    flex-shrink: 0 !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+  }
+
+  .memorall-chat-container .memorall-attached-title {
+    margin-bottom: 8px !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0 !important;
+    text-transform: uppercase !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--popup .memorall-context-section {
+    max-height: min(250px, 34vh) !important;
+    padding: 10px 12px !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--popup .memorall-context-header {
+    margin-bottom: 8px !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--popup .memorall-context-grid {
+    gap: 7px !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--popup .memorall-context-tile {
+    min-height: 44px !important;
+    padding: 7px 7px 7px 9px !important;
+  }
+
+  @media (max-width: 720px) {
+    .memorall-chat-container .memorall-chat-shell--panel,
+    .memorall-chat-container .memorall-chat-shell--popup {
+      top: 8px !important;
+      right: 8px !important;
+      bottom: 8px !important;
+      left: 8px !important;
+      width: auto !important;
+      height: auto !important;
+      max-width: none !important;
+      border: 1px solid hsl(var(--border)) !important;
+      border-radius: 8px !important;
+    }
+
+    .memorall-chat-container .memorall-chat-header-inner {
+      min-height: 50px !important;
+      padding: 6px 8px !important;
+    }
+
+    .memorall-chat-container .memorall-model-chip {
+      max-width: 42% !important;
+    }
+
+    .memorall-chat-container .memorall-icon-button {
+      width: 44px !important;
+      height: 44px !important;
+    }
+
+    .memorall-chat-container .memorall-composer-row {
+      align-items: flex-end !important;
+    }
+
+    .memorall-chat-container .memorall-select {
+      max-width: 132px !important;
+    }
+
+    .memorall-chat-container .memorall-context-section {
+      max-height: min(230px, 32vh) !important;
+      padding: 10px 12px !important;
+    }
+
+    .memorall-chat-container .memorall-context-reveal {
+      padding: 7px 12px !important;
+    }
+
+    .memorall-chat-container .memorall-context-reveal-button {
+      min-height: 32px !important;
+      padding: 0 9px !important;
+    }
+
+    .memorall-chat-container .memorall-context-reveal-smart-button {
+      min-height: 32px !important;
+      padding: 0 10px !important;
+    }
+
+    .memorall-chat-container .memorall-context-header {
+      gap: 8px !important;
+      margin-bottom: 8px !important;
+    }
+
+    .memorall-chat-container .memorall-context-title {
+      font-size: 12px !important;
+    }
+
+    .memorall-chat-container .memorall-smart-select-button {
+      min-height: 36px !important;
+      padding: 0 10px !important;
+      font-size: 12px !important;
+    }
+
+    .memorall-chat-container .memorall-context-grid {
+      gap: 7px !important;
+    }
+
+    .memorall-chat-container .memorall-context-tile {
+      min-height: 44px !important;
+      padding: 7px 7px 7px 9px !important;
+    }
+
+    .memorall-chat-container .memorall-context-attach-button {
+      gap: 6px !important;
+      font-size: 12px !important;
+    }
+
+    .memorall-chat-container .memorall-context-attach-text {
+      font-size: 10px !important;
+    }
+
+    .memorall-chat-container .memorall-context-preview-button {
+      width: 28px !important;
+      height: 28px !important;
+    }
+  }
+
   @media (prefers-color-scheme: dark) {
     .memorall-chat-container {
       --background: 0 0% 3.9%;
@@ -856,6 +2004,57 @@ export const customStyles = `
     .memorall-chat-container input::placeholder,
     .memorall-chat-container textarea::placeholder {
       color: hsl(var(--muted-foreground)) !important;
+    }
+
+    .memorall-chat-container .memorall-message-content--user {
+      background: hsl(var(--primary)) !important;
+      color: hsl(var(--primary-foreground)) !important;
+    }
+
+    .memorall-chat-container .memorall-submit-button *,
+    .memorall-chat-container .memorall-user-text {
+      color: hsl(var(--primary-foreground)) !important;
+    }
+
+    .memorall-chat-container .memorall-user-text--with-context {
+      overflow-wrap: anywhere !important;
+      line-height: 1.45 !important;
+    }
+
+    .memorall-chat-container .memorall-user-context {
+      color: hsl(var(--foreground)) !important;
+    }
+
+    .memorall-chat-container .memorall-user-text-card {
+      border-color: hsl(var(--border)) !important;
+      background: hsl(var(--background)) !important;
+      color: hsl(var(--foreground)) !important;
+    }
+
+    .memorall-chat-container .memorall-user-context-card {
+      border-color: hsl(var(--border)) !important;
+      background: hsl(var(--card)) !important;
+      color: hsl(var(--card-foreground)) !important;
+    }
+
+    .memorall-chat-container .memorall-user-context-card-header {
+      background: hsl(var(--card)) !important;
+      color: hsl(var(--card-foreground)) !important;
+    }
+
+    .memorall-chat-container .memorall-user-context-card-title,
+    .memorall-chat-container .memorall-user-context-pre {
+      color: hsl(var(--foreground)) !important;
+    }
+
+    .memorall-chat-container .memorall-user-context-card-subtitle,
+    .memorall-chat-container .memorall-user-context-card-icon {
+      color: hsl(var(--muted-foreground)) !important;
+    }
+
+    .memorall-chat-container .memorall-user-context-expanded {
+      background: hsl(var(--muted) / 0.3) !important;
+      color: hsl(var(--foreground)) !important;
     }
   }
 `;

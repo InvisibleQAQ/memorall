@@ -33,6 +33,12 @@ export const EMBEDDED_TRANSLATIONS = {
 			noModelConfigDescription:
 				"No AI model is configured. Please open the main app to set up a model.",
 			configureModel: "Configure Model",
+			askAboutPage: "Ask about this page",
+			pageContext: "Current page",
+			attachPageContext: "Attach page context",
+			suggestSummary: "Summarize this page",
+			suggestFindFacts: "Find important facts",
+			suggestRecallLinks: "What have I saved about this?",
 		},
 		// Topic selector translations
 		topicSelector: {
@@ -95,6 +101,9 @@ export const EMBEDDED_TRANSLATIONS = {
 			recall: "Recall",
 			noModel: "No model",
 			openFullVersion: "Open full version",
+			newChat: "New chat",
+			switchToPanel: "Switch to right panel",
+			switchToPopup: "Switch to bottom-right popup",
 			close: "Close",
 		},
 	},
@@ -124,6 +133,12 @@ export const EMBEDDED_TRANSLATIONS = {
 			noModelConfigDescription:
 				"Chưa có mô hình AI nào được cấu hình. Vui lòng mở ứng dụng chính để thiết lập mô hình.",
 			configureModel: "Cấu hình mô hình",
+			askAboutPage: "Hỏi về trang này",
+			pageContext: "Trang hiện tại",
+			attachPageContext: "Đính kèm ngữ cảnh trang",
+			suggestSummary: "Tóm tắt trang này",
+			suggestFindFacts: "Tìm các ý quan trọng",
+			suggestRecallLinks: "Tôi đã lưu gì về nội dung này?",
 		},
 		// Topic selector translations
 		topicSelector: {
@@ -186,6 +201,9 @@ export const EMBEDDED_TRANSLATIONS = {
 			recall: "Gợi nhớ",
 			noModel: "Không có mô hình",
 			openFullVersion: "Mở phiên bản đầy đủ",
+			newChat: "Cuộc trò chuyện mới",
+			switchToPanel: "Chuyển sang bảng bên phải",
+			switchToPopup: "Chuyển sang popup góc dưới phải",
 			close: "Đóng",
 		},
 	},

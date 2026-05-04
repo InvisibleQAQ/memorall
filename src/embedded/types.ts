@@ -16,11 +16,28 @@ export interface ChatMessage {
 		  >;
 	role: "user" | "assistant";
 	timestamp: Date;
+	topicId?: string | null;
 	reasoning?: string;
 	sources?: Array<{ title: string; url: string }>;
 	isStreaming?: boolean;
 	metadata?: {
 		actions?: ChatAction[];
+		tool_calls?: unknown[];
+		executeState?: {
+			node?: string;
+			metadata?: Record<string, unknown>;
+		};
+		model?: string;
+		provider?: string;
+		timeToAnswer?: number;
+		tokensPerSecond?: number;
+		estimatedTokens?: number;
+		usage?: {
+			prompt_tokens?: number;
+			completion_tokens?: number;
+			total_tokens?: number;
+		};
+		[key: string]: unknown;
 	};
 }
 
@@ -103,9 +120,12 @@ export interface EmbeddedContextItem {
 	content: string;
 }
 
+export type EmbeddedChatDisplayMode = "panel" | "popup";
+
 export interface ChatModalProps {
 	context?: string;
 	mode?: "general" | "topic";
+	displayMode?: EmbeddedChatDisplayMode;
 	pageUrl: string;
 	pageTitle: string;
 	contextOptions?: EmbeddedContextItem[];
@@ -127,6 +147,7 @@ export interface BackgroundMessage {
 	selectedText?: string;
 	topicId?: string;
 	mode?: "general" | "topic";
+	displayMode?: EmbeddedChatDisplayMode;
 	showTopicSelector?: boolean;
 	contextData?: RememberContext;
 	data?: ExtractedPageData | ExtractedSelectionData;

@@ -319,12 +319,12 @@ export const EmbeddedContextSections: React.FC<{
 	return (
 		<>
 			{(availableContexts.length > 0 || attachedContexts.length > 0) && (
-				<div className="border-t px-4 py-3 flex-shrink-0 bg-muted/30 space-y-3">
-					<div className="flex items-center justify-between gap-3">
-						<div className="flex items-center gap-2 min-w-0">
+				<div className="memorall-context-section">
+					<div className="memorall-context-header">
+						<div className="memorall-context-title-wrap">
 							<button
 								onClick={onToggleContextSection}
-								className="flex items-center justify-center p-1 text-muted-foreground hover:text-foreground transition-colors"
+								className="memorall-context-toggle"
 								title={
 									showContextSection
 										? texts.hideContextSection
@@ -335,7 +335,7 @@ export const EmbeddedContextSections: React.FC<{
 								onKeyPress={(e) => e.stopPropagation()}
 							>
 								<svg
-									className="w-3.5 h-3.5"
+									className="memorall-context-toggle-icon"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -348,21 +348,21 @@ export const EmbeddedContextSections: React.FC<{
 									/>
 								</svg>
 							</button>
-							<div className="text-xs font-medium text-muted-foreground">
+							<div className="memorall-context-title">
 								{texts.selectContext}
 							</div>
 						</div>
 
-						<div className="flex items-center gap-2">
+						<div className="memorall-context-actions">
 							<button
 								onClick={onStartSmartSelect}
-								className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-md border border-border bg-background hover:bg-accent text-foreground transition-colors"
+								className="memorall-smart-select-button"
 								onKeyDown={(e) => e.stopPropagation()}
 								onKeyUp={(e) => e.stopPropagation()}
 								onKeyPress={(e) => e.stopPropagation()}
 							>
 								<svg
-									className="h-3.5 w-3.5"
+									className="memorall-smart-select-icon"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -391,34 +391,33 @@ export const EmbeddedContextSections: React.FC<{
 					</div>
 
 					{showContextSection && availableContexts.length > 0 && (
-						<div className="space-y-2">
-							<div className="flex flex-wrap gap-2">
+						<div className="memorall-context-group">
+							<div className="memorall-context-grid">
 								{availableContexts.map((contextItem) => {
 									const isCapturing = capturingContextId === contextItem.id;
 									const canPreview =
 										Boolean(contextItem.content) && !isCapturing;
 
 									return (
-										<div
-											key={contextItem.id}
-											className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1.5"
-										>
+										<div key={contextItem.id} className="memorall-context-tile">
 											<button
 												type="button"
 												onClick={() => void handleAttachContext(contextItem)}
 												disabled={isCapturing}
-												className={`inline-flex items-center gap-2 text-xs font-medium text-foreground transition-colors hover:text-primary ${
+												className={`memorall-context-attach-button ${
 													isCapturing ? "opacity-60 cursor-wait" : ""
 												}`}
 												onKeyDown={(e) => e.stopPropagation()}
 												onKeyUp={(e) => e.stopPropagation()}
 												onKeyPress={(e) => e.stopPropagation()}
 											>
-												<span>{getDisplayLabel(contextItem)}</span>
+												<span className="memorall-context-label">
+													{getDisplayLabel(contextItem)}
+												</span>
 												{isCapturing ? (
 													<Loader size={12} />
 												) : (
-													<span className="text-[10px] text-muted-foreground">
+													<span className="memorall-context-attach-text">
 														{texts.attach}
 													</span>
 												)}
@@ -427,7 +426,7 @@ export const EmbeddedContextSections: React.FC<{
 												<button
 													type="button"
 													onClick={() => setPreviewContextId(contextItem.id)}
-													className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+													className="memorall-context-preview-button"
 													title={texts.preview}
 													onKeyDown={(e) => e.stopPropagation()}
 													onKeyUp={(e) => e.stopPropagation()}
@@ -462,25 +461,25 @@ export const EmbeddedContextSections: React.FC<{
 					)}
 
 					{attachedContexts.length > 0 && (
-						<div className="space-y-2">
-							<div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+						<div className="memorall-context-group">
+							<div className="memorall-attached-title">
 								{texts.attachedContexts}
 							</div>
-							<div className="flex flex-wrap gap-2">
+							<div className="memorall-context-grid memorall-context-grid--attached">
 								{attachedContexts.map((contextItem) => (
 									<div
 										key={contextItem.id}
-										className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-background px-2 py-1.5"
+										className="memorall-context-tile memorall-context-tile--attached"
 									>
-										<div className="min-w-0 text-xs">
-											<div className="truncate font-medium text-foreground">
+										<div className="memorall-context-attached-label-wrap">
+											<div className="memorall-context-label">
 												{getDisplayLabel(contextItem)}
 											</div>
 										</div>
 										<button
 											type="button"
 											onClick={() => setPreviewContextId(contextItem.id)}
-											className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+											className="memorall-context-preview-button"
 											title={texts.preview}
 											onKeyDown={(e) => e.stopPropagation()}
 											onKeyUp={(e) => e.stopPropagation()}
@@ -514,7 +513,7 @@ export const EmbeddedContextSections: React.FC<{
 												}
 												onRemoveAttachedContext(contextItem.id);
 											}}
-											className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+											className="memorall-context-preview-button"
 											title={texts.removeAttachment}
 											onKeyDown={(e) => e.stopPropagation()}
 											onKeyUp={(e) => e.stopPropagation()}

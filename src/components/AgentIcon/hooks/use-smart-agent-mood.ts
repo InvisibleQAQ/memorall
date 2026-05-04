@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { getTimeSmartMood, SMART_SIGNAL_COLORS } from "./agentMoods";
-import type { SmartAgentMood } from "./agentIconTypes";
+import { getTimeSmartMood, SMART_SIGNAL_COLORS } from "../agentMoods";
+import type { SmartAgentMood } from "../agentIconTypes";
 
 const shouldReplaceSmartMood = (
 	current: SmartAgentMood | undefined,

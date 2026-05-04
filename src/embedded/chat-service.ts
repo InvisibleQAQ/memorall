@@ -4,6 +4,10 @@ import type {
 	ChatResult,
 	ChatPayload,
 } from "@/services/background-jobs/handlers/process-chat";
+import type {
+	ChatCompletionChunkToolCall,
+	ChatCompletionMessageToolCall,
+} from "@/types/openai";
 
 export interface ChatServiceOptions {
 	messages: ChatMessage[];
@@ -25,14 +29,33 @@ export interface ChatResponse {
 	role: "assistant";
 	metadata?: {
 		actions?: ChatAction[];
+		tool_calls?: ChatCompletionMessageToolCall[];
 	};
 }
 
 export interface ChatStreamOptions extends ChatServiceOptions {
 	onProgress?: (content: string, isComplete: boolean) => void;
 	onAction?: (actions: ChatAction[]) => void;
+	onToolCalls?: (toolCalls: ChatCompletionMessageToolCall[]) => void;
+	onExecuteStart?: (event: {
+		node: string;
+		metadata?: Record<string, unknown>;
+	}) => void;
 	onError?: (error: string) => void;
 	signal?: AbortSignal;
+}
+
+export interface EmbeddedChatStreamResult {
+	content: string;
+	actions: ChatAction[];
+	toolCalls?: ChatCompletionMessageToolCall[];
+	usage?: {
+		prompt_tokens: number;
+		completion_tokens: number;
+		total_tokens: number;
+	};
+	failed?: boolean;
+	error?: string;
 }
 
 const mergeActions = (
@@ -58,10 +81,81 @@ const mergeActions = (
 	return merged;
 };
 
+type ToolCallAccumulator = Map<
+	number,
+	{
+		id: string;
+		type: "function";
+		function: {
+			name: string;
+			arguments: string;
+		};
+	}
+>;
+
+const accumulateChunkToolCalls = (
+	accumulator: ToolCallAccumulator,
+	toolCalls: ChatCompletionChunkToolCall[] | undefined,
+): void => {
+	if (!toolCalls?.length) {
+		return;
+	}
+
+	for (const toolCall of toolCalls) {
+		const existing = accumulator.get(toolCall.index);
+		if (existing) {
+			if (toolCall.function?.name) {
+				existing.function.name = toolCall.function.name;
+			}
+			if (toolCall.function?.arguments) {
+				existing.function.arguments += toolCall.function.arguments;
+			}
+			if (toolCall.id) {
+				existing.id = toolCall.id;
+			}
+			continue;
+		}
+
+		accumulator.set(toolCall.index, {
+			id: toolCall.id || `call_${toolCall.index}_${Date.now()}`,
+			type: "function",
+			function: {
+				name: toolCall.function?.name || "",
+				arguments: toolCall.function?.arguments || "",
+			},
+		});
+	}
+};
+
+const getAccumulatedToolCalls = (
+	accumulator: ToolCallAccumulator,
+): ChatCompletionMessageToolCall[] => Array.from(accumulator.values());
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null;
+
+const isChatResult = (value: unknown): value is ChatResult =>
+	isRecord(value) && typeof value.type === "string";
+
+const extractChatResult = (value: unknown): ChatResult | undefined => {
+	if (isChatResult(value)) {
+		return value;
+	}
+
+	if (isRecord(value) && isChatResult(value.result)) {
+		return value.result;
+	}
+
+	return undefined;
+};
+
 export class EmbeddedChatService {
 	private static instance: EmbeddedChatService;
 	private activeJobs = new Map<string, AbortController>();
-	private lastMetadata?: { actions?: ChatAction[] };
+	private lastMetadata?: {
+		actions?: ChatAction[];
+		tool_calls?: ChatCompletionMessageToolCall[];
+	};
 
 	private constructor() {}
 
@@ -75,7 +169,9 @@ export class EmbeddedChatService {
 	/**
 	 * Send a chat request and get streaming response
 	 */
-	async chatStream(options: ChatStreamOptions): Promise<string> {
+	async chatStream(
+		options: ChatStreamOptions,
+	): Promise<EmbeddedChatStreamResult> {
 		const {
 			messages,
 			model,
@@ -84,6 +180,8 @@ export class EmbeddedChatService {
 			agentFlowId,
 			onProgress,
 			onAction,
+			onToolCalls,
+			onExecuteStart,
 			onError,
 			signal,
 		} = options;
@@ -140,6 +238,10 @@ export class EmbeddedChatService {
 				mode,
 				topicId,
 				agentFlowId,
+				streamConfig: {
+					minWordsToStream: 5,
+					streamToolCallsImmediately: true,
+				},
 			};
 
 			// Execute chat job with streaming
@@ -149,6 +251,9 @@ export class EmbeddedChatService {
 
 			let finalContent = "";
 			let finalActions: ChatAction[] = [];
+			const toolCallAccumulator: ToolCallAccumulator = new Map();
+			let finalToolCalls: ChatCompletionMessageToolCall[] = [];
+			let finalUsage: EmbeddedChatStreamResult["usage"];
 
 			if (!("stream" in result)) {
 				throw new Error("WRONG OUPUT");
@@ -159,51 +264,16 @@ export class EmbeddedChatService {
 					break;
 				}
 
-				// Handle streaming progress updates with ChatResult types
-				if (progress.status !== "completed" && progress.result) {
-					const chatResult = progress.result as ChatResult;
-
-					if (chatResult.type === "chunk" && chatResult.chunk) {
-						// Handle streaming content chunks
-						const content = chatResult.chunk.choices[0]?.delta?.content;
-						if (content) {
-							finalContent += content;
-							// Send real-time streaming update
-							onProgress?.(finalContent, false);
-						}
-					} else if (chatResult.type === "action" && chatResult.actions) {
-						// Handle action updates
-						finalActions = mergeActions(finalActions, chatResult.actions);
-						onAction?.([...finalActions]);
-					} else if (chatResult.type === "final") {
-						// Handle final content update (e.g., after citation step)
-						// This replaces the accumulated content with the final version
-						finalContent = chatResult.content;
-						if (chatResult.metadata?.actions) {
-							finalActions = mergeActions(
-								finalActions,
-								chatResult.metadata.actions,
-							);
-						}
-						// Notify with the final cited content
-						onProgress?.(finalContent, false);
-						onAction?.([...finalActions]);
-					}
+				if (progress.status === "failed") {
+					const error = progress.error || "Chat request failed";
+					onError?.(error);
+					throw new Error(error);
 				}
 
-				// Handle completion
 				if (progress.status === "completed" && progress.result) {
-					const chatResult = progress.result as ChatResult;
-					if (chatResult.type === "final") {
-						// Use accumulated content if we have it, otherwise use final content
-						if (finalContent) {
-							// We've been streaming, just mark as complete
-							onProgress?.(finalContent, true);
-						} else {
-							// No streaming happened, use final content
-							finalContent = chatResult.content;
-							onProgress?.(finalContent, true);
-						}
+					const chatResult = extractChatResult(progress.result);
+					if (chatResult?.type === "final") {
+						finalContent = chatResult.content || finalContent;
 
 						if (chatResult.metadata?.actions) {
 							finalActions = mergeActions(
@@ -212,23 +282,91 @@ export class EmbeddedChatService {
 							);
 							onAction?.([...finalActions]);
 						}
+						if (chatResult.metadata?.tool_calls) {
+							finalToolCalls = chatResult.metadata.tool_calls;
+							onToolCalls?.(finalToolCalls);
+						}
+						if (chatResult.metadata?.usage) {
+							finalUsage = chatResult.metadata.usage;
+						}
+						onProgress?.(finalContent, true);
 					}
+					continue;
 				}
 
-				if (progress.status === "failed") {
-					const error = progress.error || "Chat request failed";
-					onError?.(error);
-					throw new Error(error);
+				if (
+					!["processing", "pending"].includes(progress.status) ||
+					!progress.result
+				) {
+					continue;
+				}
+
+				const chatResult = extractChatResult(progress.result);
+				if (!chatResult) {
+					continue;
+				}
+
+				if (chatResult.type === "chunk" && chatResult.chunk) {
+					const delta = chatResult.chunk.choices[0]?.delta;
+					if (delta?.tool_calls?.length) {
+						accumulateChunkToolCalls(toolCallAccumulator, delta.tool_calls);
+						finalToolCalls = getAccumulatedToolCalls(toolCallAccumulator);
+						onToolCalls?.(finalToolCalls);
+					}
+
+					const content = delta?.content;
+					if (content) {
+						finalContent += content;
+						onProgress?.(finalContent, false);
+					}
+				} else if (chatResult.type === "execute-start") {
+					onExecuteStart?.({
+						node: chatResult.node,
+						metadata: chatResult.metadata,
+					});
+				} else if (chatResult.type === "action" && chatResult.actions) {
+					finalActions = mergeActions(finalActions, chatResult.actions);
+					onAction?.([...finalActions]);
+				} else if (chatResult.type === "final") {
+					finalContent = chatResult.content || finalContent;
+					if (chatResult.metadata?.actions) {
+						finalActions = mergeActions(
+							finalActions,
+							chatResult.metadata.actions,
+						);
+					}
+					if (chatResult.metadata?.tool_calls) {
+						finalToolCalls = chatResult.metadata.tool_calls;
+						onToolCalls?.(finalToolCalls);
+					}
+					if (chatResult.metadata?.usage) {
+						finalUsage = chatResult.metadata.usage;
+					}
+					onProgress?.(finalContent, false);
+					onAction?.([...finalActions]);
 				}
 			}
 
 			// Final progress update
-			onProgress?.(finalContent, true);
+			if (finalContent) {
+				onProgress?.(finalContent, true);
+			}
 
 			// Store actions for later retrieval
-			this.lastMetadata = { actions: finalActions };
+			this.lastMetadata = {
+				actions: finalActions,
+				tool_calls: finalToolCalls,
+			};
 
-			return finalContent;
+			return {
+				content: finalContent,
+				actions: finalActions,
+				toolCalls:
+					finalToolCalls.length > 0
+						? finalToolCalls
+						: getAccumulatedToolCalls(toolCallAccumulator),
+				usage: finalUsage,
+			};
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown chat error";
