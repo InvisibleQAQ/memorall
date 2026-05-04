@@ -438,7 +438,7 @@ featureCatalogRegistry.register({
 	id: "step-finance-tracker-feature",
 	name: FINANCE_TRACKER_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

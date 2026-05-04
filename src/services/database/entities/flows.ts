@@ -10,7 +10,7 @@ import { defaultNowToTrigger } from "../utils/default-now-to-trigger";
 
 const tableName = "flows";
 
-export type PredefinedFlowKey = "knowledge-rag";
+export type PredefinedFlowKey = "foundation";
 export type AgentIconScreenKind = "text" | "emoji";
 
 export interface AgentIconScreenMetadata {

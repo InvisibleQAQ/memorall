@@ -258,7 +258,7 @@ featureCatalogRegistry.register({
 	id: "step-daily-briefing-feature",
 	name: DAILY_BRIEFING_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

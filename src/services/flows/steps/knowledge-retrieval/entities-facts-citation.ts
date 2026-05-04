@@ -110,7 +110,7 @@ const definition = defineStep<
 		}
 
 		try {
-			logInfo("[KNOWLEDGE_RAG] Adding citations to response");
+			logInfo("[FOUNDATION] Adding citations to response");
 
 			// Split answer into lines and number them
 			const answerLines = (input.response || "").split("\n");
@@ -193,7 +193,7 @@ const definition = defineStep<
 				},
 			};
 		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Citation failed:", error);
+			logError("[FOUNDATION] Citation failed:", error);
 
 			return {
 				output: {

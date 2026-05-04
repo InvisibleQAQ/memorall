@@ -280,7 +280,7 @@ featureCatalogRegistry.register({
 	id: "step-meal-planner-feature",
 	name: MEAL_PLANNER_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

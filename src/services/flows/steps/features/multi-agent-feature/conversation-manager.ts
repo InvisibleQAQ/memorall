@@ -26,7 +26,7 @@ export interface ChildAgentMessageResult {
 }
 
 const FALLBACK_CHILD_FLOW_CONFIG: UnifiedFlowConfig = {
-	graphType: "knowledge-rag",
+	graphType: "foundation",
 	steps: [],
 };
 
@@ -171,7 +171,7 @@ export class MultiAgentManager {
 		}
 
 		const resolvedConfig = stripMultiAgentFeature(cloneFlowConfig(flowConfig));
-		const graphType = resolvedConfig.graphType ?? "knowledge-rag";
+		const graphType = resolvedConfig.graphType ?? "foundation";
 		logInfo(
 			`[MULTI_AGENT] Executing child agent ${agentId} with graph ${graphType} and steps: [${resolvedConfig.steps
 				.filter((step) => step.enabled)

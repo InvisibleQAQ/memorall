@@ -255,7 +255,7 @@ featureCatalogRegistry.register({
 	id: "step-news-collection-feature",
 	name: NEWS_COLLECTION_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

@@ -13,7 +13,7 @@ import type {
 export interface ChatServiceOptions {
 	messages: ChatMessage[];
 	model: string;
-	mode: "normal" | "agent" | "knowledge";
+	mode: "normal" | "agent" | "custom";
 	topicId?: string;
 	agentFlowId?: string;
 	flowConfig?: UnifiedFlowConfig;

@@ -79,7 +79,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	const { t } = useTranslation("chat");
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const textareaRef = useRef<MentionRichTextareaHandle>(null);
-	const isKnowledgeMode = selectedAgentFlowId !== "chat";
+	const isCustomMode = selectedAgentFlowId !== "chat";
 
 	const [mentionQuery, setMentionQuery] = useState<string | null>(null);
 	const mentionAtIndexRef = useRef<number>(-1);
@@ -349,7 +349,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 							onCreateAgentFlow={onCreateAgentFlow}
 							onDeleteChat={onDeleteChat}
 							onOpenAgentSettings={onOpenAgentSettings}
-							isKnowledgeMode={isKnowledgeMode}
+							isCustomMode={isCustomMode}
 							onAttachFileClick={handleAttachClick}
 							onAttachDocumentClick={handleOpenDocumentPicker}
 							canSubmit={!!inputValue.trim() && isModelReady}

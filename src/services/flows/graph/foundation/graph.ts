@@ -1,8 +1,8 @@
 import { END, START, StateGraph } from "@langchain/langgraph/web";
 import {
-	DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT,
-	KnowledgeRAGAnnotation,
-	type KnowledgeRAGState,
+	DEFAULT_FOUNDATION_SYSTEM_PROMPT,
+	FoundationAnnotation,
+	type FoundationState,
 } from "./state";
 import { GraphBase } from "@/services/flows/graph/graph.base";
 import type { AllServices } from "@/services/flows/interfaces/tool";
@@ -12,7 +12,7 @@ import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 
 /**
- * Knowledge RAG Flow
+ * Foundation Flow
  *
  * A config-driven graph that chains whatever steps are enabled in
  * UnifiedFlowConfig.steps in order.  The constructor has zero knowledge of
@@ -21,21 +21,21 @@ import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config"
  *
  * Topology: START → step__<id1> → step__<id2> → … → END
  */
-export class KnowledgeRAGFlow extends GraphBase<
+export class FoundationFlow extends GraphBase<
 	string,
-	KnowledgeRAGState,
+	FoundationState,
 	AllServices
 > {
 	constructor(services: AllServices, config: UnifiedFlowConfig) {
 		super(services);
 
-		this.workflow = new StateGraph(KnowledgeRAGAnnotation);
+		this.workflow = new StateGraph(FoundationAnnotation);
 
 		const nodeNames = this.addStepNodes(this.workflow, config, services);
 
 		if (nodeNames.length === 0) {
 			throw new Error(
-				"[KnowledgeRAGFlow] No enabled steps in config — cannot build graph",
+				"[FoundationFlow] No enabled steps in config — cannot build graph",
 			);
 		}
 
@@ -45,7 +45,7 @@ export class KnowledgeRAGFlow extends GraphBase<
 		this.compile();
 
 		logInfo(
-			`[KNOWLEDGE_RAG] Initialized with ${nodeNames.length} step(s): [${config.steps
+			`[FOUNDATION] Initialized with ${nodeNames.length} step(s): [${config.steps
 				.filter((s) => s.enabled)
 				.map((s) => s.name)
 				.join(", ")}]`,
@@ -58,9 +58,9 @@ export class KnowledgeRAGFlow extends GraphBase<
 // ---------------------------------------------------------------------------
 
 flowRegistry.register({
-	flowType: "knowledge-rag",
+	flowType: "foundation",
 	stepDefaults: {
-		"add-system": { content: DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT },
+		"add-system": { content: DEFAULT_FOUNDATION_SYSTEM_PROMPT },
 	},
 	stepOrder: [
 		"add-system",
@@ -74,12 +74,12 @@ flowRegistry.register({
 		"entities-facts-citation",
 	],
 	factory: (services, config) =>
-		new KnowledgeRAGFlow(services, config as UnifiedFlowConfig),
+		new FoundationFlow(services, config as UnifiedFlowConfig),
 });
 
 // Chat flow registry — used by process-chat.ts via chatFlowRegistry.create(…)
-chatFlowRegistry.register("knowledge-rag", (services, config) => {
-	const graph = new KnowledgeRAGFlow(services, config);
+chatFlowRegistry.register("foundation", (services, config) => {
+	const graph = new FoundationFlow(services, config);
 	return {
 		graph,
 		getInitialState: (ctx) => ({
@@ -96,10 +96,10 @@ chatFlowRegistry.register("knowledge-rag", (services, config) => {
 // Extend global FlowTypeRegistry for type-safe flow creation
 declare global {
 	interface FlowTypeRegistry {
-		"knowledge-rag": {
+		foundation: {
 			services: AllServices;
 			config: UnifiedFlowConfig;
-			flow: KnowledgeRAGFlow;
+			flow: FoundationFlow;
 		};
 	}
 }

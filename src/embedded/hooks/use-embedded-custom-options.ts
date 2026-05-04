@@ -7,7 +7,7 @@ export interface EmbeddedSelectOption {
 	name: string;
 }
 
-export const useEmbeddedKnowledgeOptions = () => {
+export const useEmbeddedCustomOptions = () => {
 	const [topics, setTopics] = useState<EmbeddedSelectOption[]>([]);
 	const [agentFlows, setAgentFlows] = useState<EmbeddedSelectOption[]>([]);
 	const [selectedTopic, setSelectedTopic] = useState<string>("");
@@ -60,7 +60,7 @@ export const useEmbeddedKnowledgeOptions = () => {
 			try {
 				const result = await backgroundJob.createJob(
 					"get-predefined-flows",
-					{ flowKey: "knowledge-rag" },
+					{ flowKey: "foundation" },
 					{ stream: false },
 				);
 

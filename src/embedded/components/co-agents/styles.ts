@@ -77,8 +77,8 @@ export const coAgentStyles = `${customStyles}
 		background: #fff;
 		color: #0f172a;
 		box-shadow: 0 18px 44px rgb(15 23 42 / 0.24), 0 2px 0 rgb(15 23 42 / 0.12);
-		font: 600 13px/1.45 Inter, ui-sans-serif, system-ui, sans-serif;
-		padding: 12px 14px;
+		font: 600 13px/1.5 Inter, ui-sans-serif, system-ui, sans-serif;
+		padding: 11px 12px 11px 15px;
 		text-align: left;
 		overflow-wrap: break-word;
 		white-space: normal;
@@ -96,18 +96,26 @@ export const coAgentStyles = `${customStyles}
 		scrollbar-color: rgb(148 163 184 / 0.8) transparent;
 	}
 	.memorall-co-agent-bubble-content {
-		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 22px;
+		align-items: start;
+		column-gap: 7px;
+		min-width: min(160px, calc(100vw - 96px));
+		max-width: min(380px, calc(100vw - 72px));
+	}
+	.memorall-co-agent-bubble-content .memorall-markdown {
+		grid-column: 1;
+		grid-row: 1;
 		min-width: 0;
-		padding-right: 24px;
 	}
 	.memorall-co-agent-bubble-close {
-		position: absolute;
-		right: 0px;
-		top: 0px;
+		position: relative;
+		grid-column: 2;
+		grid-row: 1;
 		z-index: 2;
 		border-radius: 999px;
-		width: 28px;
-		height: 28px;
+		width: 22px;
+		height: 22px;
 		border: 0;
 		background: transparent;
 		color: #64748b;
@@ -116,6 +124,7 @@ export const coAgentStyles = `${customStyles}
 		justify-content: center;
 		cursor: pointer;
 		pointer-events: auto;
+		margin-top: -1px;
 	}
 	.memorall-co-agent-bubble-close:hover {
 		background: rgb(15 23 42 / 0.14);

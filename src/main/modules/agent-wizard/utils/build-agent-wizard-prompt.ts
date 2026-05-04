@@ -59,7 +59,7 @@ ${catalog.skillNames.map((name) => `- ${name}`).join("\n")}
 
 # Operating Rules
 - Only use feature, tool, and skill names from the lists above.
-- Use graphType "knowledge-rag" unless the user asks for a simple tool-only agent.
+- Use graphType "foundation" unless the user asks for a simple tool-only agent.
 - Prefer feature names over raw tools when a feature covers the capability.
 - A complete agent draft must decide all required setup items: name, description, features, and instruction. It must also consider whether skills or cron jobs are needed. Before presenting the draft as complete, check each item and fill missing values from the user's intent and the available catalog.
 - A complete agent draft must decide the expected output mode. For markdown-first agents, specify the markdown structure in the instruction. For visual-first agents, enable artifact-capable features when available, select the appropriate style-specific design skill when present, and ask what design style the user wants to see if the visual direction is materially unclear.

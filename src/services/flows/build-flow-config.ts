@@ -32,7 +32,7 @@ import type {
 
 export type FlowGraphType = string;
 
-const DEFAULT_GRAPH_TYPE: FlowGraphType = "knowledge-rag";
+const DEFAULT_GRAPH_TYPE: FlowGraphType = "foundation";
 
 function isFlowGraphType(value: string): value is FlowGraphType {
 	return flowRegistry.hasFlow(value);

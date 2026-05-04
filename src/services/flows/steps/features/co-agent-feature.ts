@@ -91,7 +91,7 @@ featureCatalogRegistry.register({
 	id: "step-co-agent-feature",
 	name: CO_AGENT_FEATURE_STEP_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag", "agent"],
+	graphTypes: ["foundation", "agent"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

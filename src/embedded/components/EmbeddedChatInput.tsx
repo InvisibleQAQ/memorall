@@ -51,7 +51,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 	language,
 }) => {
 	const texts = EMBEDDED_TRANSLATIONS[language];
-	const isKnowledgeMode = selectedAgentFlowId !== "chat";
+	const isCustomMode = selectedAgentFlowId !== "chat";
 	const flowOptions = [
 		{ id: "chat", name: texts.input.modeGeneral },
 		...agentFlows,
@@ -93,8 +93,8 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 									</select>
 								</div>
 
-								{/* Topic Selector - Only show when in knowledge mode */}
-								{isKnowledgeMode && (
+								{/* Topic Selector - Only show when in custom mode */}
+								{isCustomMode && (
 									<div className="memorall-select-wrap">
 										<select
 											value={selectedTopic}
@@ -121,7 +121,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 									</div>
 								)}
 
-								{isKnowledgeMode && (
+								{isCustomMode && (
 									<button
 										type="button"
 										onClick={onOpenSettings}

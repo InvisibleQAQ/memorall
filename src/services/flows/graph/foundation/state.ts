@@ -4,7 +4,7 @@ import {
 	BaseAnnotation,
 } from "@/services/flows/graph/graph.base";
 
-export const DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT = `
+export const DEFAULT_FOUNDATION_SYSTEM_PROMPT = `
 # Role
 You are a assistant.
 If Knowledge context avaible use them to answer clearly, accurately, and with structured sections when useful.
@@ -21,22 +21,22 @@ If user request visualize use artifact or codeblock html to present UI.
 // ---------------------------------------------------------------------------
 
 /** @deprecated Use UnifiedFlowConfig from interfaces/flow-config instead. */
-export const DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG = {
+export const DEFAULT_FOUNDATION_PREDEFINED_CONFIG = {
 	systemPrompt: "",
 	contextPrompt: "",
 	tools: ["current_time", "js_execute"] as string[],
 	enableContextRetrieval: true,
 	enableCitations: true,
 	retrievalMode: "smart" as "smart" | "quick" | "llm" | "structmem",
-	graphType: "knowledge-rag" as "knowledge-rag" | "agent",
+	graphType: "foundation" as "foundation" | "agent",
 };
 
 /** @deprecated Use UnifiedFlowConfig from interfaces/flow-config instead. */
-export type KnowledgeRAGPredefinedConfig =
-	typeof DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG;
+export type FoundationPredefinedConfig =
+	typeof DEFAULT_FOUNDATION_PREDEFINED_CONFIG;
 
 /** @deprecated Canonical config keys used by the service's legacy DB path. */
-export const KNOWLEDGE_RAG_CONFIG_KEYS = [
+export const FOUNDATION_CONFIG_KEYS = [
 	{ name: "systemPrompt", type: "string" },
 	{ name: "contextPrompt", type: "string" },
 	{ name: "tools", type: "array" },
@@ -50,7 +50,7 @@ export const KNOWLEDGE_RAG_CONFIG_KEYS = [
 // Runtime graph state
 // ---------------------------------------------------------------------------
 
-export interface KnowledgeRAGState extends BaseStateBase {
+export interface FoundationState extends BaseStateBase {
 	// Input
 	graphId?: string;
 	/** Additional search context hints (e.g. topic name/description) */
@@ -86,7 +86,7 @@ export interface KnowledgeRAGState extends BaseStateBase {
 	context: string;
 }
 
-export const KnowledgeRAGAnnotation = {
+export const FoundationAnnotation = {
 	...BaseAnnotation,
 	graphId: Annotation<string | undefined>({
 		value: (x, y) => y ?? x,
@@ -104,15 +104,15 @@ export const KnowledgeRAGAnnotation = {
 		value: (x, y) => y ?? x ?? [],
 		default: () => [],
 	}),
-	queryIntent: Annotation<KnowledgeRAGState["queryIntent"]>({
+	queryIntent: Annotation<FoundationState["queryIntent"]>({
 		value: (x, y) => y ?? x ?? "factual",
 		default: () => "factual" as const,
 	}),
-	relevantNodes: Annotation<KnowledgeRAGState["relevantNodes"]>({
+	relevantNodes: Annotation<FoundationState["relevantNodes"]>({
 		value: (x, y) => y ?? x ?? [],
 		default: () => [],
 	}),
-	relevantEdges: Annotation<KnowledgeRAGState["relevantEdges"]>({
+	relevantEdges: Annotation<FoundationState["relevantEdges"]>({
 		value: (x, y) => y ?? x ?? [],
 		default: () => [],
 	}),

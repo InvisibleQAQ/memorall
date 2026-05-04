@@ -165,7 +165,7 @@ featureCatalogRegistry.register({
 	id: "step-planner-feature",
 	name: PLANNER_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

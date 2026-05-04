@@ -434,7 +434,7 @@ chatFlowRegistry.register("agent", (services, config) => {
 	return {
 		graph: graph as unknown as BaseFlow,
 		// Agent state only needs messages; extra fields (graphId, contextQueries)
-		// are part of KnowledgeRAGState and are absent from AgentAnnotation.
+		// are part of FoundationState and are absent from AgentAnnotation.
 		getInitialState: (ctx) => ({
 			messages: ctx.messages,
 		}),

@@ -6,7 +6,7 @@ import {
 	type AgentFeatureDefinition,
 	type GraphType,
 } from "@/main/stores/agent-config";
-import type { KnowledgeRAGPredefinedConfig } from "@/services/flows/graph/knowledge-rag/state";
+import type { FoundationPredefinedConfig } from "@/services/flows/graph/foundation/state";
 import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/common/context-to-system";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import type { Flow } from "@/services/database/types";
@@ -16,7 +16,7 @@ import { getAgentFeatureDisplayName } from "../utils/feature-display";
 type UseAgentConfigSummaryOptions = {
 	availableTools: string[];
 	currentGraphType: GraphType;
-	draftConfig: KnowledgeRAGPredefinedConfig;
+	draftConfig: FoundationPredefinedConfig;
 	draftFeatures: Record<string, boolean>;
 	draftMultiAgentAccessibleAgentIds: string[];
 	featureDefinitions: AgentFeatureDefinition[];

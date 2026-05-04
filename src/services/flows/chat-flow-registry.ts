@@ -63,7 +63,7 @@ class ChatFlowRegistry {
 
 	/**
 	 * Create a ChatGraphResult for the requested graphType.
-	 * Falls back to "knowledge-rag" if the type is unknown.
+	 * Falls back to "foundation" if the type is unknown.
 	 */
 	create(
 		graphType: string,
@@ -71,10 +71,10 @@ class ChatFlowRegistry {
 		config: UnifiedFlowConfig,
 	): ChatGraphResult {
 		const factory =
-			this.factories.get(graphType) ?? this.factories.get("knowledge-rag");
+			this.factories.get(graphType) ?? this.factories.get("foundation");
 		if (!factory) {
 			throw new Error(
-				`[ChatFlowRegistry] No chat flow registered for type "${graphType}" and no "knowledge-rag" fallback.`,
+				`[ChatFlowRegistry] No chat flow registered for type "${graphType}" and no "foundation" fallback.`,
 			);
 		}
 		return factory(services, config);

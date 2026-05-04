@@ -4,7 +4,7 @@ import { ChevronDown, Sparkles } from "lucide-react";
 import { Button } from "@/main/components/ui/button";
 import { Badge } from "@/main/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { KnowledgeRAGPredefinedConfig } from "@/services/flows/graph/knowledge-rag/state";
+import type { FoundationPredefinedConfig } from "@/services/flows/graph/foundation/state";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
 import { MCP_FEATURE_NAME } from "@/services/flows/steps/features/mcp-feature";
 import {
@@ -56,7 +56,7 @@ const getFeatureEnabled = (
 		}
 
 		return Boolean(
-			draftConfig[feature.configKey as keyof KnowledgeRAGPredefinedConfig],
+			draftConfig[feature.configKey as keyof FoundationPredefinedConfig],
 		);
 	}
 
@@ -209,7 +209,7 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ summary }) => {
 			feature.type === "config"
 				? (checked: boolean) =>
 						updateField(
-							feature.configKey as keyof KnowledgeRAGPredefinedConfig,
+							feature.configKey as keyof FoundationPredefinedConfig,
 							checked as never,
 						)
 				: () => toggleFeature(feature.name);

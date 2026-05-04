@@ -16,7 +16,7 @@ import {
 	type FlowAction,
 } from "@/services/flows/utils/langgraph-stream";
 import { handlerRegistry } from "./handler-registry";
-import type { KnowledgeRAGState } from "@/services/flows/graph/knowledge-rag/state";
+import type { FoundationState } from "@/services/flows/graph/foundation/state";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import { buildDefaultFlowConfig } from "@/services/flows/build-flow-config";
@@ -39,8 +39,8 @@ export interface ChatStreamConfig {
 export interface ChatPayload {
 	messages: ChatMessage[];
 	model: string;
-	mode: "normal" | "agent" | "knowledge";
-	topicId?: string; // For topic filtering in knowledge mode
+	mode: "normal" | "agent" | "custom";
+	topicId?: string; // For topic filtering in custom mode
 	agentFlowId?: string;
 	flowConfig?: UnifiedFlowConfig;
 	streamConfig?: ChatStreamConfig;
@@ -227,7 +227,7 @@ const getAccumulatedToolCalls = (
 	accumulator: ToolCallAccumulator,
 ): ChatCompletionMessageToolCall[] => Array.from(accumulator.values());
 
-type KnowledgeStreamDeps = {
+type FlowStreamDeps = {
 	jobId: string;
 	model: string;
 	config: Required<ChatStreamConfig>;
@@ -284,7 +284,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		return Array.isArray(delta?.tool_calls) && delta.tool_calls.length > 0;
 	}
 
-	private static createHandleChunk(deps: KnowledgeStreamDeps) {
+	private static createHandleChunk(deps: FlowStreamDeps) {
 		return async (chunk: ChatCompletionChunk) => {
 			if (chunk.usage) {
 				deps.onUsage?.(chunk.usage);
@@ -346,7 +346,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		};
 	}
 
-	private static createKnowledgeHandleActions(
+	private static createFlowHandleActions(
 		dependencies: ProcessDependencies,
 		jobId: string,
 		actions: FlowAction[],
@@ -508,7 +508,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					onToolCalls: (toolCalls) =>
 						accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
 				});
-				const handleActions = ChatHandler.createKnowledgeHandleActions(
+				const handleActions = ChatHandler.createFlowHandleActions(
 					dependencies,
 					jobId,
 					actions,
@@ -566,7 +566,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 						} as ChatResult,
 					});
 				}
-			} else if (mode === "knowledge") {
+			} else if (mode === "custom") {
 				// Load unified flow config — steps carry both their settings and enabled state.
 				// Falls back to the canonical default on failure so the graph always runs.
 				let flowConfig: UnifiedFlowConfig | null = null;
@@ -578,7 +578,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 									flowId: agentFlowId,
 								})
 							: await serviceManager.flowBuilderService.getUnifiedFlowConfig({
-									predefinedFlow: "knowledge-rag",
+									predefinedFlow: "foundation",
 								});
 				} catch (err) {
 					await dependencies.logger.warn(
@@ -590,10 +590,10 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 				let resolvedConfig = flowConfig
 					? mergeWithDefaultConfig(flowConfig, flowConfig.graphType)
-					: buildDefaultFlowConfig("knowledge-rag");
+					: buildDefaultFlowConfig("foundation");
 
 				await dependencies.updateJobProgress(jobId, {
-					stage: "Running Knowledge Retrieval...",
+					stage: "Running Custom Flow...",
 					progress: 20,
 				});
 
@@ -642,7 +642,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				}
 
 				resolvedConfig = applyTopicRecallType(resolvedConfig, topicRecallType);
-				const graphType = resolvedConfig.graphType ?? "knowledge-rag";
+				const graphType = resolvedConfig.graphType ?? "foundation";
 
 				// Resolve the chat flow via registry — no graph-type branching here.
 				// Each graph module self-registers its adapter in chat-flow-registry.ts.
@@ -660,7 +660,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					resolvedConfig,
 				);
 
-				let finalState: KnowledgeRAGState | null = null;
+				let finalState: FoundationState | null = null;
 
 				const stream = await graph.stream(
 					getInitialState({ messages, topicId, contextQueries }),
@@ -682,7 +682,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					onToolCalls: (toolCalls) =>
 						accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
 				});
-				const handleActions = ChatHandler.createKnowledgeHandleActions(
+				const handleActions = ChatHandler.createFlowHandleActions(
 					dependencies,
 					jobId,
 					actions,
@@ -722,7 +722,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 					// Capture the final state for citation content
 					if (mode === "values") {
-						finalState = payload as KnowledgeRAGState;
+						finalState = payload as FoundationState;
 					}
 				}
 

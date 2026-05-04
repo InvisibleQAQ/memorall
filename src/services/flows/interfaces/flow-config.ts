@@ -11,7 +11,7 @@
  * - `steps` order defines execution order in the graph.
  * - No top-level fields beyond `graphType` and `steps` — avoids the proliferation
  *   of ad-hoc flags (enableContextRetrieval, enableCitations, featureFlags, …)
- *   that plagued the old KnowledgeRAGConfig shape.
+ *   that plagued the old FoundationConfig shape.
  */
 
 // ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ export interface StepInstanceConfig {
 
 /**
  * The unified, graph-agnostic flow configuration.
- * Replaces KnowledgeRAGConfig / KnowledgeRAGPredefinedConfig and the
+ * Replaces FoundationConfig / FoundationPredefinedConfig and the
  * separate featureFlags record that used to be passed alongside it.
  */
 export interface UnifiedFlowConfig {

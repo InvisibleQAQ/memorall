@@ -233,7 +233,7 @@ const runAgentChat: CronActionHandler = async (context) => {
 	const chatPayload: ChatPayload = {
 		messages: [{ role: "user", content: payload.prompt }],
 		model,
-		mode: "knowledge",
+		mode: "custom",
 		agentFlowId: payload.agentFlowId,
 		topicId,
 		streamConfig: payload.streamConfig ?? {

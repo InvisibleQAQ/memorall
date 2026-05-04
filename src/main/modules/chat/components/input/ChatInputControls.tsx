@@ -52,7 +52,7 @@ export interface ChatInputControlsProps {
 	onCreateAgentFlow?: () => void;
 	onDeleteChat: () => void;
 	onOpenAgentSettings?: () => void;
-	isKnowledgeMode: boolean;
+	isCustomMode: boolean;
 	onAttachFileClick: () => void;
 	onAttachDocumentClick: () => void;
 	canSubmit: boolean;
@@ -75,7 +75,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 	onCreateAgentFlow,
 	onDeleteChat,
 	onOpenAgentSettings,
-	isKnowledgeMode,
+	isCustomMode,
 	onAttachFileClick,
 	onAttachDocumentClick,
 	canSubmit,
@@ -205,7 +205,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 							</TooltipContent>
 						</Tooltip>
 
-						{isKnowledgeMode && (
+						{isCustomMode && (
 							<>
 								<Tooltip>
 									<DropdownMenu>

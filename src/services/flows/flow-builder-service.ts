@@ -20,10 +20,10 @@ import type {
 	FlowStepInput,
 } from "./interfaces/flow-builder";
 import {
-	DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
-	KNOWLEDGE_RAG_CONFIG_KEYS,
-	type KnowledgeRAGPredefinedConfig,
-} from "./graph/knowledge-rag/state";
+	DEFAULT_FOUNDATION_PREDEFINED_CONFIG,
+	FOUNDATION_CONFIG_KEYS,
+	type FoundationPredefinedConfig,
+} from "./graph/foundation/state";
 import { logError, logInfo } from "@/utils/logger";
 import { getFeatureCatalogSteps, getFlowCatalog } from "./flow-builder-catalog";
 import type { UnifiedFlowConfig } from "./interfaces/flow-config";
@@ -33,7 +33,7 @@ import {
 } from "./build-flow-config";
 
 type PredefinedFlowConfigMap = {
-	"knowledge-rag": KnowledgeRAGPredefinedConfig;
+	foundation: FoundationPredefinedConfig;
 };
 
 type FlowConfigRef = { flowId: string } | { predefinedFlow: PredefinedFlowKey };
@@ -47,10 +47,10 @@ export type FlowConfigStorageFormat = "unified" | "legacy" | "empty";
 
 const getFlowConfigMetaForPredefined = (flowKey: PredefinedFlowKey) => {
 	switch (flowKey) {
-		case "knowledge-rag":
+		case "foundation":
 			return {
-				keys: KNOWLEDGE_RAG_CONFIG_KEYS,
-				defaults: DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
+				keys: FOUNDATION_CONFIG_KEYS,
+				defaults: DEFAULT_FOUNDATION_PREDEFINED_CONFIG,
 			};
 	}
 };
@@ -788,7 +788,7 @@ export class FlowBuilderService {
 		ref: FlowConfigRef,
 	): Promise<UnifiedFlowConfig | null> {
 		try {
-			const graphType = "knowledge-rag";
+			const graphType = "foundation";
 			const flow = await this.resolveFlow(ref);
 			const rowMap = new Map(
 				(await this.getFlowConfigRows(flow.id)).map((row) => [row.name, row]),
@@ -867,7 +867,7 @@ export class FlowBuilderService {
 	 * execution falls back to the canonical default flow definition.
 	 */
 	async getUnifiedFlowConfig(ref: FlowConfigRef): Promise<UnifiedFlowConfig> {
-		const graphType = "knowledge-rag";
+		const graphType = "foundation";
 
 		try {
 			const stored = await this.getStoredUnifiedFlowConfig(ref);

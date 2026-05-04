@@ -264,10 +264,10 @@ export const useEmbeddedChatSession = ({
 					},
 				];
 				const serviceMode = coAgentEnabled
-					? "knowledge"
+					? "custom"
 					: selectedAgentFlowId === "chat"
 						? "normal"
-						: "knowledge";
+						: "custom";
 
 				const result = await embeddedChatService.chatStream({
 					messages: messagesForAPI,

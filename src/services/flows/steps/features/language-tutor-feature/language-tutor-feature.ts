@@ -243,7 +243,7 @@ featureCatalogRegistry.register({
 	id: "step-language-tutor-feature",
 	name: LANGUAGE_TUTOR_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

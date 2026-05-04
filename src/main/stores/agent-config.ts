@@ -4,11 +4,11 @@ import { toolRegistry } from "@/services/flows/tool-registry";
 import { buildDefaultFlowConfig } from "@/services/flows/build-flow-config";
 import { mergeWithDefaultConfig } from "@/services/flows/build-flow-config";
 import {
-	DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
-	type KnowledgeRAGPredefinedConfig,
-} from "@/services/flows/graph/knowledge-rag/state";
+	DEFAULT_FOUNDATION_PREDEFINED_CONFIG,
+	type FoundationPredefinedConfig,
+} from "@/services/flows/graph/foundation/state";
 import { DEFAULT_AGENT_SYSTEM_PROMPT } from "@/services/flows/graph/agent/state";
-import { DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT } from "@/services/flows/graph/knowledge-rag/state";
+import { DEFAULT_FOUNDATION_SYSTEM_PROMPT } from "@/services/flows/graph/foundation/state";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/common/context-to-system";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
@@ -29,7 +29,7 @@ import type { Flow } from "@/services/database/types";
 // ---------------------------------------------------------------------------
 
 /**
- * A built-in config feature maps to a field in KnowledgeRAGPredefinedConfig.
+ * A built-in config feature maps to a field in FoundationPredefinedConfig.
  *
  * configKey "enableContextRetrieval" | "enableCitations" → boolean toggle.
  *   May expose a secondary promptField config.
@@ -84,7 +84,7 @@ export type AgentFeatureDefinition =
 // ---------------------------------------------------------------------------
 export const GRAPH_REGISTRY = [
 	{
-		id: "knowledge-rag" as const,
+		id: "foundation" as const,
 		nameKey: "agentSettings.graphAgent",
 		descKey: "agentSettings.graphAgentDesc",
 	},
@@ -100,7 +100,7 @@ export type GraphType = (typeof GRAPH_REGISTRY)[number]["id"];
 export const getDefaultSystemPromptForGraph = (graphType: GraphType): string =>
 	graphType === "agent"
 		? DEFAULT_AGENT_SYSTEM_PROMPT
-		: DEFAULT_KNOWLEDGE_RAG_SYSTEM_PROMPT;
+		: DEFAULT_FOUNDATION_SYSTEM_PROMPT;
 
 export type KnowledgeRetrievalMode = "smart" | "quick" | "llm" | "structmem";
 
@@ -155,7 +155,7 @@ type GraphBuiltinConfig = {
 };
 
 const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
-	"knowledge-rag": {
+	foundation: {
 		configFeatures: [
 			{
 				type: "config",
@@ -329,7 +329,7 @@ const getEnabledSkillNames = (unifiedConfig: UnifiedFlowConfig): string[] => {
 
 const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 	const graphType: GraphType =
-		unifiedConfig.graphType === "agent" ? "agent" : "knowledge-rag";
+		unifiedConfig.graphType === "agent" ? "agent" : "foundation";
 	const featureDefinitions = buildFeatureDefinitions(graphType);
 	const catalogNames = getCatalogFeatureNames(featureDefinitions);
 	const features = createDefaultFeatureFlags(catalogNames);
@@ -367,7 +367,7 @@ const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 		mcpServers: getMCPServers(unifiedConfig),
 		enabledSkillNames: getEnabledSkillNames(unifiedConfig),
 		config: {
-			...DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG,
+			...DEFAULT_FOUNDATION_PREDEFINED_CONFIG,
 			graphType,
 			systemPrompt:
 				typeof addSystemStep?.config?.content === "string" &&
@@ -387,22 +387,22 @@ const deriveLegacyStateFromUnified = (unifiedConfig: UnifiedFlowConfig) => {
 			enableCitations:
 				typeof citationStep?.enabled === "boolean"
 					? citationStep.enabled
-					: DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG.enableCitations,
-		} satisfies KnowledgeRAGPredefinedConfig,
+					: DEFAULT_FOUNDATION_PREDEFINED_CONFIG.enableCitations,
+		} satisfies FoundationPredefinedConfig,
 		features,
 	};
 };
 
 const applyLegacyDraftToUnified = (
 	baseConfig: UnifiedFlowConfig,
-	draftConfig: KnowledgeRAGPredefinedConfig,
+	draftConfig: FoundationPredefinedConfig,
 	draftFeatures: FeatureFlags,
 	draftMultiAgentAccessibleAgentIds: string[],
 	draftMCPServers: MCPServerConfig[],
 	draftEnabledSkillNames: string[],
 ): UnifiedFlowConfig => {
 	const graphType: GraphType =
-		draftConfig.graphType === "agent" ? "agent" : "knowledge-rag";
+		draftConfig.graphType === "agent" ? "agent" : "foundation";
 	const nextConfig =
 		baseConfig.graphType === graphType
 			? cloneUnifiedConfig(baseConfig)
@@ -509,8 +509,8 @@ const applyLegacyDraftToUnified = (
 };
 
 interface AgentConfigState {
-	savedConfig: KnowledgeRAGPredefinedConfig;
-	draftConfig: KnowledgeRAGPredefinedConfig;
+	savedConfig: FoundationPredefinedConfig;
+	draftConfig: FoundationPredefinedConfig;
 	savedUnifiedConfig: UnifiedFlowConfig | null;
 	savedFeatures: FeatureFlags;
 	draftFeatures: FeatureFlags;
@@ -537,9 +537,9 @@ interface AgentConfigState {
 	open: (flowId?: string | null) => void;
 	close: () => void;
 	initialize: (flowId?: string | null) => Promise<void>;
-	updateField: <K extends keyof KnowledgeRAGPredefinedConfig>(
+	updateField: <K extends keyof FoundationPredefinedConfig>(
 		field: K,
-		value: KnowledgeRAGPredefinedConfig[K],
+		value: FoundationPredefinedConfig[K],
 	) => void;
 	setKnowledgeRetrievalMode: (mode: KnowledgeRetrievalMode) => void;
 	setGraphType: (graphType: GraphType) => void;
@@ -557,8 +557,8 @@ interface AgentConfigState {
 }
 
 const computeDirty = (
-	saved: KnowledgeRAGPredefinedConfig,
-	draft: KnowledgeRAGPredefinedConfig,
+	saved: FoundationPredefinedConfig,
+	draft: FoundationPredefinedConfig,
 	savedFeatures: FeatureFlags,
 	draftFeatures: FeatureFlags,
 	savedMultiAgentAccessibleAgentIds: string[],
@@ -593,7 +593,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				savedUnifiedConfig &&
 				(savedUnifiedConfig.graphType === draftConfig.graphType ||
 					(savedUnifiedConfig.graphType !== "agent" &&
-						draftConfig.graphType === "knowledge-rag"))
+						draftConfig.graphType === "foundation"))
 					? mergeWithDefaultConfig(savedUnifiedConfig, draftConfig.graphType)
 					: buildDefaultFlowConfig(draftConfig.graphType);
 			const unifiedConfig = applyLegacyDraftToUnified(
@@ -612,7 +612,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				);
 			} else {
 				await serviceManager.flowBuilderService.saveUnifiedFlowConfig(
-					{ predefinedFlow: "knowledge-rag" },
+					{ predefinedFlow: "foundation" },
 					unifiedConfig,
 				);
 			}
@@ -641,8 +641,8 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 	};
 
 	return {
-		savedConfig: { ...DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG },
-		draftConfig: { ...DEFAULT_KNOWLEDGE_RAG_PREDEFINED_CONFIG },
+		savedConfig: { ...DEFAULT_FOUNDATION_PREDEFINED_CONFIG },
+		draftConfig: { ...DEFAULT_FOUNDATION_PREDEFINED_CONFIG },
 		savedUnifiedConfig: null,
 		savedFeatures: {},
 		draftFeatures: {},
@@ -656,7 +656,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 		savedEnabledSkillNames: [],
 		draftEnabledSkillNames: [],
 		currentFlowId: null,
-		currentGraphType: "knowledge-rag",
+		currentGraphType: "foundation",
 		isLegacyConfig: false,
 
 		isOpen: false,
@@ -685,10 +685,10 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 				const targetFlowId = flowId ?? get().currentFlowId;
 				const flowRef = targetFlowId
 					? { flowId: targetFlowId }
-					: { predefinedFlow: "knowledge-rag" as const };
+					: { predefinedFlow: "foundation" as const };
 				const availableAgents =
 					await serviceManager.flowBuilderService.listPredefinedFlows(
-						"knowledge-rag",
+						"foundation",
 					);
 				const storageFormat =
 					await serviceManager.flowBuilderService.getFlowConfigStorageFormat(
@@ -699,12 +699,12 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 					const config = targetFlowId
 						? ((await serviceManager.flowBuilderService.getFlowConfig({
 								flowId: targetFlowId,
-							})) as KnowledgeRAGPredefinedConfig)
+							})) as FoundationPredefinedConfig)
 						: await serviceManager.flowBuilderService.getFlowConfig({
-								predefinedFlow: "knowledge-rag",
+								predefinedFlow: "foundation",
 							});
 					const graphType: GraphType =
-						config.graphType === "agent" ? "agent" : "knowledge-rag";
+						config.graphType === "agent" ? "agent" : "foundation";
 					const featureDefinitions = buildFeatureDefinitions(graphType);
 					const defaultFeatures = createDefaultFeatureFlags(
 						getCatalogFeatureNames(featureDefinitions),
@@ -826,7 +826,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 			const defaultFeatures = createDefaultFeatureFlags(catalogNames);
 			const draft = { ...get().draftConfig, graphType };
 			const draftMultiAgentAccessibleAgentIds =
-				graphType === "knowledge-rag"
+				graphType === "foundation"
 					? get().draftMultiAgentAccessibleAgentIds
 					: [];
 			set({
@@ -1014,7 +1014,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 		revert: () => {
 			const savedConfig = get().savedConfig;
 			const graphType: GraphType =
-				savedConfig.graphType === "agent" ? "agent" : "knowledge-rag";
+				savedConfig.graphType === "agent" ? "agent" : "foundation";
 			set({
 				draftConfig: { ...savedConfig },
 				draftFeatures: { ...get().savedFeatures },
@@ -1030,7 +1030,7 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 		},
 
 		resetToDefaults: () => {
-			const defaultUnifiedConfig = buildDefaultFlowConfig("knowledge-rag");
+			const defaultUnifiedConfig = buildDefaultFlowConfig("foundation");
 			const derivedState = deriveLegacyStateFromUnified(defaultUnifiedConfig);
 			set({
 				draftConfig: derivedState.config,

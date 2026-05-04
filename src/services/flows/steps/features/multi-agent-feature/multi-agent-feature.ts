@@ -117,7 +117,7 @@ const definition = defineStep<
 
 			const flows =
 				await serviceManager.flowBuilderService.listPredefinedFlows(
-					"knowledge-rag",
+					"foundation",
 				);
 			const allowedAgents = flows
 				.filter((flow) => configuredIds.includes(flow.id))
@@ -203,7 +203,7 @@ featureCatalogRegistry.register({
 	id: "step-multi-agent-feature",
 	name: MULTI_AGENT_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: [
 		...FEATURE_DEFAULT_INPUTS,
 		{

@@ -186,7 +186,7 @@ featureCatalogRegistry.register({
 	id: "step-fs-feature",
 	name: FS_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

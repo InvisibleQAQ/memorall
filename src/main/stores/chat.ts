@@ -232,7 +232,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
 		currentConversation: null,
 		conversations: [],
 		isLoading: false,
-		chatMode: "knowledge",
+		chatMode: "custom",
 		selectedTopic: "default",
 		selectedAgentFlowId: null,
 

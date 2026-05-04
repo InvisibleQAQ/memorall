@@ -41,6 +41,10 @@ import {
 	up as addCronJobsUp,
 	down as addCronJobsDown,
 } from "./011_add_cron_jobs";
+import {
+	up as renameKnowledgeRagToFoundationUp,
+	down as renameKnowledgeRagToFoundationDown,
+} from "./012_rename_knowledge_rag_to_foundation";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -136,6 +140,13 @@ export const migrations: Migration[] = [
 		description: "Add durable agent cron jobs and link conversations to agents",
 		up: addCronJobsUp,
 		down: addCronJobsDown,
+	},
+	{
+		id: "rename_knowledge_rag_to_foundation",
+		version: 12,
+		description: "Rename predefined knowledge RAG flow records to foundation",
+		up: renameKnowledgeRagToFoundationUp,
+		down: renameKnowledgeRagToFoundationDown,
 	},
 	// Example of how to add future migrations:
 	// {

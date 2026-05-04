@@ -81,7 +81,7 @@ export const useChat = (model: string) => {
 	const loadMessageGroup = useChatStore((state) => state.loadMessageGroup);
 	const deleteMessages = useChatStore((state) => state.deleteMessages);
 
-	const isKnowledgeMode =
+	const isCustomMode =
 		selectedAgentFlowId !== null && selectedAgentFlowId !== "chat";
 
 	// Initialize conversation
@@ -101,7 +101,7 @@ export const useChat = (model: string) => {
 
 	// Sync selectedTopic with last message's topic only if no topic has been selected yet
 	useEffect(() => {
-		if (!isKnowledgeMode) return;
+		if (!isCustomMode) return;
 		if (selectedTopic !== "default") return;
 
 		// Find the last user or assistant message (skip separators)
@@ -112,7 +112,7 @@ export const useChat = (model: string) => {
 		if (lastMessage?.topicId) {
 			setSelectedTopic(lastMessage.topicId);
 		}
-	}, [messages, isKnowledgeMode]);
+	}, [messages, isCustomMode]);
 
 	// Stop current chat request
 	const handleStop = () => {
@@ -265,9 +265,9 @@ export const useChat = (model: string) => {
 								attachedDocuments: docRefs,
 							}
 						: undefined,
-				// Include topicId when in knowledge mode with a selected topic
+				// Include topicId when in custom mode with a selected topic
 				topicId:
-					isKnowledgeMode &&
+					isCustomMode &&
 					selectedTopic &&
 					selectedTopic !== "default" &&
 					selectedTopic !== "__all__"
@@ -314,9 +314,9 @@ export const useChat = (model: string) => {
 				{
 					messages: sendMessages,
 					model: model,
-					mode: isKnowledgeMode ? "knowledge" : "normal",
+					mode: isCustomMode ? "custom" : "normal",
 					topicId:
-						isKnowledgeMode && selectedTopic && selectedTopic !== "__all__"
+						isCustomMode && selectedTopic && selectedTopic !== "__all__"
 							? selectedTopic
 							: undefined,
 					agentFlowId: selectedAgentFlowId ?? undefined,
@@ -468,7 +468,7 @@ export const useChat = (model: string) => {
 		inputValue,
 		setInputValue,
 		status,
-		chatMode: isKnowledgeMode ? "knowledge" : "normal",
+		chatMode: isCustomMode ? "custom" : "normal",
 		setChatMode: () => undefined,
 		selectedTopic,
 		setSelectedTopic,

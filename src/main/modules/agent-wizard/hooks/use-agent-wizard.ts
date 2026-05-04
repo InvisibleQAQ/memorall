@@ -66,7 +66,7 @@ const getCatalog = (): AgentWizardCatalog => {
 			.filter(
 				(step) =>
 					step.type === "feature" &&
-					(step.graphTypes?.includes("knowledge-rag") ?? false),
+					(step.graphTypes?.includes("foundation") ?? false),
 			)
 			.map((step) => step.name),
 	];

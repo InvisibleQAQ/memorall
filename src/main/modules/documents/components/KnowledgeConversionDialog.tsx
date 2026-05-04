@@ -56,9 +56,7 @@ export const KnowledgeConversionDialog =
 					setLoading(true);
 					const [allTopics, flows] = await Promise.all([
 						topicService.getTopics(),
-						serviceManager.flowBuilderService.listPredefinedFlows(
-							"knowledge-rag",
-						),
+						serviceManager.flowBuilderService.listPredefinedFlows("foundation"),
 					]);
 					setTopics(Array.isArray(allTopics) ? allTopics : []);
 					setAgentNamesById(

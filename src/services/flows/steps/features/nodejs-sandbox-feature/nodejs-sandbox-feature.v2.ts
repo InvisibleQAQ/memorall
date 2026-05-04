@@ -298,7 +298,7 @@ featureCatalogRegistry.register({
 	id: "step-nodejs-sandbox-feature",
 	name: NODEJS_SANDBOX_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

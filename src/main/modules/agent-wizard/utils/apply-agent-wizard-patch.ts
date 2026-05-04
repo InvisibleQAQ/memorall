@@ -211,7 +211,7 @@ const announcePatchCursorMoves = (patch: AgentWizardPatch): void => {
 	if (patch.status === "active" || patch.status === "draft") {
 		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.status, "Updating status");
 	}
-	if (patch.graphType === "agent" || patch.graphType === "knowledge-rag") {
+	if (patch.graphType === "agent" || patch.graphType === "foundation") {
 		announceCursorMove(AGENT_WIZARD_CURSOR_KEYS.graphType, "Updating graph");
 	}
 	if (typeof patch.systemPrompt === "string") {
@@ -338,7 +338,7 @@ export const applyAgentWizardPatch = (
 	if ("iconScreen" in patch) {
 		next.iconScreen = normalizeAgentIconScreen(patch.iconScreen);
 	}
-	if (patch.graphType === "agent" || patch.graphType === "knowledge-rag") {
+	if (patch.graphType === "agent" || patch.graphType === "foundation") {
 		next.graphType = patch.graphType;
 	}
 

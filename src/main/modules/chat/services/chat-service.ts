@@ -12,7 +12,7 @@ import type {
 } from "@/types/openai";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 
-export type ChatMode = "normal" | "knowledge" | "agent";
+export type ChatMode = "normal" | "custom" | "agent";
 
 export interface ChatServiceOptions {
 	messages: ChatMessage[];

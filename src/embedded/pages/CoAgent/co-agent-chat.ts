@@ -48,7 +48,7 @@ const createUserMessage = (prompt: string): ChatMessage => ({
 });
 
 export const createCoAgentEnabledFlowConfig = (): UnifiedFlowConfig => {
-	const config = buildDefaultFlowConfig("knowledge-rag");
+	const config = buildDefaultFlowConfig("foundation");
 	return {
 		...config,
 		steps: config.steps.map((step) =>
@@ -66,7 +66,7 @@ export const coAgentChatService = {
 		embeddedChatService.chatStream({
 			messages: [createUserMessage(options.prompt)],
 			model: options.model,
-			mode: "knowledge",
+			mode: "custom",
 			flowConfig: createCoAgentEnabledFlowConfig(),
 			systemMessages: [renderCoAgentPageContextPrompt(options.pageContext)],
 			onExecuteStart: options.onExecuteStart,

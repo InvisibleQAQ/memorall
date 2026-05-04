@@ -342,7 +342,7 @@ featureCatalogRegistry.register({
 	id: "step-shopping-assistant-feature",
 	name: SHOPPING_ASSISTANT_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

@@ -1,4 +1,4 @@
 import "./knowledge/graph";
-import "./knowledge-rag/graph";
+import "./foundation/graph";
 import "./agent/graph";
 import "./structmem/graph";

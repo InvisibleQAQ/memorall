@@ -336,9 +336,9 @@ export const ChatPage: React.FC = () => {
 		});
 	}, [scrollToGroup, showPreviousGroups]);
 
-	// Fetch topics when knowledge mode is selected
+	// Fetch topics when custom mode is selected
 	useEffect(() => {
-		if (chatMode === "knowledge") {
+		if (chatMode === "custom") {
 			const fetchTopics = async () => {
 				try {
 					setIsLoadingTopics(true);
@@ -368,7 +368,7 @@ export const ChatPage: React.FC = () => {
 			try {
 				const flows =
 					await serviceManager.flowBuilderService.listPredefinedFlows(
-						"knowledge-rag",
+						"foundation",
 					);
 				const mapped = flows
 					.filter((flow) => flow.status === "active")
@@ -559,7 +559,7 @@ export const ChatPage: React.FC = () => {
 		try {
 			const created =
 				await serviceManager.flowBuilderService.createPredefinedFlow(
-					"knowledge-rag",
+					"foundation",
 					name,
 				);
 			await ensureDefaultAgentFeatures(created.id);

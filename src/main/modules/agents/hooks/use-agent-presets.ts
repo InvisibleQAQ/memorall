@@ -117,7 +117,7 @@ export const useAgentPresets = (): UseAgentPresetsResult => {
 			try {
 				const nextPresets =
 					await serviceManager.flowBuilderService.listPredefinedFlows(
-						"knowledge-rag",
+						"foundation",
 					);
 				setPresets(nextPresets);
 				return syncSelection(nextPresets, preferredPresetId);
@@ -205,7 +205,7 @@ export const useAgentPresets = (): UseAgentPresetsResult => {
 			try {
 				const created =
 					await serviceManager.flowBuilderService.createPredefinedFlow(
-						"knowledge-rag",
+						"foundation",
 						name,
 						options.status ?? "active",
 					);

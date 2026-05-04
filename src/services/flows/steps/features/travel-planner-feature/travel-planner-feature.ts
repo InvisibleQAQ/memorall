@@ -382,7 +382,7 @@ featureCatalogRegistry.register({
 	id: "step-travel-planner-feature",
 	name: TRAVEL_PLANNER_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

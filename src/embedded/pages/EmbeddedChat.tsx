@@ -11,7 +11,7 @@ import { useConversationAutoScroll } from "@/embedded/hooks/use-conversation-aut
 import { useEmbeddedChatDisplayMode } from "@/embedded/hooks/use-embedded-chat-display-mode";
 import { useEmbeddedChatSession } from "@/embedded/hooks/use-embedded-chat-session";
 import { useEmbeddedContextAttachments } from "@/embedded/hooks/use-embedded-context-attachments";
-import { useEmbeddedKnowledgeOptions } from "@/embedded/hooks/use-embedded-knowledge-options";
+import { useEmbeddedCustomOptions } from "@/embedded/hooks/use-embedded-custom-options";
 import { useEmbeddedModelStatus } from "@/embedded/hooks/use-embedded-model-status";
 import { useEmbeddedSmartSelect } from "@/embedded/hooks/use-embedded-smart-select";
 import {
@@ -76,7 +76,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 		selectedAgentFlowId,
 		setSelectedAgentFlowId,
 		hasTopics,
-	} = useEmbeddedKnowledgeOptions();
+	} = useEmbeddedCustomOptions();
 	const {
 		availableContexts,
 		attachedContexts,

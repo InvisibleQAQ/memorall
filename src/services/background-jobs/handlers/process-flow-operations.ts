@@ -9,7 +9,7 @@ const JOB_NAMES = {
 } as const;
 
 export interface GetPredefinedFlowsPayload {
-	flowKey?: "knowledge-rag";
+	flowKey?: "foundation";
 }
 
 export interface GetPredefinedFlowsResult extends Record<string, unknown> {
@@ -38,7 +38,7 @@ class FlowOperationsHandler extends BaseProcessHandler<FlowOperationsJob> {
 	private async handleGetPredefinedFlows(
 		payload: GetPredefinedFlowsPayload,
 	): Promise<GetPredefinedFlowsResult> {
-		const flowKey = payload.flowKey ?? "knowledge-rag";
+		const flowKey = payload.flowKey ?? "foundation";
 		logInfo(`[FLOW_OPERATIONS_HANDLER] Getting predefined flows: ${flowKey}`);
 		const flows =
 			await serviceManager.flowBuilderService.listPredefinedFlows(flowKey);

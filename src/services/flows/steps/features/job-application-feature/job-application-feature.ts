@@ -298,7 +298,7 @@ featureCatalogRegistry.register({
 	id: "step-job-application-feature",
 	name: JOB_APPLICATION_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

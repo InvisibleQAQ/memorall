@@ -68,11 +68,11 @@ const definition = defineStep<
 	execute: async ({ input, services, config, runConfig }) => {
 		try {
 			logInfo(
-				"[KNOWLEDGE_RAG] Building knowledge context in natural language format",
+				"[FOUNDATION] Building knowledge context in natural language format",
 			);
 
 			// DEBUG: Log what we received in state
-			logInfo("[KNOWLEDGE_RAG] State received in buildContextNode:", {
+			logInfo("[FOUNDATION] State received in buildContextNode:", {
 				relevantNodesCount: input.relevantNodes?.length ?? 0,
 				relevantEdgesCount: input.relevantEdges?.length ?? 0,
 				hasNodes: !!input.relevantNodes,
@@ -94,7 +94,7 @@ const definition = defineStep<
 
 			if (!input.relevantNodes?.length || !input.relevantEdges?.length) {
 				logWarn(
-					"[KNOWLEDGE_RAG] No nodes or edges in state, returning empty context",
+					"[FOUNDATION] No nodes or edges in state, returning empty context",
 					{
 						hasNodes: !!input.relevantNodes,
 						hasEdges: !!input.relevantEdges,
@@ -176,7 +176,7 @@ ${facts.trim() ? `<facts>${facts}</facts>` : ""}`;
 				},
 			};
 		} catch (error) {
-			logError("[KNOWLEDGE_RAG] Context building failed:", error);
+			logError("[FOUNDATION] Context building failed:", error);
 			throw error;
 		}
 	},

@@ -112,7 +112,7 @@ featureCatalogRegistry.register({
 	id: "step-artifact-feature",
 	name: ARTIFACT_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{

@@ -149,7 +149,7 @@ featureCatalogRegistry.register({
 	id: "step-mcp-feature",
 	name: MCP_FEATURE_NAME,
 	type: "feature",
-	graphTypes: ["knowledge-rag"],
+	graphTypes: ["foundation"],
 	inputs: FEATURE_DEFAULT_INPUTS,
 	outputs: [
 		{
