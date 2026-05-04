@@ -7,6 +7,7 @@ import {
 	openExtensionPopup,
 } from "@/background/core/notifications";
 import { MENU_IDS } from "./ids";
+import { CO_AGENT_ACTIVE_SESSION_STORAGE_KEY } from "@/services/co-agent";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,43 @@ async function handleRecall(
 		logInfo("📨 Content script response to SHOW_CHAT_MODAL:", response);
 	} catch (error) {
 		logError("❌ Failed to show chat modal:", error);
+	}
+}
+
+async function handleCoAgent(
+	info: chrome.contextMenus.OnClickData,
+	tab: chrome.tabs.Tab,
+): Promise<void> {
+	if (!tab.id) return;
+
+	try {
+		if (isRestrictedUrl(tab.url)) {
+			logError("❌ Cannot access this page type");
+			return;
+		}
+
+		await chrome.storage?.session?.set?.({
+			[CO_AGENT_ACTIVE_SESSION_STORAGE_KEY]: {
+				tabId: tab.id,
+				windowId: tab.windowId,
+				url: tab.url,
+				title: tab.title,
+				enabledAt: Date.now(),
+			},
+		});
+
+		const response = await chrome.tabs.sendMessage(tab.id, {
+			type: BACKGROUND_EVENTS.SHOW_CO_AGENT,
+			tabId: tab.id,
+			url: tab.url,
+			selectedText: info.selectionText ?? "",
+			mode: "general",
+			displayMode: "popup",
+			coAgentEnabled: true,
+		});
+		logInfo("📨 Content script response to SHOW_CO_AGENT:", response);
+	} catch (error) {
+		logError("❌ Failed to show co-agent:", error);
 	}
 }
 
@@ -289,6 +327,7 @@ export function registerContextMenuHandler(): void {
 
 		if (id === MENU_IDS.OPEN_DOCUMENTS) return handleOpenDocuments();
 		if (id === MENU_IDS.RECALL) return handleRecall(info, tab);
+		if (id === MENU_IDS.CO_AGENT) return handleCoAgent(info, tab);
 		if (id === MENU_IDS.RECALL_IMAGE) return handleRecallImage(info, tab);
 		if (id === MENU_IDS.START_CAPTURE) return handleStartCapture();
 		if (id === MENU_IDS.STOP_CAPTURE) return handleStopCapture();

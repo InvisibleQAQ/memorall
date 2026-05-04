@@ -34,6 +34,7 @@ export const AgentCursorPointer: React.FC<AgentCursorPointerProps> = ({
 }) => (
 	<svg
 		className={cn(
+			"agent-cursor-pointer",
 			"text-primary drop-shadow-[0_8px_18px_rgb(0_0_0/0.18)]",
 			className,
 		)}
@@ -62,11 +63,14 @@ export const AgentCursorBubble: React.FC<AgentCursorBubbleProps> = ({
 }) => {
 	const content = (
 		<>
-			<span className="relative line-clamp-2">{message}</span>
+			<span className="agent-cursor-bubble-text relative line-clamp-2">
+				{message}
+			</span>
 		</>
 	);
 
 	const bubbleClassName = cn(
+		"agent-cursor-bubble",
 		"relative mb-0.5 max-w-[220px] rounded-xl border border-white/35 bg-background/70 px-3 py-1.5",
 		"text-xs font-medium text-foreground shadow-lg shadow-black/10 backdrop-blur-md",
 		"supports-[backdrop-filter]:bg-background/55",
@@ -96,10 +100,20 @@ export const AgentCursorBadge: React.FC<AgentCursorBadgeProps> = ({
 	animateMessage = true,
 	iconSize = 38,
 }) => {
+	const normalizedMessage = message.trim().toLowerCase();
+	const shouldShowMessage =
+		message.trim().length > 0 &&
+		![
+			"updating",
+			"moving to the relevant area",
+			"click target",
+			"input target",
+		].includes(normalizedMessage);
+
 	return (
-		<div className={cn("flex items-end gap-2", className)}>
+		<div className={cn("agent-cursor-badge flex items-end gap-2", className)}>
 			<motion.div
-				className="relative flex shrink-0 items-center justify-center"
+				className="agent-cursor-badge-icon relative flex shrink-0 items-center justify-center"
 				initial={{ y: 4, scale: 0.96 }}
 				animate={{ rotate: 0, scale: 1 }}
 				transition={{ type: "spring", stiffness: 380, damping: 28 }}
@@ -110,7 +124,9 @@ export const AgentCursorBadge: React.FC<AgentCursorBadgeProps> = ({
 					reactive={false}
 				/>
 			</motion.div>
-			<AgentCursorBubble message={message} animateMessage={animateMessage} />
+			{shouldShowMessage ? (
+				<AgentCursorBubble message={message} animateMessage={animateMessage} />
+			) : null}
 		</div>
 	);
 };
@@ -164,7 +180,7 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 		return (
 			<div className={cn("text-primary", className)}>
 				<motion.div
-					className="pointer-events-none fixed left-0 top-0 z-[10000]"
+					className="agent-cursor-pointer-layer pointer-events-none fixed left-0 top-0 z-[10000]"
 					style={{ x: pointerX, y: pointerY }}
 					initial={{ opacity: 0, scale: 0.92 }}
 					animate={{ opacity: 1, scale: 1 }}
@@ -174,12 +190,12 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 						scale: { duration: 0.18 },
 					}}
 				>
-					<div className="-translate-x-[10px] -translate-y-[10px]">
+					<div className="agent-cursor-pointer-offset -translate-x-[10px] -translate-y-[10px]">
 						{pointer}
 					</div>
 				</motion.div>
 				<motion.div
-					className="pointer-events-none fixed left-0 top-0 z-[9999]"
+					className="agent-cursor-badge-layer pointer-events-none fixed left-0 top-0 z-[9999]"
 					style={{ x: followX, y: followY }}
 					initial={{ opacity: 0, scale: 0.96 }}
 					animate={{ opacity: 1, scale: 1 }}
@@ -189,7 +205,9 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 						scale: { duration: 0.18 },
 					}}
 				>
-					<div className="translate-x-[18px] translate-y-[24px]">{badge}</div>
+					<div className="agent-cursor-badge-offset translate-x-[18px] translate-y-[24px]">
+						{badge}
+					</div>
 				</motion.div>
 			</div>
 		);
@@ -198,12 +216,13 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 	return (
 		<div
 			className={cn(
+				"agent-cursor-static",
 				"-translate-x-[10px] -translate-y-[10px] text-primary",
 				className,
 			)}
 		>
 			{pointer}
-			<div className="mt-1">{badge}</div>
+			<div className="agent-cursor-static-badge mt-1">{badge}</div>
 		</div>
 	);
 };

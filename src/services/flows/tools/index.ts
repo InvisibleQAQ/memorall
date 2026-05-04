@@ -41,6 +41,8 @@ import "./web/web-dom";
 import "./web/web-wait";
 import "./web/web-screenshot";
 
+import "./co-agent";
+
 import "./documents-fs/fs-glob";
 import "./documents-fs/fs-grep";
 import "./documents-fs/fs-read";

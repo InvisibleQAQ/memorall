@@ -7,8 +7,6 @@ import { normalizeLangGraphStreamChunk } from "@/services/flows/utils/langgraph-
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { logInfo, logWarn } from "@/utils/logger";
 
-export const SEND_MESSAGE_TO_AGENT_TOOL_NAME = "send_message_to_agent" as const;
-
 export interface MultiAgentChildAgent {
 	id: string;
 	name: string;
@@ -25,10 +23,6 @@ export interface ChildAgentMessageResult {
 	childAgent: MultiAgentChildAgent;
 	response: string;
 	historyLength: number;
-}
-
-export interface SendMessageToAgentToolConfig {
-	multiAgentManager: MultiAgentManager;
 }
 
 const FALLBACK_CHILD_FLOW_CONFIG: UnifiedFlowConfig = {

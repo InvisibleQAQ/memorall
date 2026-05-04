@@ -8,6 +8,7 @@ import "./documents-fs-feature";
 import "./documents-feature";
 import "./nodejs-sandbox-feature";
 import "./web-feature";
+import "./co-agent-feature";
 import "./news-collection-feature";
 import "./travel-planner-feature";
 import "./meal-planner-feature";

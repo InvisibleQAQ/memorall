@@ -17,6 +17,7 @@ import {
 import { registerContextMenuHandler } from "@/background/context-menu/handler";
 import { registerMessageHandler } from "@/background/messaging";
 import { registerWebToolBrowserHandler } from "@/background/web-tool-browser-handler";
+import { registerCoAgentBrowserHandler } from "@/background/co-agent-browser-handler";
 
 // ── CRITICAL: synchronous setup at module load time ───────────────────────────
 // Chrome extensions require onConnect listeners to be registered before any
@@ -28,6 +29,7 @@ portBridge.initialize({
 
 registerContextMenuHandler();
 registerWebToolBrowserHandler();
+registerCoAgentBrowserHandler();
 
 registerMessageHandler(() => {
 	// Safe place to verify offscreen is alive (triggered on popup open)

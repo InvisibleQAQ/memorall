@@ -10,6 +10,10 @@ import {
 import { openExtensionPopup } from "@/background/core/notifications";
 import { relayJobNotificationToContent } from "./relay";
 import type { BackgroundMessage } from "@/embedded/types";
+import {
+	CO_AGENT_ACTIVE_SESSION_STORAGE_KEY,
+	CO_AGENT_CONTENT_COMMAND_SOURCE,
+} from "@/services/co-agent";
 
 // ── Individual handlers ───────────────────────────────────────────────────────
 
@@ -102,6 +106,108 @@ function handleOpenSavePage(sendResponse: SendResponse): true {
 		logError("❌ Failed to open documents page:", error);
 		sendResponse({ success: false, error: "Failed to open documents page" });
 	}
+	return true;
+}
+
+function handleCoAgentSetActive(
+	msg: Record<string, unknown>,
+	senderTabId: number | undefined,
+	sendResponse: SendResponse,
+): true {
+	(async () => {
+		try {
+			const tabId = typeof msg.tabId === "number" ? msg.tabId : senderTabId;
+			if (!tabId) {
+				sendResponse({ success: false, error: "No tab ID" });
+				return;
+			}
+			const tab = await chrome.tabs.get(tabId).catch(() => null);
+			await chrome.storage?.session?.set?.({
+				[CO_AGENT_ACTIVE_SESSION_STORAGE_KEY]: {
+					tabId,
+					windowId: tab?.windowId,
+					url: typeof msg.url === "string" ? msg.url : tab?.url,
+					title: tab?.title,
+					enabledAt: Date.now(),
+				},
+			});
+			sendResponse({ success: true });
+		} catch (error) {
+			logError("❌ Failed to set active co-agent tab:", error);
+			sendResponse({
+				success: false,
+				error:
+					error instanceof Error
+						? error.message
+						: "Failed to set active co-agent tab",
+			});
+		}
+	})();
+	return true;
+}
+
+function handleCoAgentHide(
+	senderTabId: number | undefined,
+	sendResponse: SendResponse,
+): true {
+	(async () => {
+		try {
+			const result = await chrome.storage?.session?.get?.(
+				CO_AGENT_ACTIVE_SESSION_STORAGE_KEY,
+			);
+			const active = result?.[CO_AGENT_ACTIVE_SESSION_STORAGE_KEY] as
+				| { tabId?: number }
+				| undefined;
+			if (!senderTabId || active?.tabId === senderTabId) {
+				await chrome.storage?.session?.remove?.(
+					CO_AGENT_ACTIVE_SESSION_STORAGE_KEY,
+				);
+			}
+			sendResponse({ success: true });
+		} catch (error) {
+			logError("❌ Failed to hide co-agent:", error);
+			sendResponse({ success: false, error: "Failed to hide co-agent" });
+		}
+	})();
+	return true;
+}
+
+function handleCoAgentGetTrace(
+	senderTabId: number | undefined,
+	sendResponse: SendResponse,
+): true {
+	(async () => {
+		try {
+			let tabId = senderTabId;
+			if (!tabId) {
+				const result = await chrome.storage?.session?.get?.(
+					CO_AGENT_ACTIVE_SESSION_STORAGE_KEY,
+				);
+				const active = result?.[CO_AGENT_ACTIVE_SESSION_STORAGE_KEY] as
+					| { tabId?: number }
+					| undefined;
+				tabId = active?.tabId;
+			}
+			if (!tabId) {
+				sendResponse({ success: false, error: "No active co-agent tab" });
+				return;
+			}
+			const response = await chrome.tabs.sendMessage(tabId, {
+				source: CO_AGENT_CONTENT_COMMAND_SOURCE,
+				type: "co-agent:get-trace",
+			});
+			sendResponse({ success: true, trace: response });
+		} catch (error) {
+			logError("❌ Failed to get co-agent trace:", error);
+			sendResponse({
+				success: false,
+				error:
+					error instanceof Error
+						? error.message
+						: "Failed to get co-agent trace",
+			});
+		}
+	})();
 	return true;
 }
 
@@ -403,6 +509,15 @@ export function registerMessageHandler(onPopupOpened: () => void): void {
 
 		if (type === BACKGROUND_EVENTS.OPEN_SAVE_PAGE)
 			return handleOpenSavePage(sendResponse);
+
+		if (type === BACKGROUND_EVENTS.CO_AGENT_SET_ACTIVE)
+			return handleCoAgentSetActive(msg, sender.tab?.id, sendResponse);
+
+		if (type === BACKGROUND_EVENTS.HIDE_CO_AGENT)
+			return handleCoAgentHide(sender.tab?.id, sendResponse);
+
+		if (type === BACKGROUND_EVENTS.CO_AGENT_GET_TRACE)
+			return handleCoAgentGetTrace(sender.tab?.id, sendResponse);
 
 		if (type === BACKGROUND_EVENTS.OPEN_FULL_CHAT_WITH_CONTEXT)
 			return handleOpenFullChatWithContext(

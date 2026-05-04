@@ -1,5 +1,6 @@
 import {
 	ExternalLink,
+	Bot,
 	Loader,
 	MessageCircle,
 	PanelRight,
@@ -307,6 +308,8 @@ interface ChatHeaderProps {
 	onNewChat: () => void;
 	onOpenFullVersion: () => void;
 	onClose: () => void;
+	coAgentEnabled?: boolean;
+	onToggleCoAgent?: () => void;
 	modelId?: string;
 	provider?: string;
 	modelAvailable?: boolean;
@@ -319,6 +322,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 	onNewChat,
 	onOpenFullVersion,
 	onClose,
+	coAgentEnabled,
+	onToggleCoAgent,
 	modelId,
 	provider,
 	modelAvailable,
@@ -350,6 +355,19 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 					)}
 				</div>
 				<div className="memorall-header-actions">
+					<button
+						onClick={onToggleCoAgent}
+						className={`memorall-icon-button ${
+							coAgentEnabled ? "memorall-icon-button--active" : ""
+						}`}
+						aria-label={coAgentEnabled ? "Disable co-agent" : "Enable co-agent"}
+						title={coAgentEnabled ? "Disable co-agent" : "Enable co-agent"}
+						onKeyDown={(e) => e.stopPropagation()}
+						onKeyUp={(e) => e.stopPropagation()}
+						onKeyPress={(e) => e.stopPropagation()}
+					>
+						<Bot size={16} />
+					</button>
 					<button
 						onClick={onNewChat}
 						className="memorall-icon-button"

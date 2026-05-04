@@ -42,6 +42,7 @@ export interface ChatPayload {
 	mode: "normal" | "agent" | "knowledge";
 	topicId?: string; // For topic filtering in knowledge mode
 	agentFlowId?: string;
+	flowConfig?: UnifiedFlowConfig;
 	streamConfig?: ChatStreamConfig;
 	tools?: ChatCompletionTool[];
 	tool_choice?: ChatCompletionToolChoiceOption;
@@ -448,18 +449,137 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				progress: 5,
 			});
 
-			if (mode === "knowledge") {
+			if (mode === "agent") {
+				await dependencies.updateJobProgress(jobId, {
+					stage: "Running Agent...",
+					progress: 20,
+				});
+
+				let flowConfig: UnifiedFlowConfig | null = null;
+				try {
+					flowConfig = job.payload.flowConfig
+						? job.payload.flowConfig
+						: agentFlowId
+							? await serviceManager.flowBuilderService.getUnifiedFlowConfig({
+									flowId: agentFlowId,
+								})
+							: buildDefaultFlowConfig("agent");
+				} catch (err) {
+					await dependencies.logger.warn(
+						"Failed to load agent flow config, using defaults",
+						`${err}`,
+						"offscreen",
+					);
+				}
+
+				const resolvedConfig = flowConfig
+					? mergeWithDefaultConfig(flowConfig, flowConfig.graphType)
+					: buildDefaultFlowConfig("agent");
+				const allServices = {
+					llm: serviceManager.llmService,
+					embedding: serviceManager.embeddingService,
+					database: serviceManager.databaseService,
+					sandboxContainer: serviceManager.getSandboxContainerService(),
+					webBrowser: serviceManager.getWebBrowserService(),
+					documentFileSystem: documentFileSystemService,
+				};
+				const { graph, getInitialState } = chatFlowRegistry.create(
+					resolvedConfig.graphType ?? "agent",
+					allServices,
+					resolvedConfig,
+				);
+				const stream = await graph.stream(
+					getInitialState({ messages, topicId, contextQueries: [] }),
+					{
+						streamMode: ["custom", "values"],
+					},
+				);
+
+				const responseProgress = () =>
+					Math.min(80, 20 + currentContent.length / 10);
+				const handleChunk = ChatHandler.createHandleChunk({
+					jobId,
+					model,
+					config,
+					dependencies,
+					streamBuffer,
+					getProgress: responseProgress,
+					onUsage: addUsage,
+					onToolCalls: (toolCalls) =>
+						accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
+				});
+				const handleActions = ChatHandler.createKnowledgeHandleActions(
+					dependencies,
+					jobId,
+					actions,
+				);
+
+				let finalState: Record<string, unknown> | null = null;
+				for await (const partial of stream) {
+					const { mode, payload } = normalizeLangGraphStreamChunk(partial);
+
+					if (mode === "custom" && isCustomChunkPayload(payload)) {
+						switch (payload.type) {
+							case "llm":
+								if ("chunk" in payload) {
+									await handleChunk(payload.chunk as ChatCompletionChunk);
+								}
+								break;
+							case "actions":
+								if ("actions" in payload) {
+									handleActions(payload.actions as FlowAction[]);
+								}
+								break;
+							case "execute-start":
+								if ("node" in payload) {
+									dependencies.updateJobProgress(jobId, {
+										stage: "Executing agent action...",
+										progress: 12,
+										result: {
+											type: "execute-start",
+											node: payload.node,
+											metadata: payload.metadata,
+										} as ChatResult,
+									});
+								}
+								break;
+						}
+						continue;
+					}
+
+					if (mode === "values") {
+						finalState = payload as Record<string, unknown>;
+					}
+				}
+
+				streamBuffer.flush();
+
+				if (typeof finalState?.response === "string") {
+					currentContent = finalState.response;
+					await dependencies.updateJobProgress(jobId, {
+						stage: "Agent complete",
+						progress: 95,
+						result: {
+							type: "final",
+							content: currentContent,
+							metadata: { actions },
+						} as ChatResult,
+					});
+				}
+			} else if (mode === "knowledge") {
 				// Load unified flow config — steps carry both their settings and enabled state.
 				// Falls back to the canonical default on failure so the graph always runs.
 				let flowConfig: UnifiedFlowConfig | null = null;
 				try {
-					flowConfig = agentFlowId
-						? await serviceManager.flowBuilderService.getUnifiedFlowConfig({
-								flowId: agentFlowId,
-							})
-						: await serviceManager.flowBuilderService.getUnifiedFlowConfig({
-								predefinedFlow: "knowledge-rag",
-							});
+					flowConfig = job.payload.flowConfig
+						? job.payload.flowConfig
+						: agentFlowId
+							? await serviceManager.flowBuilderService.getUnifiedFlowConfig({
+									flowId: agentFlowId,
+								})
+							: await serviceManager.flowBuilderService.getUnifiedFlowConfig({
+									predefinedFlow: "knowledge-rag",
+								});
 				} catch (err) {
 					await dependencies.logger.warn(
 						"Failed to load flow config, using defaults",

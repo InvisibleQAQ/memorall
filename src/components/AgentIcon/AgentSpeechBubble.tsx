@@ -6,6 +6,7 @@ export type AgentSpeechBubbleVariant = "manga" | "thought" | "caption";
 
 export type AgentIconSpeechBubble = {
 	message: string;
+	renderContent?: React.ReactNode;
 	tone?: "neutral" | "happy" | "thinking" | "sleepy" | "excited";
 	placement?: AgentSpeechBubblePlacement;
 	duration?: number;
@@ -74,7 +75,9 @@ export const AgentSpeechBubble: React.FC<AgentSpeechBubbleProps> = ({
 	const tone = bubble.tone ?? "neutral";
 	const isThought = variant === "thought";
 	const characterCount = Math.max(message.length, 1);
-	const shouldTypewrite = !reducedMotion && characterCount <= 36;
+	const hasCustomContent = Boolean(bubble.renderContent);
+	const shouldTypewrite =
+		!hasCustomContent && !reducedMotion && characterCount <= 36;
 
 	return (
 		<div
@@ -97,22 +100,28 @@ export const AgentSpeechBubble: React.FC<AgentSpeechBubbleProps> = ({
 						"agent-speech-bubble-motion animate-in fade-in zoom-in-95 duration-200",
 				)}
 			>
-				<span
-					key={message}
-					className={cn(
-						"relative z-[1] inline-block max-w-[12rem] align-bottom",
-						shouldTypewrite
-							? "overflow-hidden whitespace-nowrap pr-1 agent-speech-bubble-type"
-							: "whitespace-normal break-words",
-					)}
-					style={
-						{
-							"--agent-bubble-characters": characterCount,
-						} as React.CSSProperties
-					}
-				>
-					{message}
-				</span>
+				{hasCustomContent ? (
+					<div className="agent-speech-bubble-content relative z-[1] text-left">
+						{bubble.renderContent}
+					</div>
+				) : (
+					<span
+						key={message}
+						className={cn(
+							"relative z-[1] inline-block max-w-[12rem] align-bottom",
+							shouldTypewrite
+								? "overflow-hidden whitespace-nowrap pr-1 agent-speech-bubble-type"
+								: "whitespace-normal break-words",
+						)}
+						style={
+							{
+								"--agent-bubble-characters": characterCount,
+							} as React.CSSProperties
+						}
+					>
+						{message}
+					</span>
+				)}
 				{isThought ? (
 					<>
 						<span
@@ -131,7 +140,7 @@ export const AgentSpeechBubble: React.FC<AgentSpeechBubbleProps> = ({
 				) : (
 					<span
 						className={cn(
-							"absolute h-0 w-0 border-[14px] drop-shadow-[2px_2px_0_rgba(15,23,42,0.16)]",
+							"agent-speech-bubble-tail absolute h-0 w-0 border-[14px] drop-shadow-[2px_2px_0_rgba(15,23,42,0.16)]",
 							TAIL_PLACEMENT_CLASS[placement],
 						)}
 					/>

@@ -22,6 +22,11 @@ import {
 	createStandaloneSmartSelectOverlay,
 	type SmartSelectAction,
 } from "./embedded/components/SmartSelectOverlay";
+import {
+	createCoAgentOverlay,
+	destroyCoAgentOverlay,
+	handleCoAgentContentCommand,
+} from "./embedded/pages/CoAgent";
 import { createFolderPickerOverlay } from "./embedded/components/FolderPickerOverlay";
 import {
 	loadLanguageFromStorage,
@@ -42,6 +47,11 @@ import {
 	type WebDomElementInfo,
 	type WebElementRecord,
 } from "@/services/web-browser";
+import {
+	CO_AGENT_CONTENT_COMMAND_SOURCE,
+	isCoAgentContentCommandRequest,
+	type CoAgentContentCommandResponse,
+} from "@/services/co-agent";
 import { logInfo } from "./utils/logger";
 
 // Track mouse position for UI positioning
@@ -344,7 +354,12 @@ document.addEventListener("contextmenu", (e) => {
 const messageListener = (
 	rawMessage: unknown,
 	_sender: chrome.runtime.MessageSender,
-	sendResponse: (response: MessageResponse | WebContentCommandResponse) => void,
+	sendResponse: (
+		response:
+			| MessageResponse
+			| WebContentCommandResponse
+			| CoAgentContentCommandResponse,
+	) => void,
 ): boolean => {
 	// Job notifications (relayed by background via chrome.tabs.sendMessage) are
 	// handled by ChromeRuntimeBridge's own onMessage listener. Return false so
@@ -353,6 +368,11 @@ const messageListener = (
 
 	if (isWebContentCommandRequest(rawMessage)) {
 		void handleWebContentCommand(rawMessage).then(sendResponse);
+		return true;
+	}
+
+	if (isCoAgentContentCommandRequest(rawMessage)) {
+		void handleCoAgentContentCommand(rawMessage).then(sendResponse);
 		return true;
 	}
 
@@ -394,6 +414,21 @@ const messageListener = (
 
 		case BACKGROUND_EVENTS.SHOW_CHAT_MODAL:
 			void handleShowChatModal(message, sendResponse);
+			return true;
+
+		case BACKGROUND_EVENTS.SHOW_CO_AGENT:
+			void handleShowCoAgent(sendResponse);
+			return true;
+
+		case BACKGROUND_EVENTS.HIDE_CO_AGENT:
+			handleHideCoAgent(sendResponse);
+			return true;
+
+		case BACKGROUND_EVENTS.CO_AGENT_GET_TRACE:
+			void handleCoAgentContentCommand({
+				source: CO_AGENT_CONTENT_COMMAND_SOURCE,
+				type: "co-agent:get-trace",
+			}).then(sendResponse);
 			return true;
 
 		case BACKGROUND_EVENTS.SHOW_IMAGE_SELECTOR:
@@ -551,6 +586,57 @@ function handleShowTopicSelector(
 	}
 }
 
+async function setCoAgentActive(enabled: boolean): Promise<void> {
+	if (enabled) {
+		createCoAgentOverlay();
+		try {
+			await sendMessageToBackground({
+				type: BACKGROUND_EVENTS.CO_AGENT_SET_ACTIVE,
+				url: window.location.href,
+				contextData: {
+					pageUrl: window.location.href,
+					pageTitle: document.title,
+					timestamp: new Date().toISOString(),
+				},
+			});
+		} catch {
+			// Background activation is best-effort; the visible overlay can still run.
+		}
+		return;
+	}
+
+	destroyCoAgentOverlay();
+	try {
+		await sendMessageToBackground({
+			type: BACKGROUND_EVENTS.HIDE_CO_AGENT,
+			url: window.location.href,
+		});
+	} catch {
+		// Ignore background cleanup failures.
+	}
+}
+
+async function handleShowCoAgent(
+	sendResponse: (response: MessageResponse) => void,
+): Promise<void> {
+	try {
+		await setCoAgentActive(true);
+		sendResponse({ success: true });
+	} catch (error) {
+		sendResponse({
+			success: false,
+			error: error instanceof Error ? error.message : "Failed to show co-agent",
+		});
+	}
+}
+
+function handleHideCoAgent(
+	sendResponse: (response: MessageResponse) => void,
+): void {
+	destroyCoAgentOverlay();
+	sendResponse({ success: true });
+}
+
 // Handle SHOW_CHAT_MODAL message - display chat modal UI
 async function handleShowChatModal(
 	message: BackgroundMessage,
@@ -563,6 +649,10 @@ async function handleShowChatModal(
 		);
 		if (existingModal) {
 			existingModal.remove();
+		}
+
+		if (message.coAgentEnabled) {
+			await setCoAgentActive(true);
 		}
 
 		// Extract context options if requested
@@ -682,9 +772,13 @@ async function handleShowChatModal(
 		createEmbeddedChatModal({
 			mode: message.mode || "general",
 			displayMode: message.displayMode,
+			coAgentEnabled: Boolean(message.coAgentEnabled),
 			pageUrl: window.location.href,
 			pageTitle: document.title,
 			contextOptions,
+			onCoAgentToggle: (enabled) => {
+				void setCoAgentActive(enabled);
+			},
 			onClose: () => {
 				// Cleanup handled by the component itself
 			},

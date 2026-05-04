@@ -11,6 +11,7 @@ import { logError } from "@/utils/logger";
 import { embeddedChatService } from "@/embedded/chat-service";
 import { embeddedChatHistoryService } from "@/embedded/chat-history-service";
 import { buildEmbeddedContextMessageContent } from "@/embedded/context-items";
+import { createCoAgentEnabledFlowConfig } from "@/embedded/pages/CoAgent/co-agent-chat";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type {
 	ChatAction,
@@ -34,6 +35,7 @@ interface UseEmbeddedChatSessionOptions {
 	modelAvailable: boolean;
 	selectedModel: string;
 	selectedAgentFlowId: string;
+	coAgentEnabled: boolean;
 	selectedTopic: string;
 	scrollToBottom: (behavior?: ScrollBehavior) => void;
 	setShouldAutoScroll: Dispatch<SetStateAction<boolean>>;
@@ -87,6 +89,7 @@ export const useEmbeddedChatSession = ({
 	modelAvailable,
 	selectedModel,
 	selectedAgentFlowId,
+	coAgentEnabled,
 	selectedTopic,
 	scrollToBottom,
 	setShouldAutoScroll,
@@ -260,8 +263,11 @@ export const useEmbeddedChatSession = ({
 						timestamp: userMessage.timestamp,
 					},
 				];
-				const serviceMode =
-					selectedAgentFlowId === "chat" ? "normal" : "knowledge";
+				const serviceMode = coAgentEnabled
+					? "knowledge"
+					: selectedAgentFlowId === "chat"
+						? "normal"
+						: "knowledge";
 
 				const result = await embeddedChatService.chatStream({
 					messages: messagesForAPI,
@@ -269,7 +275,12 @@ export const useEmbeddedChatSession = ({
 					mode: serviceMode,
 					topicId,
 					agentFlowId:
-						selectedAgentFlowId === "chat" ? undefined : selectedAgentFlowId,
+						coAgentEnabled || selectedAgentFlowId === "chat"
+							? undefined
+							: selectedAgentFlowId,
+					flowConfig: coAgentEnabled
+						? createCoAgentEnabledFlowConfig()
+						: undefined,
 					signal: controller.signal,
 					onProgress: (content: string, isComplete: boolean) => {
 						currentContent = content;
@@ -425,6 +436,7 @@ export const useEmbeddedChatSession = ({
 			messages,
 			selectedTopic,
 			selectedAgentFlowId,
+			coAgentEnabled,
 			selectedModel,
 			texts.whatDoYouKnow,
 			texts.tellMeAboutTopics,

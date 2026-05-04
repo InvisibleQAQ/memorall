@@ -11,19 +11,33 @@ const SMOOTH_SCROLL_SETTLE_MS = 720;
 export type AgentCursorMode = "moveTo" | "jumpTo" | "jumTo";
 
 export interface AgentCursorEventDetail {
-	targetKey: string;
+	targetKey?: string;
+	selector?: string;
+	index?: number;
+	point?: CursorPosition;
+	rect?: CursorRect;
+	scrollIntoView?: boolean;
 	message?: string;
 	mode?: AgentCursorMode;
 }
 
-interface CursorPosition {
+export interface CursorPosition {
 	x: number;
 	y: number;
+}
+
+export interface CursorRect extends CursorPosition {
+	width: number;
+	height: number;
 }
 
 export interface CursorPointProps extends React.ComponentProps<"div"> {
 	cursorKey: string | string[];
 	children: React.ReactNode;
+}
+
+export interface AgentCursorOverlayProps {
+	portalRoot?: Element | DocumentFragment;
 }
 
 export const moveTo = (
@@ -64,6 +78,14 @@ const findCursorPoint = (cursorKey: string): HTMLElement | null => {
 	return null;
 };
 
+const findSelectorTarget = (
+	selector: string,
+	index: number | undefined,
+): HTMLElement | null => {
+	const element = document.querySelectorAll(selector).item(index ?? 0);
+	return element instanceof HTMLElement ? element : null;
+};
+
 const getTargetPosition = (element: HTMLElement): CursorPosition => {
 	const rect = element.getBoundingClientRect();
 	return {
@@ -77,6 +99,14 @@ const getTargetPosition = (element: HTMLElement): CursorPosition => {
 		),
 	};
 };
+
+const getRectPosition = (rect: CursorRect): CursorPosition => ({
+	x: Math.min(window.innerWidth - 24, Math.max(24, rect.x + rect.width / 2)),
+	y: Math.min(
+		window.innerHeight - 34,
+		Math.max(28, rect.y + Math.min(rect.height * 0.45, 42)),
+	),
+});
 
 const isScrollable = (element: HTMLElement): boolean => {
 	const style = window.getComputedStyle(element);
@@ -155,7 +185,9 @@ export const CursorPoint: React.FC<CursorPointProps> = ({
 	</div>
 );
 
-export const AgentCursorOverlay: React.FC = () => {
+export const AgentCursorOverlay: React.FC<AgentCursorOverlayProps> = ({
+	portalRoot,
+}) => {
 	const [mounted, setMounted] = React.useState(false);
 	const [position, setPosition] = React.useState<CursorPosition>({
 		x: 48,
@@ -238,7 +270,9 @@ export const AgentCursorOverlay: React.FC = () => {
 			const isJump = detail.mode === "jumpTo" || detail.mode === "jumTo";
 			const behavior: ScrollBehavior = isJump ? "auto" : "smooth";
 			activeElementRef.current = element;
-			centerElementInScrollParents(element, behavior);
+			if (detail.scrollIntoView !== false) {
+				centerElementInScrollParents(element, behavior);
+			}
 
 			const updatePosition = () => {
 				if (activeElementRef.current !== element) return;
@@ -272,13 +306,49 @@ export const AgentCursorOverlay: React.FC = () => {
 			}, SMOOTH_SCROLL_SETTLE_MS);
 		};
 
+		const moveToPosition = (
+			position: CursorPosition,
+			detail: AgentCursorEventDetail,
+		) => {
+			activeElementRef.current = null;
+			setPosition({
+				x: Math.min(window.innerWidth - 24, Math.max(24, position.x)),
+				y: Math.min(window.innerHeight - 34, Math.max(28, position.y)),
+			});
+			setMessage(detail.message || "Updating");
+			visibleRef.current = true;
+			setVisible(true);
+			scheduleHide();
+		};
+
 		const handleCursorEvent = (event: Event) => {
 			const detail = (event as CustomEvent<AgentCursorEventDetail>).detail;
-			if (!detail?.targetKey) return;
+			if (!detail) return;
 
 			clearTimers();
+			if (detail.point) {
+				moveToPosition(detail.point, detail);
+				return;
+			}
+
+			if (detail.rect) {
+				moveToPosition(getRectPosition(detail.rect), detail);
+				return;
+			}
+
+			if (detail.selector) {
+				const element = findSelectorTarget(detail.selector, detail.index);
+				if (element) {
+					moveToElement(element, detail);
+				}
+				return;
+			}
+
+			const targetKey = detail.targetKey;
+			if (!targetKey) return;
+
 			const findAndMove = (attempt = 0) => {
-				const element = findCursorPoint(detail.targetKey);
+				const element = findCursorPoint(targetKey);
 				if (element) {
 					moveToElement(element, detail);
 					return;
@@ -316,6 +386,6 @@ export const AgentCursorOverlay: React.FC = () => {
 				<AgentCursorUI message={message} x={cursorX} y={cursorY} />
 			) : null}
 		</AnimatePresence>,
-		document.body,
+		portalRoot ?? document.body,
 	);
 };

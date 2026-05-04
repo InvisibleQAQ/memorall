@@ -877,6 +877,11 @@ export const customStyles = `
     color: hsl(var(--foreground)) !important;
   }
 
+  .memorall-chat-container .memorall-icon-button--active {
+    background: hsl(var(--primary) / 0.12) !important;
+    color: hsl(var(--primary)) !important;
+  }
+
   .memorall-chat-container .memorall-icon-button:focus-visible,
   .memorall-chat-container .memorall-submit-button:focus-visible,
   .memorall-chat-container .memorall-suggested-prompt:focus-visible,

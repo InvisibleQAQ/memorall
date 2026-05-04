@@ -10,8 +10,9 @@ import type {
 	ChatCompletionToolChoiceOption,
 	ChatMessage,
 } from "@/types/openai";
+import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 
-export type ChatMode = "normal" | "knowledge";
+export type ChatMode = "normal" | "knowledge" | "agent";
 
 export interface ChatServiceOptions {
 	messages: ChatMessage[];
@@ -19,6 +20,7 @@ export interface ChatServiceOptions {
 	mode: ChatMode;
 	topicId?: string;
 	agentFlowId?: string;
+	flowConfig?: UnifiedFlowConfig;
 	streamConfig?: ChatStreamConfig;
 	tools?: ChatCompletionTool[];
 	tool_choice?: ChatCompletionToolChoiceOption;
@@ -155,6 +157,7 @@ export class ChatService {
 			mode,
 			topicId,
 			agentFlowId,
+			flowConfig,
 			streamConfig,
 			tools,
 			tool_choice,
@@ -185,6 +188,7 @@ export class ChatService {
 					mode,
 					topicId,
 					agentFlowId,
+					flowConfig,
 					tools,
 					tool_choice,
 					parallel_tool_calls,

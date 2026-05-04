@@ -18,10 +18,12 @@ import {
 } from "@/services/flows/feature-catalog-registry";
 import {
 	MultiAgentManager,
-	SEND_MESSAGE_TO_AGENT_TOOL_NAME,
-	type SendMessageToAgentToolConfig,
 	type MultiAgentChildAgent,
 } from "./conversation-manager";
+import {
+	SEND_MESSAGE_TO_AGENT_TOOL_NAME,
+	type SendMessageToAgentToolConfig,
+} from "./tool-contract";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { logError } from "@/utils/logger";
 

@@ -44,15 +44,18 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	context,
 	mode = "general",
 	displayMode,
+	coAgentEnabled: initialCoAgentEnabled = false,
 	pageUrl,
 	pageTitle,
 	contextOptions,
 	language = DEFAULT_LANGUAGE,
+	onCoAgentToggle,
 	onClose,
 }) => {
 	const texts = EMBEDDED_TRANSLATIONS[language];
 	const [inputValue, setInputValue] = useState("");
 	const [showConfirmClose, setShowConfirmClose] = useState(false);
+	const [coAgentEnabled, setCoAgentEnabled] = useState(initialCoAgentEnabled);
 
 	const { currentDisplayMode, toggleDisplayMode } =
 		useEmbeddedChatDisplayMode(displayMode);
@@ -134,6 +137,7 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 			modelAvailable,
 			selectedModel,
 			selectedAgentFlowId,
+			coAgentEnabled,
 			selectedTopic,
 			scrollToBottom,
 			setShouldAutoScroll,
@@ -149,6 +153,10 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 			scrollToBottom();
 		}
 	}, [messages, shouldAutoScroll, scrollToBottom]);
+
+	useEffect(() => {
+		setCoAgentEnabled(initialCoAgentEnabled);
+	}, [initialCoAgentEnabled]);
 
 	const hasUnsavedContent = useCallback(
 		() =>
@@ -180,6 +188,14 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 		onClose();
 	}, [onClose]);
 
+	const toggleCoAgent = useCallback(() => {
+		setCoAgentEnabled((current) => {
+			const next = !current;
+			onCoAgentToggle?.(next);
+			return next;
+		});
+	}, [onCoAgentToggle]);
+
 	return (
 		<div
 			className="memorall-embedded-root"
@@ -204,6 +220,8 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					onNewChat={newChat}
 					onOpenFullVersion={openFullPage}
 					onClose={closeWithConfirmation}
+					coAgentEnabled={coAgentEnabled}
+					onToggleCoAgent={toggleCoAgent}
 					modelId={selectedModel}
 					provider={selectedProvider}
 					modelAvailable={modelAvailable}

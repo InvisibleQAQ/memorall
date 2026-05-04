@@ -126,9 +126,11 @@ export interface ChatModalProps {
 	context?: string;
 	mode?: "general" | "topic";
 	displayMode?: EmbeddedChatDisplayMode;
+	coAgentEnabled?: boolean;
 	pageUrl: string;
 	pageTitle: string;
 	contextOptions?: EmbeddedContextItem[];
+	onCoAgentToggle?: (enabled: boolean) => void;
 	onClose: () => void;
 }
 
@@ -148,6 +150,7 @@ export interface BackgroundMessage {
 	topicId?: string;
 	mode?: "general" | "topic";
 	displayMode?: EmbeddedChatDisplayMode;
+	coAgentEnabled?: boolean;
 	showTopicSelector?: boolean;
 	contextData?: RememberContext;
 	data?: ExtractedPageData | ExtractedSelectionData;

@@ -4,6 +4,7 @@ import type {
 	ChatResult,
 	ChatPayload,
 } from "@/services/background-jobs/handlers/process-chat";
+import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import type {
 	ChatCompletionChunkToolCall,
 	ChatCompletionMessageToolCall,
@@ -15,6 +16,8 @@ export interface ChatServiceOptions {
 	mode: "normal" | "agent" | "knowledge";
 	topicId?: string;
 	agentFlowId?: string;
+	flowConfig?: UnifiedFlowConfig;
+	systemMessages?: string[];
 }
 
 export interface ChatAction {
@@ -178,6 +181,8 @@ export class EmbeddedChatService {
 			mode,
 			topicId,
 			agentFlowId,
+			flowConfig,
+			systemMessages,
 			onProgress,
 			onAction,
 			onToolCalls,
@@ -188,24 +193,7 @@ export class EmbeddedChatService {
 
 		// Convert embedded ChatMessage to OpenAI-compatible format
 		// Note: Embedded messages only have user/assistant roles
-		const jobMessages: Array<
-			| {
-					role: "user";
-					content:
-						| string
-						| Array<
-								| { type: "text"; text: string }
-								| {
-										type: "image_url";
-										image_url: {
-											url: string;
-											detail?: "auto" | "low" | "high";
-										};
-								  }
-						  >;
-			  }
-			| { role: "assistant"; content: string | null }
-		> = messages.map((msg) => {
+		const jobMessages: ChatPayload["messages"] = messages.map((msg) => {
 			if (msg.role === "user") {
 				return { role: "user" as const, content: msg.content };
 			}
@@ -215,6 +203,13 @@ export class EmbeddedChatService {
 				content: typeof msg.content === "string" ? msg.content : null,
 			};
 		});
+		const requestMessages: ChatPayload["messages"] = [
+			...(systemMessages ?? [])
+				.map((content) => content.trim())
+				.filter(Boolean)
+				.map((content) => ({ role: "system" as const, content })),
+			...jobMessages,
+		];
 
 		const abortController = new AbortController();
 		const jobId = `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -233,11 +228,12 @@ export class EmbeddedChatService {
 
 			// Build simplified payload - let background service parse query from messages
 			const payload: ChatPayload = {
-				messages: jobMessages,
+				messages: requestMessages,
 				model,
 				mode,
 				topicId,
 				agentFlowId,
+				flowConfig,
 				streamConfig: {
 					minWordsToStream: 5,
 					streamToolCallsImmediately: true,
@@ -384,7 +380,7 @@ export class EmbeddedChatService {
 		try {
 			// For now, return a default model name
 			// In a real implementation, you'd call the background service to get available models
-			return "gpt-3.5-turbo";
+			return "gpt-4.1";
 		} catch (error) {
 			throw new Error("No models available");
 		}

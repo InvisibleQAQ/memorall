@@ -3,6 +3,7 @@ export const MENU_IDS = {
 	CONVERT_TO_KNOWLEDGE: "convert-to-knowledge",
 	SAVE_DIVIDER: "save-divider",
 	RECALL: "recall",
+	CO_AGENT: "co-agent",
 	RECALL_IMAGE: "recall-image",
 	RECALL_DIVIDER: "recall-divider",
 	START_CAPTURE: "start-capture",
