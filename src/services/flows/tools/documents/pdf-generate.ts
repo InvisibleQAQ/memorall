@@ -8,6 +8,7 @@ import type {
 import { toolRegistry } from "@/services/flows/tool-registry";
 import { normalizeDocumentPath } from "./util";
 import type { WebToolServices } from "../web/web-tool-utils";
+import { ensureFolderExists } from "@/services/filesystem/document-fs-utils";
 
 const TOOL_NAME = "pdf_generate" as const;
 
@@ -64,24 +65,6 @@ const wrapHtml = (body: string): string => `<!DOCTYPE html>
 </head>
 <body>${body}</body>
 </html>`;
-
-const ensureFolderExists = async (
-	dfs: NonNullable<AllServices["documentFileSystem"]>,
-	folderPath: string,
-): Promise<void> => {
-	if (folderPath === "/" || !folderPath) return;
-	const segments = folderPath.split("/").filter(Boolean);
-	let currentPath = "/";
-	for (const segment of segments) {
-		const nextPath = `${currentPath === "/" ? "" : currentPath}/${segment}`;
-		try {
-			await dfs.createFolder(segment, currentPath);
-		} catch {
-			// Folder likely already exists — continue.
-		}
-		currentPath = nextPath;
-	}
-};
 
 const resolveHtml = async (
 	input: Input,

@@ -13,6 +13,8 @@ import "./documents/doc-edit";
 import "./documents/doc-remove";
 import "./documents/doc-move";
 import "./documents/pdf-generate";
+import "./documents/pdf-to-text";
+import "./documents/excel-to-text";
 
 import "./sandbox-container/container-run-code";
 import "./sandbox-container/container-execute-command";

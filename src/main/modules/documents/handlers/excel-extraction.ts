@@ -103,6 +103,17 @@ export function sheetToMarkdown(
 }
 
 /**
+ * Convert Excel sheet to CSV string
+ */
+export function sheetToCsv(workbook: XLSX.WorkBook, sheetName: string): string {
+	const worksheet = workbook.Sheets[sheetName];
+	if (!worksheet) {
+		throw new Error(`Sheet "${sheetName}" not found`);
+	}
+	return XLSX.utils.sheet_to_csv(worksheet);
+}
+
+/**
  * Get all sheets as markdown
  */
 export function workbookToMarkdown(workbook: XLSX.WorkBook): string {

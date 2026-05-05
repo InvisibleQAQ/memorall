@@ -218,7 +218,7 @@ stepRegistry.register(STEP_NAME, createEntitiesFactsCitationStep, {
 		relevantEdges: "relevantEdges",
 		response: "response",
 	},
-	enabledByDefault: true,
+	enabledByDefault: false,
 });
 
 declare global {

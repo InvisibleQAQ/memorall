@@ -6,6 +6,8 @@ import "./context-llm-retrieve";
 import "./fs-feature";
 import "./documents-fs-feature";
 import "./documents-feature";
+import "./document-convert-feature";
+import "./pdf-generate-feature";
 import "./nodejs-sandbox-feature";
 import "./web-feature";
 import "./co-agent-feature";
