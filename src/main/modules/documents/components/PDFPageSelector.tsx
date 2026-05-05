@@ -12,6 +12,13 @@ import { Input } from "@/main/components/ui/input";
 import { Label } from "@/main/components/ui/label";
 import { ScrollArea } from "@/main/components/ui/scroll-area";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/main/components/ui/select";
+import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
@@ -26,7 +33,11 @@ import {
 	readPDFFile,
 	type PDFPageContent,
 } from "@/main/modules/documents/handlers/pdf-extraction";
+import { topicService } from "@/main/modules/topics/services/topic-service";
+import type { KnowledgeGrowMode } from "@/main/modules/knowledge/services/knowledge-graph-service";
 import { backgroundJob } from "@/services/background-jobs/background-job";
+import type { Topic } from "@/services/database/types";
+import type { GrowType } from "@/services/database/entities/topic-types";
 import { logError, logInfo } from "@/utils/logger";
 
 interface PDFPageSelectorProps {
@@ -35,6 +46,19 @@ interface PDFPageSelectorProps {
 	onOpenChange: (open: boolean) => void;
 	onConvert?: () => void; // Simplified callback - no need to pass data anymore
 }
+
+const DEFAULT_TOPIC_VALUE = "__default__";
+
+const GROW_LABELS: Record<GrowType, string> = {
+	"knowledge-graph": "Knowledge Graph",
+	structmem: "StructMem",
+};
+
+const growTypeToMode = (growType: GrowType): KnowledgeGrowMode =>
+	growType === "structmem" ? "structmem" : "knowledge";
+
+const modeToGrowType = (mode: KnowledgeGrowMode): GrowType =>
+	mode === "structmem" ? "structmem" : "knowledge-graph";
 
 export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 	file,
@@ -49,10 +73,17 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 	const [converting, setConverting] = useState(false);
 	const [pageRangeStart, setPageRangeStart] = useState("");
 	const [pageRangeEnd, setPageRangeEnd] = useState("");
+	const [topicsLoading, setTopicsLoading] = useState(false);
+	const [topics, setTopics] = useState<Topic[]>([]);
+	const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>(
+		undefined,
+	);
+	const [growMode, setGrowMode] = useState<KnowledgeGrowMode>("knowledge");
 
 	useEffect(() => {
 		if (open && file.type === "pdf") {
 			loadPDFPages();
+			loadTopics();
 		}
 	}, [open, file.id]);
 
@@ -71,6 +102,32 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 			logError("Failed to load PDF pages:", error);
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const loadTopics = async () => {
+		try {
+			setTopicsLoading(true);
+			const allTopics = await topicService.getTopics();
+			setTopics(Array.isArray(allTopics) ? allTopics : []);
+		} catch (error) {
+			logError("Failed to load memories:", error);
+			setTopics([]);
+		} finally {
+			setTopicsLoading(false);
+		}
+	};
+
+	const handleTopicChange = (value: string) => {
+		if (value === DEFAULT_TOPIC_VALUE) {
+			setSelectedTopicId(undefined);
+			return;
+		}
+
+		const topic = topics.find((item) => item.id === value);
+		setSelectedTopicId(value);
+		if (topic) {
+			setGrowMode(growTypeToMode(topic.growType));
 		}
 	};
 
@@ -168,12 +225,18 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 				`PDF converted to text in main thread, sending to knowledge graph...`,
 			);
 
+			if (selectedTopicId) {
+				await topicService.addFileToTopic(selectedTopicId, file.path);
+			}
+
 			// Send text content directly to knowledge graph handler
 			const { jobId, promise } = await backgroundJob.execute(
 				"knowledge-graph",
 				{
 					filePath: file.path,
 					content: combinedContent,
+					topicId: selectedTopicId,
+					growMode,
 				},
 				{ stream: false },
 			);
@@ -192,6 +255,8 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 
 			onOpenChange(false);
 			setSelectedPages(new Set());
+			setSelectedTopicId(undefined);
+			setGrowMode("knowledge");
 		} catch (error) {
 			logError("Failed to convert pages:", error);
 			alert(t("pdfSelector.convertError"));
@@ -222,6 +287,58 @@ export const PDFPageSelector: React.FC<PDFPageSelectorProps> = ({
 					</div>
 				) : (
 					<div className="flex flex-col gap-4 flex-1 min-h-0">
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-b pb-4 flex-shrink-0">
+							<div className="space-y-1.5">
+								<Label htmlFor="pdf-memory-select" className="text-xs">
+									{t("pdfSelector.memory")}
+								</Label>
+								<Select
+									value={selectedTopicId ?? DEFAULT_TOPIC_VALUE}
+									onValueChange={handleTopicChange}
+									disabled={topicsLoading || converting}
+								>
+									<SelectTrigger id="pdf-memory-select" className="h-9">
+										<SelectValue placeholder={t("pdfSelector.selectMemory")} />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value={DEFAULT_TOPIC_VALUE}>
+											{t("pdfSelector.defaultMemory")}
+										</SelectItem>
+										{topics.map((topic) => (
+											<SelectItem key={topic.id} value={topic.id}>
+												{topic.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="space-y-1.5">
+								<Label htmlFor="pdf-grow-type-select" className="text-xs">
+									{t("pdfSelector.growType")}
+								</Label>
+								<Select
+									value={modeToGrowType(growMode)}
+									onValueChange={(value) =>
+										setGrowMode(growTypeToMode(value as GrowType))
+									}
+									disabled={converting}
+								>
+									<SelectTrigger id="pdf-grow-type-select" className="h-9">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="knowledge-graph">
+											{GROW_LABELS["knowledge-graph"]}
+										</SelectItem>
+										<SelectItem value="structmem">
+											{GROW_LABELS.structmem}
+										</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+
 						{/* Page Selection Controls */}
 						<div className="space-y-3 border-b pb-4 flex-shrink-0">
 							<div className="flex items-center justify-between">

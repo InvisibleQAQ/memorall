@@ -21,6 +21,7 @@ import {
 } from "@/main/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/main/components/ui/alert";
 import { DocumentBreadcrumb } from "./DocumentBreadcrumb";
+import type { DocumentBreadcrumbHomeOption } from "./DocumentBreadcrumb";
 import {
 	TopicFilterDropdown,
 	ActiveTopicChips,
@@ -41,6 +42,7 @@ interface DocumentLibraryHeaderProps {
 	selectedTopicIds: string[];
 	error: string | null;
 	onNavigate: (node: DocumentTreeNode | null) => void;
+	homeOptions?: DocumentBreadcrumbHomeOption[];
 	onViewModeChange: (mode: "grid" | "list") => void;
 	onSearchChange: (q: string) => void;
 	onTopicFilterChange: (ids: string[]) => void;
@@ -63,6 +65,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 	selectedTopicIds,
 	error,
 	onNavigate,
+	homeOptions,
 	onViewModeChange,
 	onSearchChange,
 	onTopicFilterChange,
@@ -83,6 +86,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 						tree={activeTree}
 						onNavigate={onNavigate}
 						homeTitle={homeTitle}
+						homeOptions={homeOptions}
 					/>
 
 					<DropdownMenu>
@@ -193,6 +197,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 					tree={activeTree}
 					onNavigate={onNavigate}
 					homeTitle={homeTitle}
+					homeOptions={homeOptions}
 				/>
 
 				<div className="flex flex-shrink-0 items-center gap-1">

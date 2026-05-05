@@ -225,14 +225,30 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 				<div
 					className={`absolute w-0 h-0 border-8 ${
 						tooltipPosition.arrowPosition === "top"
-							? "border-b-blue-200 border-t-transparent border-l-transparent border-r-transparent -top-4"
+							? "-top-4"
 							: tooltipPosition.arrowPosition === "bottom"
-								? "border-t-blue-200 border-b-transparent border-l-transparent border-r-transparent -bottom-4"
+								? "-bottom-4"
 								: tooltipPosition.arrowPosition === "left"
-									? "border-r-blue-200 border-l-transparent border-t-transparent border-b-transparent -left-4"
-									: "border-l-blue-200 border-r-transparent border-t-transparent border-b-transparent -right-4"
+									? "-left-4"
+									: "-right-4"
 					}`}
 					style={{
+						borderTopColor:
+							tooltipPosition.arrowPosition === "bottom"
+								? "var(--glass-border)"
+								: "transparent",
+						borderBottomColor:
+							tooltipPosition.arrowPosition === "top"
+								? "var(--glass-border)"
+								: "transparent",
+						borderLeftColor:
+							tooltipPosition.arrowPosition === "right"
+								? "var(--glass-border)"
+								: "transparent",
+						borderRightColor:
+							tooltipPosition.arrowPosition === "left"
+								? "var(--glass-border)"
+								: "transparent",
 						[tooltipPosition.arrowPosition === "top" ||
 						tooltipPosition.arrowPosition === "bottom"
 							? "left"

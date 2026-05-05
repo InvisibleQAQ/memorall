@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import AdmZip from 'adm-zip';
 
@@ -10,6 +10,49 @@ import AdmZip from 'adm-zip';
  */
 
 const publishDir = 'publish';
+
+function escapeNonAsciiJavaScript(source) {
+  let escaped = '';
+  for (let i = 0; i < source.length; i++) {
+    const code = source.charCodeAt(i);
+    if (code <= 0x7f) {
+      escaped += source[i];
+      continue;
+    }
+
+    escaped += `\\u${code.toString(16).padStart(4, '0')}`;
+  }
+  return escaped;
+}
+
+function sanitizeJavaScriptEncoding(rootDir) {
+  let sanitizedCount = 0;
+
+  function walk(dir) {
+    for (const entry of readdirSync(dir)) {
+      const filePath = join(dir, entry);
+      const stat = statSync(filePath);
+
+      if (stat.isDirectory()) {
+        walk(filePath);
+        continue;
+      }
+
+      if (!/\.(m?js)$/.test(entry)) continue;
+
+      const source = readFileSync(filePath, 'utf8');
+      const escaped = escapeNonAsciiJavaScript(source);
+
+      if (escaped !== source) {
+        writeFileSync(filePath, escaped, 'utf8');
+        sanitizedCount++;
+      }
+    }
+  }
+
+  walk(rootDir);
+  return sanitizedCount;
+}
 
 console.log('🚀 Building Memorall for store submission...\n');
 
@@ -83,6 +126,10 @@ try {
   console.error('❌ Error preparing manifest:', error.message);
   process.exit(1);
 }
+
+console.log('🔤 Sanitizing JavaScript encoding...');
+const sanitizedCount = sanitizeJavaScriptEncoding(join('dist', 'chrome'));
+console.log(`✅ JavaScript encoding sanitized (${sanitizedCount} file${sanitizedCount === 1 ? '' : 's'} updated)\n`);
 
 // Step 4: Copy Chrome build
 console.log('📦 Packaging Chrome extension...');

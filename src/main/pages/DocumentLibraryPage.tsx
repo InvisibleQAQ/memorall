@@ -11,6 +11,7 @@ import type { DocumentTreeNode } from "@/types/document-library";
 const PANEL_STORAGE_KEY = "memorall.documents.workspace-panels.v1";
 const DEFAULT_PANEL_SIZES = [22, 78] as const;
 const MIN_PANEL_SIZES = [16, 36] as const;
+const MAX_PRIMARY_PANEL_SIZE = 28;
 const DESKTOP_BREAKPOINT = 1180;
 const DESKTOP_SEPARATOR_TRACK = 2;
 
@@ -19,9 +20,11 @@ const clampPair = (
 	total: number,
 	minPrimary: number,
 	minSecondary: number,
+	maxPrimary = total - minSecondary,
 ): [number, number] => {
+	const upperPrimary = Math.min(total - minSecondary, maxPrimary);
 	const clampedPrimary = Math.min(
-		total - minSecondary,
+		upperPrimary,
 		Math.max(minPrimary, nextPrimary),
 	);
 	return [clampedPrimary, total - clampedPrimary];
@@ -38,7 +41,14 @@ const readStoredPanelSizes = (): [number, number] => {
 			parsed.length === 2 &&
 			parsed.every((value) => typeof value === "number")
 		) {
-			return [parsed[0], parsed[1]];
+			const total = parsed[0] + parsed[1];
+			return clampPair(
+				parsed[0],
+				total,
+				MIN_PANEL_SIZES[0],
+				MIN_PANEL_SIZES[1],
+				MAX_PRIMARY_PANEL_SIZE,
+			);
 		}
 	} catch {
 		// Fall back to defaults when localStorage is unavailable or corrupt.
@@ -57,6 +67,18 @@ export const DocumentLibraryPage: React.FC = () => {
 		typeof document !== "undefined" &&
 		document.documentElement.dataset.uiSurface === "popup";
 	const activeTree = lib.isWorkspaceSection ? lib.workspaceTree : lib.tree;
+	const homeOptions = [
+		{
+			label: t("title"),
+			isActive: lib.selectedSection === "documents",
+			onSelect: lib.handleSelectDocumentsSection,
+		},
+		{
+			label: t("sidebar.workspace"),
+			isActive: lib.selectedSection === "workspace",
+			onSelect: lib.handleSelectWorkspaceSection,
+		},
+	];
 
 	const handleResizeStart = React.useCallback(
 		(event: React.MouseEvent<HTMLDivElement>) => {
@@ -77,6 +99,7 @@ export const DocumentLibraryPage: React.FC = () => {
 						startSizes[0] + startSizes[1],
 						MIN_PANEL_SIZES[0],
 						MIN_PANEL_SIZES[1],
+						MAX_PRIMARY_PANEL_SIZE,
 					);
 					return [left, right];
 				});
@@ -157,6 +180,7 @@ export const DocumentLibraryPage: React.FC = () => {
 						selectedTopicIds={lib.selectedTopicIds}
 						error={lib.error}
 						onNavigate={lib.handleSelectNode}
+						homeOptions={homeOptions}
 						onViewModeChange={lib.setViewMode}
 						onSearchChange={lib.setSearchQuery}
 						onTopicFilterChange={lib.handleTopicFilterChange}
@@ -270,6 +294,7 @@ export const DocumentLibraryPage: React.FC = () => {
 								selectedTopicIds={lib.selectedTopicIds}
 								error={lib.error}
 								onNavigate={lib.handleSelectNode}
+								homeOptions={homeOptions}
 								onViewModeChange={lib.setViewMode}
 								onSearchChange={lib.setSearchQuery}
 								onTopicFilterChange={lib.handleTopicFilterChange}

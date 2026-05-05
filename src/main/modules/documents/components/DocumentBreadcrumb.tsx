@@ -6,7 +6,19 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Home, ChevronRight } from "lucide-react";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/main/components/ui/dropdown-menu";
 import type { DocumentTreeNode } from "@/types/document-library";
+
+export interface DocumentBreadcrumbHomeOption {
+	label: string;
+	isActive: boolean;
+	onSelect: () => void;
+}
 
 interface DocumentBreadcrumbProps {
 	/** Current path */
@@ -17,6 +29,8 @@ interface DocumentBreadcrumbProps {
 	onNavigate: (node: DocumentTreeNode | null) => void;
 	/** Library title for home button */
 	homeTitle?: string;
+	/** Optional root selector shown from the home button */
+	homeOptions?: DocumentBreadcrumbHomeOption[];
 }
 
 export const DocumentBreadcrumb: React.FC<DocumentBreadcrumbProps> = ({
@@ -24,9 +38,11 @@ export const DocumentBreadcrumb: React.FC<DocumentBreadcrumbProps> = ({
 	tree,
 	onNavigate,
 	homeTitle,
+	homeOptions,
 }) => {
 	const { t } = useTranslation("documents");
 	const rootTitle = homeTitle || t("library.home");
+	const hasHomeOptions = Boolean(homeOptions?.length);
 
 	// Split path into segments
 	const pathSegments = currentPath.split("/").filter(Boolean);
@@ -66,23 +82,44 @@ export const DocumentBreadcrumb: React.FC<DocumentBreadcrumbProps> = ({
 		}
 	};
 
+	const homeButton = (
+		<button
+			onClick={hasHomeOptions ? undefined : handleHomeClick}
+			className="flex min-w-0 items-center gap-1 hover:text-foreground transition-colors flex-shrink-0"
+			title={rootTitle}
+		>
+			<Home className="h-3.5 w-3.5 md:h-4 md:w-4" />
+			<span
+				className={`truncate max-w-[110px] ${
+					pathSegments.length === 0 ? "font-medium text-foreground" : ""
+				}`}
+			>
+				{rootTitle}
+			</span>
+		</button>
+	);
+
 	return (
 		<div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground min-w-0 flex-1 overflow-hidden">
 			{/* Home button */}
-			<button
-				onClick={handleHomeClick}
-				className="flex min-w-0 items-center gap-1 hover:text-foreground transition-colors flex-shrink-0"
-				title={rootTitle}
-			>
-				<Home className="h-3.5 w-3.5 md:h-4 md:w-4" />
-				<span
-					className={`truncate max-w-[110px] ${
-						pathSegments.length === 0 ? "font-medium text-foreground" : ""
-					}`}
-				>
-					{rootTitle}
-				</span>
-			</button>
+			{hasHomeOptions ? (
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>{homeButton}</DropdownMenuTrigger>
+					<DropdownMenuContent align="start">
+						{homeOptions?.map((option) => (
+							<DropdownMenuItem
+								key={option.label}
+								onClick={option.onSelect}
+								className={option.isActive ? "font-medium" : undefined}
+							>
+								{option.label}
+							</DropdownMenuItem>
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
+			) : (
+				homeButton
+			)}
 
 			{/* Path segments */}
 			{pathSegments.length > 0 && (

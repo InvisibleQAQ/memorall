@@ -1,0 +1,60 @@
+diff --git a/node_modules/extension-develop/dist/442.cjs b/node_modules/extension-develop/dist/442.cjs
+--- a/node_modules/extension-develop/dist/442.cjs
++++ b/node_modules/extension-develop/dist/442.cjs
+@@ -3467,7 +3467,7 @@
+                         let patchedManifest = buildCanonicalManifest(this.manifestPath, manifest, this.browser);
+                         const overrides = getManifestOverrides(this.manifestPath, manifest);
+                         if ('development' === compiler.options.mode) patchedManifest = patchDevContentScriptManifestPaths(compilation, patchedManifest);
+-                        if ('development' === compiler.options.mode) {
++                        if ('development' === compiler.options.mode && !isReloadDisabledByEnv()) {
+                             if (patchedManifest.content_scripts) patchedManifest.content_scripts = this.applyDevOverrides(patchedManifest);
+                         }
+                         if ('true' === process.env.EXTENSION_AUTHOR_MODE) try {
+@@ -5238,6 +5238,9 @@
+             if ('boolean' == typeof value) return String(value);
+             return 'true';
+         }
++        function isReloadDisabledByEnv() {
++            return true;
++        }
+         let _resolvedClientPath;
+         let _resolvedHotPath;
+         function resolveHmrClientPath() {
+@@ -5267,6 +5270,7 @@
+             return _resolvedHotPath;
+         }
+         function getDevServerHmrImports(compiler) {
++            if (isReloadDisabledByEnv()) return [];
+             const devServer = compiler.options?.devServer;
+             const envHost = process.env.EXTENSION_DEV_SERVER_HOST;
+             const envPort = process.env.EXTENSION_DEV_SERVER_PORT;
+@@ -5321,9 +5325,9 @@
+                         const cssAssets = (htmlAssets?.css || []).filter((asset)=>!looksLikePublicRootUrl(asset) && !isRemoteUrl(asset));
+                         const fileAssets = [
+                             ...jsAssets,
+                             ...cssAssets
+                         ];
+-                        if ('development' === compiler.options.mode) {
++                        if ('development' === compiler.options.mode && !isReloadDisabledByEnv()) {
+                             if (devServerHmrImports.length > 0) fileAssets.unshift(...devServerHmrImports);
+                             fileAssets.unshift((0, develop_context.G5)('preact-refresh-shim'));
+                             const hmrScript = (0, develop_context.G5)("minimum-script-file");
+@@ -5668,8 +5672,8 @@
+                     manifestPath: this.manifestPath,
+                     includeList,
+                     browser: this.browser
+                 }).apply(compiler);
+-                if ('production' !== (compiler.options.mode || 'development')) {
++                if ('production' !== (compiler.options.mode || 'development') && !isReloadDisabledByEnv()) {
+                     const contentScriptEntryPaths = new Set();
+                     try {
+                         const manifest = (0, parse_json_safe.p)(external_fs_.readFileSync(this.manifestPath, 'utf-8'));
+@@ -7555,7 +7559,7 @@
+                     browser: this.browser
+                 }).apply(compiler);
+                 if ('production' === compiler.options.mode) new AddPublicPathRuntimeModule().apply(compiler);
+-                if ('production' !== compiler.options.mode && 'true' !== process.env.EXTENSION_NO_RELOAD) {
++                if ('production' !== compiler.options.mode && !isReloadDisabledByEnv()) {
+                     new StripContentScriptDevServerRuntime().apply(compiler);
+                     new SetupReloadStrategy({
+                         manifestPath: this.manifestPath,

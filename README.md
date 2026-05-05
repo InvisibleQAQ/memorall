@@ -38,7 +38,7 @@ What makes the current app distinctive:
 
 Memorall's agent is designed to be powerful on your machine, not just impressive in a demo.
 
-- 🧪 Sandbox container access. The agent can use the browser-hosted sandbox runtime to execute Node.js code, install npm packages, work with files, start backend servers, and render UI/server output for iterative workflows such as Vite-style app work.
+- 🧪 Sandbox container access. The agent can use the browser-hosted sandbox runtime to execute Node.js code, install pnpm packages, work with files, start backend servers, and render UI/server output for iterative workflows such as Vite-style app work.
 - 🌐 Browser access. The agent can open pages, keep an active browser session, inspect DOM state, search rendered HTML, wait for selectors, and perform DOM actions instead of working from raw text alone.
 - 🧩 Custom flows and agents. The flow layer is not fixed to one canned assistant. Memorall ships configurable graph-based flows, feature steps, and a visual flow builder for custom agent behavior.
 - 📁 Workspace access. The agent is not isolated from your knowledge base. It can work across the document library and writable workspace trees, giving it access to documents, notes, and workspace files.
@@ -237,20 +237,20 @@ Notes about stale docs from older README versions:
 ```bash
 git clone https://github.com/zrg-team/memorall.git
 cd memorall
-npm install
+pnpm install
 ```
 
 Then:
 
 1. Create `.env` from `.env.example`.
-2. Set `CHROME_PATH` if you want to use `npm run dev`.
+2. Set `CHROME_PATH` if you want to use `pnpm run dev`.
 3. Optionally add Supabase keys, or configure Supabase later through the app.
 4. Build or run the extension.
 
 Recommended Chrome build flow:
 
 ```bash
-npm run build:chrome
+pnpm run build:chrome
 ```
 
 Load the unpacked extension from `dist/chrome`.
@@ -258,23 +258,23 @@ Load the unpacked extension from `dist/chrome`.
 If you want live development:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ## 🛠️ Development Commands
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Hot-reload development build for Chromium (`CHROME_PATH` required). |
-| `npm run build` | Default production build. |
-| `npm run build:chrome` | Build Chrome MV3 output in `dist/chrome`. |
-| `npm run build:edge` | Build Edge MV3 output. |
-| `npm run build:firefox` | Build Firefox MV3 output. |
-| `npm run build:all` | Build Chrome, Edge, and Firefox outputs. |
-| `npm run type-check` | Run TypeScript without emitting files. |
-| `npm run lint` | Run the Extension.js lint step. |
-| `npm run format` | Format `src` and `scripts` with Biome. |
-| `npm run package` | Build the publish/package output. |
+| `pnpm run dev` | Hot-reload development build for Chromium (`CHROME_PATH` required). |
+| `pnpm run build` | Default production build. |
+| `pnpm run build:chrome` | Build Chrome MV3 output in `dist/chrome`. |
+| `pnpm run build:edge` | Build Edge MV3 output. |
+| `pnpm run build:firefox` | Build Firefox MV3 output. |
+| `pnpm run build:all` | Build Chrome, Edge, and Firefox outputs. |
+| `pnpm run type-check` | Run TypeScript without emitting files. |
+| `pnpm run lint` | Run the Extension.js lint step. |
+| `pnpm run format` | Format `src` and `scripts` with Biome. |
+| `pnpm run package` | Build the publish/package output. |
 
 ## 🤝 Contributing
 

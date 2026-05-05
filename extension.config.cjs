@@ -6,6 +6,11 @@ const path = require('path');
 const EMPTY_MODULE = path.resolve(__dirname, 'src/utils/empty-module.cjs');
 
 module.exports = {
+  commands: {
+    dev: {
+      chromiumBinary: process.env.CHROME_PATH,
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
