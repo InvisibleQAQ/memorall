@@ -8,11 +8,13 @@ import { join } from 'path';
  * - Ensures production-ready settings
  */
 
-const distDir = 'dist/chrome';
+const distDir = existsSync(join('dist/chromium', 'manifest.json'))
+  ? 'dist/chromium'
+  : 'dist/chrome';
 const manifestPath = join(distDir, 'manifest.json');
 
 if (!existsSync(manifestPath)) {
-  console.error('❌ Error: manifest.json not found in dist/chrome/');
+  console.error('❌ Error: manifest.json not found in dist/chromium/ or dist/chrome/');
   console.error('   Run "npm run build" first');
   process.exit(1);
 }
@@ -42,10 +44,10 @@ try {
   console.log('✅ Production manifest updated');
   console.log('');
   console.log('🎉 Production build ready!');
-  console.log('📁 Location: dist/chrome/');
+  console.log(`📁 Location: ${distDir}/`);
   console.log('');
   console.log('Next steps:');
-  console.log('  1. Test: Load dist/chrome/ as unpacked extension');
+  console.log(`  1. Test: Load ${distDir}/ as unpacked extension`);
   console.log('  2. Package: npm run package:chrome');
   console.log('  3. Submit to Chrome Web Store');
   console.log('');

@@ -77,16 +77,18 @@ try {
 
 // Step 3: Prepare production manifest
 console.log('📝 Preparing production manifest...');
-const manifestPath = join('dist', 'chrome', 'manifest.json');
+const distDir = existsSync(join('dist', 'chromium', 'manifest.json'))
+  ? join('dist', 'chromium')
+  : join('dist', 'chrome');
+const manifestPath = join(distDir, 'manifest.json');
 
 if (!existsSync(manifestPath)) {
-  console.error('❌ Error: manifest.json not found in dist/chrome/');
+  console.error(`❌ Error: manifest.json not found in ${distDir}/`);
   process.exit(1);
 }
 
 try {
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  const distDir = join('dist', 'chrome');
 
   // Remove localhost from CSP
   if (manifest.content_security_policy?.extension_pages) {
@@ -128,19 +130,19 @@ try {
 }
 
 console.log('🔤 Sanitizing JavaScript encoding...');
-const sanitizedCount = sanitizeJavaScriptEncoding(join('dist', 'chrome'));
+const sanitizedCount = sanitizeJavaScriptEncoding(distDir);
 console.log(`✅ JavaScript encoding sanitized (${sanitizedCount} file${sanitizedCount === 1 ? '' : 's'} updated)\n`);
 
 // Step 4: Copy Chrome build
 console.log('📦 Packaging Chrome extension...');
 const chromeDir = join(publishDir, 'chrome');
-cpSync(join('dist', 'chrome'), chromeDir, { recursive: true });
+cpSync(distDir, chromeDir, { recursive: true });
 console.log('✅ Chrome package ready\n');
 
 // Step 5: Copy for Edge (uses same as Chrome)
 console.log('📦 Packaging Edge extension...');
 const edgeDir = join(publishDir, 'edge');
-cpSync(join('dist', 'chrome'), edgeDir, { recursive: true });
+cpSync(distDir, edgeDir, { recursive: true });
 console.log('✅ Edge package ready\n');
 
 // Step 6: Create ZIP files

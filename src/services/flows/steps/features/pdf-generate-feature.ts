@@ -118,10 +118,8 @@ type PdfGenerateFeatureSpec = StepSpecFromDefinition<typeof definition>;
 
 export const createPdfGenerateFeatureStep: StepFactoryFromSpec<
 	PdfGenerateFeatureSpec
-> = (
-	services: PdfGenerateFeatureServices,
-	config?: PdfGenerateFeatureConfig,
-) => bindStep(definition, services, config);
+> = (services: PdfGenerateFeatureServices, config?: PdfGenerateFeatureConfig) =>
+	bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createPdfGenerateFeatureStep, {
 	description: PDF_GENERATE_FEATURE_DESCRIPTION,

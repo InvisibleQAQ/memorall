@@ -163,8 +163,7 @@ export const createPdfToTextTool: ToolFactory<Input, Services> = (
 				const encoded = new TextEncoder().encode(extractedText);
 				await dfs.updateFileContent(outputPath, encoded);
 			} else {
-				const mimeType =
-					fmt === "markdown" ? "text/markdown" : "text/plain";
+				const mimeType = fmt === "markdown" ? "text/markdown" : "text/plain";
 				const file = new File([extractedText], fileName, { type: mimeType });
 				await dfs.uploadFile(file, parentPath);
 			}

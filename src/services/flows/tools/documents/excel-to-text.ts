@@ -58,9 +58,7 @@ function flattenTree(nodes: DocumentTreeNode[]): DocumentTreeNode[] {
 function isExcelPath(p: string): boolean {
 	const lower = p.toLowerCase();
 	return (
-		lower.endsWith(".xls") ||
-		lower.endsWith(".xlsx") ||
-		lower.endsWith(".xlsm")
+		lower.endsWith(".xls") || lower.endsWith(".xlsx") || lower.endsWith(".xlsm")
 	);
 }
 
@@ -125,13 +123,19 @@ export const createExcelToTextTool: ToolFactory<Input, Services> = (
 
 			if (fmt === "csv") {
 				extractedText = targetSheets
-					.map((sheetName) => `### ${sheetName}\n\n${sheetToCsv(workbook, sheetName)}`)
+					.map(
+						(sheetName) =>
+							`### ${sheetName}\n\n${sheetToCsv(workbook, sheetName)}`,
+					)
 					.join("\n\n");
 			} else if (targetSheets.length === workbook.SheetNames.length) {
 				extractedText = workbookToMarkdown(workbook);
 			} else {
 				extractedText = targetSheets
-					.map((sheetName) => `## ${sheetName}\n\n${sheetToMarkdown(workbook, sheetName)}`)
+					.map(
+						(sheetName) =>
+							`## ${sheetName}\n\n${sheetToMarkdown(workbook, sheetName)}`,
+					)
 					.join("\n\n");
 			}
 

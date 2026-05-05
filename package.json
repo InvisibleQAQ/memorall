@@ -25,8 +25,8 @@
     "build:edge": "node tools/build-manifest.mjs && extension build --target=edge-mv3",
     "build:firefox": "node tools/build-manifest.mjs && extension build --target=firefox-mv3",
     "build:all": "npm run build:chrome && npm run build:edge && npm run build:firefox",
-    "package:chrome": "cd dist/chrome && tar -a -c -f ../../memorall-chrome.zip *",
-    "package:edge": "cd dist/chrome && tar -a -c -f ../../memorall-edge.zip *",
+    "package:chrome": "node -e \"const{existsSync}=require('fs');const d=existsSync('dist/chromium')?'dist/chromium':'dist/chrome';require('child_process').execSync('tar -a -c -f ../../memorall-chrome.zip *',{cwd:d,stdio:'inherit'})\"",
+    "package:edge": "node -e \"const{existsSync}=require('fs');const d=existsSync('dist/chromium')?'dist/chromium':'dist/chrome';require('child_process').execSync('tar -a -c -f ../../memorall-edge.zip *',{cwd:d,stdio:'inherit'})\"",
     "package:all": "npm run build:prod && npm run package:chrome && npm run package:edge",
     "package": "node tools/build-manifest.mjs && node ./tools/build-publish.mjs",
     "build:landing_page": "node tools/deploy-runner.mjs",
@@ -187,5 +187,5 @@
     "vm-browserify": "^1.1.2",
     "worker-loader": "^3.0.8"
   },
-  "packageManager": "pnpm@10.33.2"
+  "packageManager": "yarn@4.14.1"
 }

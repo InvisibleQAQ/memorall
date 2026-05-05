@@ -9,8 +9,7 @@ npm run build:prod
 ```
 
 This will create production builds in:
-- `dist/chrome/` - Chrome Web Store
-- `dist/edge/` - Microsoft Edge Add-ons (uses same as Chrome)
+- `dist/chromium/` - Chrome Web Store & Microsoft Edge Add-ons
 
 ### 2. Required Assets & Documentation
 
@@ -45,7 +44,7 @@ This will create production builds in:
 
 1. **Create New Item**
    - Click "New Item" in Chrome Web Store Developer Dashboard
-   - Upload the ZIP file from `dist/chrome/` folder
+   - Upload the ZIP file from `dist/chromium/` folder
 
 2. **Store Listing**
    - Fill in:
@@ -97,7 +96,7 @@ This will create production builds in:
 1. **Create New Extension**
    - Navigate to "Extensions" in Partner Center
    - Click "New extension"
-   - Upload the ZIP file from `dist/chrome/` folder
+   - Upload the ZIP file from `dist/chromium/` folder
      - Edge accepts Chrome Manifest V3 extensions
 
 2. **Store Listing**
@@ -228,8 +227,8 @@ Add these scripts to `package.json`:
   "build:edge": "extension build --target=edge-mv3",
   "build:firefox": "extension build --target=firefox-mv3",
   "build:all": "npm run build:chrome && npm run build:edge && npm run build:firefox",
-  "package:chrome": "cd dist/chrome && zip -r ../../memorall-chrome.zip .",
-  "package:edge": "cd dist/chrome && zip -r ../../memorall-edge.zip .",
+  "package:chrome": "cd dist/chromium && zip -r ../../memorall-chrome.zip .",
+  "package:edge": "cd dist/chromium && zip -r ../../memorall-edge.zip .",
   "package:all": "npm run build:all && npm run package:chrome && npm run package:edge"
 }
 ```
