@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import { captureScreenshotWithFallback } from "../utils/screenshot-helpers";
 import { logWarn } from "@/utils/logger";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 
 interface ImageSelectorProps {
 	onImageSelected: (selectedImageData: string) => void;
@@ -12,6 +13,7 @@ const ImageSelectorOverlay: React.FC<ImageSelectorProps> = ({
 	onImageSelected,
 	onCancel,
 }) => {
+	const t = useEmbeddedTranslation("imageSelector");
 	const [capturedImage, setCapturedImage] = useState<string | null>(null);
 	const [isCapturing, setIsCapturing] = useState(true);
 	const [isSelecting, setIsSelecting] = useState(false);
@@ -203,7 +205,7 @@ const ImageSelectorOverlay: React.FC<ImageSelectorProps> = ({
 								animation: "spin 1s linear infinite",
 							}}
 						/>
-						<span>Capturing page...</span>
+						<span>{t("capturingPage")}</span>
 					</div>
 				</div>
 			) : (
@@ -225,7 +227,7 @@ const ImageSelectorOverlay: React.FC<ImageSelectorProps> = ({
 								<img
 									ref={imageRef}
 									src={capturedImage}
-									alt="Captured page"
+									alt={t("capturedPageAlt")}
 									style={{
 										maxWidth: "100%",
 										maxHeight: "100%",
@@ -272,7 +274,7 @@ const ImageSelectorOverlay: React.FC<ImageSelectorProps> = ({
 							} as React.CSSProperties
 						}
 					>
-						Drag to select a region of the image • Press ESC to cancel
+						{t("instruction")}
 					</div>
 
 					{/* Cancel button */}
@@ -301,7 +303,7 @@ const ImageSelectorOverlay: React.FC<ImageSelectorProps> = ({
 							e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.9)";
 						}}
 					>
-						Cancel
+						{t("cancel")}
 					</button>
 				</>
 			)}

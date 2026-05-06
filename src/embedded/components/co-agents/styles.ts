@@ -1,4 +1,5 @@
 import { customStyles } from "@/embedded/styles/customStyles";
+import { coAgentAnchorStyles } from "./anchorStyles";
 
 export const coAgentStyles = `${customStyles}
 	:host {
@@ -33,6 +34,25 @@ export const coAgentStyles = `${customStyles}
 		gap: 8px;
 		pointer-events: auto;
 	}
+	.memorall-co-agent-conversation-button {
+		width: 34px;
+		height: 34px;
+		border: 1px solid rgb(226 232 240 / 0.92);
+		border-radius: 999px;
+		background: rgb(255 255 255 / 0.9);
+		color: #0f172a;
+		box-shadow: 0 10px 24px rgb(15 23 42 / 0.16);
+		backdrop-filter: blur(10px);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		pointer-events: auto;
+	}
+	.memorall-co-agent-conversation-button:hover {
+		background: #f8fafc;
+		transform: translateY(-1px);
+	}
 	.memorall-co-agent-icon {
 		width: 54px;
 		height: 54px;
@@ -51,8 +71,10 @@ export const coAgentStyles = `${customStyles}
 		cursor: pointer;
 	}
 	.memorall-co-agent-root--collapsed .memorall-co-agent-icon:focus-visible,
+	.memorall-co-agent-conversation-button:focus-visible,
 	.memorall-co-agent-bubble-close:focus-visible,
-	.memorall-co-agent-input button:focus-visible {
+	.memorall-co-agent-anchor-trigger:focus-visible,
+	.memorall-co-agent-anchor-prompt button:focus-visible {
 		outline: 2px solid #2563eb;
 		outline-offset: 2px;
 	}
@@ -221,59 +243,6 @@ export const coAgentStyles = `${customStyles}
 	.memorall-co-agent-auth:hover {
 		background: hsl(var(--accent));
 	}
-	.memorall-co-agent-input {
-		width: min(310px, calc(100vw - 36px));
-		display: grid;
-		grid-template-columns: 34px minmax(0, 1fr) 34px;
-		align-items: center;
-		gap: 4px;
-		border: 1px solid hsl(var(--border));
-		border-radius: 10px;
-		background: hsl(var(--background) / 0.88);
-		box-shadow: 0 10px 26px rgb(15 23 42 / 0.16);
-		backdrop-filter: blur(12px);
-		padding: 6px;
-		pointer-events: auto;
-	}
-	.memorall-co-agent-input input {
-		min-width: 0;
-		height: 32px;
-		border: 0;
-		outline: none;
-		background: transparent;
-		color: hsl(var(--foreground));
-		font: 500 13px/1.2 Inter, ui-sans-serif, system-ui, sans-serif;
-		padding: 0 6px;
-	}
-	.memorall-co-agent-input input::placeholder {
-		color: hsl(var(--muted-foreground));
-	}
-	.memorall-co-agent-input button {
-		width: 34px;
-		height: 32px;
-		border: 0;
-		border-radius: 8px;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-	}
-	.memorall-co-agent-input-collapse {
-		background: transparent;
-		color: hsl(var(--muted-foreground));
-	}
-	.memorall-co-agent-input-collapse:hover {
-		background: hsl(var(--accent));
-		color: hsl(var(--foreground));
-	}
-	.memorall-co-agent-input-send {
-		background: hsl(var(--primary));
-		color: hsl(var(--primary-foreground));
-	}
-	.memorall-co-agent-input button:disabled {
-		cursor: not-allowed;
-		opacity: 0.42;
-	}
 	.agent-cursor-pointer-layer,
 	.agent-cursor-badge-layer {
 		position: fixed;
@@ -336,4 +305,5 @@ export const coAgentStyles = `${customStyles}
 	.agent-cursor-static-badge {
 		margin-top: 4px;
 	}
+${coAgentAnchorStyles}
 `;

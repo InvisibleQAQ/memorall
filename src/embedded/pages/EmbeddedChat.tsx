@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { DEFAULT_LANGUAGE, type Language } from "@/constants/language";
 import { ChatHeader } from "@/embedded/components/MessageControl";
 import { EmbeddedChatConversation } from "@/embedded/components/EmbeddedChatConversation";
 import { EmbeddedChatInput } from "@/embedded/components/EmbeddedChatInput";
@@ -14,17 +13,10 @@ import { useEmbeddedContextAttachments } from "@/embedded/hooks/use-embedded-con
 import { useEmbeddedCustomOptions } from "@/embedded/hooks/use-embedded-custom-options";
 import { useEmbeddedModelStatus } from "@/embedded/hooks/use-embedded-model-status";
 import { useEmbeddedSmartSelect } from "@/embedded/hooks/use-embedded-smart-select";
-import {
-	EMBEDDED_TRANSLATIONS,
-	loadLanguageFromStorage,
-} from "@/embedded/language";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import { customStyles } from "@/embedded/styles/customStyles";
 import type { ChatModalProps } from "@/embedded/types";
 import { createShadowPage } from "@/embedded/utils/create-shadow-page";
-
-interface EmbeddedChatProps extends ChatModalProps {
-	language?: Language;
-}
 
 const getPageHost = (pageUrl: string): string => {
 	try {
@@ -40,7 +32,7 @@ const openFullPage = () => {
 	});
 };
 
-const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
+const EmbeddedChat: React.FC<ChatModalProps> = ({
 	context,
 	mode = "general",
 	displayMode,
@@ -48,11 +40,11 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	pageUrl,
 	pageTitle,
 	contextOptions,
-	language = DEFAULT_LANGUAGE,
 	onCoAgentToggle,
 	onClose,
 }) => {
-	const texts = EMBEDDED_TRANSLATIONS[language];
+	const tChat = useEmbeddedTranslation("chat");
+	const tContext = useEmbeddedTranslation("contextSection");
 	const [inputValue, setInputValue] = useState("");
 	const [showConfirmClose, setShowConfirmClose] = useState(false);
 	const [coAgentEnabled, setCoAgentEnabled] = useState(initialCoAgentEnabled);
@@ -93,15 +85,11 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 	const pageHost = useMemo(() => getPageHost(pageUrl), [pageUrl]);
 	const suggestedPrompts = useMemo(
 		() => [
-			texts.chat.suggestSummary,
-			texts.chat.suggestFindFacts,
-			texts.chat.suggestRecallLinks,
+			tChat("suggestSummary"),
+			tChat("suggestFindFacts"),
+			tChat("suggestRecallLinks"),
 		],
-		[
-			texts.chat.suggestFindFacts,
-			texts.chat.suggestRecallLinks,
-			texts.chat.suggestSummary,
-		],
+		[tChat],
 	);
 	const primaryPageContext = useMemo(
 		() =>
@@ -129,7 +117,6 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 			mode,
 			pageTitle,
 			pageUrl,
-			texts: texts.chat,
 			inputValue,
 			setInputValue,
 			attachedContexts,
@@ -143,7 +130,6 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 			setShouldAutoScroll,
 		});
 	const { isSmartSelectMode, startSmartSelect } = useEmbeddedSmartSelect({
-		texts: texts.contextSection,
 		onAttachContext: attachSmartContext,
 		onSelected: () => setShowContextSection(false),
 	});
@@ -225,11 +211,10 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					modelId={selectedModel}
 					provider={selectedProvider}
 					modelAvailable={modelAvailable}
-					texts={texts.messageControl}
 				/>
 
 				{isSmartSelectMode ? (
-					<EmbeddedSmartSelectNotice texts={texts.contextSection} />
+					<EmbeddedSmartSelectNotice />
 				) : (
 					<EmbeddedChatConversation
 						conversationRef={conversationRef}
@@ -244,7 +229,6 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 						pageHost={pageHost}
 						suggestedPrompts={suggestedPrompts}
 						primaryPageContext={primaryPageContext}
-						texts={texts.chat}
 						onAttachContext={attachContext}
 						onSelectPrompt={setInputValue}
 						onOpenMainApp={handleOpenFullPageAndClose}
@@ -255,8 +239,8 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 					!showContextSection &&
 					attachedContexts.length === 0 && (
 						<EmbeddedContextRevealButton
-							label={texts.chat.context}
-							smartSelectLabel={texts.contextSection.smartSelect}
+							label={tChat("context")}
+							smartSelectLabel={tContext("smartSelect")}
 							onClick={toggleContextSection}
 							onSmartSelect={startSmartSelect}
 						/>
@@ -283,7 +267,6 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 							onStartSmartSelect={startSmartSelect}
 							showContextSection={showContextSection}
 							onToggleContextSection={toggleContextSection}
-							texts={texts.contextSection}
 						/>
 					</div>
 				)}
@@ -307,13 +290,11 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 						onDeleteChat={deleteChat}
 						onStop={stop}
 						onOpenSettings={handleOpenFullPageAndClose}
-						language={language}
 					/>
 				)}
 
 				{showConfirmClose && (
 					<EmbeddedCloseConfirmation
-						texts={texts.chat}
 						onCancel={handleCancelClose}
 						onConfirm={handleConfirmedClose}
 					/>
@@ -327,7 +308,6 @@ const EmbeddedChat: React.FC<EmbeddedChatProps> = ({
 export async function createEmbeddedChatModal(
 	props: ChatModalProps,
 ): Promise<() => void> {
-	const language = await loadLanguageFromStorage();
 	const { root, container } = createShadowPage({
 		customStyles,
 	});
@@ -339,7 +319,6 @@ export async function createEmbeddedChatModal(
 
 	const modalProps = {
 		...props,
-		language,
 		onClose: () => {
 			props.onClose();
 			cleanupModal();

@@ -1,13 +1,23 @@
-import React, { useEffect, useState } from "react";
-import { ChevronRight, Send, X } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BACKGROUND_EVENTS } from "@/constants/events";
 import { AgentCursorOverlay } from "@/components/AgentCursor";
-import { AgentIcon } from "@/components/AgentIcon";
-import { EmbeddedMarkdown } from "@/embedded/components/EmbeddedMarkdown";
 import { useEmbeddedModelStatus } from "@/embedded/hooks/use-embedded-model-status";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
+import { createEmbeddedContextItem } from "@/embedded/context-items";
+import { createEmbeddedChatModal } from "@/embedded/pages/EmbeddedChat";
 import { coAgentChatService } from "@/embedded/pages/CoAgent/co-agent-chat";
 import { CO_AGENT_STATUS_EVENT } from "@/embedded/pages/CoAgent/constants";
 import { getPageDescription } from "@/embedded/utils/co-agent/dom-utils";
+import {
+	refreshContextAnchor,
+	type CoAgentContextAnchor,
+} from "@/embedded/utils/co-agent/context-anchor";
+import { useCoAgentContextAnchor } from "./useCoAgentContextAnchor";
+import {
+	CoAgentAnchorPrompt,
+	CoAgentAnchorTrigger,
+} from "./CoAgentAnchorPrompt";
+import { CoAgentDock } from "./CoAgentDock";
 
 interface CoAgentOverlayProps {
 	portalRoot: ShadowRoot;
@@ -19,19 +29,49 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 	onDestroy,
 }) => {
 	const [message, setMessage] = useState("");
-	const [inputValue, setInputValue] = useState("");
+	const [anchoredInputValue, setAnchoredInputValue] = useState("");
 	const [collapsed, setCollapsed] = useState(false);
 	const [bubbleDismissed, setBubbleDismissed] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [anchorPromptOpen, setAnchorPromptOpen] = useState(false);
+	const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
 	const { needsPasskey, modelAvailable, selectedModel } =
 		useEmbeddedModelStatus();
+	const t = useEmbeddedTranslation("coAgent");
 	const showAuthAction = needsPasskey;
 	const speechMessage = showAuthAction
-		? "Unlock required"
+		? t("unlockRequired")
 		: isSubmitting
-			? message.trim() || "Working"
+			? message.trim() || t("working")
 			: message.trim();
 	const visibleSpeechMessage = bubbleDismissed ? "" : speechMessage;
+
+	const openPromptUi = useCallback(() => {
+		setCollapsed(false);
+		setBubbleDismissed(false);
+		setAnchorPromptOpen(true);
+	}, []);
+
+	const { activeAnchor, freshAnchor, setActiveAnchor } =
+		useCoAgentContextAnchor({
+			disabled: showAuthAction,
+			promptOpen: anchorPromptOpen,
+			onOpenPrompt: openPromptUi,
+		});
+
+	const openPrompt = useCallback(
+		(anchor?: CoAgentContextAnchor | null) => {
+			if (anchor && !anchor.isStale) setActiveAnchor(anchor);
+			openPromptUi();
+		},
+		[openPromptUi, setActiveAnchor],
+	);
+
+	const showAnchorTrigger =
+		Boolean(freshAnchor && !freshAnchor.isStale) &&
+		!anchorPromptOpen &&
+		!collapsed &&
+		!showAuthAction;
 
 	useEffect(() => {
 		const handleStatus = (event: Event) => {
@@ -58,22 +98,77 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 		}
 	}, [message, portalRoot]);
 
+	useEffect(() => {
+		if (!anchorPromptOpen) return;
+		window.requestAnimationFrame(() => {
+			promptInputRef.current?.focus();
+		});
+	}, [anchorPromptOpen]);
+
+	useEffect(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || !anchorPromptOpen) return;
+			event.preventDefault();
+			setAnchorPromptOpen(false);
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [anchorPromptOpen]);
+
 	const unlockExtension = () => {
 		void chrome.runtime.sendMessage({ type: BACKGROUND_EVENTS.HIDE_CO_AGENT });
 		onDestroy();
 		void chrome.runtime.sendMessage({ type: BACKGROUND_EVENTS.OPEN_FULL_PAGE });
 	};
 
+	const openFullConversation = async () => {
+		try {
+			document.getElementById("memorall-embedded-chat-modal")?.remove();
+			await createEmbeddedChatModal({
+				mode: "general",
+				coAgentEnabled: true,
+				pageUrl: window.location.href,
+				pageTitle: document.title,
+				contextOptions: [
+					createEmbeddedContextItem({
+						kind: "viewport",
+						label: t("visibleContent"),
+						content: document.body?.innerText?.slice(0, 6_000) ?? "",
+					}),
+				],
+				onCoAgentToggle: (enabled) => {
+					void chrome.runtime.sendMessage({
+						type: enabled
+							? BACKGROUND_EVENTS.CO_AGENT_SET_ACTIVE
+							: BACKGROUND_EVENTS.HIDE_CO_AGENT,
+						url: window.location.href,
+					});
+					if (!enabled) onDestroy();
+				},
+				onClose: () => {
+					// Chat modal owns its own cleanup.
+				},
+			});
+		} catch (error) {
+			setBubbleDismissed(false);
+			setMessage(error instanceof Error ? error.message : t("errorMessage"));
+		}
+	};
+
 	const submitPrompt = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		const prompt = inputValue.trim();
+		const prompt = anchoredInputValue.trim();
 		if (!prompt || isSubmitting || showAuthAction || !modelAvailable) return;
+		const anchor = activeAnchor
+			? refreshContextAnchor(activeAnchor)
+			: undefined;
 
-		setInputValue("");
+		setAnchoredInputValue("");
+		setAnchorPromptOpen(false);
 		setCollapsed(false);
 		setBubbleDismissed(false);
 		setIsSubmitting(true);
-		setMessage("Thinking");
+		setMessage(t("thinking"));
 
 		try {
 			const result = await coAgentChatService.chatStream({
@@ -84,11 +179,12 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 					title: document.title || "",
 					description: getPageDescription(),
 				},
+				anchorContext: anchor && !anchor.isStale ? anchor : undefined,
 				onExecuteStart: (executeState) => {
 					setMessage(
 						typeof executeState.node === "string"
 							? executeState.node.replace(/[_-]+/g, " ")
-							: "Working",
+							: t("working"),
 					);
 				},
 				onProgress: (content) => {
@@ -97,7 +193,7 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 					}
 				},
 				onError: (error) => {
-					setMessage(error || "Co-agent failed");
+					setMessage(error || t("failedMessage"));
 				},
 			});
 
@@ -105,9 +201,7 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 				setMessage(result.content.trim());
 			}
 		} catch (error) {
-			setMessage(
-				error instanceof Error ? error.message : "Co-agent request failed",
-			);
+			setMessage(error instanceof Error ? error.message : t("errorMessage"));
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -116,103 +210,40 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 	return (
 		<>
 			<AgentCursorOverlay portalRoot={portalRoot} />
-			<div
-				className={`memorall-co-agent-root ${
-					collapsed ? "memorall-co-agent-root--collapsed" : ""
-				}`}
-			>
-				<div className="memorall-co-agent-dock">
-					<div
-						className="memorall-co-agent-icon"
-						role={collapsed ? "button" : undefined}
-						tabIndex={collapsed ? 0 : undefined}
-						aria-label={collapsed ? "Expand co-agent" : undefined}
-						onClick={() => {
-							if (collapsed) setCollapsed(false);
-						}}
-						onKeyDown={(event) => {
-							if (!collapsed) return;
-							if (event.key === "Enter" || event.key === " ") {
-								event.preventDefault();
-								setCollapsed(false);
-							}
-						}}
-					>
-						<AgentIcon
-							size={54}
-							reactive
-							speechBubble={
-								visibleSpeechMessage
-									? {
-											message: visibleSpeechMessage,
-											tone: showAuthAction ? "thinking" : "neutral",
-											placement: "top",
-											variant: "manga",
-											renderContent: (
-												<div className="memorall-co-agent-bubble-content">
-													<button
-														type="button"
-														className="memorall-co-agent-bubble-close"
-														aria-label="Close co-agent bubble"
-														title="Close"
-														onClick={(event) => {
-															event.stopPropagation();
-															setBubbleDismissed(true);
-														}}
-													>
-														<X size={15} strokeWidth={2.4} />
-													</button>
-													<EmbeddedMarkdown
-														content={visibleSpeechMessage}
-														isStreaming={isSubmitting}
-													/>
-												</div>
-											),
-										}
-									: undefined
-							}
-						/>
-					</div>
-				</div>
-				{!collapsed && showAuthAction ? (
-					<button
-						type="button"
-						className="memorall-co-agent-auth"
-						onClick={unlockExtension}
-					>
-						Unlock Extension
-					</button>
-				) : null}
-				{!collapsed && !showAuthAction ? (
-					<form className="memorall-co-agent-input" onSubmit={submitPrompt}>
-						<button
-							type="button"
-							className="memorall-co-agent-input-collapse"
-							aria-label="Collapse co-agent input"
-							title="Collapse"
-							onClick={() => setCollapsed(true)}
-						>
-							<ChevronRight size={17} strokeWidth={2.35} />
-						</button>
-						<input
-							value={inputValue}
-							onChange={(event) => setInputValue(event.currentTarget.value)}
-							placeholder={
-								modelAvailable ? "Ask co-agent..." : "No model available"
-							}
-							disabled={!modelAvailable || isSubmitting}
-						/>
-						<button
-							type="submit"
-							className="memorall-co-agent-input-send"
-							aria-label="Send to co-agent"
-							disabled={!inputValue.trim() || !modelAvailable || isSubmitting}
-						>
-							<Send size={15} strokeWidth={2.2} />
-						</button>
-					</form>
-				) : null}
-			</div>
+			{showAnchorTrigger && freshAnchor ? (
+				<CoAgentAnchorTrigger
+					anchor={freshAnchor}
+					onOpen={() => openPrompt(freshAnchor)}
+				/>
+			) : null}
+			{anchorPromptOpen && freshAnchor && !showAuthAction ? (
+				<CoAgentAnchorPrompt
+					anchor={freshAnchor}
+					value={anchoredInputValue}
+					inputRef={promptInputRef}
+					modelAvailable={modelAvailable}
+					isSubmitting={isSubmitting}
+					onChange={setAnchoredInputValue}
+					onClose={() => setAnchorPromptOpen(false)}
+					onSubmit={submitPrompt}
+				/>
+			) : null}
+			<CoAgentDock
+				collapsed={collapsed}
+				showAuthAction={showAuthAction}
+				visibleSpeechMessage={visibleSpeechMessage}
+				isSubmitting={isSubmitting}
+				canOpenPrompt={Boolean(freshAnchor && !showAuthAction)}
+				onExpand={() => setCollapsed(false)}
+				onOpenPrompt={() => {
+					if (freshAnchor) openPrompt(freshAnchor);
+				}}
+				onOpenConversation={() => {
+					void openFullConversation();
+				}}
+				onUnlock={unlockExtension}
+				onDismissBubble={() => setBubbleDismissed(true)}
+			/>
 		</>
 	);
 };

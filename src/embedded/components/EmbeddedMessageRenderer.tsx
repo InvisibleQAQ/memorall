@@ -4,42 +4,23 @@ import { EmbeddedMarkdown } from "./EmbeddedMarkdown";
 import { Loader } from "./Icons";
 import { EMBEDDED_CONTEXT_TAG_CONFIG } from "@/embedded/context-items";
 import { backgroundJob } from "@/services/background-jobs/background-job";
-import { LANGUAGE_STORAGE_KEY, DEFAULT_LANGUAGE } from "@/constants/language";
-import type { Language } from "@/constants/language";
 import { logWarn } from "@/utils/logger";
+import {
+	getEmbeddedTranslation,
+	useEmbeddedTranslation,
+} from "@/embedded/hooks/use-embedded-language";
 import {
 	parseArtifactSegments,
 	type MessageContentSegment,
 } from "@/main/modules/chat/components/artifacts/artifact-protocol";
 
-// Translation map for action names
-const ACTION_TRANSLATIONS = {
-	en: {
-		// Add common action translations here - these should match the chat.json actions namespace
-		search_knowledge: "Search Knowledge",
-		retrieve_documents: "Retrieve Documents",
-		analyze_content: "Analyze Content",
-		generate_response: "Generate Response",
-		process_query: "Process Query",
-	},
-	vn: {
-		search_knowledge: "Tìm kiếm kiến thức",
-		retrieve_documents: "Truy xuất tài liệu",
-		analyze_content: "Phân tích nội dung",
-		generate_response: "Tạo phản hồi",
-		process_query: "Xử lý truy vấn",
-	},
-};
-
 // Helper function to translate action names (similar to MessageRenderer.tsx)
 const translateActionName = (
 	actionName: string,
-	language: Language,
+	actions: Record<string, string>,
 ): string => {
-	// Try to get translation from actions map
-	const translations = ACTION_TRANSLATIONS[language];
-	if (translations && translations[actionName as keyof typeof translations]) {
-		return translations[actionName as keyof typeof translations];
+	if (actions[actionName]) {
+		return actions[actionName];
 	}
 
 	// Fallback: replace underscores with spaces and capitalize first letter
@@ -84,7 +65,7 @@ const getToolCallSummary = (toolCall: unknown, index: number) => {
 		name:
 			(typeof fn?.name === "string" && fn.name) ||
 			(typeof record.name === "string" && record.name) ||
-			`Tool ${index + 1}`,
+			"",
 		argumentsText:
 			(typeof fn?.arguments === "string" && fn.arguments) ||
 			formatJsonPreview(record.arguments ?? record.args ?? record),
@@ -93,8 +74,10 @@ const getToolCallSummary = (toolCall: unknown, index: number) => {
 
 const EmbeddedToolSummaries: React.FC<{
 	message: ChatMessage;
-	language: Language;
-}> = ({ message, language }) => {
+}> = ({ message }) => {
+	const t = useEmbeddedTranslation("messageRenderer");
+	const { actions: actionTranslations } =
+		getEmbeddedTranslation("messageRenderer");
 	const actions = message.metadata?.actions || [];
 	const toolCalls = message.metadata?.tool_calls || [];
 	const executeState = message.metadata?.executeState;
@@ -110,9 +93,9 @@ const EmbeddedToolSummaries: React.FC<{
 					<div className="memorall-tool-summary-main">
 						<span className="memorall-tool-summary-dot memorall-tool-summary-dot--active" />
 						<span className="memorall-tool-summary-title">
-							{translateActionName(executeState.node, language)}
+							{translateActionName(executeState.node, actionTranslations)}
 						</span>
-						<span className="memorall-tool-summary-status">Running</span>
+						<span className="memorall-tool-summary-status">{t("running")}</span>
 					</div>
 					{executeState.metadata && (
 						<div className="memorall-tool-summary-description">
@@ -127,9 +110,9 @@ const EmbeddedToolSummaries: React.FC<{
 					<div className="memorall-tool-summary-main">
 						<span className="memorall-tool-summary-dot" />
 						<span className="memorall-tool-summary-title">
-							{translateActionName(action.name, language)}
+							{translateActionName(action.name, actionTranslations)}
 						</span>
-						<span className="memorall-tool-summary-status">Done</span>
+						<span className="memorall-tool-summary-status">{t("done")}</span>
 					</div>
 					{action.description && (
 						<div className="memorall-tool-summary-description">
@@ -141,14 +124,15 @@ const EmbeddedToolSummaries: React.FC<{
 
 			{toolCalls.map((toolCall, index) => {
 				const summary = getToolCallSummary(toolCall, index);
+				const title = summary.name || t("toolLabel", { index: index + 1 });
 				return (
 					<details className="memorall-tool-summary" key={summary.id}>
 						<summary className="memorall-tool-summary-main">
 							<span className="memorall-tool-summary-dot" />
-							<span className="memorall-tool-summary-title">
-								{summary.name}
+							<span className="memorall-tool-summary-title">{title}</span>
+							<span className="memorall-tool-summary-status">
+								{t("toolCall")}
 							</span>
-							<span className="memorall-tool-summary-status">Tool call</span>
 						</summary>
 						{summary.argumentsText && (
 							<pre className="memorall-tool-summary-code">
@@ -165,9 +149,10 @@ const EmbeddedToolSummaries: React.FC<{
 const EmbeddedArtifact: React.FC<{
 	segment: Extract<MessageContentSegment, { kind: "artifact" }>;
 }> = ({ segment }) => {
+	const t = useEmbeddedTranslation("messageRenderer");
 	const title =
 		segment.title ||
-		(segment.type === "url" ? "URL artifact" : "HTML artifact");
+		(segment.type === "url" ? t("urlArtifact") : t("htmlArtifact"));
 	const openUrl = () => {
 		if (segment.type === "url" && segment.content.trim()) {
 			window.open(segment.content.trim(), "_blank", "noopener,noreferrer");
@@ -184,7 +169,7 @@ const EmbeddedArtifact: React.FC<{
 						className="memorall-artifact-open"
 						onClick={openUrl}
 					>
-						Open
+						{t("open")}
 					</button>
 				)}
 			</div>
@@ -242,6 +227,7 @@ const AssistantMessageContent: React.FC<{
 const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 	message,
 }) => {
+	const t = useEmbeddedTranslation("messageRenderer");
 	const [expandedSections, setExpandedSections] = useState<Set<string>>(
 		new Set(),
 	);
@@ -365,7 +351,7 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 								>
 									<img
 										src={part.image_url.url}
-										alt={`Image ${idx + 1}`}
+										alt={t("imageAlt", { index: idx + 1 })}
 										className="w-full"
 									/>
 								</div>
@@ -457,7 +443,7 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 										copySection(section.label, section.content, e)
 									}
 									className="memorall-user-context-icon-button ml-2 p-1 rounded transition-colors"
-									title={isCopied ? "Copied!" : "Copy content"}
+									title={isCopied ? t("copiedTitle") : t("copyContent")}
 									onKeyDown={(e) => e.stopPropagation()}
 									onKeyUp={(e) => e.stopPropagation()}
 									onKeyPress={(e) => e.stopPropagation()}
@@ -528,7 +514,7 @@ const UserMessageContent: React.FC<{ message: ChatMessage }> = ({
 							>
 								<img
 									src={part.image_url.url}
-									alt={`Image ${idx + 1}`}
+									alt={t("imageAlt", { index: idx + 1 })}
 									className="w-full"
 								/>
 							</div>
@@ -552,6 +538,7 @@ const MessageActions: React.FC<{
 	allMessages: ChatMessage[];
 	selectedTopic?: string;
 }> = ({ message, allMessages, selectedTopic }) => {
+	const t = useEmbeddedTranslation("messageRenderer");
 	const [copied, setCopied] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [saved, setSaved] = useState(false);
@@ -591,8 +578,7 @@ const MessageActions: React.FC<{
 									.map((part) => part.text)
 									.join("\n");
 
-					// Format as: "User: <message>" or "Assistant: <message>"
-					const role = msg.role === "user" ? "User" : "Assistant";
+					const role = msg.role === "user" ? t("userRole") : t("assistantRole");
 					return `${role}: ${content}`;
 				})
 				.join("\n\n");
@@ -601,7 +587,9 @@ const MessageActions: React.FC<{
 			const conversationId = `conversation-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
 			// Prepare the content with source info (similar to CONVERT_TO_KNOWLEDGE_CONTEXT_MENU_ID)
-			const sourceInfo = `Direct content save\nWeb Title: ${document.title || "Untitled"}\nWeb URL: ${window.location.href}\n\n`;
+			const sourceInfo = `${t("directContentSave")}\n${t("webTitle")}: ${
+				document.title || t("untitled")
+			}\n${t("webUrl")}: ${window.location.href}\n\n`;
 			const fullContent = sourceInfo + conversationText;
 
 			// Convert directly to knowledge using the knowledge-graph job
@@ -635,7 +623,7 @@ const MessageActions: React.FC<{
 			<button
 				onClick={handleCopy}
 				className="h-8 px-3 text-sm rounded hover:bg-accent transition-colors flex items-center gap-2 group/copy"
-				title={copied ? "Copied!" : "Copy message"}
+				title={copied ? t("copiedTitle") : t("copyMessage")}
 			>
 				{copied ? (
 					<svg
@@ -667,7 +655,7 @@ const MessageActions: React.FC<{
 					</svg>
 				)}
 				<span className="hidden group-hover/copy:inline">
-					{copied ? "Copied" : "Copy"}
+					{copied ? t("copied") : t("copy")}
 				</span>
 			</button>
 
@@ -675,7 +663,7 @@ const MessageActions: React.FC<{
 				onClick={handleSaveToRemembered}
 				className="h-8 px-3 text-sm rounded hover:bg-accent transition-colors flex items-center gap-2 group/save"
 				title={
-					saved ? "Saved!" : saving ? "Saving..." : "Save to remembered content"
+					saved ? t("savedTitle") : saving ? t("saving") : t("saveToRemembered")
 				}
 				disabled={saving}
 			>
@@ -709,7 +697,7 @@ const MessageActions: React.FC<{
 					</svg>
 				)}
 				<span className="hidden group-hover/save:inline">
-					{saving ? "Saving..." : saved ? "Saved!" : "Remember"}
+					{saving ? t("saving") : saved ? t("saved") : t("remember")}
 				</span>
 			</button>
 		</div>
@@ -720,38 +708,16 @@ const MessageActions: React.FC<{
 export const EmbeddedMessageRenderer: React.FC<
 	EmbeddedMessageRendererProps
 > = ({ message, isLoading, allMessages, selectedTopic }) => {
-	const [language, setLanguage] = useState<Language>(DEFAULT_LANGUAGE);
-
-	// Load language from storage on mount
-	React.useEffect(() => {
-		const loadLanguage = async () => {
-			try {
-				const result = await chrome.storage.local.get(LANGUAGE_STORAGE_KEY);
-				const savedLanguage = result[LANGUAGE_STORAGE_KEY];
-
-				if (
-					savedLanguage &&
-					(savedLanguage === "en" || savedLanguage === "vn")
-				) {
-					setLanguage(savedLanguage);
-				}
-			} catch (error) {
-				logWarn("Failed to load language:", error);
-				// Keep default language
-			}
-		};
-
-		loadLanguage();
-	}, []);
+	const t = useEmbeddedTranslation("messageRenderer");
 
 	// Loading state with actions
 	if (!message.content && isLoading && message.role === "assistant") {
 		return (
 			<div className="flex flex-col gap-4">
-				<EmbeddedToolSummaries message={message} language={language} />
+				<EmbeddedToolSummaries message={message} />
 				<div className="flex items-center gap-2">
 					<Loader size={14} />
-					<span className="text-muted-foreground text-sm">Thinking...</span>
+					<span className="text-muted-foreground text-sm">{t("thinking")}</span>
 				</div>
 			</div>
 		);
@@ -759,7 +725,7 @@ export const EmbeddedMessageRenderer: React.FC<
 
 	return (
 		<div className="flex flex-col gap-4">
-			<EmbeddedToolSummaries message={message} language={language} />
+			<EmbeddedToolSummaries message={message} />
 			{message.content && (
 				<>
 					{message.role === "user" ? (

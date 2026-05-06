@@ -301,6 +301,22 @@ export const scrollTarget = (
 	});
 };
 
+export const setNativeTextValue = (
+	element: HTMLInputElement | HTMLTextAreaElement,
+	value: string,
+): void => {
+	const prototype =
+		element instanceof HTMLTextAreaElement
+			? HTMLTextAreaElement.prototype
+			: HTMLInputElement.prototype;
+	const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+	if (descriptor?.set) {
+		descriptor.set.call(element, value);
+	} else {
+		element.value = value;
+	}
+};
+
 export const getPageDescription = (): string => {
 	const selectors = [
 		'meta[name="description"]',

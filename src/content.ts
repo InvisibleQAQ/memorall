@@ -28,10 +28,6 @@ import {
 	handleCoAgentContentCommand,
 } from "./embedded/pages/CoAgent";
 import { createFolderPickerOverlay } from "./embedded/components/FolderPickerOverlay";
-import {
-	loadLanguageFromStorage,
-	EMBEDDED_TRANSLATIONS,
-} from "./embedded/language";
 import type {
 	BackgroundMessage,
 	EmbeddedContextItem,
@@ -48,7 +44,9 @@ import {
 	type WebElementRecord,
 } from "@/services/web-browser";
 import {
+	CO_AGENT_BROWSER_COMMAND_SOURCE,
 	CO_AGENT_CONTENT_COMMAND_SOURCE,
+	isCoAgentBrowserCommandResponse,
 	isCoAgentContentCommandRequest,
 	type CoAgentContentCommandResponse,
 } from "@/services/co-agent";
@@ -802,9 +800,6 @@ async function handleActivateSmartSelector(
 		const existing = document.getElementById("memorall-smart-select-container");
 		if (existing) existing.remove();
 
-		const language = await loadLanguageFromStorage();
-		const t = EMBEDDED_TRANSLATIONS[language].contextSection;
-
 		createStandaloneSmartSelectOverlay(
 			(item, action: SmartSelectAction) => {
 				if (action === "open-chat") {
@@ -828,34 +823,12 @@ async function handleActivateSmartSelector(
 				} else {
 					createFolderPickerOverlay(
 						item,
-						{
-							smartSelectStoreToDocument:
-								t.smartSelectStoreToDocument ?? "Store to document",
-							saveFolder: t.saveFolder,
-							saveFileName: t.saveFileName,
-							saveToDocuments: t.saveToDocuments,
-							savingToDocuments: t.savingToDocuments,
-							smartSelectCancel: t.smartSelectCancel,
-						},
 						() => {},
 						() => {},
 					);
 				}
 			},
 			() => {},
-			{
-				smartSelect: t.smartSelect,
-				smartSelectInstruction: t.smartSelectInstruction,
-				smartSelectCancel: t.smartSelectCancel,
-				smartSelectChooseFormat: t.smartSelectChooseFormat,
-				smartSelectText: t.smartSelectText,
-				smartSelectCleanHtml: t.smartSelectCleanHtml,
-				smartSelectHtml: t.smartSelectHtml,
-				smartSelectChooseAction: t.smartSelectChooseAction,
-				smartSelectStoreToDocument: t.smartSelectStoreToDocument,
-				smartSelectOpenChat: t.smartSelectOpenChat,
-				smartSelectOpenFullChat: t.smartSelectOpenFullChat,
-			},
 		);
 
 		sendResponse({ success: true });
@@ -934,6 +907,23 @@ function handleShowImageSelector(
 
 // Initialize content script
 logInfo("🚀 Memorall content script loaded on:", window.location.href);
+
+async function restoreCoAgentIfActiveInThisTab(): Promise<void> {
+	try {
+		const response = await chrome.runtime.sendMessage({
+			source: CO_AGENT_BROWSER_COMMAND_SOURCE,
+			command: "get-active",
+		});
+		if (!isCoAgentBrowserCommandResponse(response) || !response.success) {
+			return;
+		}
+		await setCoAgentActive(true);
+	} catch {
+		// Co-agent is either inactive or active in another tab.
+	}
+}
+
+void restoreCoAgentIfActiveInThisTab();
 
 // Default export for Extension.js development mode
 export default function main() {

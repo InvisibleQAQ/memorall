@@ -1,9 +1,8 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { Loader } from "./Icons";
 import { captureScreenshotWithFallback } from "../utils/screenshot-helpers";
-import { EMBEDDED_TRANSLATIONS } from "../language";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import { sendMessageToBackground } from "../messaging";
-import { DEFAULT_LANGUAGE } from "@/constants/language";
 import { isImageContextKind } from "@/embedded/context-items";
 import type { EmbeddedContextItem } from "@/embedded/types";
 import { logWarn } from "@/utils/logger";
@@ -17,7 +16,6 @@ export const EmbeddedContextSections: React.FC<{
 	onStartSmartSelect: () => void;
 	showContextSection: boolean;
 	onToggleContextSection: () => void;
-	texts?: typeof EMBEDDED_TRANSLATIONS.en.contextSection;
 }> = ({
 	availableContexts,
 	attachedContexts,
@@ -27,8 +25,8 @@ export const EmbeddedContextSections: React.FC<{
 	onStartSmartSelect,
 	showContextSection,
 	onToggleContextSection,
-	texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].contextSection,
 }) => {
+	const t = useEmbeddedTranslation("contextSection");
 	const [capturingContextId, setCapturingContextId] = useState<string | null>(
 		null,
 	);
@@ -276,13 +274,13 @@ export const EmbeddedContextSections: React.FC<{
 				});
 
 				if (!response.success) {
-					throw new Error(response.error || "Failed to save");
+					throw new Error(response.error || t("failedToSave"));
 				}
 
 				setSaveSuccess(
 					sources.length > 1
-						? `${sources.length} image files saved`
-						: "Image saved",
+						? t("imageFilesSaved", { count: sources.length })
+						: t("imageSaved"),
 				);
 				return;
 			}
@@ -300,11 +298,11 @@ export const EmbeddedContextSections: React.FC<{
 			});
 
 			if (!response.success) {
-				throw new Error(response.error || "Failed to save");
+				throw new Error(response.error || t("failedToSave"));
 			}
-			setSaveSuccess("Saved to documents");
+			setSaveSuccess(t("saveToDocuments"));
 		} catch (error) {
-			setSaveError(error instanceof Error ? error.message : "Failed to save");
+			setSaveError(error instanceof Error ? error.message : t("failedToSave"));
 		} finally {
 			setIsSavingPreview(false);
 		}
@@ -314,6 +312,7 @@ export const EmbeddedContextSections: React.FC<{
 		previewContext,
 		saveFileName,
 		selectedFolderPath,
+		t,
 	]);
 
 	return (
@@ -327,8 +326,8 @@ export const EmbeddedContextSections: React.FC<{
 								className="memorall-context-toggle"
 								title={
 									showContextSection
-										? texts.hideContextSection
-										: texts.showContextSection
+										? t("hideContextSection")
+										: t("showContextSection")
 								}
 								onKeyDown={(e) => e.stopPropagation()}
 								onKeyUp={(e) => e.stopPropagation()}
@@ -348,9 +347,7 @@ export const EmbeddedContextSections: React.FC<{
 									/>
 								</svg>
 							</button>
-							<div className="memorall-context-title">
-								{texts.selectContext}
-							</div>
+							<div className="memorall-context-title">{t("selectContext")}</div>
 						</div>
 
 						<div className="memorall-context-actions">
@@ -374,7 +371,7 @@ export const EmbeddedContextSections: React.FC<{
 										d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364 6.364l-2.121-2.121M8.757 8.757L6.636 6.636m11.728 0l-2.121 2.121M8.757 15.243l-2.121 2.121"
 									/>
 								</svg>
-								{texts.smartSelect}
+								{t("smartSelect")}
 							</button>
 							{attachedContexts.length > 0 && (
 								<button
@@ -384,7 +381,7 @@ export const EmbeddedContextSections: React.FC<{
 									onKeyUp={(e) => e.stopPropagation()}
 									onKeyPress={(e) => e.stopPropagation()}
 								>
-									{texts.clearAll}
+									{t("clearAll")}
 								</button>
 							)}
 						</div>
@@ -418,7 +415,7 @@ export const EmbeddedContextSections: React.FC<{
 													<Loader size={12} />
 												) : (
 													<span className="memorall-context-attach-text">
-														{texts.attach}
+														{t("attach")}
 													</span>
 												)}
 											</button>
@@ -427,7 +424,7 @@ export const EmbeddedContextSections: React.FC<{
 													type="button"
 													onClick={() => setPreviewContextId(contextItem.id)}
 													className="memorall-context-preview-button"
-													title={texts.preview}
+													title={t("preview")}
 													onKeyDown={(e) => e.stopPropagation()}
 													onKeyUp={(e) => e.stopPropagation()}
 													onKeyPress={(e) => e.stopPropagation()}
@@ -463,7 +460,7 @@ export const EmbeddedContextSections: React.FC<{
 					{attachedContexts.length > 0 && (
 						<div className="memorall-context-group">
 							<div className="memorall-attached-title">
-								{texts.attachedContexts}
+								{t("attachedContexts")}
 							</div>
 							<div className="memorall-context-grid memorall-context-grid--attached">
 								{attachedContexts.map((contextItem) => (
@@ -480,7 +477,7 @@ export const EmbeddedContextSections: React.FC<{
 											type="button"
 											onClick={() => setPreviewContextId(contextItem.id)}
 											className="memorall-context-preview-button"
-											title={texts.preview}
+											title={t("preview")}
 											onKeyDown={(e) => e.stopPropagation()}
 											onKeyUp={(e) => e.stopPropagation()}
 											onKeyPress={(e) => e.stopPropagation()}
@@ -514,7 +511,7 @@ export const EmbeddedContextSections: React.FC<{
 												onRemoveAttachedContext(contextItem.id);
 											}}
 											className="memorall-context-preview-button"
-											title={texts.removeAttachment}
+											title={t("removeAttachment")}
 											onKeyDown={(e) => e.stopPropagation()}
 											onKeyUp={(e) => e.stopPropagation()}
 											onKeyPress={(e) => e.stopPropagation()}
@@ -548,8 +545,10 @@ export const EmbeddedContextSections: React.FC<{
 									</div>
 									<div className="text-[10px] text-muted-foreground">
 										{isImageContextKind(previewContext.kind)
-											? texts.imagePreview
-											: `${previewContext.content.length.toLocaleString()} chars`}
+											? t("imagePreview")
+											: t("charCount", {
+													count: previewContext.content.length.toLocaleString(),
+												})}
 									</div>
 								</div>
 								<div className="flex items-center gap-2">
@@ -574,7 +573,7 @@ export const EmbeddedContextSections: React.FC<{
 												d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
 											/>
 										</svg>
-										{texts.saveToDocuments}
+										{t("saveToDocuments")}
 									</button>
 									<button
 										type="button"
@@ -584,7 +583,7 @@ export const EmbeddedContextSections: React.FC<{
 										onKeyUp={(e) => e.stopPropagation()}
 										onKeyPress={(e) => e.stopPropagation()}
 									>
-										{texts.closePreview}
+										{t("closePreview")}
 									</button>
 								</div>
 							</div>
@@ -596,7 +595,7 @@ export const EmbeddedContextSections: React.FC<{
 									<div className="grid gap-2 sm:grid-cols-2">
 										<label className="space-y-1">
 											<div className="text-[11px] font-medium text-muted-foreground">
-												{texts.saveFolder}
+												{t("saveFolder")}
 											</div>
 											<select
 												value={selectedFolderPath}
@@ -615,7 +614,7 @@ export const EmbeddedContextSections: React.FC<{
 										</label>
 										<label className="space-y-1">
 											<div className="text-[11px] font-medium text-muted-foreground">
-												{texts.saveFileName}
+												{t("saveFileName")}
 											</div>
 											<input
 												value={saveFileName}
@@ -644,7 +643,7 @@ export const EmbeddedContextSections: React.FC<{
 												onKeyUp={(e) => e.stopPropagation()}
 												onKeyPress={(e) => e.stopPropagation()}
 											>
-												{texts.closePreview}
+												{t("closePreview")}
 											</button>
 											<button
 												type="button"
@@ -656,8 +655,8 @@ export const EmbeddedContextSections: React.FC<{
 												onKeyPress={(e) => e.stopPropagation()}
 											>
 												{isSavingPreview
-													? texts.savingToDocuments
-													: texts.saveToDocuments}
+													? t("savingToDocuments")
+													: t("saveToDocuments")}
 											</button>
 										</div>
 									</div>

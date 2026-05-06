@@ -86,27 +86,58 @@ const findSelectorTarget = (
 	return element instanceof HTMLElement ? element : null;
 };
 
+const clampPosition = (position: CursorPosition): CursorPosition => ({
+	x: Math.min(window.innerWidth - 24, Math.max(24, position.x)),
+	y: Math.min(window.innerHeight - 34, Math.max(28, position.y)),
+});
+
+const isTextInputTarget = (element: HTMLElement): boolean =>
+	element instanceof HTMLTextAreaElement ||
+	(element instanceof HTMLInputElement &&
+		![
+			"checkbox",
+			"radio",
+			"button",
+			"submit",
+			"reset",
+			"file",
+			"hidden",
+		].includes((element.type || "text").toLowerCase()));
+
+const isSmallControlTarget = (element: HTMLElement): boolean =>
+	element instanceof HTMLButtonElement ||
+	element instanceof HTMLAnchorElement ||
+	element instanceof HTMLSelectElement ||
+	element.getAttribute("role") === "button" ||
+	element.getAttribute("role") === "link";
+
 const getTargetPosition = (element: HTMLElement): CursorPosition => {
 	const rect = element.getBoundingClientRect();
-	return {
-		x: Math.min(
-			window.innerWidth - 24,
-			Math.max(24, rect.left + rect.width / 2),
-		),
-		y: Math.min(
-			window.innerHeight - 34,
-			Math.max(28, rect.top + Math.min(rect.height * 0.45, 42)),
-		),
-	};
+	const style = window.getComputedStyle(element);
+	if (isTextInputTarget(element)) {
+		const paddingLeft = Number.parseFloat(style.paddingLeft) || 12;
+		return clampPosition({
+			x: rect.left + Math.min(Math.max(paddingLeft + 10, 18), rect.width * 0.4),
+			y: rect.top + rect.height / 2,
+		});
+	}
+	if (isSmallControlTarget(element) || rect.width <= 220 || rect.height <= 72) {
+		return clampPosition({
+			x: rect.left + rect.width / 2,
+			y: rect.top + rect.height / 2,
+		});
+	}
+	return clampPosition({
+		x: rect.left + Math.min(48, rect.width * 0.18),
+		y: rect.top + Math.min(36, rect.height * 0.22),
+	});
 };
 
-const getRectPosition = (rect: CursorRect): CursorPosition => ({
-	x: Math.min(window.innerWidth - 24, Math.max(24, rect.x + rect.width / 2)),
-	y: Math.min(
-		window.innerHeight - 34,
-		Math.max(28, rect.y + Math.min(rect.height * 0.45, 42)),
-	),
-});
+const getRectPosition = (rect: CursorRect): CursorPosition =>
+	clampPosition({
+		x: rect.x + rect.width / 2,
+		y: rect.y + Math.min(rect.height * 0.45, 42),
+	});
 
 const isScrollable = (element: HTMLElement): boolean => {
 	const style = window.getComputedStyle(element);
@@ -134,6 +165,7 @@ const centerElementInScrollParents = (
 	element: HTMLElement,
 	behavior: ScrollBehavior,
 ) => {
+	const margin = 96;
 	for (const parent of getScrollParents(element)) {
 		const rect = element.getBoundingClientRect();
 		const parentRect = parent.getBoundingClientRect();
@@ -141,12 +173,15 @@ const centerElementInScrollParents = (
 			parent.scrollTop +
 			rect.top -
 			parentRect.top -
-			(parent.clientHeight - Math.min(rect.height, parent.clientHeight)) / 2;
+			(parent.clientHeight -
+				Math.min(rect.height + margin, parent.clientHeight)) /
+				2;
 		const left =
 			parent.scrollLeft +
 			rect.left -
 			parentRect.left -
-			(parent.clientWidth - Math.min(rect.width, parent.clientWidth)) / 2;
+			(parent.clientWidth - Math.min(rect.width + margin, parent.clientWidth)) /
+				2;
 		parent.scrollTo({
 			top: Math.max(0, top),
 			left: Math.max(0, left),
@@ -158,11 +193,12 @@ const centerElementInScrollParents = (
 	const top =
 		window.scrollY +
 		rect.top -
-		(window.innerHeight - Math.min(rect.height, window.innerHeight)) / 2;
+		(window.innerHeight - Math.min(rect.height + margin, window.innerHeight)) /
+			2;
 	const left =
 		window.scrollX +
 		rect.left -
-		(window.innerWidth - Math.min(rect.width, window.innerWidth)) / 2;
+		(window.innerWidth - Math.min(rect.width + margin, window.innerWidth)) / 2;
 	window.scrollTo({ top: Math.max(0, top), left: Math.max(0, left), behavior });
 };
 
@@ -311,10 +347,7 @@ export const AgentCursorOverlay: React.FC<AgentCursorOverlayProps> = ({
 			detail: AgentCursorEventDetail,
 		) => {
 			activeElementRef.current = null;
-			setPosition({
-				x: Math.min(window.innerWidth - 24, Math.max(24, position.x)),
-				y: Math.min(window.innerHeight - 34, Math.max(28, position.y)),
-			});
+			setPosition(clampPosition(position));
 			setMessage(detail.message || "Updating");
 			visibleRef.current = true;
 			setVisible(true);

@@ -1,20 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { sendMessageToBackground } from "../messaging";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import type { EmbeddedContextItem } from "../types";
-
-interface FolderPickerTexts {
-	smartSelectStoreToDocument: string;
-	saveFolder: string;
-	saveFileName: string;
-	saveToDocuments: string;
-	savingToDocuments: string;
-	smartSelectCancel: string;
-}
 
 interface FolderPickerOverlayProps {
 	item: EmbeddedContextItem;
-	texts: FolderPickerTexts;
 	onDone: () => void;
 	onCancel: () => void;
 }
@@ -34,10 +25,10 @@ function inferFileMeta(item: EmbeddedContextItem): {
 
 const FolderPickerOverlay: React.FC<FolderPickerOverlayProps> = ({
 	item,
-	texts,
 	onDone,
 	onCancel,
 }) => {
+	const t = useEmbeddedTranslation("contextSection");
 	const [folders, setFolders] = useState<string[]>([]);
 	const [selectedFolder, setSelectedFolder] = useState("/");
 	const [fileName, setFileName] = useState(() => inferFileMeta(item).fileName);
@@ -92,14 +83,14 @@ const FolderPickerOverlay: React.FC<FolderPickerOverlayProps> = ({
 				setSuccess(true);
 				setTimeout(() => onDone(), 900);
 			} else {
-				setError(response.error ?? "Failed to save");
+				setError(response.error ?? t("failedToSave"));
 				setSaving(false);
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to save");
+			setError(err instanceof Error ? err.message : t("failedToSave"));
 			setSaving(false);
 		}
-	}, [fileName, item, onDone, selectedFolder]);
+	}, [fileName, item, onDone, selectedFolder, t]);
 
 	return (
 		<div
@@ -133,7 +124,7 @@ const FolderPickerOverlay: React.FC<FolderPickerOverlayProps> = ({
 						color: "#0f172a",
 					}}
 				>
-					{texts.smartSelectStoreToDocument}
+					{t("smartSelectStoreToDocument")}
 				</div>
 
 				<div style={{ marginBottom: "10px" }}>
@@ -146,7 +137,7 @@ const FolderPickerOverlay: React.FC<FolderPickerOverlayProps> = ({
 							marginBottom: "4px",
 						}}
 					>
-						{texts.saveFolder}
+						{t("saveFolder")}
 					</label>
 					<select
 						value={selectedFolder}
@@ -181,7 +172,7 @@ const FolderPickerOverlay: React.FC<FolderPickerOverlayProps> = ({
 							marginBottom: "4px",
 						}}
 					>
-						{texts.saveFileName}
+						{t("saveFileName")}
 					</label>
 					<input
 						type="text"
@@ -222,7 +213,7 @@ const FolderPickerOverlay: React.FC<FolderPickerOverlayProps> = ({
 							marginBottom: "10px",
 						}}
 					>
-						Saved!
+						{t("saved")}
 					</div>
 				)}
 
@@ -243,9 +234,7 @@ const FolderPickerOverlay: React.FC<FolderPickerOverlayProps> = ({
 							cursor: saving || success ? "default" : "pointer",
 						}}
 					>
-						{saving || success
-							? texts.savingToDocuments
-							: texts.saveToDocuments}
+						{saving || success ? t("savingToDocuments") : t("saveToDocuments")}
 					</button>
 					<button
 						type="button"
@@ -263,7 +252,7 @@ const FolderPickerOverlay: React.FC<FolderPickerOverlayProps> = ({
 							cursor: saving || success ? "default" : "pointer",
 						}}
 					>
-						{texts.smartSelectCancel}
+						{t("smartSelectCancel")}
 					</button>
 				</div>
 			</div>
@@ -273,7 +262,6 @@ const FolderPickerOverlay: React.FC<FolderPickerOverlayProps> = ({
 
 export function createFolderPickerOverlay(
 	item: EmbeddedContextItem,
-	texts: FolderPickerTexts,
 	onDone: () => void,
 	onCancel: () => void,
 ): () => void {
@@ -293,7 +281,6 @@ export function createFolderPickerOverlay(
 	root.render(
 		<FolderPickerOverlay
 			item={item}
-			texts={texts}
 			onDone={() => {
 				cleanup();
 				onDone();

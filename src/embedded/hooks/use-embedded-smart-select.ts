@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createSmartSelectOverlay } from "@/embedded/components/SmartSelectOverlay";
 import type { EmbeddedContextItem } from "@/embedded/types";
-import type { EMBEDDED_TRANSLATIONS } from "@/embedded/language";
 
 interface UseEmbeddedSmartSelectOptions {
-	texts: typeof EMBEDDED_TRANSLATIONS.en.contextSection;
 	onAttachContext: (contextItem: EmbeddedContextItem) => void;
 	onSelected?: () => void;
 }
 
 export const useEmbeddedSmartSelect = ({
-	texts,
 	onAttachContext,
 	onSelected,
 }: UseEmbeddedSmartSelectOptions) => {
@@ -38,17 +35,8 @@ export const useEmbeddedSmartSelect = ({
 				smartSelectCleanupRef.current = null;
 				setIsSmartSelectMode(false);
 			},
-			{
-				smartSelect: texts.smartSelect,
-				smartSelectInstruction: texts.smartSelectInstruction,
-				smartSelectCancel: texts.smartSelectCancel,
-				smartSelectChooseFormat: texts.smartSelectChooseFormat,
-				smartSelectText: texts.smartSelectText,
-				smartSelectCleanHtml: texts.smartSelectCleanHtml,
-				smartSelectHtml: texts.smartSelectHtml,
-			},
 		);
-	}, [onAttachContext, onSelected, texts]);
+	}, [onAttachContext, onSelected]);
 
 	return {
 		isSmartSelectMode,

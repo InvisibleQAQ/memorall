@@ -8,8 +8,7 @@ import {
 } from "lucide-react";
 import React, { type FormEventHandler } from "react";
 import { CloseIcon } from "./Icons";
-import { EMBEDDED_TRANSLATIONS } from "../language";
-import { DEFAULT_LANGUAGE } from "@/constants/language";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import type { EmbeddedChatDisplayMode } from "@/embedded/types";
 
 // Workflow type (matches api-types from workflows module)
@@ -89,27 +88,28 @@ export const Reasoning: React.FC<{
 	</details>
 );
 
-export const ReasoningTrigger: React.FC<{
-	texts?: typeof EMBEDDED_TRANSLATIONS.en.messageControl;
-}> = ({ texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].messageControl }) => (
-	<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
-		<svg
-			className="w-3 h-3 group-open:rotate-90 transition-transform"
-			fill="currentColor"
-			viewBox="0 0 20 20"
-		>
-			<path
-				style={{
-					scale: 2,
-				}}
-				fillRule="evenodd"
-				d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-				clipRule="evenodd"
-			/>
-		</svg>
-		<span>{texts.reasoning}</span>
-	</summary>
-);
+export const ReasoningTrigger: React.FC = () => {
+	const t = useEmbeddedTranslation("messageControl");
+	return (
+		<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
+			<svg
+				className="w-3 h-3 group-open:rotate-90 transition-transform"
+				fill="currentColor"
+				viewBox="0 0 20 20"
+			>
+				<path
+					style={{
+						scale: 2,
+					}}
+					fillRule="evenodd"
+					d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+					clipRule="evenodd"
+				/>
+			</svg>
+			<span>{t("reasoning")}</span>
+		</summary>
+	);
+};
 
 export const ReasoningContent: React.FC<{ children: React.ReactNode }> = ({
 	children,
@@ -125,31 +125,30 @@ export const Sources: React.FC<{ children: React.ReactNode }> = ({
 
 export const SourcesTrigger: React.FC<{
 	count: number;
-	texts?: typeof EMBEDDED_TRANSLATIONS.en.messageControl;
-}> = ({
-	count,
-	texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].messageControl,
-}) => (
-	<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
-		<svg
-			className="w-3 h-3 group-open:rotate-90 transition-transform"
-			fill="currentColor"
-			viewBox="0 0 20 20"
-		>
-			<path
-				style={{
-					scale: 2,
-				}}
-				fillRule="evenodd"
-				d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-				clipRule="evenodd"
-			/>
-		</svg>
-		<span>
-			{texts.sources} ({count})
-		</span>
-	</summary>
-);
+}> = ({ count }) => {
+	const t = useEmbeddedTranslation("messageControl");
+	return (
+		<summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground p-2 rounded border bg-muted/50">
+			<svg
+				className="w-3 h-3 group-open:rotate-90 transition-transform"
+				fill="currentColor"
+				viewBox="0 0 20 20"
+			>
+				<path
+					style={{
+						scale: 2,
+					}}
+					fillRule="evenodd"
+					d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+					clipRule="evenodd"
+				/>
+			</svg>
+			<span>
+				{t("sources")} ({count})
+			</span>
+		</summary>
+	);
+};
 
 export const SourcesContent: React.FC<{ children: React.ReactNode }> = ({
 	children,
@@ -226,6 +225,7 @@ export const WorkflowDropdown: React.FC<{
 	onSelect: (workflow: Workflow) => void;
 	disabled?: boolean;
 }> = ({ workflows, selectedWorkflow, onSelect, disabled }) => {
+	const t = useEmbeddedTranslation("messageControl");
 	return (
 		<div className="flex items-center gap-2 max-w-[200px]">
 			<svg
@@ -258,7 +258,7 @@ export const WorkflowDropdown: React.FC<{
 				onKeyPress={(e) => e.stopPropagation()}
 			>
 				<option value="" disabled>
-					Select Workflow
+					{t("selectWorkflow")}
 				</option>
 				{workflows.map((workflow) => (
 					<option key={workflow.id} value={workflow.id}>
@@ -274,31 +274,29 @@ export const PromptInputSubmit: React.FC<{
 	disabled: boolean;
 	status: "ready" | "streaming";
 	onStop?: () => void;
-	texts?: typeof EMBEDDED_TRANSLATIONS.en.messageControl;
-}> = ({
-	disabled,
-	status,
-	onStop,
-	texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].messageControl,
-}) => (
-	<button
-		type={status === "streaming" ? "button" : "submit"}
-		disabled={disabled}
-		onClick={status === "streaming" ? onStop : undefined}
-		className="memorall-submit-button"
-		aria-label={status === "streaming" ? texts.stop : texts.send}
-		title={status === "streaming" ? texts.stop : texts.send}
-	>
-		{status === "streaming" ? (
-			<>
-				<Loader size={14} />
-				<span>{texts.stop}</span>
-			</>
-		) : (
-			texts.send
-		)}
-	</button>
-);
+}> = ({ disabled, status, onStop }) => {
+	const t = useEmbeddedTranslation("messageControl");
+	const label = status === "streaming" ? t("stop") : t("send");
+	return (
+		<button
+			type={status === "streaming" ? "button" : "submit"}
+			disabled={disabled}
+			onClick={status === "streaming" ? onStop : undefined}
+			className="memorall-submit-button"
+			aria-label={label}
+			title={label}
+		>
+			{status === "streaming" ? (
+				<>
+					<Loader size={14} />
+					<span>{label}</span>
+				</>
+			) : (
+				label
+			)}
+		</button>
+	);
+};
 
 // Header Component
 interface ChatHeaderProps {
@@ -313,7 +311,6 @@ interface ChatHeaderProps {
 	modelId?: string;
 	provider?: string;
 	modelAvailable?: boolean;
-	texts?: typeof EMBEDDED_TRANSLATIONS.en.messageControl;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -327,10 +324,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 	modelId,
 	provider,
 	modelAvailable,
-	texts = EMBEDDED_TRANSLATIONS[DEFAULT_LANGUAGE].messageControl,
 }) => {
+	const t = useEmbeddedTranslation("messageControl");
 	const displayToggleLabel =
-		displayMode === "panel" ? texts.switchToPopup : texts.switchToPanel;
+		displayMode === "panel" ? t("switchToPopup") : t("switchToPanel");
+	const coAgentLabel = coAgentEnabled
+		? t("disableCoAgent")
+		: t("enableCoAgent");
 
 	return (
 		<div className="memorall-chat-header">
@@ -341,7 +341,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 						alt="Memorall"
 						className="memorall-chat-logo"
 					/>
-					<span className="memorall-chat-brand">{texts.recall}</span>
+					<span className="memorall-chat-brand">{t("recall")}</span>
 					{modelAvailable && modelId && provider ? (
 						<div className="memorall-model-chip memorall-model-chip--ready">
 							<div className="memorall-model-dot" />
@@ -350,7 +350,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 					) : (
 						<div className="memorall-model-chip memorall-model-chip--empty">
 							<div className="memorall-model-dot" />
-							<span>{texts.noModel}</span>
+							<span>{t("noModel")}</span>
 						</div>
 					)}
 				</div>
@@ -360,8 +360,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 						className={`memorall-icon-button ${
 							coAgentEnabled ? "memorall-icon-button--active" : ""
 						}`}
-						aria-label={coAgentEnabled ? "Disable co-agent" : "Enable co-agent"}
-						title={coAgentEnabled ? "Disable co-agent" : "Enable co-agent"}
+						aria-label={coAgentLabel}
+						title={coAgentLabel}
 						onKeyDown={(e) => e.stopPropagation()}
 						onKeyUp={(e) => e.stopPropagation()}
 						onKeyPress={(e) => e.stopPropagation()}
@@ -371,8 +371,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 					<button
 						onClick={onNewChat}
 						className="memorall-icon-button"
-						aria-label={texts.newChat}
-						title={texts.newChat}
+						aria-label={t("newChat")}
+						title={t("newChat")}
 						onKeyDown={(e) => e.stopPropagation()}
 						onKeyUp={(e) => e.stopPropagation()}
 						onKeyPress={(e) => e.stopPropagation()}
@@ -397,8 +397,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 					<button
 						onClick={onOpenFullVersion}
 						className="memorall-icon-button"
-						aria-label={texts.openFullVersion}
-						title={texts.openFullVersion}
+						aria-label={t("openFullVersion")}
+						title={t("openFullVersion")}
 						onKeyDown={(e) => e.stopPropagation()}
 						onKeyUp={(e) => e.stopPropagation()}
 						onKeyPress={(e) => e.stopPropagation()}
@@ -408,8 +408,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 					<button
 						onClick={onClose}
 						className="memorall-icon-button"
-						aria-label={texts.close}
-						title={texts.close}
+						aria-label={t("close")}
+						title={t("close")}
 						onKeyDown={(e) => e.stopPropagation()}
 						onKeyUp={(e) => e.stopPropagation()}
 						onKeyPress={(e) => e.stopPropagation()}
@@ -431,6 +431,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 	hasWorkflows,
 	hasContextOptions,
 }) => {
+	const t = useEmbeddedTranslation("messageControl");
 	return (
 		<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
 			<div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3 overflow-hidden">
@@ -442,17 +443,17 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 			</div>
 			<h3 className="font-medium mb-2">
 				{!hasWorkflows
-					? "No Workflows Available"
+					? t("noWorkflowsAvailable")
 					: hasContextOptions
-						? "Ask your Jitera"
-						: "Start a Conversation"}
+						? t("askYourJitera")
+						: t("startConversation")}
 			</h3>
 			<p className="text-muted-foreground text-xs leading-relaxed max-w-xs">
 				{!hasWorkflows
-					? "Please configure a workflow in the extension to start chatting."
+					? t("configureWorkflow")
 					: hasContextOptions
-						? "Select one or more context options above, or start asking questions directly."
-						: "Select a workflow and start asking questions."}
+						? t("selectContextOrAsk")
+						: t("selectWorkflowAndAsk")}
 			</p>
 		</div>
 	);

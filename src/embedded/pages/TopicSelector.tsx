@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { logWarn } from "@/utils/logger";
-import { DEFAULT_LANGUAGE } from "@/constants/language";
-import type { Language } from "@/constants/language";
 
 import type { TopicSelectorProps } from "@/embedded/types";
 import {
@@ -9,10 +7,7 @@ import {
 	sendContentWithTopic,
 } from "@/embedded/messaging";
 import { customStyles } from "@/embedded/styles/customStyles";
-import {
-	loadLanguageFromStorage,
-	EMBEDDED_TRANSLATIONS,
-} from "@/embedded/language";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 
 import { createShadowPage } from "@/embedded/utils/create-shadow-page";
 
@@ -36,24 +31,17 @@ const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
 	</svg>
 );
 
-interface EmbeddedTopicSelectorProps extends TopicSelectorProps {
-	language?: Language;
-}
-
-const TopicSelector: React.FC<EmbeddedTopicSelectorProps> = ({
+const TopicSelector: React.FC<TopicSelectorProps> = ({
 	context,
 	pageUrl,
 	pageTitle,
 	onClose,
-	language = DEFAULT_LANGUAGE,
 }) => {
+	const t = useEmbeddedTranslation("topicSelector");
 	const [topics, setTopics] = useState<Topic[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
 	const [saving, setSaving] = useState(false);
-
-	// Get translation texts based on current language
-	const texts = EMBEDDED_TRANSLATIONS[language].topicSelector;
 
 	useEffect(() => {
 		loadTopics();
@@ -123,9 +111,9 @@ const TopicSelector: React.FC<EmbeddedTopicSelectorProps> = ({
 						<CheckIcon className="w-8 h-8" />
 					</div>
 					<div className="text-center">
-						<h3 className="font-semibold text-sm">{texts.savedToTopic}</h3>
+						<h3 className="font-semibold text-sm">{t("savedToTopic")}</h3>
 						<p className="text-xs text-muted-foreground mt-1">
-							{texts.contentSaved} "{selectedTopic.name}"
+							{t("contentSaved")} "{selectedTopic.name}"
 						</p>
 					</div>
 				</div>
@@ -159,7 +147,7 @@ const TopicSelector: React.FC<EmbeddedTopicSelectorProps> = ({
 						borderRadius: "6px",
 					}}
 				>
-					{texts.loading}
+					{t("loading")}
 				</div>
 			) : (
 				<select
@@ -185,7 +173,7 @@ const TopicSelector: React.FC<EmbeddedTopicSelectorProps> = ({
 					defaultValue=""
 				>
 					<option value="" disabled style={{ color: "#999" }}>
-						{texts.chooseATopic}
+						{t("chooseATopic")}
 					</option>
 					{topics.map((topic) => (
 						<option key={topic.id} value={topic.id} style={{ color: "#333" }}>
@@ -202,8 +190,6 @@ const TopicSelector: React.FC<EmbeddedTopicSelectorProps> = ({
 export async function createEmbeddedTopicSelector(
 	props: TopicSelectorProps,
 ): Promise<() => void> {
-	// Load language once at creation time
-	const language = await loadLanguageFromStorage();
 	const { root, container } = createShadowPage({
 		customStyles,
 	});
@@ -215,7 +201,6 @@ export async function createEmbeddedTopicSelector(
 
 	const selectorProps = {
 		...props,
-		language,
 		onClose: () => {
 			props.onClose();
 			cleanupModal();

@@ -6,8 +6,7 @@ import {
 	PromptInputToolbar,
 	PromptInputTools,
 } from "./MessageControl";
-import type { Language } from "@/constants/language";
-import { EMBEDDED_TRANSLATIONS } from "../language";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 
 interface EmbeddedChatInputProps {
 	inputValue: string;
@@ -27,7 +26,6 @@ interface EmbeddedChatInputProps {
 	onDeleteChat: () => void;
 	onStop: () => void;
 	onOpenSettings: () => void;
-	language: Language;
 }
 
 export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
@@ -48,12 +46,13 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 	onDeleteChat,
 	onStop,
 	onOpenSettings,
-	language,
 }) => {
-	const texts = EMBEDDED_TRANSLATIONS[language];
+	const tChat = useEmbeddedTranslation("chat");
+	const tInput = useEmbeddedTranslation("input");
+	const tMessageControl = useEmbeddedTranslation("messageControl");
 	const isCustomMode = selectedAgentFlowId !== "chat";
 	const flowOptions = [
-		{ id: "chat", name: texts.input.modeGeneral },
+		{ id: "chat", name: tInput("modeGeneral") },
 		...agentFlows,
 	];
 
@@ -64,9 +63,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 					value={inputValue}
 					onChange={(e) => setInputValue(e.target.value)}
 					placeholder={
-						!modelAvailable
-							? texts.input.noModelAvailable
-							: texts.input.typeMessage
+						!modelAvailable ? tInput("noModelAvailable") : tInput("typeMessage")
 					}
 					disabled={isTyping || !modelAvailable}
 				/>
@@ -106,10 +103,10 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 											onKeyPress={(e) => e.stopPropagation()}
 										>
 											{topicsLoading ? (
-												<option value="">{texts.input.loadingTopics}</option>
+												<option value="">{tInput("loadingTopics")}</option>
 											) : (
 												<>
-													<option value="">Default</option>
+													<option value="">{tChat("defaultTopic")}</option>
 													{topics.map((topic) => (
 														<option key={topic.id} value={topic.id}>
 															{topic.name}
@@ -129,7 +126,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 										onKeyDown={(e) => e.stopPropagation()}
 										onKeyUp={(e) => e.stopPropagation()}
 										onKeyPress={(e) => e.stopPropagation()}
-										title={texts.messageControl.openFullVersion}
+										title={tMessageControl("openFullVersion")}
 									>
 										<svg
 											className="w-4 h-4"
@@ -164,7 +161,7 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 									onKeyDown={(e) => e.stopPropagation()}
 									onKeyUp={(e) => e.stopPropagation()}
 									onKeyPress={(e) => e.stopPropagation()}
-									title={texts.input.clearChat}
+									title={tInput("clearChat")}
 								>
 									<svg
 										className="w-4 h-4"
@@ -185,7 +182,6 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 								disabled={!inputValue.trim() || isTyping || !modelAvailable}
 								status={isTyping ? "streaming" : "ready"}
 								onStop={onStop}
-								texts={texts.messageControl}
 							/>
 						</div>
 					</div>

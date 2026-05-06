@@ -13,7 +13,7 @@ import {
 	SourcesTrigger,
 } from "@/embedded/components/MessageControl";
 import { EmbeddedMessageRenderer } from "@/embedded/components/EmbeddedMessageRenderer";
-import type { EMBEDDED_TRANSLATIONS } from "@/embedded/language";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import type { ChatMessage, EmbeddedContextItem } from "@/embedded/types";
 
 interface EmbeddedChatConversationProps {
@@ -29,7 +29,6 @@ interface EmbeddedChatConversationProps {
 	pageHost: string;
 	suggestedPrompts: string[];
 	primaryPageContext?: EmbeddedContextItem;
-	texts: typeof EMBEDDED_TRANSLATIONS.en.chat;
 	onAttachContext: (contextItem: EmbeddedContextItem) => void;
 	onSelectPrompt: (prompt: string) => void;
 	onOpenMainApp: () => void;
@@ -38,86 +37,93 @@ interface EmbeddedChatConversationProps {
 const AuthRequiredState = ({
 	encryptedProviders,
 	selectedProvider,
-	texts,
 	onOpenMainApp,
 }: Pick<
 	EmbeddedChatConversationProps,
-	"encryptedProviders" | "selectedProvider" | "texts" | "onOpenMainApp"
->) => (
-	<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
-		<div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3">
-			<svg
-				className="w-6 h-6 text-amber-600 dark:text-amber-400"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
+	"encryptedProviders" | "selectedProvider" | "onOpenMainApp"
+>) => {
+	const t = useEmbeddedTranslation("chat");
+	const authDescription =
+		encryptedProviders.length > 0
+			? t("authRequiredDescription").replace(
+					"Your model",
+					`Your ${encryptedProviders.join(", ")} provider`,
+				)
+			: t("authRequiredDescription").replace(
+					"Your model",
+					`Your ${selectedProvider} model`,
+				);
+
+	return (
+		<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+			<div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3">
+				<svg
+					className="w-6 h-6 text-amber-600 dark:text-amber-400"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						strokeWidth={2}
+						d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+					/>
+				</svg>
+			</div>
+			<h3 className="font-medium mb-2 text-foreground">{t("authRequired")}</h3>
+			<p className="text-muted-foreground text-xs leading-relaxed mb-4">
+				{authDescription}
+			</p>
+			<button
+				onClick={onOpenMainApp}
+				className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
 			>
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={2}
-					d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-				/>
-			</svg>
+				{t("openMainApp")}
+			</button>
 		</div>
-		<h3 className="font-medium mb-2 text-foreground">
-			{texts.authRequired || "Authentication Required"}
-		</h3>
-		<p className="text-muted-foreground text-xs leading-relaxed mb-4">
-			{texts.authRequiredDescription ||
-				`${
-					encryptedProviders.length > 0
-						? `Your ${encryptedProviders.join(", ")} provider`
-						: `Your ${selectedProvider} model`
-				} requires authentication. Please open the main app to enter your passkey.`}
-		</p>
-		<button
-			onClick={onOpenMainApp}
-			className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-		>
-			{texts.openMainApp || "Open Main App"}
-		</button>
-	</div>
-);
+	);
+};
 
 const NoModelConfigState = ({
-	texts,
 	onOpenMainApp,
-}: Pick<EmbeddedChatConversationProps, "texts" | "onOpenMainApp">) => (
-	<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
-		<div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-			<svg
-				className="w-6 h-6 text-muted-foreground"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
+}: Pick<EmbeddedChatConversationProps, "onOpenMainApp">) => {
+	const t = useEmbeddedTranslation("chat");
+	return (
+		<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
+			<div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+				<svg
+					className="w-6 h-6 text-muted-foreground"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						strokeWidth={2}
+						d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+					/>
+				</svg>
+			</div>
+			<h3 className="font-medium mb-2 text-foreground">{t("noModelConfig")}</h3>
+			<p className="text-muted-foreground text-xs leading-relaxed mb-4">
+				{t("noModelConfigDescription")}
+			</p>
+			<button
+				onClick={onOpenMainApp}
+				className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
 			>
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={2}
-					d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-				/>
-			</svg>
+				{t("configureModel")}
+			</button>
 		</div>
-		<h3 className="font-medium mb-2 text-foreground">{texts.noModelConfig}</h3>
-		<p className="text-muted-foreground text-xs leading-relaxed mb-4">
-			{texts.noModelConfigDescription}
-		</p>
-		<button
-			onClick={onOpenMainApp}
-			className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-		>
-			{texts.configureModel}
-		</button>
-	</div>
-);
+	);
+};
 
 const EmptyConversationState = ({
 	pageHost,
 	suggestedPrompts,
 	primaryPageContext,
-	texts,
 	onSelectPrompt,
 	onAttachContext,
 }: Pick<
@@ -125,52 +131,54 @@ const EmptyConversationState = ({
 	| "pageHost"
 	| "suggestedPrompts"
 	| "primaryPageContext"
-	| "texts"
 	| "onSelectPrompt"
 	| "onAttachContext"
->) => (
-	<div className="memorall-empty-state">
-		<div className="memorall-empty-logo">
-			<img
-				src={chrome.runtime.getURL("logo.png")}
-				alt="Memorall Logo"
-				className="memorall-empty-logo-image"
-			/>
-		</div>
-		<div className="memorall-empty-kicker">
-			{texts.pageContext}: {pageHost}
-		</div>
-		<h3 className="memorall-empty-title">{texts.askAboutPage}</h3>
-		<p className="memorall-empty-description">{texts.recallDescription}</p>
-		<div className="memorall-suggested-prompts">
-			{suggestedPrompts.map((prompt) => (
+>) => {
+	const t = useEmbeddedTranslation("chat");
+	return (
+		<div className="memorall-empty-state">
+			<div className="memorall-empty-logo">
+				<img
+					src={chrome.runtime.getURL("logo.png")}
+					alt="Memorall Logo"
+					className="memorall-empty-logo-image"
+				/>
+			</div>
+			<div className="memorall-empty-kicker">
+				{t("pageContext")}: {pageHost}
+			</div>
+			<h3 className="memorall-empty-title">{t("askAboutPage")}</h3>
+			<p className="memorall-empty-description">{t("recallDescription")}</p>
+			<div className="memorall-suggested-prompts">
+				{suggestedPrompts.map((prompt) => (
+					<button
+						key={prompt}
+						type="button"
+						className="memorall-suggested-prompt"
+						onClick={() => onSelectPrompt(prompt)}
+						onKeyDown={(event) => event.stopPropagation()}
+						onKeyUp={(event) => event.stopPropagation()}
+						onKeyPress={(event) => event.stopPropagation()}
+					>
+						{prompt}
+					</button>
+				))}
+			</div>
+			{primaryPageContext && (
 				<button
-					key={prompt}
 					type="button"
-					className="memorall-suggested-prompt"
-					onClick={() => onSelectPrompt(prompt)}
+					className="memorall-context-cta"
+					onClick={() => onAttachContext(primaryPageContext)}
 					onKeyDown={(event) => event.stopPropagation()}
 					onKeyUp={(event) => event.stopPropagation()}
 					onKeyPress={(event) => event.stopPropagation()}
 				>
-					{prompt}
+					{t("attachPageContext")}
 				</button>
-			))}
+			)}
 		</div>
-		{primaryPageContext && (
-			<button
-				type="button"
-				className="memorall-context-cta"
-				onClick={() => onAttachContext(primaryPageContext)}
-				onKeyDown={(event) => event.stopPropagation()}
-				onKeyUp={(event) => event.stopPropagation()}
-				onKeyPress={(event) => event.stopPropagation()}
-			>
-				{texts.attachPageContext}
-			</button>
-		)}
-	</div>
-);
+	);
+};
 
 const ChatMessageItem = ({
 	message,
@@ -234,7 +242,6 @@ export const EmbeddedChatConversation = ({
 	pageHost,
 	suggestedPrompts,
 	primaryPageContext,
-	texts,
 	onAttachContext,
 	onSelectPrompt,
 	onOpenMainApp,
@@ -250,17 +257,15 @@ export const EmbeddedChatConversation = ({
 				<AuthRequiredState
 					encryptedProviders={encryptedProviders}
 					selectedProvider={selectedProvider}
-					texts={texts}
 					onOpenMainApp={onOpenMainApp}
 				/>
 			) : noModelConfig ? (
-				<NoModelConfigState texts={texts} onOpenMainApp={onOpenMainApp} />
+				<NoModelConfigState onOpenMainApp={onOpenMainApp} />
 			) : messages.length === 0 ? (
 				<EmptyConversationState
 					pageHost={pageHost}
 					suggestedPrompts={suggestedPrompts}
 					primaryPageContext={primaryPageContext}
-					texts={texts}
 					onSelectPrompt={onSelectPrompt}
 					onAttachContext={onAttachContext}
 				/>

@@ -19,7 +19,7 @@ import type {
 	ChatModalProps,
 	EmbeddedContextItem,
 } from "@/embedded/types";
-import type { EMBEDDED_TRANSLATIONS } from "@/embedded/language";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import type { Message } from "@/services/database/types";
 
 interface UseEmbeddedChatSessionOptions {
@@ -27,7 +27,6 @@ interface UseEmbeddedChatSessionOptions {
 	mode: NonNullable<ChatModalProps["mode"]>;
 	pageTitle: string;
 	pageUrl: string;
-	texts: typeof EMBEDDED_TRANSLATIONS.en.chat;
 	inputValue: string;
 	setInputValue: Dispatch<SetStateAction<string>>;
 	attachedContexts: EmbeddedContextItem[];
@@ -81,7 +80,6 @@ export const useEmbeddedChatSession = ({
 	mode,
 	pageTitle,
 	pageUrl,
-	texts,
 	inputValue,
 	setInputValue,
 	attachedContexts,
@@ -94,6 +92,7 @@ export const useEmbeddedChatSession = ({
 	scrollToBottom,
 	setShouldAutoScroll,
 }: UseEmbeddedChatSessionOptions) => {
+	const t = useEmbeddedTranslation("chat");
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [isTyping, setIsTyping] = useState(false);
 	const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -136,10 +135,10 @@ export const useEmbeddedChatSession = ({
 
 		const autoQuery =
 			mode === "topic"
-				? `${texts.tellMeAboutTopics} ${context}`
-				: `${texts.whatDoYouKnow} ${context}`;
+				? `${t("tellMeAboutTopics")} ${context}`
+				: `${t("whatDoYouKnow")} ${context}`;
 		setInputValue(autoQuery);
-	}, [context, mode, setInputValue, texts]);
+	}, [context, mode, setInputValue, t]);
 
 	const stop = useCallback(() => {
 		if (abortController) {
@@ -352,7 +351,7 @@ export const useEmbeddedChatSession = ({
 								if (message.id === assistantMessageId) {
 									return {
 										...message,
-										content: texts.errorMessage,
+										content: t("errorMessage"),
 										isStreaming: false,
 									};
 								}
@@ -391,7 +390,7 @@ export const useEmbeddedChatSession = ({
 				});
 			} catch (error) {
 				logError("Chat submission error:", error);
-				const errorContent = currentContent || texts.errorMessage;
+				const errorContent = currentContent || t("errorMessage");
 				try {
 					await embeddedChatHistoryService.finalizeMessage(assistantMessageId, {
 						content: errorContent,
@@ -438,9 +437,7 @@ export const useEmbeddedChatSession = ({
 			selectedAgentFlowId,
 			coAgentEnabled,
 			selectedModel,
-			texts.whatDoYouKnow,
-			texts.tellMeAboutTopics,
-			texts.errorMessage,
+			t,
 			scrollToBottom,
 		],
 	);

@@ -6,21 +6,8 @@ import {
 	extractElementOuterHTML,
 	extractElementTextContent,
 } from "@/embedded/content-extraction";
+import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import type { EmbeddedContextItem } from "@/embedded/types";
-
-interface SmartSelectOverlayTexts {
-	smartSelect: string;
-	smartSelectInstruction: string;
-	smartSelectCancel: string;
-	smartSelectChooseFormat: string;
-	smartSelectText: string;
-	smartSelectCleanHtml: string;
-	smartSelectHtml: string;
-	smartSelectChooseAction?: string;
-	smartSelectStoreToDocument?: string;
-	smartSelectOpenChat?: string;
-	smartSelectOpenFullChat?: string;
-}
 
 export type SmartSelectAction =
 	| "open-chat"
@@ -31,7 +18,6 @@ interface SmartSelectOverlayProps {
 	onSelectContext: (item: EmbeddedContextItem) => void;
 	onAction?: (item: EmbeddedContextItem, action: SmartSelectAction) => void;
 	onCancel: () => void;
-	texts: SmartSelectOverlayTexts;
 	mode?: "chat" | "standalone";
 }
 
@@ -91,9 +77,9 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 	onSelectContext,
 	onAction,
 	onCancel,
-	texts,
 	mode = "chat",
 }) => {
+	const t = useEmbeddedTranslation("contextSection");
 	const [hoveredElement, setHoveredElement] = useState<Element | null>(null);
 	const [selectedElement, setSelectedElement] = useState<Element | null>(null);
 	const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
@@ -227,19 +213,19 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 			if (format === "text") {
 				item = createEmbeddedContextItem({
 					kind: "smart_text",
-					label: `${texts.smartSelectText}: ${describeElementText(selectedElement)}`,
+					label: `${t("smartSelectText")}: ${describeElementText(selectedElement)}`,
 					content: extractElementTextContent(selectedElement),
 				});
 			} else if (format === "clean_html") {
 				item = createEmbeddedContextItem({
 					kind: "smart_clean_html",
-					label: `${texts.smartSelectCleanHtml}: ${descriptor}`,
+					label: `${t("smartSelectCleanHtml")}: ${descriptor}`,
 					content: extractElementCleanHTML(selectedElement),
 				});
 			} else {
 				item = createEmbeddedContextItem({
 					kind: "smart_html",
-					label: `${texts.smartSelectHtml}: ${descriptor}`,
+					label: `${t("smartSelectHtml")}: ${descriptor}`,
 					content: extractElementOuterHTML(selectedElement),
 				});
 			}
@@ -250,7 +236,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 				onSelectContext(item);
 			}
 		},
-		[mode, onSelectContext, selectedElement, texts],
+		[mode, onSelectContext, selectedElement, t],
 	);
 
 	const handleAction = useCallback(
@@ -310,10 +296,10 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 				}}
 			>
 				<div style={{ fontWeight: 600, marginBottom: 4 }}>
-					{texts.smartSelect}
+					{t("smartSelect")}
 				</div>
 				<div style={{ lineHeight: 1.4, color: "rgba(255,255,255,0.85)" }}>
-					{texts.smartSelectInstruction}
+					{t("smartSelectInstruction")}
 				</div>
 			</div>
 
@@ -336,7 +322,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 					pointerEvents: "auto",
 				}}
 			>
-				{texts.smartSelectCancel}
+				{t("smartSelectCancel")}
 			</button>
 
 			{selectedElement && chooserStyle && (
@@ -365,7 +351,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 									marginBottom: "8px",
 								}}
 							>
-								{texts.smartSelectChooseFormat}
+								{t("smartSelectChooseFormat")}
 							</div>
 							<div
 								style={{
@@ -386,21 +372,21 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 									onClick={() => handleChoose("text")}
 									style={choiceButtonStyle}
 								>
-									{texts.smartSelectText}
+									{t("smartSelectText")}
 								</button>
 								<button
 									type="button"
 									onClick={() => handleChoose("clean_html")}
 									style={choiceButtonStyle}
 								>
-									{texts.smartSelectCleanHtml}
+									{t("smartSelectCleanHtml")}
 								</button>
 								<button
 									type="button"
 									onClick={() => handleChoose("html")}
 									style={choiceButtonStyle}
 								>
-									{texts.smartSelectHtml}
+									{t("smartSelectHtml")}
 								</button>
 								<button
 									type="button"
@@ -411,7 +397,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 										color: "#991b1b",
 									}}
 								>
-									{texts.smartSelectCancel}
+									{t("smartSelectCancel")}
 								</button>
 							</div>
 						</>
@@ -425,7 +411,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 									marginBottom: "8px",
 								}}
 							>
-								{texts.smartSelectChooseAction ?? "Choose action"}
+								{t("smartSelectChooseAction")}
 							</div>
 							<div
 								style={{
@@ -446,7 +432,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 									onClick={() => handleAction("store-to-document")}
 									style={choiceButtonStyle}
 								>
-									{texts.smartSelectStoreToDocument ?? "Store to document"}
+									{t("smartSelectStoreToDocument")}
 								</button>
 								<button
 									type="button"
@@ -457,7 +443,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 										color: "#15803d",
 									}}
 								>
-									{texts.smartSelectOpenChat ?? "Open chat"}
+									{t("smartSelectOpenChat")}
 								</button>
 								<button
 									type="button"
@@ -468,7 +454,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 										color: "#7c3aed",
 									}}
 								>
-									{texts.smartSelectOpenFullChat ?? "Open full chat"}
+									{t("smartSelectOpenFullChat")}
 								</button>
 								<button
 									type="button"
@@ -479,7 +465,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 										color: "#991b1b",
 									}}
 								>
-									{texts.smartSelectCancel}
+									{t("smartSelectCancel")}
 								</button>
 							</div>
 						</>
@@ -505,7 +491,6 @@ const choiceButtonStyle: React.CSSProperties = {
 export function createSmartSelectOverlay(
 	onSelectContext: (item: EmbeddedContextItem) => void,
 	onCancel: () => void,
-	texts: SmartSelectOverlayTexts,
 ): () => void {
 	activeOverlayCleanup?.();
 
@@ -525,7 +510,6 @@ export function createSmartSelectOverlay(
 	activeOverlayCleanup = cleanup;
 	root.render(
 		<SmartSelectOverlay
-			texts={texts}
 			mode="chat"
 			onSelectContext={(item) => {
 				onSelectContext(item);
@@ -544,7 +528,6 @@ export function createSmartSelectOverlay(
 export function createStandaloneSmartSelectOverlay(
 	onAction: (item: EmbeddedContextItem, action: SmartSelectAction) => void,
 	onCancel: () => void,
-	texts: SmartSelectOverlayTexts,
 ): () => void {
 	activeOverlayCleanup?.();
 
@@ -564,7 +547,6 @@ export function createStandaloneSmartSelectOverlay(
 	activeOverlayCleanup = cleanup;
 	root.render(
 		<SmartSelectOverlay
-			texts={texts}
 			mode="standalone"
 			onSelectContext={() => {}}
 			onAction={(item, action) => {
