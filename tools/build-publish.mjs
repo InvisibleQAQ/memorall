@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync, readdirSync, statSync, renameSync } from 'fs';
+import { join, basename, dirname } from 'path';
 import AdmZip from 'adm-zip';
 
 /**
@@ -132,6 +132,33 @@ try {
 console.log('🔤 Sanitizing JavaScript encoding...');
 const sanitizedCount = sanitizeJavaScriptEncoding(distDir);
 console.log(`✅ JavaScript encoding sanitized (${sanitizedCount} file${sanitizedCount === 1 ? '' : 's'} updated)\n`);
+
+// Fix content_scripts filenames to match manifest references
+// The extension build tool writes hashed names in the manifest but outputs unhashed filenames on disk
+console.log('🔧 Fixing content_scripts filenames to match manifest...');
+const fixedManifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+if (fixedManifest.content_scripts) {
+  for (const entry of fixedManifest.content_scripts) {
+    if (!entry.js) continue;
+    for (const ref of entry.js) {
+      const refPath = join(distDir, ref);
+      if (!existsSync(refPath)) {
+        // Find the unhashed version: content-0.HASH.js -> content-0.js
+        const refBase = basename(ref);
+        const refDir = dirname(ref);
+        const unhashed = refBase.replace(/\.[a-f0-9]{8}(?=\.js$)/, '');
+        const unhashedPath = join(distDir, refDir, unhashed);
+        if (existsSync(unhashedPath)) {
+          renameSync(unhashedPath, refPath);
+          console.log(`  ✅ Renamed ${unhashed} → ${refBase}`);
+        } else {
+          console.warn(`  ⚠ Missing content script: ${ref} (no unhashed fallback found)`);
+        }
+      }
+    }
+  }
+}
+console.log('✅ Content scripts ready\n');
 
 // Step 4: Copy Chrome build
 console.log('📦 Packaging Chrome extension...');

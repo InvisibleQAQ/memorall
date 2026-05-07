@@ -67,6 +67,7 @@ export const CopilotOverlay: React.FC<CopilotOverlayProps> = ({
 	}
 
 	const currentStep = state.steps[state.currentStep];
+	const isBodyTarget = currentStep.target === "body";
 
 	return createPortal(
 		<AnimatePresence>
@@ -78,62 +79,67 @@ export const CopilotOverlay: React.FC<CopilotOverlayProps> = ({
 				transition={{ duration: 0.3 }}
 				className={`fixed inset-0 pointer-events-auto ${className || ""}`}
 				style={{
-					zIndex: 2147483647, // Maximum z-index value
+					zIndex: 2147483647,
 					isolation: "isolate",
 				}}
 				onClick={(e) => {
-					// Prevent clicks from passing through to underlying elements
 					e.preventDefault();
 					e.stopPropagation();
 				}}
 			>
-				{/* Backdrop with hole */}
+				{/* Backdrop — solid for body target, spotlight cutout for specific elements */}
 				<div className="absolute inset-0 pointer-events-auto">
-					<svg
-						width="100%"
-						height="100%"
-						className="absolute inset-0"
-						style={{ pointerEvents: "auto" }}
-					>
-						<defs>
-							<mask id="copilot-mask">
-								<rect width="100%" height="100%" fill="white" />
-								<rect
-									x={targetRect.left - 8}
-									y={targetRect.top - 8}
-									width={targetRect.width + 16}
-									height={targetRect.height + 16}
-									rx="8"
-									fill="black"
-								/>
-							</mask>
-						</defs>
-						<rect
+					{isBodyTarget ? (
+						<div className="absolute inset-0 bg-black/60" />
+					) : (
+						<svg
 							width="100%"
 							height="100%"
-							fill="rgba(0, 0, 0, 0.5)"
-							mask="url(#copilot-mask)"
-						/>
-					</svg>
+							className="absolute inset-0"
+							style={{ pointerEvents: "auto" }}
+						>
+							<defs>
+								<mask id="copilot-mask">
+									<rect width="100%" height="100%" fill="white" />
+									<rect
+										x={targetRect.left - 8}
+										y={targetRect.top - 8}
+										width={targetRect.width + 16}
+										height={targetRect.height + 16}
+										rx="8"
+										fill="black"
+									/>
+								</mask>
+							</defs>
+							<rect
+								width="100%"
+								height="100%"
+								fill="rgba(0, 0, 0, 0.5)"
+								mask="url(#copilot-mask)"
+							/>
+						</svg>
+					)}
 				</div>
 
-				{/* Highlight ring around target */}
-				<motion.div
-					initial={{ scale: 0.8, opacity: 0 }}
-					animate={{ scale: 1, opacity: 1 }}
-					transition={{ duration: 0.4, ease: "easeOut" }}
-					className="absolute border-2 border-blue-500 rounded-lg shadow-lg shadow-blue-500/25"
-					style={{
-						left: targetRect.left - 8,
-						top: targetRect.top - 8,
-						width: targetRect.width + 16,
-						height: targetRect.height + 16,
-						pointerEvents: "none",
-					}}
-				/>
+				{/* Highlight ring — only for specific element targets */}
+				{!isBodyTarget && (
+					<motion.div
+						initial={{ scale: 0.8, opacity: 0 }}
+						animate={{ scale: 1, opacity: 1 }}
+						transition={{ duration: 0.4, ease: "easeOut" }}
+						className="absolute border-2 border-blue-500 rounded-lg shadow-lg shadow-blue-500/25"
+						style={{
+							left: targetRect.left - 8,
+							top: targetRect.top - 8,
+							width: targetRect.width + 16,
+							height: targetRect.height + 16,
+							pointerEvents: "none",
+						}}
+					/>
+				)}
 
-				{/* Pulsing beacon for attention */}
-				{!currentStep.disableBeacon && (
+				{/* Pulsing beacon — only for specific element targets */}
+				{!isBodyTarget && !currentStep.disableBeacon && (
 					<motion.div
 						className="absolute w-4 h-4 bg-blue-500 rounded-full"
 						style={{

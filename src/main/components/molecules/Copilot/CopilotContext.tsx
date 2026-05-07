@@ -63,7 +63,6 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 			target: "body",
 			placement: "bottom",
 			showProgress: true,
-			disableBeacon: true,
 		},
 		{
 			id: "chat-navigate",
@@ -82,7 +81,6 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 			target: "nav",
 			placement: "bottom",
 			showProgress: true,
-			disableBeacon: true,
 		},
 		{
 			id: "documents-navigate",
@@ -101,7 +99,6 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 			target: "body",
 			placement: "bottom",
 			showProgress: true,
-			disableBeacon: true,
 		},
 		{
 			id: "agents-navigate",
@@ -120,7 +117,6 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 			target: "body",
 			placement: "bottom",
 			showProgress: true,
-			disableBeacon: true,
 		},
 		{
 			id: "knowledge-navigate",
@@ -139,7 +135,6 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 			target: "body",
 			placement: "bottom",
 			showProgress: true,
-			disableBeacon: true,
 		},
 		{
 			id: "models-navigate",
@@ -158,7 +153,6 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 			target: "body",
 			placement: "bottom",
 			showProgress: true,
-			disableBeacon: true,
 		},
 		{
 			id: "chat-final-navigate",
@@ -177,7 +171,6 @@ export const CopilotProvider: React.FC<{ children: React.ReactNode }> = ({
 			target: "body",
 			placement: "bottom",
 			showProgress: true,
-			disableBeacon: true,
 		},
 	];
 

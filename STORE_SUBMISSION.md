@@ -24,7 +24,7 @@ This will create production builds in:
 
 #### Store Listing Content
 - **Name**: Memorall
-- **Short description** (max 132 chars): AI-powered memory and knowledge management browser extension
+- **Short description** (max 132 chars): Browser-native agent workspace with local-first memory, tools, files, and model choice. The browser is your agent's full workspace.
 - **Detailed description** (see template below)
 - **Category**: Productivity
 - **Privacy Policy URL** (required)
@@ -177,40 +177,56 @@ Capture:
 ### 5. Prepare Detailed Description Template
 
 ```
-Memorall - Your AI-Powered Knowledge Companion
+Memorall — The browser is your agent's full workspace.
 
-Memorall is an intelligent browser extension that helps you capture, organize, and recall information from your web browsing. Powered by local AI, your data stays private and secure.
+Memorall turns your browser into a full agent workspace — with memory, tools, files, and model choice all in one place. Capture context from any page, build a knowledge graph from your real work, and run a powerful local-first agent that can browse, read documents, execute code, and remember everything across sessions. No fragmented apps, no mandatory cloud, no context lost between tabs.
 
-🌟 KEY FEATURES:
-• Knowledge Graph: Automatically build connections between concepts
-• AI Chat Assistant: Ask questions about saved information
-• Smart Note Taking: Extract and save important content
-• Local Processing: AI runs in your browser - your data stays private
-• Cross-Device Sync: Access your knowledge anywhere
+Open Source: https://github.com/zrg-team/memorall
 
-🔒 PRIVACY FIRST:
-• All data stored locally in your browser
-• AI models run on your device
-• No data sent to external servers without your consent
-• You own and control your knowledge
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧠 MEMORY — Durable memory that learns from your browser
 
-🚀 PERFECT FOR:
-• Students: Organize research and study materials
-• Researchers: Track papers and build knowledge networks
-• Professionals: Save and recall important information
-• Anyone: Build your personal knowledge base
+Pages, selections, screenshots, PDFs, notes, and spreadsheets get captured from any tab and converted into structured, topic-scoped memory. Relationships between ideas, sources, and documents stay attached, so the work stays recoverable instead of disappearing after one session. A built-in knowledge graph connects facts across everything you save.
 
-📖 GETTING STARTED:
-1. Install the extension
-2. Click the extension icon to open
-3. Start browsing - Memorall will help you capture knowledge
-4. Use chat to query your saved information
+• Capture from pages, selections, screenshots, files
+• Topic-organized memory with a live knowledge graph
+• Hybrid retrieval: exact match + semantic search
+• Sources and relationships stay linked to prior work
 
-🔧 REQUIREMENTS:
-• Modern browser (Chrome/Edge)
-• Internet connection for AI model downloads (one-time)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ AGENT POWER — One strong agent, fully inside your browser
 
-💬 SUPPORT:
+The agent is not isolated. It has live browser access, virtual filesystems, your personal documents, and a browser-hosted sandbox runtime — all from the same product.
+
+• Browser session — live page content, DOM awareness, page-aware actions
+• Workspace files — virtual filesystem + document library (PDF, MD, Excel, and more)
+• Node.js sandbox — run code, install packages, start APIs, prototype web apps locally
+• Visual flow builder for custom agent behavior and logic
+• MCP-ready architecture for future extensibility
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏠 OFFLINE-FIRST — Your stack, your control
+
+The core experience works without any external service. No account required to get started.
+
+• All data stored locally via PGlite — no server, no sign-in required
+• Local memory, local files, local agent — fully operational offline
+• No mandatory cloud dependency for core workflows
+• Optional Supabase auth available when you want sync
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚙️ MODEL CHOICE — Browser-local LLMs are first-class, not fallbacks
+
+Use whichever runtime fits the job. The agent workflow stays the same regardless of where inference runs.
+
+• Browser-local inference: WebLLM, Wllama, Transformers.js
+• Local server runtimes: Ollama, LM Studio
+• Remote APIs when you choose them: OpenAI, Anthropic, Azure, OpenRouter
+• Switch providers without changing the workflow
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💬 SUPPORT
 • GitHub: https://github.com/zrg-team/memorall
 • Issues: https://github.com/zrg-team/memorall/issues
 ```
