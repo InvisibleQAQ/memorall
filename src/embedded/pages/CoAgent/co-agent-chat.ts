@@ -18,7 +18,13 @@ export interface CoAgentPageContext {
 export interface CoAgentChatStreamOptions
 	extends Pick<
 		ChatStreamOptions,
-		"model" | "onExecuteStart" | "onProgress" | "onError" | "signal"
+		| "model"
+		| "onExecuteStart"
+		| "onProgress"
+		| "onAction"
+		| "onToolCalls"
+		| "onError"
+		| "signal"
 	> {
 	prompt: string;
 	pageContext: CoAgentPageContext;
@@ -31,7 +37,7 @@ Current user-enabled browser page context:
 - Title: {{title}}
 - Description: {{description}}
 
-Use this as starting orientation. Still use co-agent browser tools before making page-grounded claims or taking actions.
+Use this only as lightweight orientation. Do not treat it as the user's requested subject when a cursor/hover anchor is provided.
 `.trim();
 
 const renderAnchorContextPrompt = (
@@ -48,7 +54,7 @@ The user is asking about this current page target first:
 - Value: ${anchor.value || "Not available"}
 - Nearby text: ${anchor.nearbyText || "Not available"}
 
-Prioritize this anchored target when interpreting the user's prompt. Still verify with co-agent tools before making page-grounded claims.
+This target comes from the user's cursor/hover focus. Treat it as the main subject of the question. Answer about this target first. If verification is needed and a selector is available, use co_agent_query or co_agent_observe with scope="selector" and this selector. If the source is selected text, use the selection context directly or co_agent_observe with scope="selection". Do not use co_agent_observe scope="page" unless the user asks about the whole page. Use full-page context only to disambiguate or add nearby supporting details. Do not answer as if the user asked about the whole page unless the prompt explicitly says so.
 `.trim();
 };
 
@@ -94,6 +100,8 @@ export const coAgentChatService = {
 			].filter((message): message is string => Boolean(message)),
 			onExecuteStart: options.onExecuteStart,
 			onProgress: options.onProgress,
+			onAction: options.onAction,
+			onToolCalls: options.onToolCalls,
 			onError: options.onError,
 			signal: options.signal,
 		}),

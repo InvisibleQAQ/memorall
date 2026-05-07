@@ -6,6 +6,7 @@ export type {
 	CoAgentContentCommandResponse,
 	CoAgentCursorMode,
 	CoAgentElementInfo,
+	CoAgentImageInfo,
 	CoAgentPageSnapshot,
 	CoAgentPoint,
 	CoAgentRect,

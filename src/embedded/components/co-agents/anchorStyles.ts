@@ -3,23 +3,29 @@ export const coAgentAnchorStyles = `
 		all: initial;
 		position: fixed;
 		z-index: 2147483647;
-		width: 42px;
-		height: 42px;
-		border: 1px solid rgb(226 232 240 / 0.94);
+		min-width: 66px;
+		height: 34px;
+		border: 0;
 		border-radius: 999px;
-		background: rgb(255 255 255 / 0.9);
-		box-shadow: 0 12px 30px rgb(15 23 42 / 0.2);
-		backdrop-filter: blur(12px);
+		background: #0f172a;
+		color: #fff;
+		box-shadow: 0 10px 26px rgb(15 23 42 / 0.22);
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		gap: 5px;
+		padding: 0 9px;
+		font: 700 12px/1 Inter, ui-sans-serif, system-ui, sans-serif;
 		cursor: pointer;
 		pointer-events: auto;
 		animation: memorall-co-agent-pop 150ms ease-out;
+		transition: transform 140ms ease;
 	}
 	.memorall-co-agent-anchor-trigger:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 16px 36px rgb(15 23 42 / 0.24);
+		transform: translateY(-1px) scale(1.03);
+	}
+	.memorall-co-agent-anchor-trigger span {
+		white-space: nowrap;
 	}
 	.memorall-co-agent-anchor-prompt {
 		all: initial;

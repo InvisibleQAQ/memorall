@@ -1,5 +1,6 @@
 import type {
 	CoAgentElementInfo,
+	CoAgentImageInfo,
 	CoAgentPageSnapshot,
 	CoAgentRect,
 	CoAgentViewport,
@@ -126,6 +127,7 @@ export const buildStableSelector = (element: Element): string => {
 export const createElementInfo = (
 	element: Element,
 	index: number,
+	options: { maxTextChars?: number } = {},
 ): CoAgentElementInfo => {
 	const rect = element.getBoundingClientRect();
 	return {
@@ -140,7 +142,10 @@ export const createElementInfo = (
 			element.getAttribute("aria-labelledby"),
 		title: element.getAttribute("title"),
 		role: element.getAttribute("role"),
-		text: truncate((element.textContent ?? "").trim(), 1_000),
+		text: truncate(
+			(element.textContent ?? "").trim(),
+			options.maxTextChars ?? 1_000,
+		),
 		value:
 			element instanceof HTMLInputElement ||
 			element instanceof HTMLTextAreaElement ||
@@ -163,6 +168,7 @@ export const createElementInfo = (
 		acceptsTextInput: acceptsTextInput(element),
 		stableSelector: buildStableSelector(element),
 		rect: rectToPayload(rect),
+		images: getElementImages(element),
 	};
 };
 
@@ -173,6 +179,41 @@ export const getIndexedElement = (selector: string, index = 0): Element => {
 	}
 	return element;
 };
+
+const resolveUrl = (value: string | null): string | null => {
+	if (!value?.trim()) return null;
+	try {
+		return new URL(value, window.location.href).href;
+	} catch {
+		return value;
+	}
+};
+
+function getElementImages(element: Element, maxImages = 6): CoAgentImageInfo[] {
+	const candidates =
+		element instanceof HTMLImageElement
+			? [element, ...Array.from(element.querySelectorAll("img"))]
+			: Array.from(element.querySelectorAll("img"));
+	const seen = new Set<string>();
+	const images: CoAgentImageInfo[] = [];
+
+	for (const image of candidates) {
+		const src = resolveUrl(image.currentSrc || image.getAttribute("src"));
+		if (!src || seen.has(src)) continue;
+		seen.add(src);
+		const rect = image.getBoundingClientRect();
+		images.push({
+			src,
+			alt: image.getAttribute("alt"),
+			title: image.getAttribute("title"),
+			width: Math.round(rect.width || image.naturalWidth || 0),
+			height: Math.round(rect.height || image.naturalHeight || 0),
+		});
+		if (images.length >= maxImages) break;
+	}
+
+	return images;
+}
 
 export const getVisibleText = (maxChars: number): string => {
 	const body = document.body;
@@ -231,26 +272,39 @@ export const getDomSummary = (maxElements: number): CoAgentElementInfo[] => {
 
 export const buildSnapshot = (
 	options: {
+		includePageText?: boolean;
+		includeVisibleText?: boolean;
+		includeDomSummary?: boolean;
 		maxTextChars?: number;
 		maxVisibleTextChars?: number;
 		maxDomElements?: number;
 	} = {},
-): CoAgentPageSnapshot => ({
-	url: window.location.href,
-	title: document.title || "",
-	viewport: getViewport(),
-	visibleText: getVisibleText(
-		options.maxVisibleTextChars ?? DEFAULT_VISIBLE_TEXT_MAX_CHARS,
-	),
-	text: truncate(
-		document.body?.innerText || document.documentElement?.textContent || "",
-		options.maxTextChars ?? DEFAULT_TEXT_MAX_CHARS,
-	),
-	domSummary:
-		options.maxDomElements && options.maxDomElements > 0
-			? getDomSummary(options.maxDomElements)
-			: undefined,
-});
+): CoAgentPageSnapshot => {
+	const snapshot: CoAgentPageSnapshot = {
+		url: window.location.href,
+		title: document.title || "",
+		viewport: getViewport(),
+	};
+	if (options.includeVisibleText) {
+		snapshot.visibleText = getVisibleText(
+			options.maxVisibleTextChars ?? DEFAULT_VISIBLE_TEXT_MAX_CHARS,
+		);
+	}
+	if (options.includePageText) {
+		snapshot.text = truncate(
+			document.body?.innerText || document.documentElement?.textContent || "",
+			options.maxTextChars ?? DEFAULT_TEXT_MAX_CHARS,
+		);
+	}
+	if (
+		options.includeDomSummary &&
+		options.maxDomElements &&
+		options.maxDomElements > 0
+	) {
+		snapshot.domSummary = getDomSummary(options.maxDomElements);
+	}
+	return snapshot;
+};
 
 export const queryElements = (
 	selector: string,

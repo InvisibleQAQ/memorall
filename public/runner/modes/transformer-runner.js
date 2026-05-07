@@ -102,6 +102,58 @@ function isKnownTransformerLLMModelId(modelId) {
 	return KNOWN_TRANSFORMER_MODEL_IDS.has(modelId);
 }
 
+function normalizeCacheUrl(value) {
+	const raw = String(value || "");
+	try {
+		return decodeURIComponent(raw).toLowerCase();
+	} catch {
+		return raw.toLowerCase();
+	}
+}
+
+function cacheUrlMatchesModelId(url, modelId) {
+	const normalizedUrl = normalizeCacheUrl(url);
+	const normalizedModelId = modelId.toLowerCase();
+	const hfCacheModelId = `models--${normalizedModelId.replace(/\//g, "--")}`;
+	const extensionCachePath = `/${normalizedModelId}/resolve/`;
+
+	return (
+		normalizedUrl.includes(normalizedModelId) ||
+		normalizedUrl.includes(encodeURIComponent(modelId).toLowerCase()) ||
+		normalizedUrl.includes(hfCacheModelId) ||
+		normalizedUrl.includes(extensionCachePath)
+	);
+}
+
+async function getTransformerCacheRequests() {
+	const cacheNames = await window.caches.keys();
+	const candidateNames = cacheNames.filter((cacheName) => {
+		const normalized = cacheName.toLowerCase();
+		return (
+			normalized.includes("transform") ||
+			normalized.includes("huggingface") ||
+			normalized.includes("hf")
+		);
+	});
+	const namesToScan =
+		candidateNames.length > 0 ? candidateNames : ["transformers-cache"];
+	const requests = [];
+
+	for (const cacheName of namesToScan) {
+		try {
+			const cache = await window.caches.open(cacheName);
+			requests.push(...(await cache.keys()));
+		} catch (error) {
+			console.warn(
+				`[transformer-runner] failed to inspect cache ${cacheName}:`,
+				error,
+			);
+		}
+	}
+
+	return requests;
+}
+
 function cleanGemmaOutput(raw) {
 	return raw
 		.replace(/<\|?channel\|?>?\s*thought\s*/gi, GEMMA_THINK_START)
@@ -694,7 +746,7 @@ window.addEventListener("message", async (event) => {
 	try {
 		switch (type) {
 			case "init": {
-				await ensureTransformers();
+				await ensureTransformerRunnerCatalog();
 				reply(src, origin, messageId, "complete", {
 					status: "initialized",
 					mode: "transformer",
@@ -706,17 +758,16 @@ window.addEventListener("message", async (event) => {
 				await ensureTransformerRunnerCatalog();
 				// Check browser cache for transformer models
 				try {
-					const caches = await window.caches.open("transformers-cache");
-					const keys = await caches.keys();
+					const keys = await getTransformerCacheRequests();
 
 					// Group cached files by model ID
 					const modelIds = new Set();
 					keys.forEach((request) => {
 						const url = request.url;
-						// Extract model ID from HuggingFace URL pattern
-						const match = url.match(/huggingface\.co\/([^\/]+\/[^\/]+)/);
-						if (match && isKnownTransformerLLMModelId(match[1])) {
-							modelIds.add(match[1]);
+						for (const modelId of KNOWN_TRANSFORMER_MODEL_IDS) {
+							if (cacheUrlMatchesModelId(url, modelId)) {
+								modelIds.add(modelId);
+							}
 						}
 					});
 

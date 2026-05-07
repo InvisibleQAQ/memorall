@@ -152,9 +152,12 @@ export const useEmbeddedChatSession = ({
 	const newChat = useCallback(async () => {
 		if (isTyping) return;
 
+		const shouldInsertSeparator = messages.length > 0;
 		setMessages([]);
 		setInputValue("");
 		resetContexts(false);
+		if (!shouldInsertSeparator) return;
+
 		try {
 			await embeddedChatHistoryService.insertSeparator();
 			backgroundJob
@@ -169,7 +172,7 @@ export const useEmbeddedChatSession = ({
 		} catch (error) {
 			logError("Failed to start a new embedded chat:", error);
 		}
-	}, [isTyping, resetContexts, setInputValue]);
+	}, [isTyping, messages.length, resetContexts, setInputValue]);
 
 	const deleteChat = useCallback(() => {
 		void newChat();

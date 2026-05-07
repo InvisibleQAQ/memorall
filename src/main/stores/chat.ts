@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { and, asc, desc, eq, gt, lt, ne } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import {
 	type Message,
 	type Conversation,
@@ -108,26 +108,33 @@ const createLatestGroup = (
 	isLoading: false,
 });
 
-const createGroupsFromSeparators = (
-	separators: Message[],
+const createGroupsFromOrderedMessages = (
+	orderedMessages: Message[],
 ): ChatMessageGroup[] => {
 	const groups: ChatMessageGroup[] = [];
 	let previousSeparator: Message | null = null;
+	let currentMessages: Message[] = [];
 
-	for (const separator of separators) {
-		groups.push({
-			id: buildCompletedGroupId(separator),
-			previousSeparator,
-			separator,
-			messages: [],
-			isLatest: false,
-			isLoaded: false,
-			isLoading: false,
-		});
-		previousSeparator = separator;
+	for (const message of orderedMessages) {
+		if (message.type === "separator") {
+			groups.push({
+				id: buildCompletedGroupId(message),
+				previousSeparator,
+				separator: message,
+				messages: currentMessages,
+				isLatest: false,
+				isLoaded: true,
+				isLoading: false,
+			});
+			previousSeparator = message;
+			currentMessages = [];
+			continue;
+		}
+
+		currentMessages.push(message);
 	}
 
-	groups.push(createLatestGroup(previousSeparator));
+	groups.push(createLatestGroup(previousSeparator, currentMessages));
 	return groups;
 };
 
@@ -154,73 +161,25 @@ const replaceMessageInGroups = (
 	}));
 
 export const useChatStore = create<ChatStore>((set, get) => {
-	const querySeparators = async (conversationId: string) =>
+	const queryConversationMessages = async (conversationId: string) =>
 		serviceManager.databaseService.use(({ db, schema }) =>
 			db
 				.select()
 				.from(schema.messages)
-				.where(
-					and(
-						eq(schema.messages.conversationId, conversationId),
-						eq(schema.messages.type, "separator"),
-					),
-				)
+				.where(eq(schema.messages.conversationId, conversationId))
 				.orderBy(asc(schema.messages.createdAt)),
 		);
 
-	const queryGroupMessages = async (
-		conversationId: string,
-		group: Pick<ChatMessageGroup, "previousSeparator" | "separator">,
-	) => {
-		return serviceManager.databaseService.use(({ db, schema }) => {
-			const conditions = [
-				eq(schema.messages.conversationId, conversationId),
-				ne(schema.messages.type, "separator"),
-			];
-
-			if (group.previousSeparator) {
-				conditions.push(
-					gt(schema.messages.createdAt, group.previousSeparator.createdAt),
-				);
-			}
-
-			if (group.separator) {
-				conditions.push(
-					lt(schema.messages.createdAt, group.separator.createdAt),
-				);
-			}
-
-			return db
-				.select()
-				.from(schema.messages)
-				.where(and(...conditions))
-				.orderBy(asc(schema.messages.createdAt));
-		});
-	};
-
 	const hydrateConversation = async (conversation: Conversation) => {
-		const separators = await querySeparators(conversation.id);
-		const initialGroups = createGroupsFromSeparators(separators);
+		const orderedMessages = await queryConversationMessages(conversation.id);
+		const messageGroups = createGroupsFromOrderedMessages(orderedMessages);
 		const latestGroup =
-			getLatestGroup(initialGroups) ?? createLatestGroup(null);
-		const latestMessages = await queryGroupMessages(
-			conversation.id,
-			latestGroup,
-		);
-		const messageGroups = initialGroups.map((group) =>
-			group.isLatest
-				? {
-						...group,
-						messages: latestMessages,
-						isLoaded: true,
-					}
-				: group,
-		);
+			getLatestGroup(messageGroups) ?? createLatestGroup(null);
 
 		set({
 			currentConversation: conversation,
 			messageGroups,
-			messages: latestMessages,
+			messages: latestGroup.messages,
 		});
 
 		return conversation;
@@ -523,56 +482,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
 			}
 		},
 
-		loadMessageGroup: async (groupId: string) => {
-			const state = get();
-			const conversationId = state.currentConversation?.id;
-			const group = state.messageGroups.find((item) => item.id === groupId);
-
-			if (
-				!conversationId ||
-				!group ||
-				group.isLatest ||
-				group.isLoaded ||
-				group.isLoading
-			) {
-				return;
-			}
-
-			set((current) => ({
-				messageGroups: replaceGroup(
-					current.messageGroups,
-					groupId,
-					(currentGroup) =>
-						currentGroup.isLoading
-							? currentGroup
-							: { ...currentGroup, isLoading: true },
-				),
-			}));
-
-			try {
-				const messages = await queryGroupMessages(conversationId, group);
-				set((current) => ({
-					messageGroups: replaceGroup(current.messageGroups, groupId, () => ({
-						...group,
-						messages,
-						isLoaded: true,
-						isLoading: false,
-					})),
-				}));
-			} catch (error) {
-				logError("Failed to load message group:", error);
-				set((current) => ({
-					messageGroups: replaceGroup(
-						current.messageGroups,
-						groupId,
-						(item) => ({
-							...item,
-							isLoading: false,
-						}),
-					),
-				}));
-			}
-		},
+		loadMessageGroup: async () => {},
 
 		clearMessages: () => {
 			set({

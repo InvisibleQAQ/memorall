@@ -174,9 +174,9 @@ export const ModelLoadPrompt: React.FC<ModelLoadPromptProps> = ({
 	if (!shouldShow) return null;
 
 	return (
-		<div className="px-4 pt-1.5 w-full flex-shrink-0">
-			<div className="max-w-3xl mx-auto">
-				<div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 -mb-2 rounded-bl-none rounded-br-none mx-3">
+		<div className="px-4 pt-1.5 w-full flex-shrink-0 z-10">
+			<div className="max-w-4xl mx-auto">
+				<div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 -mb-2 rounded-bl-none rounded-br-none mx-5">
 					<div className="min-w-0">
 						<div className="flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-200">
 							<TriangleAlert className="w-3.5 h-3.5" />

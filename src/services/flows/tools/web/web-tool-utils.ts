@@ -27,10 +27,13 @@ export const createDefaultWebErrorResult = (error: unknown): string =>
 export const createWebResult = (payload: Record<string, unknown>): string =>
 	JSON.stringify(payload, null, 2);
 
-export const createCleanHtml = (html: string): string =>
+export const createCleanHtml = (
+	html: string,
+	allowedAttributes?: Record<string, sanitizeHtml.AllowedAttribute[]>,
+): string =>
 	sanitizeHtml(html, {
 		allowedTags: false,
-		allowedAttributes: {
+		allowedAttributes: allowedAttributes ?? {
 			a: ["href"],
 			img: ["src", "alt"],
 		},
@@ -40,6 +43,11 @@ export const createCleanHtml = (html: string): string =>
 			frame.tag === "style" ||
 			frame.tag === "noscript" ||
 			frame.tag === "link",
+	});
+
+export const createCleanHtmlWithSelectors = (html: string): string =>
+	createCleanHtml(html, {
+		"*": ["id", "class", "data-selector", "aria-label", "placeholder", "href"],
 	});
 
 export const truncateContent = (value: string, maxChars: number): string => {

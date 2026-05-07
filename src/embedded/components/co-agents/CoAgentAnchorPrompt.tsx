@@ -1,6 +1,6 @@
 import React from "react";
-import { Send } from "lucide-react";
-import { AgentIcon } from "@/components/AgentIcon";
+import { MessageCircle, Send, Sparkles } from "lucide-react";
+import { motion, useMotionValue, useSpring } from "motion/react";
 import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import type { CoAgentContextAnchor } from "@/embedded/utils/co-agent/context-anchor";
 import { CO_AGENT_CONTEXT_SHORTCUT_LABEL } from "./useCoAgentContextAnchor";
@@ -8,15 +8,26 @@ import { CO_AGENT_CONTEXT_SHORTCUT_LABEL } from "./useCoAgentContextAnchor";
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(max, Math.max(min, value));
 
-const getAnchorPosition = (
+interface AnchorPoint {
+	left: number;
+	top: number;
+}
+
+const getAnchorPoint = (
 	anchor: CoAgentContextAnchor,
 	variant: "trigger" | "prompt",
-): React.CSSProperties => {
-	const width = variant === "prompt" ? 340 : 46;
-	const height = variant === "prompt" ? 58 : 42;
+): AnchorPoint => {
+	const width = variant === "prompt" ? 340 : 74;
+	const height = variant === "prompt" ? 58 : 34;
 	const gap = 10;
 	const maxLeft = Math.max(12, window.innerWidth - width - 12);
 	const maxTop = Math.max(12, window.innerHeight - height - 12);
+	if (variant === "trigger" && anchor.uiPoint) {
+		return {
+			left: clamp(anchor.uiPoint.x + 12, 12, maxLeft),
+			top: clamp(anchor.uiPoint.y + 10, 12, maxTop),
+		};
+	}
 	let left = anchor.rect.x + anchor.rect.width + gap;
 	if (left + width > window.innerWidth - 12) {
 		left = anchor.rect.x - width - gap;
@@ -26,8 +37,19 @@ const getAnchorPosition = (
 		top = anchor.rect.y - height - gap;
 	}
 	return {
-		left: `${clamp(left, 12, maxLeft)}px`,
-		top: `${clamp(top, 12, maxTop)}px`,
+		left: clamp(left, 12, maxLeft),
+		top: clamp(top, 12, maxTop),
+	};
+};
+
+const getAnchorPosition = (
+	anchor: CoAgentContextAnchor,
+	variant: "trigger" | "prompt",
+): React.CSSProperties => {
+	const point = getAnchorPoint(anchor, variant);
+	return {
+		left: `${point.left}px`,
+		top: `${point.top}px`,
 	};
 };
 
@@ -44,17 +66,38 @@ export const CoAgentAnchorTrigger: React.FC<AnchorTriggerProps> = ({
 	const label = t("askAboutThisShortcut", {
 		shortcut: CO_AGENT_CONTEXT_SHORTCUT_LABEL,
 	});
+	const point = getAnchorPoint(anchor, "trigger");
+	const left = useMotionValue(point.left);
+	const top = useMotionValue(point.top);
+	const springLeft = useSpring(left, {
+		stiffness: 500,
+		damping: 50,
+		bounce: 0,
+	});
+	const springTop = useSpring(top, {
+		stiffness: 500,
+		damping: 50,
+		bounce: 0,
+	});
+
+	React.useEffect(() => {
+		left.set(point.left);
+		top.set(point.top);
+	}, [left, point.left, point.top, top]);
+
 	return (
-		<button
+		<motion.button
 			type="button"
 			className="memorall-co-agent-anchor-trigger"
-			style={getAnchorPosition(anchor, "trigger")}
+			style={{ left: springLeft, top: springTop }}
 			aria-label={label}
 			title={label}
 			onClick={onOpen}
 		>
-			<AgentIcon size={34} animation="happy" reactive={false} />
-		</button>
+			<Sparkles size={13} strokeWidth={2.4} />
+			<span>{t("anchorAsk")}</span>
+			<MessageCircle size={13} strokeWidth={2.35} />
+		</motion.button>
 	);
 };
 

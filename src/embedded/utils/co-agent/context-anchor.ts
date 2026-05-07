@@ -13,6 +13,7 @@ export interface CoAgentContextAnchor {
 	selector?: string;
 	index?: number;
 	rect: CoAgentRect;
+	uiPoint?: { x: number; y: number };
 	tagName: string;
 	text: string;
 	value: string | null;

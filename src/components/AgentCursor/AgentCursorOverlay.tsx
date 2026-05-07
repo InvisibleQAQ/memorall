@@ -5,7 +5,6 @@ import { AgentCursorUI } from "./AgentCursorUI";
 
 const AGENT_CURSOR_EVENT = "memorall:agent-cursor";
 const CURSOR_POINT_ATTR = "data-agent-cursor-point";
-const CURSOR_HIDE_DELAY_MS = 2600;
 const SMOOTH_SCROLL_SETTLE_MS = 720;
 
 export type AgentCursorMode = "moveTo" | "jumpTo" | "jumTo";
@@ -243,6 +242,15 @@ export const AgentCursorOverlay: React.FC<AgentCursorOverlayProps> = ({
 		setMounted(true);
 	}, []);
 
+	const applyPosition = React.useCallback(
+		(nextPosition: CursorPosition) => {
+			cursorX.set(nextPosition.x);
+			cursorY.set(nextPosition.y);
+			setPosition(nextPosition);
+		},
+		[cursorX, cursorY],
+	);
+
 	React.useEffect(() => {
 		cursorX.set(position.x);
 		cursorY.set(position.y);
@@ -273,11 +281,8 @@ export const AgentCursorOverlay: React.FC<AgentCursorOverlayProps> = ({
 		const scheduleHide = () => {
 			if (hideTimerRef.current !== null) {
 				window.clearTimeout(hideTimerRef.current);
-			}
-			hideTimerRef.current = window.setTimeout(() => {
-				hideCursor();
 				hideTimerRef.current = null;
-			}, CURSOR_HIDE_DELAY_MS);
+			}
 		};
 
 		const updateFromActiveElement = () => {
@@ -288,7 +293,7 @@ export const AgentCursorOverlay: React.FC<AgentCursorOverlayProps> = ({
 				hideCursor();
 				return;
 			}
-			setPosition(getTargetPosition(element));
+			applyPosition(getTargetPosition(element));
 		};
 
 		const schedulePositionUpdate = () => {
@@ -316,7 +321,7 @@ export const AgentCursorOverlay: React.FC<AgentCursorOverlayProps> = ({
 					hideCursor();
 					return;
 				}
-				setPosition(getTargetPosition(element));
+				applyPosition(getTargetPosition(element));
 				setMessage(detail.message || "Updating");
 				visibleRef.current = true;
 				setVisible(true);
@@ -347,7 +352,7 @@ export const AgentCursorOverlay: React.FC<AgentCursorOverlayProps> = ({
 			detail: AgentCursorEventDetail,
 		) => {
 			activeElementRef.current = null;
-			setPosition(clampPosition(position));
+			applyPosition(clampPosition(position));
 			setMessage(detail.message || "Updating");
 			visibleRef.current = true;
 			setVisible(true);
@@ -409,7 +414,7 @@ export const AgentCursorOverlay: React.FC<AgentCursorOverlayProps> = ({
 			});
 			window.removeEventListener("resize", schedulePositionUpdate);
 		};
-	}, []);
+	}, [applyPosition]);
 
 	if (!mounted) return null;
 

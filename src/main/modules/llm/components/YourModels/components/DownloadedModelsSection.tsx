@@ -194,6 +194,11 @@ export const DownloadedModelsSection: React.FC<
 													current?.modelId === model.id &&
 													(!model.provider ||
 														current.provider === model.provider);
+												const modelStatus = model.loaded
+													? t("model.loaded")
+													: model.downloaded
+														? t("yourModels.downloaded")
+														: t("model.available");
 
 												return (
 													<div
@@ -205,9 +210,7 @@ export const DownloadedModelsSection: React.FC<
 																{model.name || model.id}
 															</div>
 															<div className="truncate text-xs text-muted-foreground">
-																{model.loaded
-																	? t("model.loaded")
-																	: t("model.available")}
+																{modelStatus}
 																{model.filename ? ` • ${model.filename}` : ""}
 																{model.size
 																	? ` • ${(model.size / (1024 * 1024)).toFixed(

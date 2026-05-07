@@ -11,6 +11,7 @@ export {
 export {
 	AgentCursorBadge,
 	AgentCursorBubble,
+	AgentCursorMark,
 	AgentCursorPointer,
 	AgentCursorUI,
 	type AgentCursorBubbleProps,

@@ -9,6 +9,7 @@ import {
 } from "@/embedded/utils/co-agent/context-anchor";
 
 const HOVER_DWELL_MS = 650;
+const HOVER_ANCHOR_IDLE_HIDE_MS = 4200;
 
 export const CO_AGENT_CONTEXT_SHORTCUT_LABEL = "Alt/Option+Shift+A";
 
@@ -47,11 +48,19 @@ export const useCoAgentContextAnchor = ({
 		null,
 	);
 	const hoverTimerRef = useRef<number | null>(null);
+	const hoverHideTimerRef = useRef<number | null>(null);
+	const hoverTargetRef = useRef<Element | null>(null);
+	const hiddenHoverTargetRef = useRef<Element | null>(null);
+	const activeAnchorRef = useRef<CoAgentContextAnchor | null>(null);
 
 	const freshAnchor = useMemo(
 		() => (activeAnchor ? refreshContextAnchor(activeAnchor) : null),
 		[activeAnchor],
 	);
+
+	useEffect(() => {
+		activeAnchorRef.current = activeAnchor;
+	}, [activeAnchor]);
 
 	const clearHoverTimer = useCallback(() => {
 		if (hoverTimerRef.current !== null) {
@@ -60,8 +69,29 @@ export const useCoAgentContextAnchor = ({
 		}
 	}, []);
 
+	const clearHoverHideTimer = useCallback(() => {
+		if (hoverHideTimerRef.current !== null) {
+			window.clearTimeout(hoverHideTimerRef.current);
+			hoverHideTimerRef.current = null;
+		}
+	}, []);
+
 	useEffect(() => {
 		if (disabled) return;
+
+		const scheduleHoverHide = (target: Element) => {
+			clearHoverHideTimer();
+			hoverHideTimerRef.current = window.setTimeout(() => {
+				if (!promptOpen) {
+					hiddenHoverTargetRef.current = target;
+					hoverTargetRef.current = null;
+					setActiveAnchor((current) =>
+						current?.kind === "hover" ? null : current,
+					);
+				}
+				hoverHideTimerRef.current = null;
+			}, HOVER_ANCHOR_IDLE_HIDE_MS);
+		};
 
 		const handlePointerMove = (event: PointerEvent) => {
 			if (isCoAgentEvent(event)) return;
@@ -69,17 +99,43 @@ export const useCoAgentContextAnchor = ({
 			clearHoverTimer();
 			if (!target) {
 				if (!promptOpen) setActiveAnchor(null);
+				hoverTargetRef.current = null;
+				hiddenHoverTargetRef.current = null;
+				clearHoverHideTimer();
+				return;
+			}
+			if (
+				hiddenHoverTargetRef.current &&
+				hiddenHoverTargetRef.current !== target
+			) {
+				hiddenHoverTargetRef.current = null;
+			}
+			if (hiddenHoverTargetRef.current === target) return;
+			if (
+				hoverTargetRef.current === target &&
+				activeAnchorRef.current?.kind === "hover"
+			) {
+				scheduleHoverHide(target);
 				return;
 			}
 			hoverTimerRef.current = window.setTimeout(() => {
 				const anchor = createContextAnchor(target, "hover");
-				if (anchor) setActiveAnchor(anchor);
+				if (anchor) {
+					hoverTargetRef.current = target;
+					setActiveAnchor({
+						...anchor,
+						uiPoint: { x: event.clientX, y: event.clientY },
+					});
+					scheduleHoverHide(target);
+				}
 				hoverTimerRef.current = null;
 			}, HOVER_DWELL_MS);
 		};
 
 		const handleFocusIn = (event: FocusEvent) => {
 			if (isCoAgentEvent(event)) return;
+			clearHoverHideTimer();
+			hoverTargetRef.current = null;
 			const target = getAnchorCandidate(event.target as Element);
 			if (!target) return;
 			const anchor = createContextAnchor(target, "focus");
@@ -87,6 +143,8 @@ export const useCoAgentContextAnchor = ({
 		};
 
 		const handleSelectionChange = () => {
+			clearHoverHideTimer();
+			hoverTargetRef.current = null;
 			window.setTimeout(() => {
 				const anchor = createSelectionAnchor();
 				if (anchor) setActiveAnchor(anchor);
@@ -111,13 +169,14 @@ export const useCoAgentContextAnchor = ({
 		window.addEventListener("resize", refreshAnchor);
 		return () => {
 			clearHoverTimer();
+			clearHoverHideTimer();
 			window.removeEventListener("pointermove", handlePointerMove);
 			window.removeEventListener("focusin", handleFocusIn);
 			document.removeEventListener("selectionchange", handleSelectionChange);
 			window.removeEventListener("scroll", refreshAnchor, { capture: true });
 			window.removeEventListener("resize", refreshAnchor);
 		};
-	}, [clearHoverTimer, disabled, promptOpen]);
+	}, [clearHoverHideTimer, clearHoverTimer, disabled, promptOpen]);
 
 	useEffect(() => {
 		if (disabled) return;

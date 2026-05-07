@@ -17,6 +17,10 @@ import {
 	Clock3,
 	ScrollText,
 	Bot,
+	MousePointer2,
+	MousePointerClick,
+	Eye,
+	Keyboard,
 	type LucideIcon,
 } from "lucide-react";
 
@@ -47,6 +51,10 @@ import {
 	loadSkillToolRenderer,
 	sendMessageToAgentToolRenderer,
 } from "./tools/UtilityAgentTools";
+import {
+	coAgentToolRenderer,
+	getCoAgentActionTitle,
+} from "./tools/CoAgentTool";
 
 const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["search", "query", "retrieval", "retrieve"], icon: Search },
@@ -65,6 +73,13 @@ const EXACT_ICON_MAPPINGS: Record<string, LucideIcon> = {
 	current_time: Clock3,
 	load_skill: ScrollText,
 	send_message_to_agent: Bot,
+	co_agent_query: Search,
+	co_agent_observe: Eye,
+	co_agent_move: MousePointer2,
+	co_agent_scroll: ScrollText,
+	co_agent_click: MousePointerClick,
+	co_agent_input: Keyboard,
+	co_agent_error: AlertTriangle,
 };
 
 const getActionIcon = (name: string): LucideIcon => {
@@ -90,6 +105,11 @@ const translateActionName = (
 
 	if (translated !== translationKey) {
 		return translated;
+	}
+
+	const coAgentTitle = getCoAgentActionTitle(actionName);
+	if (coAgentTitle) {
+		return coAgentTitle;
 	}
 
 	return actionName.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
@@ -135,6 +155,13 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	current_time: currentTimeToolRenderer,
 	load_skill: loadSkillToolRenderer,
 	send_message_to_agent: sendMessageToAgentToolRenderer,
+	co_agent_query: coAgentToolRenderer,
+	co_agent_observe: coAgentToolRenderer,
+	co_agent_move: coAgentToolRenderer,
+	co_agent_scroll: coAgentToolRenderer,
+	co_agent_click: coAgentToolRenderer,
+	co_agent_input: coAgentToolRenderer,
+	co_agent_error: coAgentToolRenderer,
 	knowledge_graph: messageKnowledgeGraphRenderer,
 	structmem_knowledge_retrieval: structMemKnowledgeRetrievalRenderer,
 };

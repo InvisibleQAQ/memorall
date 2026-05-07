@@ -43,7 +43,6 @@ import { isPopupSurface } from "@/utils/dom";
 import { useIsWideViewport } from "@/main/hooks/use-viewport";
 import { getAgentIconScreenFromMetadata } from "@/main/modules/agents/types";
 import type { FeatureCatalogMetadata } from "@/services/flows/feature-catalog-registry";
-import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 
 type AgentFlowOption = Pick<Flow, "id" | "name" | "metadata">;
 
@@ -53,61 +52,6 @@ const RETRIEVAL_STEP_NAMES = new Set([
 	"context-llm-retrieve",
 	"structmem-retrieval",
 ]);
-
-const DEFAULT_ENABLED_AGENT_FEATURES = new Set([
-	"fs-feature",
-	"artifact-feature",
-	"web-feature",
-]);
-
-const enableDefaultAgentFeatures = (
-	config: UnifiedFlowConfig,
-): { config: UnifiedFlowConfig; changed: boolean } => {
-	let changed = false;
-	const steps = config.steps.map((step) => {
-		if (!DEFAULT_ENABLED_AGENT_FEATURES.has(step.name) || step.enabled) {
-			return step;
-		}
-
-		changed = true;
-		return { ...step, enabled: true };
-	});
-
-	return changed
-		? { config: { ...config, steps }, changed }
-		: { config, changed };
-};
-
-const ensureDefaultAgentFeatures = async (flowId: string) => {
-	try {
-		const storageFormat =
-			await serviceManager.flowBuilderService.getFlowConfigStorageFormat({
-				flowId,
-			});
-
-		if (storageFormat !== "empty") {
-			return;
-		}
-
-		const config = await serviceManager.flowBuilderService.getUnifiedFlowConfig(
-			{
-				flowId,
-			},
-		);
-		const { config: nextConfig, changed } = enableDefaultAgentFeatures(config);
-
-		if (!changed) {
-			return;
-		}
-
-		await serviceManager.flowBuilderService.saveUnifiedFlowConfig(
-			{ flowId },
-			nextConfig,
-		);
-	} catch {
-		// Keep chat usable if default feature seeding fails.
-	}
-};
 
 export const ChatPage: React.FC = () => {
 	const navigate = useNavigate();
@@ -377,9 +321,6 @@ export const ChatPage: React.FC = () => {
 						name: flow.name,
 						metadata: flow.metadata,
 					}));
-				await Promise.all(
-					mapped.map((flow) => ensureDefaultAgentFeatures(flow.id)),
-				);
 				setAgentFlows(mapped);
 				if (!selectedAgentFlowId && mapped.length > 0) {
 					setSelectedAgentFlowId(mapped[0].id);
@@ -562,7 +503,6 @@ export const ChatPage: React.FC = () => {
 					"foundation",
 					name,
 				);
-			await ensureDefaultAgentFeatures(created.id);
 			const nextFlows = [
 				{ id: created.id, name: created.name, metadata: created.metadata },
 				...agentFlows,

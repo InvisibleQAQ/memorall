@@ -50,16 +50,40 @@ export const handleCoAgentContentCommand = async (
 
 	try {
 		switch (request.type) {
-			case "co-agent:observe":
+			case "co-agent:observe": {
+				const scope =
+					request.scope ?? (request.selector ? "selector" : "metadata");
 				emitCoAgentStatus(coAgentTexts.observingPage);
+				if (scope === "selector" && request.selector) {
+					const element = getIndexedElement(request.selector, request.index);
+					elementInfo = createElementInfo(element, request.index ?? 0, {
+						maxTextChars: request.maxTextChars,
+					});
+				}
 				response = createSuccessResponse(request, {
 					snapshot: buildSnapshot({
+						includePageText: scope === "page",
+						includeVisibleText: scope === "viewport" || scope === "page",
+						includeDomSummary:
+							scope === "viewport" || scope === "page" ? true : undefined,
 						maxTextChars: request.maxTextChars,
 						maxVisibleTextChars: request.maxVisibleTextChars,
 						maxDomElements: request.maxDomElements ?? DEFAULT_DOM_SUMMARY_MAX,
 					}),
+					element: elementInfo,
+					note:
+						scope === "selection"
+							? (
+									window
+										.getSelection()
+										?.toString()
+										.replace(/\s+/g, " ")
+										.trim() || "No selected text."
+								).slice(0, request.maxTextChars ?? 1_200)
+							: undefined,
 				});
 				break;
+			}
 
 			case "co-agent:query":
 				emitCoAgentStatus(`Checking ${request.selector}`);
@@ -107,7 +131,10 @@ export const handleCoAgentContentCommand = async (
 				});
 				await delay(ACTION_SETTLE_MS);
 				response = createSuccessResponse(request, {
-					snapshot: buildSnapshot({ maxDomElements: DEFAULT_DOM_SUMMARY_MAX }),
+					snapshot: buildSnapshot({
+						includeDomSummary: true,
+						maxDomElements: DEFAULT_DOM_SUMMARY_MAX,
+					}),
 				});
 				break;
 
@@ -136,7 +163,10 @@ export const handleCoAgentContentCommand = async (
 					mode: "jumpTo",
 				});
 				response = createSuccessResponse(request, {
-					snapshot: buildSnapshot({ maxDomElements: DEFAULT_DOM_SUMMARY_MAX }),
+					snapshot: buildSnapshot({
+						includeDomSummary: true,
+						maxDomElements: DEFAULT_DOM_SUMMARY_MAX,
+					}),
 					element: elementInfo,
 				});
 				break;
@@ -176,7 +206,10 @@ export const handleCoAgentContentCommand = async (
 					mode: "jumpTo",
 				});
 				response = createSuccessResponse(request, {
-					snapshot: buildSnapshot({ maxDomElements: DEFAULT_DOM_SUMMARY_MAX }),
+					snapshot: buildSnapshot({
+						includeDomSummary: true,
+						maxDomElements: DEFAULT_DOM_SUMMARY_MAX,
+					}),
 					element: elementInfo,
 				});
 				break;

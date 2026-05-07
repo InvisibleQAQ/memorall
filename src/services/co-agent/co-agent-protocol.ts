@@ -26,6 +26,14 @@ export interface CoAgentViewport {
 	scrollHeight: number;
 }
 
+export interface CoAgentImageInfo {
+	src: string;
+	alt: string | null;
+	title: string | null;
+	width: number;
+	height: number;
+}
+
 export interface CoAgentElementInfo {
 	index: number;
 	tagName: string;
@@ -44,14 +52,15 @@ export interface CoAgentElementInfo {
 	acceptsTextInput: boolean;
 	stableSelector: string;
 	rect: CoAgentRect;
+	images?: CoAgentImageInfo[];
 }
 
 export interface CoAgentPageSnapshot {
 	url: string;
 	title: string;
 	viewport: CoAgentViewport;
-	visibleText: string;
-	text: string;
+	visibleText?: string;
+	text?: string;
 	domSummary?: CoAgentElementInfo[];
 }
 
@@ -75,6 +84,9 @@ export type CoAgentContentCommandRequest =
 	| {
 			source: typeof CO_AGENT_CONTENT_COMMAND_SOURCE;
 			type: "co-agent:observe";
+			scope?: "metadata" | "selector" | "selection" | "viewport" | "page";
+			selector?: string;
+			index?: number;
 			maxTextChars?: number;
 			maxVisibleTextChars?: number;
 			maxDomElements?: number;
@@ -204,7 +216,16 @@ export const isCoAgentContentCommandRequest = (
 
 	switch (value.type) {
 		case "co-agent:observe":
-			return true;
+			return (
+				(value.scope === undefined ||
+					value.scope === "metadata" ||
+					value.scope === "selector" ||
+					value.scope === "selection" ||
+					value.scope === "viewport" ||
+					value.scope === "page") &&
+				(value.selector === undefined || typeof value.selector === "string") &&
+				(value.scope !== "selector" || typeof value.selector === "string")
+			);
 		case "co-agent:query":
 			return typeof value.selector === "string";
 		case "co-agent:move":

@@ -3,6 +3,7 @@ import { BACKGROUND_EVENTS } from "@/constants/events";
 import { AgentCursorOverlay } from "@/components/AgentCursor";
 import { useEmbeddedModelStatus } from "@/embedded/hooks/use-embedded-model-status";
 import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
+import { embeddedChatHistoryService } from "@/embedded/chat-history-service";
 import { createEmbeddedContextItem } from "@/embedded/context-items";
 import { createEmbeddedChatModal } from "@/embedded/pages/EmbeddedChat";
 import { coAgentChatService } from "@/embedded/pages/CoAgent/co-agent-chat";
@@ -13,10 +14,7 @@ import {
 	type CoAgentContextAnchor,
 } from "@/embedded/utils/co-agent/context-anchor";
 import { useCoAgentContextAnchor } from "./useCoAgentContextAnchor";
-import {
-	CoAgentAnchorPrompt,
-	CoAgentAnchorTrigger,
-} from "./CoAgentAnchorPrompt";
+import { CoAgentAnchorTrigger } from "./CoAgentAnchorPrompt";
 import { CoAgentDock } from "./CoAgentDock";
 
 interface CoAgentOverlayProps {
@@ -34,6 +32,7 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 	const [bubbleDismissed, setBubbleDismissed] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [anchorPromptOpen, setAnchorPromptOpen] = useState(false);
+	const [chatPopupOpen, setChatPopupOpen] = useState(false);
 	const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
 	const { needsPasskey, modelAvailable, selectedModel } =
 		useEmbeddedModelStatus();
@@ -70,6 +69,7 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 	const showAnchorTrigger =
 		Boolean(freshAnchor && !freshAnchor.isStale) &&
 		!anchorPromptOpen &&
+		!chatPopupOpen &&
 		!collapsed &&
 		!showAuthAction;
 
@@ -115,15 +115,20 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [anchorPromptOpen]);
 
-	const unlockExtension = () => {
+	const leaveCoAgentMode = () => {
 		void chrome.runtime.sendMessage({ type: BACKGROUND_EVENTS.HIDE_CO_AGENT });
 		onDestroy();
+	};
+
+	const unlockExtension = () => {
+		leaveCoAgentMode();
 		void chrome.runtime.sendMessage({ type: BACKGROUND_EVENTS.OPEN_FULL_PAGE });
 	};
 
 	const openFullConversation = async () => {
 		try {
 			document.getElementById("memorall-embedded-chat-modal")?.remove();
+			setChatPopupOpen(true);
 			await createEmbeddedChatModal({
 				mode: "general",
 				coAgentEnabled: true,
@@ -146,10 +151,11 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 					if (!enabled) onDestroy();
 				},
 				onClose: () => {
-					// Chat modal owns its own cleanup.
+					setChatPopupOpen(false);
 				},
 			});
 		} catch (error) {
+			setChatPopupOpen(false);
 			setBubbleDismissed(false);
 			setMessage(error instanceof Error ? error.message : t("errorMessage"));
 		}
@@ -170,7 +176,39 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 		setIsSubmitting(true);
 		setMessage(t("thinking"));
 
+		let assistantMessageId: string | null = null;
+		let currentContent = "";
+		let latestActions: Awaited<
+			ReturnType<typeof coAgentChatService.chatStream>
+		>["actions"] = [];
+		let latestToolCalls:
+			| Awaited<ReturnType<typeof coAgentChatService.chatStream>>["toolCalls"]
+			| undefined;
+		const startTime = Date.now();
+
 		try {
+			await embeddedChatHistoryService.addMessage({
+				role: "user",
+				content: prompt,
+				metadata: {
+					source: "co-agent",
+					pageUrl: window.location.href,
+					pageTitle: document.title || "",
+					anchor,
+				},
+			});
+			const assistantMessage = await embeddedChatHistoryService.addMessage({
+				role: "assistant",
+				content: "",
+				metadata: {
+					source: "co-agent",
+					pageUrl: window.location.href,
+					pageTitle: document.title || "",
+					model: selectedModel,
+				},
+			});
+			assistantMessageId = assistantMessage.id;
+
 			const result = await coAgentChatService.chatStream({
 				prompt,
 				model: selectedModel,
@@ -189,8 +227,15 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 				},
 				onProgress: (content) => {
 					if (content.trim()) {
+						currentContent = content.trim();
 						setMessage(content.trim());
 					}
+				},
+				onAction: (actions) => {
+					latestActions = actions;
+				},
+				onToolCalls: (toolCalls) => {
+					latestToolCalls = toolCalls;
 				},
 				onError: (error) => {
 					setMessage(error || t("failedMessage"));
@@ -198,11 +243,33 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 			});
 
 			if (result.content.trim()) {
+				currentContent = result.content.trim();
+				latestActions = result.actions;
+				latestToolCalls = result.toolCalls;
 				setMessage(result.content.trim());
 			}
 		} catch (error) {
-			setMessage(error instanceof Error ? error.message : t("errorMessage"));
+			currentContent =
+				error instanceof Error ? error.message : t("errorMessage");
+			setMessage(currentContent);
 		} finally {
+			const timeToAnswer = (Date.now() - startTime) / 1000;
+			try {
+				if (assistantMessageId) {
+					await embeddedChatHistoryService.finalizeMessage(assistantMessageId, {
+						content: currentContent || message || t("failedMessage"),
+						metadata: {
+							source: "co-agent",
+							actions: latestActions,
+							tool_calls: latestToolCalls,
+							model: selectedModel,
+							timeToAnswer,
+						},
+					});
+				}
+			} catch {
+				// The dock response is still useful even if history persistence fails.
+			}
 			setIsSubmitting(false);
 		}
 	};
@@ -216,34 +283,29 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 					onOpen={() => openPrompt(freshAnchor)}
 				/>
 			) : null}
-			{anchorPromptOpen && freshAnchor && !showAuthAction ? (
-				<CoAgentAnchorPrompt
-					anchor={freshAnchor}
-					value={anchoredInputValue}
+			{!chatPopupOpen ? (
+				<CoAgentDock
+					collapsed={collapsed}
+					showAuthAction={showAuthAction}
+					visibleSpeechMessage={visibleSpeechMessage}
+					isSubmitting={isSubmitting}
+					promptOpen={anchorPromptOpen}
+					inputValue={anchoredInputValue}
 					inputRef={promptInputRef}
 					modelAvailable={modelAvailable}
-					isSubmitting={isSubmitting}
-					onChange={setAnchoredInputValue}
-					onClose={() => setAnchorPromptOpen(false)}
-					onSubmit={submitPrompt}
+					onExpand={() => setCollapsed(false)}
+					onOpenPrompt={() => openPrompt(freshAnchor)}
+					onClosePrompt={() => setAnchorPromptOpen(false)}
+					onChangeInput={setAnchoredInputValue}
+					onSubmitPrompt={submitPrompt}
+					onOpenConversation={() => {
+						void openFullConversation();
+					}}
+					onUnlock={unlockExtension}
+					onLeaveCoAgent={leaveCoAgentMode}
+					onDismissBubble={() => setBubbleDismissed(true)}
 				/>
 			) : null}
-			<CoAgentDock
-				collapsed={collapsed}
-				showAuthAction={showAuthAction}
-				visibleSpeechMessage={visibleSpeechMessage}
-				isSubmitting={isSubmitting}
-				canOpenPrompt={Boolean(freshAnchor && !showAuthAction)}
-				onExpand={() => setCollapsed(false)}
-				onOpenPrompt={() => {
-					if (freshAnchor) openPrompt(freshAnchor);
-				}}
-				onOpenConversation={() => {
-					void openFullConversation();
-				}}
-				onUnlock={unlockExtension}
-				onDismissBubble={() => setBubbleDismissed(true)}
-			/>
 		</>
 	);
 };

@@ -34,6 +34,110 @@ export const coAgentStyles = `${customStyles}
 		gap: 8px;
 		pointer-events: auto;
 	}
+	.memorall-co-agent-actions {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 6px;
+		pointer-events: auto;
+	}
+	.memorall-co-agent-action {
+		position: relative;
+		width: 34px;
+		height: 34px;
+		border: 1px solid rgb(226 232 240 / 0.92);
+		border-radius: 999px;
+		background: rgb(255 255 255 / 0.92);
+		color: #0f172a;
+		box-shadow: 0 10px 24px rgb(15 23 42 / 0.14);
+		backdrop-filter: blur(10px);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		pointer-events: auto;
+		padding: 0;
+	}
+	.memorall-co-agent-action:hover {
+		background: #f8fafc;
+		transform: translateY(-1px);
+	}
+	.memorall-co-agent-action--danger {
+		color: #b91c1c;
+	}
+	.memorall-co-agent-action--danger:hover {
+		background: #fef2f2;
+		border-color: rgb(248 113 113 / 0.55);
+	}
+	.memorall-co-agent-action-tooltip {
+		position: absolute;
+		right: calc(100% + 8px);
+		top: 50%;
+		transform: translateY(-50%) scale(0.96);
+		border: 1px solid rgb(226 232 240 / 0.92);
+		border-radius: 7px;
+		background: rgb(15 23 42 / 0.92);
+		color: #fff;
+		box-shadow: 0 10px 24px rgb(15 23 42 / 0.18);
+		font: 650 11px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+		padding: 7px 8px;
+		white-space: nowrap;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 120ms ease, transform 120ms ease;
+	}
+	.memorall-co-agent-action:hover .memorall-co-agent-action-tooltip,
+	.memorall-co-agent-action:focus-visible .memorall-co-agent-action-tooltip {
+		opacity: 1;
+		transform: translateY(-50%) scale(1);
+	}
+	.memorall-co-agent-dock-prompt {
+		width: min(360px, calc(100vw - 36px));
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 42px;
+		align-items: stretch;
+		gap: 8px;
+		border: 1px solid rgb(226 232 240 / 0.92);
+		border-radius: 14px;
+		background: rgb(255 255 255 / 0.96);
+		box-shadow: 0 18px 44px rgb(15 23 42 / 0.18);
+		backdrop-filter: blur(12px);
+		padding: 8px;
+		pointer-events: auto;
+	}
+	.memorall-co-agent-dock-prompt textarea {
+		min-width: 0;
+		min-height: 38px;
+		max-height: 120px;
+		border: 0;
+		outline: none;
+		resize: none;
+		background: transparent;
+		color: #0f172a;
+		font: 650 13px/1.4 Inter, ui-sans-serif, system-ui, sans-serif;
+		padding: 9px 6px 7px 8px;
+	}
+	.memorall-co-agent-dock-prompt textarea::placeholder {
+		color: #64748b;
+	}
+	.memorall-co-agent-dock-prompt button {
+		width: 38px;
+		height: 38px;
+		align-self: center;
+		border: 0;
+		border-radius: 10px;
+		background: #0f172a;
+		color: #fff;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+	}
+	.memorall-co-agent-dock-prompt button:disabled {
+		cursor: not-allowed;
+		opacity: 0.45;
+	}
 	.memorall-co-agent-conversation-button {
 		width: 34px;
 		height: 34px;
@@ -62,7 +166,6 @@ export const coAgentStyles = `${customStyles}
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		filter: drop-shadow(0 12px 24px rgb(15 23 42 / 0.22));
 		cursor: default;
 		overflow: visible;
 		position: relative;
@@ -71,9 +174,11 @@ export const coAgentStyles = `${customStyles}
 		cursor: pointer;
 	}
 	.memorall-co-agent-root--collapsed .memorall-co-agent-icon:focus-visible,
+	.memorall-co-agent-action:focus-visible,
 	.memorall-co-agent-conversation-button:focus-visible,
 	.memorall-co-agent-bubble-close:focus-visible,
 	.memorall-co-agent-anchor-trigger:focus-visible,
+	.memorall-co-agent-dock-prompt button:focus-visible,
 	.memorall-co-agent-anchor-prompt button:focus-visible {
 		outline: 2px solid #2563eb;
 		outline-offset: 2px;
@@ -263,19 +368,35 @@ export const coAgentStyles = `${customStyles}
 		color: hsl(var(--primary));
 		filter: drop-shadow(0 8px 18px rgb(0 0 0 / 0.18));
 	}
+	.agent-cursor-mark {
+		position: relative;
+		display: inline-flex;
+		width: 32px;
+		height: 34px;
+		color: hsl(var(--primary));
+	}
+	.agent-cursor-mark .agent-cursor-pointer {
+		position: absolute;
+		left: 0;
+		top: 0;
+	}
+	.agent-cursor-mark-icon {
+		position: absolute;
+		right: -3px;
+		bottom: -2px;
+		width: 22px;
+		height: 22px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		overflow: visible;
+	}
 	.agent-cursor-badge {
 		display: inline-flex;
 		align-items: flex-end;
-		gap: 7px;
+		gap: 8px;
 		max-width: min(260px, calc(100vw - 42px));
 		pointer-events: none;
-	}
-	.agent-cursor-badge-icon {
-		position: relative;
-		display: inline-flex;
-		flex: 0 0 auto;
-		align-items: center;
-		justify-content: center;
 	}
 	.agent-cursor-bubble {
 		position: relative;

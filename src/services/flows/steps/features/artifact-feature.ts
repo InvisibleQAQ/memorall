@@ -105,7 +105,7 @@ export const createArtifactFeatureStep: StepFactoryFromSpec<
 stepRegistry.register(STEP_NAME, createArtifactFeatureStep, {
 	description: ARTIFACT_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
-	enabledByDefault: false,
+	enabledByDefault: true,
 });
 
 featureCatalogRegistry.register({

@@ -284,7 +284,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 	return (
 		<TooltipProvider>
-			<div className="w-full flex-shrink-0 bg-background/90 px-4 pb-4 pt-3 shadow-[0_-18px_45px_hsl(var(--background)/0.92)] backdrop-blur-xl">
+			<div className="w-full flex-shrink-0 bg-background/90 px-4 pb-4 pt-3 shadow-[0_-18px_45px_hsl(var(--background)/0.92)] backdrop-blur-xl pt-[8px]">
 				<div className="relative mx-auto max-w-4xl">
 					<input
 						ref={fileInputRef}

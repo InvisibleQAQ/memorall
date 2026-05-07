@@ -28,7 +28,8 @@ const summarizeResponse = (
 	if (element)
 		return `${element.tagName}: ${element.text || element.value || ""}`;
 	if (response.elements) return `${response.elements.length} element(s)`;
-	if (response.snapshot) return response.snapshot.visibleText.slice(0, 240);
+	if (response.snapshot)
+		return (response.snapshot.visibleText ?? "").slice(0, 240);
 	return "Done";
 };
 

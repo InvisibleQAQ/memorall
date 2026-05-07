@@ -994,6 +994,64 @@ export const customStyles = `
     color: hsl(var(--foreground)) !important;
   }
 
+  .memorall-chat-container .memorall-co-agent-hover-context {
+    margin-top: 8px !important;
+    border: 1px solid hsl(var(--primary-foreground) / 0.32) !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    color: hsl(var(--primary-foreground)) !important;
+    padding: 8px 9px !important;
+  }
+
+  .memorall-chat-container .memorall-co-agent-hover-context-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-bottom: 6px !important;
+    font-size: 11px !important;
+    font-weight: 750 !important;
+    letter-spacing: 0 !important;
+    opacity: 0.86 !important;
+  }
+
+  .memorall-chat-container .memorall-co-agent-hover-context-dot {
+    width: 7px !important;
+    height: 7px !important;
+    border-radius: 999px !important;
+    background: hsl(var(--primary-foreground)) !important;
+    flex: 0 0 auto !important;
+    opacity: 0.78 !important;
+  }
+
+  .memorall-chat-container .memorall-co-agent-hover-context-label {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.35 !important;
+    overflow-wrap: anywhere !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-co-agent-hover-context-selector {
+    margin-top: 4px !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-size: 10.5px !important;
+    line-height: 1.35 !important;
+    opacity: 0.68 !important;
+    overflow-wrap: anywhere !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
+  .memorall-chat-container .memorall-co-agent-hover-context-text {
+    margin-top: 7px !important;
+    border-top: 1px solid hsl(var(--primary-foreground) / 0.18) !important;
+    padding-top: 7px !important;
+    font-size: 11.5px !important;
+    line-height: 1.45 !important;
+    opacity: 0.78 !important;
+    overflow-wrap: anywhere !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
   .memorall-chat-container .memorall-message-content--assistant {
     width: 100% !important;
     color: hsl(var(--foreground)) !important;

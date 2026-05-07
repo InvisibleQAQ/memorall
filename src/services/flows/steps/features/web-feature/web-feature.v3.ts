@@ -189,7 +189,7 @@ export const createWebFeatureStep: StepFactoryFromSpec<WebFeatureSpec> = (
 stepRegistry.register(STEP_NAME, createWebFeatureStep, {
 	description: WEB_FEATURE_DESCRIPTION,
 	defaultStateMapping: { messages: "messages", tools: "tools" },
-	enabledByDefault: false,
+	enabledByDefault: true,
 });
 
 featureCatalogRegistry.register({

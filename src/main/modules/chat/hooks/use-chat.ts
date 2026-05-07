@@ -127,13 +127,22 @@ export const useChat = (model: string) => {
 	// Insert a separator message and reset sandbox container state
 	const insertSeparator = async () => {
 		if (isLoading) return;
+		if (messages.length === 0) return;
 
 		try {
+			const lastMessageCreatedAt = messages.at(-1)?.createdAt;
+			const lastMessageTime = lastMessageCreatedAt
+				? new Date(lastMessageCreatedAt).getTime()
+				: Number.NaN;
+			const createdAt = Number.isFinite(lastMessageTime)
+				? new Date(lastMessageTime + 1)
+				: new Date();
+
 			await addMessage({
 				role: "system",
 				content: "---",
 				type: "separator",
-				createdAt: new Date(),
+				createdAt,
 			});
 
 			// Reset sandbox container runtime in offscreen so the new conversation segment starts clean

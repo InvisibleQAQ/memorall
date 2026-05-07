@@ -56,6 +56,27 @@ export const AgentCursorPointer: React.FC<AgentCursorPointerProps> = ({
 	</svg>
 );
 
+export const AgentCursorMark: React.FC<AgentCursorBadgeProps> = ({
+	className,
+	iconSize = 22,
+}) => (
+	<div
+		className={cn(
+			"agent-cursor-mark relative inline-flex h-[34px] w-8 text-primary",
+			className,
+		)}
+	>
+		<AgentCursorPointer className="absolute left-0 top-0" />
+		<div className="agent-cursor-mark-icon absolute -right-0.5 -bottom-0.5 inline-flex h-[22px] w-[22px] items-center justify-center overflow-visible">
+			<AgentIcon
+				size={Math.max(18, Math.min(iconSize, 26))}
+				animation="happy"
+				reactive={false}
+			/>
+		</div>
+	</div>
+);
+
 export const AgentCursorBubble: React.FC<AgentCursorBubbleProps> = ({
 	message = "Updating",
 	className,
@@ -98,32 +119,25 @@ export const AgentCursorBadge: React.FC<AgentCursorBadgeProps> = ({
 	message = "Updating",
 	className,
 	animateMessage = true,
-	iconSize = 38,
+	iconSize = 22,
 }) => {
-	const normalizedMessage = message.trim().toLowerCase();
-	const shouldShowMessage =
-		message.trim().length > 0 &&
-		![
-			"updating",
-			"moving to the relevant area",
-			"click target",
-			"input target",
-		].includes(normalizedMessage);
+	const shouldShowMessage = message.trim().length > 0;
 
 	return (
-		<div className={cn("agent-cursor-badge flex items-end gap-2", className)}>
-			<motion.div
-				className="agent-cursor-badge-icon relative flex shrink-0 items-center justify-center"
-				initial={{ y: 4, scale: 0.96 }}
-				animate={{ rotate: 0, scale: 1 }}
-				transition={{ type: "spring", stiffness: 380, damping: 28 }}
-			>
+		<div
+			className={cn(
+				"agent-cursor-badge flex items-end gap-2",
+				"rounded-full",
+				className,
+			)}
+		>
+			<div className="agent-cursor-badge-icon inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center overflow-visible">
 				<AgentIcon
-					size={Math.max(36, Math.min(iconSize, 44))}
+					size={Math.max(18, Math.min(iconSize, 26))}
 					animation="happy"
 					reactive={false}
 				/>
-			</motion.div>
+			</div>
 			{shouldShowMessage ? (
 				<AgentCursorBubble message={message} animateMessage={animateMessage} />
 			) : null}
@@ -145,25 +159,23 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 	const sourceX = x ?? localX;
 	const sourceY = y ?? localY;
 	const pointerX = useSpring(sourceX, {
-		stiffness: 170,
-		damping: 24,
-		mass: 0.65,
+		stiffness: 420,
+		damping: 46,
 		bounce: 0,
 	});
 	const pointerY = useSpring(sourceY, {
-		stiffness: 170,
-		damping: 24,
-		mass: 0.65,
+		stiffness: 420,
+		damping: 46,
 		bounce: 0,
 	});
 	const followX = useSpring(pointerX, {
-		stiffness: 220,
-		damping: 32,
+		stiffness: 260,
+		damping: 38,
 		bounce: 0,
 	});
 	const followY = useSpring(pointerY, {
-		stiffness: 220,
-		damping: 32,
+		stiffness: 260,
+		damping: 38,
 		bounce: 0,
 	});
 
@@ -190,7 +202,7 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 						scale: { duration: 0.18 },
 					}}
 				>
-					<div className="agent-cursor-pointer-offset -translate-x-[10px] -translate-y-[10px]">
+					<div className="agent-cursor-pointer-offset -translate-x-[6px] -translate-y-[5px]">
 						{pointer}
 					</div>
 				</motion.div>
@@ -205,7 +217,7 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 						scale: { duration: 0.18 },
 					}}
 				>
-					<div className="agent-cursor-badge-offset translate-x-[18px] translate-y-[24px]">
+					<div className="agent-cursor-badge-offset translate-x-[30px] translate-y-[28px]">
 						{badge}
 					</div>
 				</motion.div>
@@ -217,7 +229,7 @@ export const AgentCursorUI: React.FC<AgentCursorUIProps> = ({
 		<div
 			className={cn(
 				"agent-cursor-static",
-				"-translate-x-[10px] -translate-y-[10px] text-primary",
+				"-translate-x-[6px] -translate-y-[5px] text-primary",
 				className,
 			)}
 		>
