@@ -72,20 +72,12 @@ export const createPdfToTextTool: ToolFactory<Input, Services> = (
 	execute: async (input) => {
 		const dfs = services.documentFileSystem;
 		if (!dfs) {
-			return JSON.stringify({
-				actionType: "pdf_to_text",
-				success: false,
-				error: "Document filesystem service is not available.",
-			});
+			return "PDF text extraction error: Document filesystem service is not available.";
 		}
 
 		const sourcePath = normalizeDocumentPath(input.source_path);
 		if (!sourcePath.toLowerCase().endsWith(".pdf")) {
-			return JSON.stringify({
-				actionType: "pdf_to_text",
-				success: false,
-				error: `source_path must end with .pdf, got: ${input.source_path}`,
-			});
+			return `PDF text extraction error: source_path must end with .pdf, got: ${input.source_path}`;
 		}
 
 		try {
@@ -96,11 +88,7 @@ export const createPdfToTextTool: ToolFactory<Input, Services> = (
 			);
 
 			if (!node || !node.file) {
-				return JSON.stringify({
-					actionType: "pdf_to_text",
-					success: false,
-					error: `File not found: ${input.source_path}`,
-				});
+				return `PDF text extraction error: File not found: ${input.source_path}`;
 			}
 
 			const content = await dfs.getFileContent(sourcePath);
@@ -125,18 +113,19 @@ export const createPdfToTextTool: ToolFactory<Input, Services> = (
 			}
 
 			if (!input.output_path) {
-				return JSON.stringify(
-					{
-						actionType: "pdf_to_text",
-						success: true,
-						source_path: sourcePath,
-						num_pages: pdfData.numPages,
-						format: fmt,
-						text: extractedText,
-					},
-					null,
-					2,
-				);
+				const pageRangeText = input.page_range
+					? `Pages: ${Math.max(1, input.page_range.start)}-${Math.min(pdfData.numPages, input.page_range.end)}`
+					: `Pages: 1-${pdfData.numPages}`;
+
+				return [
+					"PDF text extraction",
+					`Source: ${sourcePath}`,
+					`Total pages: ${pdfData.numPages}`,
+					pageRangeText,
+					`Format: ${fmt}`,
+					"",
+					extractedText,
+				].join("\n");
 			}
 
 			// Save to output_path
@@ -147,11 +136,7 @@ export const createPdfToTextTool: ToolFactory<Input, Services> = (
 			const fileName = outputPath.substring(lastSlash + 1);
 
 			if (!fileName) {
-				return JSON.stringify({
-					actionType: "pdf_to_text",
-					success: false,
-					error: "Invalid output_path — no filename provided.",
-				});
+				return "PDF text extraction error: Invalid output_path - no filename provided.";
 			}
 
 			await ensureFolderExists(dfs, parentPath);
@@ -168,25 +153,16 @@ export const createPdfToTextTool: ToolFactory<Input, Services> = (
 				await dfs.uploadFile(file, parentPath);
 			}
 
-			return JSON.stringify(
-				{
-					actionType: "pdf_to_text",
-					success: true,
-					source_path: sourcePath,
-					output_path: outputPath,
-					num_pages: pdfData.numPages,
-					format: fmt,
-					characters: extractedText.length,
-				},
-				null,
-				2,
-			);
+			return [
+				"PDF text extraction saved",
+				`Source: ${sourcePath}`,
+				`Output: ${outputPath}`,
+				`Total pages: ${pdfData.numPages}`,
+				`Format: ${fmt}`,
+				`Characters: ${extractedText.length}`,
+			].join("\n");
 		} catch (error) {
-			return JSON.stringify({
-				actionType: "pdf_to_text",
-				success: false,
-				error: error instanceof Error ? error.message : String(error),
-			});
+			return `PDF text extraction error: ${error instanceof Error ? error.message : String(error)}`;
 		}
 	},
 });

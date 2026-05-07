@@ -1,0 +1,15 @@
+{
+	"tooltip": {
+		"step": "Bước {{current}} / {{total}}",
+		"skipTour": "Bỏ qua hướng dẫn",
+		"back": "Quay lại",
+		"next": "Tiếp theo",
+		"finish": "Hoàn thành"
+	},
+	"debugger": {
+		"title": "Gỡ lỗi Copilot",
+		"status": "Đang hoạt động: {{active}} | Bước: {{current}}/{{total}}",
+		"yes": "Có",
+		"no": "Không"
+	}
+}

@@ -21,6 +21,8 @@ import {
 	MousePointerClick,
 	Eye,
 	Keyboard,
+	FileImage,
+	FileSearch,
 	type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +57,7 @@ import {
 	coAgentToolRenderer,
 	getCoAgentActionTitle,
 } from "./tools/CoAgentTool";
+import { documentConvertRenderer } from "./tools/DocumentConvert";
 
 const ICON_MAPPINGS: Array<{ keywords: string[]; icon: LucideIcon }> = [
 	{ keywords: ["search", "query", "retrieval", "retrieve"], icon: Search },
@@ -80,6 +83,9 @@ const EXACT_ICON_MAPPINGS: Record<string, LucideIcon> = {
 	co_agent_click: MousePointerClick,
 	co_agent_input: Keyboard,
 	co_agent_error: AlertTriangle,
+	pdf_metadata: FileSearch,
+	pdf_to_text: FileText,
+	pdf_to_image: FileImage,
 };
 
 const getActionIcon = (name: string): LucideIcon => {
@@ -162,6 +168,9 @@ const ACTION_RENDERERS: Record<string, ActionRenderer> = {
 	co_agent_click: coAgentToolRenderer,
 	co_agent_input: coAgentToolRenderer,
 	co_agent_error: coAgentToolRenderer,
+	pdf_metadata: documentConvertRenderer,
+	pdf_to_text: documentConvertRenderer,
+	pdf_to_image: documentConvertRenderer,
 	knowledge_graph: messageKnowledgeGraphRenderer,
 	structmem_knowledge_retrieval: structMemKnowledgeRetrievalRenderer,
 };

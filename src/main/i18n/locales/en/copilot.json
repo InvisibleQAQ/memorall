@@ -1,0 +1,15 @@
+{
+	"tooltip": {
+		"step": "Step {{current}} of {{total}}",
+		"skipTour": "Skip Tour",
+		"back": "Back",
+		"next": "Next",
+		"finish": "Finish"
+	},
+	"debugger": {
+		"title": "Copilot Debug",
+		"status": "Active: {{active}} | Step: {{current}}/{{total}}",
+		"yes": "Yes",
+		"no": "No"
+	}
+}

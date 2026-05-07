@@ -520,7 +520,6 @@ export const ChatPage: React.FC = () => {
 		}
 	};
 
-	// Navigate to models tab
 	const navigateToModels = () => {
 		navigate("/llm");
 	};

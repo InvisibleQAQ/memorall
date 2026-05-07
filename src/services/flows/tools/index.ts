@@ -13,7 +13,9 @@ import "./documents/doc-edit";
 import "./documents/doc-remove";
 import "./documents/doc-move";
 import "./documents/pdf-generate";
+import "./documents/pdf-metadata";
 import "./documents/pdf-to-text";
+import "./documents/pdf-to-image";
 import "./documents/excel-to-text";
 
 import "./sandbox-container/container-run-code";

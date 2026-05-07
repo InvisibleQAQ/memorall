@@ -1,10 +1,12 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/main/components/ui/button";
 import { useCopilot } from "@/main/components/molecules/Copilot/CopilotContext";
 import { X, RotateCcw, Play } from "lucide-react";
 
 export const CopilotDebugger: React.FC = () => {
 	const { state, startTour, endTour } = useCopilot();
+	const { t } = useTranslation("copilot");
 
 	if (process.env.NODE_ENV === "production") {
 		return null; // Only show in development
@@ -12,7 +14,7 @@ export const CopilotDebugger: React.FC = () => {
 
 	return (
 		<div className="fixed bottom-4 right-4 z-[2147483648] bg-red-500 text-white p-2 rounded-lg shadow-lg text-xs">
-			<div className="mb-1">Copilot Debug</div>
+			<div className="mb-1">{t("debugger.title")}</div>
 			<div className="flex gap-1">
 				<Button
 					size="sm"
@@ -43,8 +45,11 @@ export const CopilotDebugger: React.FC = () => {
 				</Button>
 			</div>
 			<div className="text-xs mt-1">
-				Active: {state.isActive ? "Yes" : "No"} | Step: {state.currentStep + 1}/
-				{state.steps.length}
+				{t("debugger.status", {
+					active: state.isActive ? t("debugger.yes") : t("debugger.no"),
+					current: state.currentStep + 1,
+					total: state.steps.length,
+				})}
 			</div>
 		</div>
 	);

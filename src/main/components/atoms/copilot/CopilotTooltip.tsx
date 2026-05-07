@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
 	useCopilot,
 	type CopilotStep,
@@ -33,6 +34,7 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 }) => {
 	const navigate = useNavigate();
 	const { state, nextStep, prevStep, skipTour, endTour } = useCopilot();
+	const { t } = useTranslation("copilot");
 
 	const tooltipPosition = useMemo((): TooltipPosition => {
 		const tooltipWidth = 320;
@@ -278,7 +280,10 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 						<div className="mt-2">
 							<div className="flex justify-between text-xs text-muted-foreground mb-1">
 								<span>
-									Step {state.currentStep + 1} of {state.steps.length}
+									{t("tooltip.step", {
+										current: state.currentStep + 1,
+										total: state.steps.length,
+									})}
 								</span>
 								<span>{Math.round(progress)}%</span>
 							</div>
@@ -304,7 +309,7 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 							className="text-xs pointer-events-auto"
 						>
 							<SkipForward size={12} className="mr-1" />
-							Skip Tour
+							{t("tooltip.skipTour")}
 						</Button>
 
 						<div className="flex gap-2">
@@ -320,7 +325,7 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 									className="pointer-events-auto"
 								>
 									<ChevronLeft size={14} className="mr-1" />
-									Back
+									{t("tooltip.back")}
 								</Button>
 							)}
 
@@ -334,10 +339,10 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 								className="bg-blue-600 hover:bg-blue-700 pointer-events-auto"
 							>
 								{state.currentStep === state.steps.length - 1 ? (
-									"Finish"
+									t("tooltip.finish")
 								) : (
 									<>
-										Next
+										{t("tooltip.next")}
 										<ChevronRight size={14} className="ml-1" />
 									</>
 								)}

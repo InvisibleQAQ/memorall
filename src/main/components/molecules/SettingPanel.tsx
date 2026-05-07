@@ -46,6 +46,8 @@ import { useCopilot } from "@/main/components/atoms/copilot";
 import { getCurrentEmbeddingSize } from "@/utils/embedding-size-config";
 import { VietnamFlag, USFlag } from "@/main/components/atoms/flags";
 import { useAuth, useAuthActions } from "@/main/modules/supabase";
+import { MANAGED_SERVICE_ENABLED } from "@/constants/features";
+import { cn } from "@/lib/utils";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { logError, logInfo } from "@/utils/logger";
 
@@ -199,8 +201,14 @@ export const SettingPanel: React.FC<{
 					{!user ? (
 						<div className="p-2">
 							<button
-								onClick={() => navigate("/auth")}
-								className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 transition-colors"
+								disabled={!MANAGED_SERVICE_ENABLED}
+								onClick={() => MANAGED_SERVICE_ENABLED && navigate("/auth")}
+								className={cn(
+									"w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-md font-medium transition-colors",
+									MANAGED_SERVICE_ENABLED
+										? "hover:bg-primary/90 cursor-pointer"
+										: "opacity-50 cursor-not-allowed",
+								)}
 							>
 								<LogIn size={16} />
 								<span>{t("auth:actions.signIn")}</span>

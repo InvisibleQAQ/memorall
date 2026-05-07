@@ -26,18 +26,18 @@ interface ProviderConfig {
 
 const PROVIDERS: ProviderConfig[] = [
 	{
-		key: "openai",
-		icon: Sparkles,
-		iconColor: "text-primary",
-		iconBgColor: "bg-primary/10",
-		component: OpenAITab,
-	},
-	{
 		key: "openrouter",
 		icon: Globe,
 		iconColor: "text-purple-600 dark:text-purple-500",
 		iconBgColor: "bg-purple-500/10",
 		component: OpenRouterTab,
+	},
+	{
+		key: "openai",
+		icon: Sparkles,
+		iconColor: "text-primary",
+		iconBgColor: "bg-primary/10",
+		component: OpenAITab,
 	},
 ];
 

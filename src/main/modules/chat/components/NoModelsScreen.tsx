@@ -15,6 +15,7 @@ import { AlertCircle, Loader2, CheckCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/main/components/ui/button";
 import {
 	Card,
@@ -48,6 +49,7 @@ import type {
 import { QUICK_TRANSFORMER_MODELS } from "@/constants/transformer";
 import { QUICK_WALLAMA_LLMS } from "@/constants/wllama";
 import { QUICK_WEBLLM_LLMS } from "@/constants/webllm";
+import { MANAGED_SERVICE_ENABLED } from "@/constants/features";
 import { useModelOperations } from "@/main/modules/llm/hooks/use-model-operations";
 import { useDownloadedModels } from "@/main/modules/llm/hooks/use-downloaded-models";
 import { useDownloadProgress } from "@/main/modules/llm/hooks/use-download-progress";
@@ -317,7 +319,14 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 					{!selectedOption && (
 						<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
 							{/* Card 1: Login/Signup */}
-							<Card className="group transition-all duration-300 cursor-not-allowed border-2 opacity-60 relative">
+							<Card
+								className={cn(
+									"group transition-all duration-300 border-2 relative",
+									!MANAGED_SERVICE_ENABLED
+										? "cursor-not-allowed opacity-60"
+										: "hover:shadow-lg hover:border-primary cursor-pointer",
+								)}
+							>
 								<Popover>
 									<PopoverTrigger asChild>
 										<div className="absolute top-3 right-3 cursor-help">
@@ -377,7 +386,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 										</div>
 									</div>
 									<Button
-										disabled
+										disabled={!MANAGED_SERVICE_ENABLED}
 										className="w-full bg-primary hover:bg-primary/90"
 										size="lg"
 									>
