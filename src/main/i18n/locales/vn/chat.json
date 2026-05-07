@@ -170,6 +170,13 @@
 		"dialogTitle": "Nội dung chọn thông minh",
 		"dismiss": "Bỏ qua"
 	},
+	"agentContextWarning": {
+		"heavyTitle": "Tác nhân này bắt đầu với prompt lớn",
+		"localTitle": "Mô hình chạy trong trình duyệt phù hợp nhất với chế độ Chat",
+		"heavyDescription": "Ngữ cảnh khởi tạo ước tính là {{used}} / {{max}} token ({{percent}}%) trước khi thêm tin nhắn của bạn.",
+		"localDescription": "Với wllama, WebLLM và Transformers, chế độ Chat thường nhanh và ổn định hơn.",
+		"useChat": "Dùng Chat"
+	},
 	"model": {
 		"notLoaded": "Chưa tải mô hình",
 		"loading": "Đang tải mô hình...",

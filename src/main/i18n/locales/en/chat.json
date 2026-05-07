@@ -170,6 +170,13 @@
 		"dialogTitle": "Smart Select Content",
 		"dismiss": "Dismiss"
 	},
+	"agentContextWarning": {
+		"heavyTitle": "This agent starts with a large prompt",
+		"localTitle": "Browser models work best in Chat mode",
+		"heavyDescription": "Estimated setup context is {{used}} of {{max}} tokens ({{percent}}%) before your message.",
+		"localDescription": "For wllama, WebLLM, and Transformers providers, Chat mode is usually faster and more reliable.",
+		"useChat": "Use Chat"
+	},
 	"model": {
 		"notLoaded": "No model loaded",
 		"loading": "Loading model...",

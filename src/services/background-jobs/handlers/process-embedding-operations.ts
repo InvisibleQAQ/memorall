@@ -1,4 +1,8 @@
 import { serviceManager } from "@/services";
+import {
+	setCurrentEmbeddingSize,
+	getCurrentEmbeddingInfo,
+} from "@/utils/embedding-size-config";
 import type {
 	ProcessHandler,
 	ProcessDependencies,
@@ -414,9 +418,6 @@ export class EmbeddingOperationsHandler implements ProcessHandler<BaseJob> {
 		});
 
 		// Update the embedding size in shared storage
-		const { setCurrentEmbeddingSize, getCurrentEmbeddingInfo } = await import(
-			"@/utils/embedding-size-config"
-		);
 		await setCurrentEmbeddingSize(
 			payload.newSize as "small" | "medium" | "large",
 		);

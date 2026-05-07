@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/main/components/ui/tooltip";
 import type { ChatStatus, AttachedDocumentRef } from "@/types/chat";
 import type { DocumentFile } from "@/types/document-library";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
+import { skillFileSystemService } from "@/services/filesystem/skill-filesystem";
 import { AttachmentList } from "@/main/modules/chat/components/input/AttachmentList";
 import {
 	collectFiles,
@@ -92,9 +93,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 		if (!isMentionOpen) return;
 		Promise.all([
 			documentFileSystemService.getTree().catch(() => []),
-			import("@/services/filesystem/skill-filesystem")
-				.then((m) => m.skillFileSystemService.listSkills())
-				.catch(() => []),
+			skillFileSystemService.listSkills().catch(() => []),
 		]).then(([tree, skills]) => {
 			setMentionDocFiles(collectFiles(tree));
 			setMentionSkillItems(

@@ -17,6 +17,7 @@ import {
 	useCurrentModel,
 	useChat,
 	ModelLoadPrompt,
+	AgentContextWarningBanner,
 	SmartSelectContextBanner,
 	useSmartSelectContext,
 } from "@/main/modules/chat/components";
@@ -684,6 +685,13 @@ export const ChatPage: React.FC = () => {
 				<SmartSelectContextBanner
 					context={smartSelectContext}
 					onClear={() => setSmartSelectContext(null)}
+				/>
+
+				<AgentContextWarningBanner
+					current={current}
+					selectedAgentFlowId={selectedAgentFlowId}
+					selectedAgentName={selectedAgent?.name}
+					onUseChatMode={() => handleSelectAgentFlow("chat")}
 				/>
 
 				<ChatInput
