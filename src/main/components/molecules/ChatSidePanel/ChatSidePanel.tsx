@@ -1,27 +1,25 @@
 import React, { useRef, useState } from "react";
 import {
 	ChevronLeft,
-	ChevronRight,
-	Globe,
+	ChevronsRight,
 	MessageSquare,
+	MessageSquarePlus,
 	RefreshCw,
-	Server,
-	Terminal,
 	X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { useChatStore } from "@/main/stores/chat";
 import { cn } from "@/lib/utils";
+import { Button } from "@/main/components/ui/button";
 import { ConversationListSection } from "./ConversationListSection";
 import { CollapsedRailItem } from "./CollapsedRailItem";
-import { RuntimeSessionsSectionList } from "../RuntimeSessions/RuntimeSessionsSectionList";
 
 interface ChatSidePanelProps {
 	onShowConversationGroup?: (groupId: string) => void;
 	defaultCollapsed?: boolean;
 	allowCollapse?: boolean;
 	allowResize?: boolean;
+	showCollapsedToggle?: boolean;
 	onClose?: () => void;
 }
 
@@ -30,37 +28,35 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 	defaultCollapsed = true,
 	allowCollapse = true,
 	allowResize = true,
+	showCollapsedToggle = true,
 	onClose,
 }) => {
-	const commands = useRuntimeSessionsStore((state) => state.commands);
-	const servers = useRuntimeSessionsStore((state) => state.servers);
-	const activeWebSession = useRuntimeSessionsStore(
-		(state) => state.activeWebSession,
-	);
-	const refreshRuntimeSessions = useRuntimeSessionsStore(
-		(state) => state.refresh,
-	);
 	const conversations = useChatStore((state) => state.conversations);
 	const currentConversation = useChatStore(
 		(state) => state.currentConversation,
 	);
 	const loadConversations = useChatStore((state) => state.loadConversations);
+	const createNewConversation = useChatStore(
+		(state) => state.createNewConversation,
+	);
 	const { t } = useTranslation();
 	const [collapsed, setCollapsed] = useState(defaultCollapsed);
 	const [width, setWidth] = useState(320);
 	const isDraggingRef = useRef(false);
 	const dragStartXRef = useRef(0);
 	const dragStartWidthRef = useRef(0);
-	const hasWebSession = Boolean(activeWebSession.isOpen);
-	const hasRuntimeActivity =
-		hasWebSession || commands.length > 0 || servers.length > 0;
 	const conversationCount = Math.max(
 		conversations.length,
 		currentConversation ? 1 : 0,
 	);
 
 	const handleRefresh = async () => {
-		await Promise.all([refreshRuntimeSessions(), loadConversations()]);
+		await loadConversations();
+	};
+
+	const handleNewConversation = async () => {
+		await createNewConversation("Main Chat");
+		await loadConversations();
 	};
 
 	const handleResizeMouseDown = (e: React.MouseEvent) => {
@@ -91,7 +87,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 
 	return (
 		<div
-			className="relative z-10 h-full min-h-0 flex-shrink-0"
+			className="relative z-10 h-full min-h-0 flex-shrink-0 transition-[width] duration-300 ease-out"
 			style={
 				allowCollapse && collapsed
 					? { width: 56 }
@@ -110,20 +106,24 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 					className={cn(
 						"flex-shrink-0",
 						collapsed
-							? "flex items-center justify-center px-2 pt-3 pb-2"
+							? "flex h-12 w-14 items-center justify-center p-0"
 							: "flex items-center gap-2 border-b bg-muted/20 px-2 py-2",
 					)}
 				>
-					{allowCollapse && collapsed ? (
-						<button
+					{allowCollapse && collapsed && showCollapsedToggle ? (
+						<Button
 							type="button"
+							variant="ghost"
+							size="icon"
 							onClick={() => setCollapsed(false)}
-							className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+							className="h-9 w-9 text-muted-foreground hover:text-foreground"
 							title={t("sandboxPanel.expand")}
 							aria-label={t("sandboxPanel.expand")}
 						>
-							<ChevronRight size={18} />
-						</button>
+							<ChevronsRight size={16} />
+						</Button>
+					) : allowCollapse && collapsed ? (
+						<div className="h-9 w-9" />
 					) : (
 						<>
 							<div className="min-w-0 flex items-center gap-2 text-muted-foreground">
@@ -168,7 +168,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 				</div>
 
 				{allowCollapse && collapsed ? (
-					<div className="flex flex-1 flex-col items-center gap-1 px-2 py-2">
+					<div className="flex w-14 flex-1 flex-col items-center gap-1 px-0 py-2">
 						<CollapsedRailItem
 							icon={<MessageSquare size={17} />}
 							label="Conversations"
@@ -176,52 +176,15 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 							active
 							onClick={() => setCollapsed(false)}
 						/>
-						{hasRuntimeActivity ? (
-							<div className="my-2 h-px w-7 bg-border/70" />
-						) : null}
-						{hasWebSession ? (
-							<CollapsedRailItem
-								icon={<Globe size={16} />}
-								count={1}
-								label={t("sandboxPanel.webSessionTitle")}
-								onClick={() => setCollapsed(false)}
-							/>
-						) : null}
-						{commands.length > 0 ? (
-							<CollapsedRailItem
-								icon={<Terminal size={16} />}
-								count={commands.length}
-								label={t("sandboxPanel.commandsTitle")}
-								onClick={() => setCollapsed(false)}
-							/>
-						) : null}
-						{servers.length > 0 ? (
-							<CollapsedRailItem
-								icon={<Server size={16} />}
-								count={servers.length}
-								label={t("sandboxPanel.serversTitle")}
-								onClick={() => setCollapsed(false)}
-							/>
-						) : null}
+						<CollapsedRailItem
+							icon={<MessageSquarePlus size={16} />}
+							label="New chat"
+							onClick={() => void handleNewConversation()}
+						/>
 					</div>
 				) : (
 					<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
-						<div className="space-y-5">
-							<ConversationListSection onShowGroup={onShowConversationGroup} />
-							<div className="space-y-2 border-t border-border/70 pt-4">
-								<div className="flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-									<Server size={12} />
-									<span>{t("sandboxPanel.title")}</span>
-								</div>
-								<RuntimeSessionsSectionList
-									commands={commands}
-									servers={servers}
-									activeWebSession={activeWebSession}
-									onRefresh={refreshRuntimeSessions}
-									variant="docked"
-								/>
-							</div>
-						</div>
+						<ConversationListSection onShowGroup={onShowConversationGroup} />
 					</div>
 				)}
 			</div>

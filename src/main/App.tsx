@@ -35,9 +35,8 @@ import { serviceManager } from "@/services";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { sharedStorageService } from "@/services/shared-storage/shared-storage-service";
 import { CopilotProvider, Copilot } from "./components/atoms/copilot";
-import { Layout } from "./components/Layout";
+import { AppShell } from "./components/AppShell";
 // pages
-import { ChatPage } from "./pages/ChatPage";
 import { EmbeddingPage } from "./pages/EmbeddingPage";
 import { LLMPage } from "./pages/LLMPage";
 import { DatabasePage } from "./pages/DatabasePage";
@@ -47,6 +46,7 @@ import { KnowledgeGraphPage } from "./pages/KnowledgeGraphPage";
 import { DocumentLibraryPage } from "./pages/DocumentLibraryPage";
 import { ActivityTimelinePage } from "./pages/ActivityTimelinePage";
 import { AgentsPage } from "./pages/AgentsPage";
+import { RuntimePage } from "./pages/RuntimePage";
 import { AuthPage } from "./pages/AuthPage";
 import { FlowBuilderPage } from "./pages/FlowBuilderPage/FlowBuilderPage";
 import { registerAllEditors } from "@/main/modules/documents/editors";
@@ -351,10 +351,11 @@ const App: React.FC = () => {
 							<Route
 								path="*"
 								element={
-									<Layout>
+									<AppShell>
 										<Routes>
-											<Route path="/*" element={<ChatPage />} />
+											<Route path="/" element={<DocumentLibraryPage />} />
 											<Route path="/llm" element={<LLMPage />} />
+											<Route path="/runtime" element={<RuntimePage />} />
 											<Route path="/embeddings" element={<EmbeddingPage />} />
 											<Route path="/database" element={<DatabasePage />} />
 											<Route
@@ -375,8 +376,9 @@ const App: React.FC = () => {
 												element={<FlowBuilderPage />}
 											/>
 											<Route path="/logs" element={<LogsPage />} />
+											<Route path="*" element={<DocumentLibraryPage />} />
 										</Routes>
-									</Layout>
+									</AppShell>
 								}
 							/>
 						</Routes>

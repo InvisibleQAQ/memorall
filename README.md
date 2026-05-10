@@ -258,23 +258,23 @@ Load the unpacked extension from `dist/chrome`.
 If you want live development:
 
 ```bash
-pnpm run dev
+yarn run dev
 ```
 
 ## 🛠️ Development Commands
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm run dev` | Hot-reload development build for Chromium (`CHROME_PATH` required). |
-| `pnpm run build` | Default production build. |
-| `pnpm run build:chrome` | Build Chrome MV3 output in `dist/chrome`. |
-| `pnpm run build:edge` | Build Edge MV3 output. |
-| `pnpm run build:firefox` | Build Firefox MV3 output. |
-| `pnpm run build:all` | Build Chrome, Edge, and Firefox outputs. |
-| `pnpm run type-check` | Run TypeScript without emitting files. |
-| `pnpm run lint` | Run the Extension.js lint step. |
-| `pnpm run format` | Format `src` and `scripts` with Biome. |
-| `pnpm run package` | Build the publish/package output. |
+| `yarn run dev` | Hot-reload development build for Chromium (`CHROME_PATH` required). |
+| `yarn run build` | Default production build. |
+| `yarn run build:chrome` | Build Chrome MV3 output in `dist/chrome`. |
+| `yarn run build:edge` | Build Edge MV3 output. |
+| `yarn run build:firefox` | Build Firefox MV3 output. |
+| `yarn run build:all` | Build Chrome, Edge, and Firefox outputs. |
+| `yarn run type-check` | Run TypeScript without emitting files. |
+| `yarn run lint` | Run the Extension.js lint step. |
+| `yarn run format` | Format `src` and `scripts` with Biome. |
+| `yarn run package` | Build the publish/package output. |
 
 ## 🤝 Contributing
 
