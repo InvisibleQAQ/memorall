@@ -28,14 +28,12 @@ import type {
 } from "@/components/AgentIcon";
 import { Button } from "@/main/components/ui/button";
 import { topicService } from "@/main/modules/topics/services/topic-service";
-import { AgentSettingsPanel } from "@/main/modules/chat/components/AgentSettingsPanel";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
 import type { Flow, Topic } from "@/services/database/types";
 import {
 	useDownloadProgress,
 	ModelDownloadingScreen,
 } from "@/main/modules/llm/components";
-import { cn } from "@/lib/utils";
 import { serviceManager } from "@/services";
 import type { AttachedDocumentRef } from "@/types/chat";
 import { ChatSidePanel } from "@/main/components/molecules/ChatSidePanel";
@@ -54,7 +52,15 @@ const RETRIEVAL_STEP_NAMES = new Set([
 	"structmem-retrieval",
 ]);
 
-export const ChatPage: React.FC = () => {
+interface ChatPageProps {
+	onOpenAgentWorkspace?: () => void;
+	hideWideSidePanelCollapsedToggle?: boolean;
+}
+
+export const ChatPage: React.FC<ChatPageProps> = ({
+	onOpenAgentWorkspace,
+	hideWideSidePanelCollapsedToggle = false,
+}) => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { t } = useTranslation(["chat"]);
@@ -593,6 +599,7 @@ export const ChatPage: React.FC = () => {
 		<div className="flex h-full bg-background text-foreground [background-image:linear-gradient(180deg,hsl(var(--muted)/0.28)_0%,transparent_190px)]">
 			{isWideChatSidePanelVisible ? (
 				<ChatSidePanel
+					showCollapsedToggle={!hideWideSidePanelCollapsedToggle}
 					onShowConversationGroup={handleConversationGroupSelect}
 				/>
 			) : null}
@@ -723,6 +730,7 @@ export const ChatPage: React.FC = () => {
 							return;
 						}
 						open(selectedAgentFlowId);
+						onOpenAgentWorkspace?.();
 					}}
 				/>
 			</div>
@@ -743,7 +751,7 @@ export const ChatPage: React.FC = () => {
 							animate={{ opacity: 1, x: 0 }}
 							exit={{ opacity: 0, x: -24 }}
 							transition={{ duration: 0.2, ease: "easeOut" }}
-							className="fixed bottom-0 left-0 right-0 top-12 z-50 bg-background shadow-xl"
+							className="fixed bottom-0 left-0 right-0 top-0 z-50 bg-background shadow-xl"
 						>
 							<ChatSidePanel
 								defaultCollapsed={false}
@@ -758,32 +766,6 @@ export const ChatPage: React.FC = () => {
 						</motion.div>
 					</>
 				) : null}
-
-				{isOpen && (
-					<>
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-							transition={{ duration: 0.18, ease: "easeOut" }}
-							className="fixed inset-0 bg-black/50 z-40 md:hidden"
-							onClick={close}
-						/>
-						<motion.div
-							initial={{ opacity: 0, x: 24 }}
-							animate={{ opacity: 1, x: 0 }}
-							exit={{ opacity: 0, x: 24 }}
-							transition={{ duration: 0.2, ease: "easeOut" }}
-							className={cn(
-								"z-10 flex-shrink-0 border-l bg-card",
-								"fixed top-12 bottom-0 right-0 left-0 z-50",
-								"md:relative md:top-auto md:bottom-auto md:left-auto md:w-[480px] md:max-w-full md:z-10",
-							)}
-						>
-							<AgentSettingsPanel />
-						</motion.div>
-					</>
-				)}
 			</AnimatePresence>
 		</div>
 	);

@@ -12,7 +12,7 @@ const PANEL_STORAGE_KEY = "memorall.documents.workspace-panels.v1";
 const DEFAULT_PANEL_SIZES = [22, 78] as const;
 const MIN_PANEL_SIZES = [16, 36] as const;
 const MAX_PRIMARY_PANEL_SIZE = 28;
-const DESKTOP_BREAKPOINT = 1180;
+const DESKTOP_BREAKPOINT = 700;
 const DESKTOP_SEPARATOR_TRACK = 2;
 
 const clampPair = (
@@ -62,10 +62,8 @@ export const DocumentLibraryPage: React.FC = () => {
 	const [panelSizes, setPanelSizes] =
 		React.useState<[number, number]>(readStoredPanelSizes);
 	const [isDesktop, setIsDesktop] = React.useState(false);
+	const outerRef = React.useRef<HTMLDivElement | null>(null);
 	const containerRef = React.useRef<HTMLDivElement | null>(null);
-	const isPopupSurface =
-		typeof document !== "undefined" &&
-		document.documentElement.dataset.uiSurface === "popup";
 	const activeTree = lib.isWorkspaceSection ? lib.workspaceTree : lib.tree;
 	const homeOptions = [
 		{
@@ -118,13 +116,15 @@ export const DocumentLibraryPage: React.FC = () => {
 
 	React.useEffect(() => {
 		if (typeof window === "undefined") return;
-		const handleViewportChange = () => {
-			const isPopup = document.documentElement.dataset.uiSurface === "popup";
-			setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT && !isPopup);
-		};
-		handleViewportChange();
-		window.addEventListener("resize", handleViewportChange);
-		return () => window.removeEventListener("resize", handleViewportChange);
+		const el = outerRef.current;
+		if (!el) return;
+		const isPopup = document.documentElement.dataset.uiSurface === "popup";
+		const observer = new ResizeObserver((entries) => {
+			const width = entries[0]?.contentRect.width ?? 0;
+			setIsDesktop(!isPopup && width >= DESKTOP_BREAKPOINT);
+		});
+		observer.observe(el);
+		return () => observer.disconnect();
 	}, []);
 
 	React.useEffect(() => {
@@ -163,93 +163,19 @@ export const DocumentLibraryPage: React.FC = () => {
 	}
 
 	return (
-		<div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-			{isPopupSurface ? (
-				<>
-					<DocumentLibraryHeader
-						currentPath={lib.currentPath}
-						activeTree={activeTree}
-						homeTitle={
-							lib.isWorkspaceSection ? t("sidebar.workspace") : t("title")
-						}
-						isWorkspaceSection={lib.isWorkspaceSection}
-						compact
-						viewMode={lib.viewMode}
-						searchQuery={lib.searchQuery}
-						topics={lib.topics}
-						selectedTopicIds={lib.selectedTopicIds}
-						error={lib.error}
-						onNavigate={lib.handleSelectNode}
-						homeOptions={homeOptions}
-						onViewModeChange={lib.setViewMode}
-						onSearchChange={lib.setSearchQuery}
-						onTopicFilterChange={lib.handleTopicFilterChange}
-						onRemoveTopicFilter={lib.handleRemoveTopicFilter}
-						onClearTopicFilters={lib.handleClearTopicFilters}
-						onCreateDocument={lib.handleCreateDocument}
-						onTriggerUpload={lib.triggerFileUpload}
-						onCreateFolder={lib.handleCreateFolder}
-					/>
-					<div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-						<DocumentLibraryCompactNavigator
-							tree={lib.tree}
-							workspaceTree={lib.workspaceTree}
-							selectedSection={lib.selectedSection}
-							selectedNodeId={lib.selectedNode?.id ?? null}
-							docsTitle={t("title")}
-							onSelectDocumentsRoot={lib.handleSelectDocumentsSection}
-							onSelectWorkspaceRoot={lib.handleSelectWorkspaceSection}
-							onSelectDocNode={lib.handleSelectDocNode}
-							onSelectWorkspaceNode={lib.handleSelectWorkspaceNode}
-							onToggleExpand={lib.handleToggleExpand}
-							onToggleExpandWorkspace={lib.handleToggleExpandWorkspace}
-							onMove={lib.handleMove}
-							onRenameNode={handleTreeRename}
-							onDeleteNode={handleTreeDelete}
-						/>
-						<div className="min-w-0 flex-1 overflow-hidden">
-							<DocumentLibraryContent
-								selectedNode={lib.selectedNode}
-								isFileSelected={lib.isFileSelected}
-								isFolderSelected={lib.isFolderSelected}
-								isWorkspaceSection={lib.isWorkspaceSection}
-								folderContents={lib.folderContents}
-								viewMode={lib.viewMode}
-								fileTopicMap={lib.fileTopicMap}
-								selectedTopicIds={lib.selectedTopicIds}
-								compact={isPopupSurface}
-								onSelectNodeById={lib.handleSelectNodeInActiveTree}
-								onOpenFolderByPath={lib.handleOpenFolderByPath}
-								onCloseViewer={lib.handleCloseViewer}
-								onDeleteItem={lib.handleDeleteItem}
-								onRenameItem={lib.handleRenameItem}
-								onDownloadFile={lib.handleDownloadFile}
-								onDownloadSelectedFile={lib.handleDownloadSelectedFile}
-								onManageTopics={lib.handleManageFileTopic}
-								onConvertToKnowledge={lib.handleConvertToKnowledge}
-								onDeleteSelectedFile={lib.handleDeleteSelectedFile}
-								onToggleTopicFilter={lib.handleToggleTopicFilter}
-							/>
-						</div>
-					</div>
-				</>
-			) : (
+		<div
+			ref={outerRef}
+			className="flex h-full min-h-0 flex-col overflow-hidden bg-background"
+		>
+			{isDesktop ? (
 				<div
 					ref={containerRef}
-					className={
-						isDesktop
-							? "grid min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
-							: "flex min-h-0 min-w-0 flex-1 overflow-hidden"
-					}
-					style={
-						isDesktop
-							? {
-									gridTemplateColumns: `${panelSizes[0]}fr ${DESKTOP_SEPARATOR_TRACK}px ${panelSizes[1]}fr`,
-								}
-							: undefined
-					}
+					className="grid min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
+					style={{
+						gridTemplateColumns: `${panelSizes[0]}fr ${DESKTOP_SEPARATOR_TRACK}px ${panelSizes[1]}fr`,
+					}}
 				>
-					<div className={isDesktop ? "min-h-0 overflow-hidden" : ""}>
+					<div className="min-h-0 overflow-hidden">
 						<DocumentLibrarySidebar
 							tree={lib.tree}
 							workspaceTree={lib.workspaceTree}
@@ -270,11 +196,7 @@ export const DocumentLibraryPage: React.FC = () => {
 					<div
 						role="separator"
 						aria-orientation="vertical"
-						className={
-							isDesktop
-								? "group relative z-10 -mx-[5px] flex w-3 cursor-col-resize items-center justify-center bg-transparent"
-								: "hidden"
-						}
+						className="group relative z-10 -mx-[5px] flex w-3 cursor-col-resize items-center justify-center bg-transparent"
 						onMouseDown={handleResizeStart}
 					>
 						<div className="h-full w-px bg-border/80 transition-all group-hover:w-[2px] group-hover:bg-foreground/20" />
@@ -330,6 +252,75 @@ export const DocumentLibraryPage: React.FC = () => {
 						</div>
 					</div>
 				</div>
+			) : (
+				<>
+					<DocumentLibraryHeader
+						currentPath={lib.currentPath}
+						activeTree={activeTree}
+						homeTitle={
+							lib.isWorkspaceSection ? t("sidebar.workspace") : t("title")
+						}
+						isWorkspaceSection={lib.isWorkspaceSection}
+						compact
+						viewMode={lib.viewMode}
+						searchQuery={lib.searchQuery}
+						topics={lib.topics}
+						selectedTopicIds={lib.selectedTopicIds}
+						error={lib.error}
+						onNavigate={lib.handleSelectNode}
+						homeOptions={homeOptions}
+						onViewModeChange={lib.setViewMode}
+						onSearchChange={lib.setSearchQuery}
+						onTopicFilterChange={lib.handleTopicFilterChange}
+						onRemoveTopicFilter={lib.handleRemoveTopicFilter}
+						onClearTopicFilters={lib.handleClearTopicFilters}
+						onCreateDocument={lib.handleCreateDocument}
+						onTriggerUpload={lib.triggerFileUpload}
+						onCreateFolder={lib.handleCreateFolder}
+					/>
+					<div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+						<DocumentLibraryCompactNavigator
+							tree={lib.tree}
+							workspaceTree={lib.workspaceTree}
+							selectedSection={lib.selectedSection}
+							selectedNodeId={lib.selectedNode?.id ?? null}
+							docsTitle={t("title")}
+							onSelectDocumentsRoot={lib.handleSelectDocumentsSection}
+							onSelectWorkspaceRoot={lib.handleSelectWorkspaceSection}
+							onSelectDocNode={lib.handleSelectDocNode}
+							onSelectWorkspaceNode={lib.handleSelectWorkspaceNode}
+							onToggleExpand={lib.handleToggleExpand}
+							onToggleExpandWorkspace={lib.handleToggleExpandWorkspace}
+							onMove={lib.handleMove}
+							onRenameNode={handleTreeRename}
+							onDeleteNode={handleTreeDelete}
+						/>
+						<div className="min-w-0 flex-1 overflow-hidden">
+							<DocumentLibraryContent
+								selectedNode={lib.selectedNode}
+								isFileSelected={lib.isFileSelected}
+								isFolderSelected={lib.isFolderSelected}
+								isWorkspaceSection={lib.isWorkspaceSection}
+								folderContents={lib.folderContents}
+								viewMode={lib.viewMode}
+								fileTopicMap={lib.fileTopicMap}
+								selectedTopicIds={lib.selectedTopicIds}
+								compact
+								onSelectNodeById={lib.handleSelectNodeInActiveTree}
+								onOpenFolderByPath={lib.handleOpenFolderByPath}
+								onCloseViewer={lib.handleCloseViewer}
+								onDeleteItem={lib.handleDeleteItem}
+								onRenameItem={lib.handleRenameItem}
+								onDownloadFile={lib.handleDownloadFile}
+								onDownloadSelectedFile={lib.handleDownloadSelectedFile}
+								onManageTopics={lib.handleManageFileTopic}
+								onConvertToKnowledge={lib.handleConvertToKnowledge}
+								onDeleteSelectedFile={lib.handleDeleteSelectedFile}
+								onToggleTopicFilter={lib.handleToggleTopicFilter}
+							/>
+						</div>
+					</div>
+				</>
 			)}
 		</div>
 	);

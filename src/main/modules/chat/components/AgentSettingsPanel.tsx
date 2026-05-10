@@ -23,7 +23,13 @@ import {
 	AlertDialogTrigger,
 } from "@/main/components/ui/alert-dialog";
 
-export const AgentSettingsPanel: React.FC = () => {
+interface AgentSettingsPanelProps {
+	onClose?: () => void;
+}
+
+export const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({
+	onClose,
+}) => {
 	const { t } = useTranslation("chat");
 	const {
 		isLoading,
@@ -111,7 +117,7 @@ export const AgentSettingsPanel: React.FC = () => {
 				<Button
 					variant="ghost"
 					size="sm"
-					onClick={close}
+					onClick={onClose ?? close}
 					className="h-7 w-7 p-0"
 				>
 					<X size={14} />

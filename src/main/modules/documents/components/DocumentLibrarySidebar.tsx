@@ -54,7 +54,7 @@ export const DocumentLibrarySidebar = memo(function DocumentLibrarySidebar({
 	}, [selectedSection]);
 
 	return (
-		<div className="hidden h-full bg-background md:flex md:flex-col overflow-hidden flex-shrink-0">
+		<div className="flex h-full flex-col overflow-hidden flex-shrink-0 bg-background">
 			<PageHeader
 				icon={<FileText size={20} />}
 				title={docsTitle}
