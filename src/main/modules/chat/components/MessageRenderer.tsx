@@ -28,6 +28,7 @@ import type {
 } from "@/types/chat";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import { cn } from "@/lib/utils";
+import { Button } from "@/main/components/ui/button";
 import { EMBEDDED_CONTEXT_TAG_CONFIG } from "@/embedded/context-items";
 import { ArtifactRenderer } from "./artifacts/ArtifactRenderer";
 import { parseArtifactSegments } from "./artifacts/artifact-protocol";
@@ -389,29 +390,59 @@ interface MessageMetadata extends MessageFooterMetadata {
 	};
 }
 
+const parseInnerMessage = (message: string): string => {
+	const jsonStart = message.indexOf("{");
+	if (jsonStart === -1) return message;
+	try {
+		const parsed = JSON.parse(message.slice(jsonStart));
+		if (
+			typeof parsed?.error?.message === "string" &&
+			parsed.error.message.length > 0
+		) {
+			return parsed.error.message;
+		}
+	} catch {}
+	return message;
+};
+
 const MessageErrorNotice: React.FC<{
 	error: NonNullable<MessageMetadata["error"]>;
 }> = ({ error }) => {
-	const details = [
-		error.statusCode ? `HTTP ${error.statusCode}` : null,
-		error.code ? `Code ${error.code}` : null,
-		error.providerName ? `Provider ${error.providerName}` : null,
-	].filter(Boolean);
+	const [expanded, setExpanded] = useState(false);
+	const displayMessage = parseInnerMessage(error.message);
+	const hasDetails = error.rawMessage
+		? error.rawMessage !== displayMessage
+		: error.message !== displayMessage;
+	const fullDetails = error.rawMessage ?? error.message;
 
 	return (
 		<div className="my-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
 			<div className="flex items-start gap-2">
 				<AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
 				<div className="min-w-0 flex-1">
-					<div className="font-medium">Request failed</div>
-					<div className="mt-1 whitespace-pre-wrap break-words text-destructive/90">
-						{error.message}
+					<div className="whitespace-pre-wrap break-words">
+						{displayMessage}
 					</div>
-					{details.length > 0 ? (
-						<div className="mt-1 text-xs text-destructive/75">
-							{details.join(" | ")}
-						</div>
-					) : null}
+					{hasDetails && (
+						<>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setExpanded((v) => !v)}
+								className="mt-1 h-auto px-1 py-0.5 text-xs text-destructive/75 hover:bg-destructive/10 hover:text-destructive"
+							>
+								<ChevronDown
+									className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`}
+								/>
+								{expanded ? "Hide details" : "Show details"}
+							</Button>
+							{expanded && (
+								<div className="mt-1 whitespace-pre-wrap break-all text-xs text-destructive/75">
+									{fullDetails}
+								</div>
+							)}
+						</>
+					)}
 				</div>
 			</div>
 		</div>

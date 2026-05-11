@@ -22,3 +22,4 @@ import "./shopping-assistant-feature";
 import "./finance-tracker-feature";
 import "./multi-agent-feature";
 import "./mcp-feature";
+import "./auto-compact";

@@ -99,9 +99,9 @@ export class AgentGraph extends GraphBase<
 		this.workflow = new StateGraph(AgentAnnotation);
 
 		// Add nodes
-		this.workflow.addNode("initial", this.initialNode);
-		this.workflow.addNode("agent", this.agentNode);
-		this.workflow.addNode("tool_executor", this.toolsNode);
+		this.addNode("initial", this.initialNode);
+		this.addNode("agent", this.agentNode);
+		this.addNode("tool_executor", this.toolsNode);
 
 		this.workflow.addEdge(START, "initial");
 		this.workflow.addEdge("initial", "agent");

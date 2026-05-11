@@ -14,7 +14,7 @@ import {
 import { serviceManager } from "@/services";
 import type { InitializationProgress } from "@/services/service-manager";
 import TypingText from "../ui/shadcn-io/typing-text";
-import { isPopupSurface } from "@/utils/dom";
+import { RUNTIME_PANEL_BREAKPOINT } from "@/utils/dom";
 
 interface LoadingStep {
 	id: string;
@@ -51,7 +51,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 	uiProgress = 0,
 }) => {
 	const { t } = useTranslation("common");
-	const isPopup = isPopupSurface();
+	const isPopup = window.innerWidth < RUNTIME_PANEL_BREAKPOINT;
 
 	// Create loading steps with translations
 	const LOADING_STEPS: LoadingStep[] = [
@@ -155,59 +155,64 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 	};
 
 	const progressToUse = Math.round(uiProgress || serviceProgress.progress);
-	const activeStep =
-		LOADING_STEPS.find((step) => getStepStatus(step.id).isCurrent) ??
-		LOADING_STEPS[LOADING_STEPS.length - 1];
 
 	if (error) {
+		if (isPopup) {
+			return (
+				<div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 bg-background px-5 py-6 text-center">
+					<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
+						<img
+							src="/logo.png"
+							alt="Memorall Logo"
+							className="h-9 w-9 object-contain opacity-50"
+						/>
+					</div>
+					<div>
+						<p className="text-sm font-semibold text-foreground">
+							{t("appLoading.error.title")}
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground break-words">
+							{error}
+						</p>
+					</div>
+					<button
+						onClick={onRetry}
+						className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+					>
+						<RefreshCw className="h-3.5 w-3.5" />
+						{t("appLoading.error.tryAgain")}
+					</button>
+					<p className="text-[11px] text-muted-foreground">
+						{t("appLoading.error.consoleHelp")}
+					</p>
+				</div>
+			);
+		}
+
 		return (
-			<div
-				className={`flex items-center justify-center bg-background ${
-					isPopup
-						? "h-full min-h-0 px-2 py-2 sm:px-3 sm:py-3"
-						: "min-h-dvh px-3 py-4 sm:px-4"
-				}`}
-			>
-				<Card
-					className={`border-destructive ${
-						isPopup ? "w-full max-w-none shadow-lg" : "w-full max-w-[480px]"
-					}`}
-				>
-					<CardContent className={isPopup ? "p-3 sm:p-4" : "p-4 sm:p-6"}>
+			<div className="flex min-h-dvh items-center justify-center bg-background px-3 py-4 sm:px-4">
+				<Card className="w-full max-w-[480px] border-destructive">
+					<CardContent className="p-4 sm:p-6">
 						<div className="text-center">
-							<div
-								className={`mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center overflow-hidden ${
-									isPopup
-										? "h-11 w-11 sm:h-12 sm:w-12"
-										: "h-14 w-14 sm:h-16 sm:w-16"
-								}`}
-							>
+							<div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-destructive/10 sm:h-16 sm:w-16">
 								<img
 									src="/logo.png"
 									alt="Memorall Logo"
-									className={`object-contain opacity-50 ${
-										isPopup
-											? "h-9 w-9 sm:h-10 sm:w-10"
-											: "h-12 w-12 sm:h-14 sm:w-14"
-									}`}
+									className="h-12 w-12 object-contain opacity-50 sm:h-14 sm:w-14"
 								/>
 							</div>
-							<h2
-								className={`font-semibold text-foreground mb-2 ${
-									isPopup ? "text-lg" : "text-xl"
-								}`}
-							>
+							<h2 className="mb-2 text-xl font-semibold text-foreground">
 								{t("appLoading.error.title")}
 							</h2>
-							<p className="text-sm text-muted-foreground mb-6 break-words">
+							<p className="mb-6 break-words text-sm text-muted-foreground">
 								{error}
 							</p>
-							<div className={isPopup ? "space-y-2" : "space-y-3"}>
+							<div className="space-y-3">
 								<button
 									onClick={onRetry}
-									className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium inline-flex items-center justify-center gap-2"
+									className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 								>
-									<RefreshCw className="w-4 h-4" />
+									<RefreshCw className="h-4 w-4" />
 									{t("appLoading.error.tryAgain")}
 								</button>
 								<p className="text-xs text-muted-foreground">
@@ -223,112 +228,101 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
 	if (isPopup) {
 		return (
-			<div className="flex h-full min-h-0 items-center justify-center bg-background p-2 sm:p-3">
-				<Card className="relative h-full w-full max-w-[560px] overflow-hidden border-0 shadow-xl">
-					<div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-primary/14 via-primary/5 to-transparent sm:h-28" />
-					<CardContent className="relative flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 sm:gap-4 sm:p-4">
-						<div className="flex items-start gap-3">
-							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/15 sm:h-12 sm:w-12 sm:rounded-2xl">
-								<img
-									src="/logo.png"
-									alt="Memorall Logo"
-									className="h-8 w-8 object-contain sm:h-9 sm:w-9"
-								/>
-							</div>
-							<div className="min-w-0 flex-1">
-								<div className="label-mono text-[11px] text-primary/80">
-									Memorall
-								</div>
-								<h2 className="mt-1 text-base font-semibold tracking-tight text-foreground sm:text-lg">
-									{t("appLoading.title")}
-								</h2>
-								<p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-									{activeStep?.description ?? t("appLoading.subtitle")}
-								</p>
-							</div>
-							<div className="shrink-0 rounded-full border border-border bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground sm:px-2.5">
-								{progressToUse}%
-							</div>
+			<div className="flex h-dvh flex-col justify-center bg-background overflow-y-auto px-4 py-6">
+				<div className="mx-auto w-full max-w-sm">
+					{/* Logo + title row */}
+					<div className="flex items-center gap-3 mb-6">
+						<img
+							src="/logo.png"
+							alt="Memorall Logo"
+							className="h-10 w-10 shrink-0 object-contain"
+						/>
+						<div className="min-w-0">
+							<p className="text-sm font-semibold text-foreground leading-tight">
+								{t("appLoading.title")}
+							</p>
+							<p className="text-[11px] text-muted-foreground">
+								{t("appLoading.subtitle")}
+							</p>
 						</div>
-
-						<div className="space-y-2 rounded-xl border border-border/80 bg-background/80 p-3 sm:space-y-2.5 sm:rounded-2xl">
-							<div className="flex items-center justify-between gap-3">
-								<div className="min-w-0">
-									<div className="truncate text-sm font-medium text-foreground">
-										{serviceProgress.step}
-									</div>
-									<div className="text-[11px] text-muted-foreground">
-										{t("appLoading.elapsed", {
-											time: formatElapsedTime(elapsedTime),
-										})}
-									</div>
-								</div>
-								<Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
-							</div>
-							<Progress
-								value={progressToUse}
-								className="h-1.5 rounded-full bg-muted/70"
-							/>
+						<div className="ml-auto shrink-0 flex items-center gap-1.5 text-xs text-muted-foreground">
+							<Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+							<span>{progressToUse}%</span>
 						</div>
+					</div>
 
-						<div className="grid gap-1.5 sm:gap-2">
-							{LOADING_STEPS.map((step, index) => {
-								const { isCompleted, isCurrent } = getStepStatus(step.id);
+					{/* Progress bar */}
+					<Progress
+						value={progressToUse}
+						className="h-1.5 rounded-full mb-1.5"
+					/>
+					<div className="flex justify-between text-[11px] text-muted-foreground mb-6">
+						<span className="truncate">{serviceProgress.step}</span>
+						<span className="shrink-0 pl-2">
+							{t("appLoading.elapsed", {
+								time: formatElapsedTime(elapsedTime),
+							})}
+						</span>
+					</div>
 
-								return (
+					{/* Steps checklist */}
+					<div className="flex flex-col gap-2">
+						{LOADING_STEPS.map((step) => {
+							const { isCompleted, isCurrent } = getStepStatus(step.id);
+							return (
+								<div
+									key={step.id}
+									className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-300 ${
+										isCompleted
+											? "bg-emerald-500/10"
+											: isCurrent
+												? "bg-primary/8 border border-primary/20"
+												: "bg-muted/20"
+									}`}
+								>
 									<div
-										key={step.id}
-										className={`flex items-center gap-2.5 rounded-xl border px-2.5 py-2 transition-all duration-300 sm:gap-3 sm:px-3 sm:py-2.5 ${
+										className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
 											isCompleted
-												? "border-emerald-200 bg-emerald-50/90 dark:border-emerald-900 dark:bg-emerald-950/30"
+												? "bg-emerald-500 text-white"
 												: isCurrent
-													? "border-primary/25 bg-primary/5 shadow-sm"
-													: "border-border/70 bg-muted/20"
+													? "bg-primary text-primary-foreground"
+													: "bg-muted/60 text-muted-foreground"
 										}`}
 									>
-										<div
-											className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-300 sm:h-8 sm:w-8 ${
+										{isCompleted ? (
+											<CheckCircle2 className="h-3.5 w-3.5" />
+										) : isCurrent ? (
+											<Loader2 className="h-3.5 w-3.5 animate-spin" />
+										) : (
+											<span className="scale-75">{step.icon}</span>
+										)}
+									</div>
+									<div className="min-w-0 flex-1">
+										<p
+											className={`text-xs font-medium truncate ${
 												isCompleted
-													? "bg-emerald-500 text-white"
+													? "text-emerald-400"
 													: isCurrent
-														? "bg-primary text-primary-foreground"
-														: "bg-muted text-muted-foreground"
+														? "text-foreground"
+														: "text-muted-foreground"
 											}`}
 										>
-											{isCompleted ? (
-												<CheckCircle2 className="h-4 w-4" />
-											) : isCurrent ? (
-												<Loader2 className="h-4 w-4 animate-spin" />
-											) : (
-												step.icon
-											)}
-										</div>
-										<div className="min-w-0 flex-1">
-											<div className="flex items-center justify-between gap-2">
-												<div className="truncate text-sm font-medium text-foreground">
-													{step.title}
-												</div>
-												<div className="shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:tracking-[0.18em]">
-													0{index + 1}
-												</div>
-											</div>
-											<div className="truncate text-xs text-muted-foreground">
-												{step.description}
-											</div>
-										</div>
+											{step.title}
+										</p>
+										<p className="text-[11px] text-muted-foreground truncate">
+											{step.description}
+										</p>
 									</div>
-								);
-							})}
-						</div>
-
-						<div className="mt-auto flex items-center justify-between gap-3 rounded-xl border border-dashed border-border/80 bg-muted/15 px-3 py-2 text-[11px] text-muted-foreground">
-							<span className="min-w-0 truncate">
-								{t("appLoading.firstLaunch")}
-							</span>
-							<span className="shrink-0 truncate">{activeStep?.title}</span>
-						</div>
-					</CardContent>
-				</Card>
+									{isCompleted && (
+										<span className="shrink-0 text-[11px] font-medium text-emerald-400">
+											{t("appLoading.done")}
+										</span>
+									)}
+								</div>
+							);
+						})}
+					</div>
+				</div>
 			</div>
 		);
 	}
