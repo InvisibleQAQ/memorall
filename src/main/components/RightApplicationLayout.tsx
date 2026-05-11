@@ -1,16 +1,9 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-	Bot,
-	VectorSquareIcon,
-	Database,
 	Bug,
-	Network,
 	ChevronDown,
-	FileText,
-	BrainCircuit,
 	ExternalLink,
-	Server,
 	ChevronsLeft,
 	ChevronsRight,
 } from "lucide-react";
@@ -33,33 +26,15 @@ import { isPopupSurface } from "@/utils/dom";
 import { SettingPanel } from "@/main/components/molecules/SettingPanel";
 import { Button } from "@/main/components/ui/button";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
+import {
+	debugNavigationItems,
+	workspaceNavigationItems,
+} from "@/main/components/app-navigation";
 interface RightApplicationLayoutProps {
 	children: React.ReactNode;
 	collapsed?: boolean;
 	onCollapsedChange?: (collapsed: boolean) => void;
 }
-
-const navigation = [
-	{ nameKey: "navigation.documents", path: "/documents", icon: FileText },
-	{ nameKey: "navigation.agents", path: "/agents", icon: Bot },
-	{
-		nameKey: "navigation.knowledgeGraph",
-		path: "/knowledge-graph",
-		icon: Network,
-	},
-	{ nameKey: "navigation.models", path: "/llm", icon: BrainCircuit },
-	{ nameKey: "sandboxPanel.title", path: "/runtime", icon: Server },
-];
-
-const debugItems = [
-	{
-		nameKey: "navigation.embeddings",
-		path: "/embeddings",
-		icon: VectorSquareIcon,
-	},
-	{ nameKey: "navigation.database", path: "/database", icon: Database },
-	{ nameKey: "navigation.logs", path: "/logs", icon: Bug },
-];
 
 export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 	children,
@@ -91,12 +66,12 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 		void refreshRuntimeSessions();
 	}, [refreshRuntimeSessions]);
 
-	const allPaths = [...navigation, ...debugItems];
+	const allPaths = [...workspaceNavigationItems, ...debugNavigationItems];
 	const checkIsExistNavigation = allPaths.some(
 		(item) => item.path === location.pathname,
 	);
 
-	const isDebugSelected = debugItems.some(
+	const isDebugSelected = debugNavigationItems.some(
 		(item) => item.path === location.pathname,
 	);
 
@@ -127,7 +102,7 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 				</Button>
 				<div className="mt-3 flex flex-col items-center gap-1">
 					<TooltipProvider>
-						{navigation.map((item) => {
+						{workspaceNavigationItems.map((item) => {
 							const IconComponent = item.icon;
 							return (
 								<Tooltip key={item.path}>
@@ -188,7 +163,7 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 										<p>Collapse workspace panel</p>
 									</TooltipContent>
 								</Tooltip>
-								{navigation.map((item) => {
+								{workspaceNavigationItems.map((item) => {
 									const isSelected =
 										location.pathname === item.path ||
 										(!checkIsExistNavigation && item.path === "/");
@@ -249,7 +224,7 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 										</TooltipContent>
 									</Tooltip>
 									<DropdownMenuContent align="start">
-										{debugItems.map((item) => {
+										{debugNavigationItems.map((item) => {
 											const IconComponent = item.icon;
 											return (
 												<DropdownMenuItem key={item.path} asChild>
@@ -302,7 +277,7 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 				</div>
 			</nav>
 
-			<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
 				{children}
 			</div>
 

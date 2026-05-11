@@ -151,5 +151,20 @@
 	"navigator": {
 		"expand": "Mở rộng",
 		"collapse": "Thu gọn"
+	},
+	"knowledgeConversionDialog": {
+		"title": "Chuyển đổi thành kiến thức",
+		"description": "Chọn bộ nhớ cho \"{{fileName}}\". Chuyển đổi sẽ sử dụng loại phát triển của bộ nhớ đó.",
+		"memoryLabel": "Bộ nhớ",
+		"defaultOption": "Mặc định",
+		"noMemoryAssociation": "Không liên kết bộ nhớ",
+		"noMemoriesAvailable": "Không có bộ nhớ nào",
+		"agent": "Đại lý: {{name}}",
+		"cancel": "Hủy",
+		"convert": "Chuyển đổi",
+		"growTypes": {
+			"knowledge-graph": "Đồ thị tri thức",
+			"structmem": "StructMem"
+		}
 	}
 }

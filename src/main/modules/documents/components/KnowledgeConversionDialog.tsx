@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Tags } from "lucide-react";
 import {
 	Dialog,
@@ -29,17 +30,13 @@ export interface KnowledgeConversionSelection {
 	growMode: KnowledgeGrowMode;
 }
 
-const GROW_LABELS: Record<GrowType, string> = {
-	"knowledge-graph": "Knowledge Graph",
-	structmem: "StructMem",
-};
-
 const growTypeToMode = (growType: GrowType): KnowledgeGrowMode =>
 	growType === "structmem" ? "structmem" : "knowledge";
 
 export const KnowledgeConversionDialog =
 	NiceModal.create<KnowledgeConversionDialogProps>(({ fileName }) => {
 		const modal = useModal();
+		const { t } = useTranslation("documents");
 		const [loading, setLoading] = useState(false);
 		const [topics, setTopics] = useState<Topic[]>([]);
 		const [agentNamesById, setAgentNamesById] = useState<
@@ -100,17 +97,18 @@ export const KnowledgeConversionDialog =
 					<DialogHeader className="px-6 pt-6">
 						<DialogTitle className="flex items-center gap-2">
 							<Tags className="h-5 w-5 text-primary" />
-							Convert to Knowledge
+							{t("knowledgeConversionDialog.title")}
 						</DialogTitle>
 						<DialogDescription>
-							Choose memory for "{fileName}". Conversion uses that memory's grow
-							type.
+							{t("knowledgeConversionDialog.description", { fileName })}
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="flex-1 overflow-y-auto px-6 py-4 min-h-0 space-y-4">
 						<div className="space-y-2">
-							<Label className="text-xs font-medium">Memory</Label>
+							<Label className="text-xs font-medium">
+								{t("knowledgeConversionDialog.memoryLabel")}
+							</Label>
 							{loading ? (
 								<div className="flex items-center justify-center rounded-md border py-8">
 									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -140,19 +138,23 @@ export const KnowledgeConversionDialog =
 												)}
 											</div>
 											<div>
-												<div className="font-medium">Default</div>
+												<div className="font-medium">
+													{t("knowledgeConversionDialog.defaultOption")}
+												</div>
 												<div className="text-sm text-muted-foreground">
-													No memory association
+													{t("knowledgeConversionDialog.noMemoryAssociation")}
 												</div>
 												<Badge variant="outline" className="mt-2 text-[10px]">
-													Knowledge Graph
+													{t(
+														"knowledgeConversionDialog.growTypes.knowledge-graph",
+													)}
 												</Badge>
 											</div>
 										</button>
 
 										{topics.length === 0 ? (
 											<div className="py-8 text-center text-sm text-muted-foreground">
-												No memories available
+												{t("knowledgeConversionDialog.noMemoriesAvailable")}
 											</div>
 										) : (
 											topics.map((topic) => (
@@ -187,7 +189,9 @@ export const KnowledgeConversionDialog =
 																variant="outline"
 																className="shrink-0 text-[10px]"
 															>
-																{GROW_LABELS[topic.growType]}
+																{t(
+																	`knowledgeConversionDialog.growTypes.${topic.growType}`,
+																)}
 															</Badge>
 														</div>
 														{topic.description && (
@@ -197,7 +201,9 @@ export const KnowledgeConversionDialog =
 														)}
 														{topic.agentId && agentNamesById[topic.agentId] && (
 															<div className="text-xs text-muted-foreground mt-1">
-																Agent: {agentNamesById[topic.agentId]}
+																{t("knowledgeConversionDialog.agent", {
+																	name: agentNamesById[topic.agentId],
+																})}
 															</div>
 														)}
 													</div>
@@ -212,9 +218,11 @@ export const KnowledgeConversionDialog =
 
 					<DialogFooter className="px-6 pb-6">
 						<Button variant="outline" onClick={handleCancel}>
-							Cancel
+							{t("knowledgeConversionDialog.cancel")}
 						</Button>
-						<Button onClick={handleSelect}>Convert</Button>
+						<Button onClick={handleSelect}>
+							{t("knowledgeConversionDialog.convert")}
+						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

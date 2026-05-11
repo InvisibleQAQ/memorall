@@ -1,19 +1,16 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-	Bot,
-	BrainCircuit,
-	ChevronsLeft,
-	ChevronsRight,
-	FileText,
-	Network,
-	Server,
-} from "lucide-react";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { RightApplicationLayout } from "@/main/components/RightApplicationLayout";
 import { ChatPage } from "@/main/pages/ChatPage";
 import { useShellLayoutStore } from "@/main/stores/shell-layout";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { Button } from "@/main/components/ui/button";
+import { useMediaQuery } from "@/main/hooks/use-viewport";
+import {
+	workspaceNavigationItems,
+	workspaceNavigationPaths,
+} from "@/main/components/app-navigation";
 import {
 	LoadingScreen,
 	NoModelsScreen,
@@ -28,13 +25,7 @@ interface AppShellProps {
 	children: React.ReactNode;
 }
 
-const mobilePanelItems = [
-	{ path: "/documents", label: "Documents", icon: FileText },
-	{ path: "/agents", label: "Agents", icon: Bot },
-	{ path: "/knowledge-graph", label: "Knowledge", icon: Network },
-	{ path: "/llm", label: "Models", icon: BrainCircuit },
-	{ path: "/runtime", label: "Runtime", icon: Server },
-];
+const MOBILE_WORKSPACE_QUERY = "(max-width: 500px)";
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	const navigate = useNavigate();
@@ -64,7 +55,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	const startXRef = React.useRef(0);
 	const startWidthRef = React.useRef(0);
 	const [isResizing, setIsResizing] = React.useState(false);
-	const [isNarrow, setIsNarrow] = React.useState(() => window.innerWidth < 500);
+	const isNarrow = useMediaQuery(MOBILE_WORKSPACE_QUERY);
 	const runtimeCount = useRuntimeSessionsStore((state) =>
 		state.getRuntimeCount(),
 	);
@@ -73,14 +64,14 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	);
 
 	React.useEffect(() => {
-		const update = () => setIsNarrow(window.innerWidth < 500);
-		window.addEventListener("resize", update);
-		return () => window.removeEventListener("resize", update);
-	}, []);
-
-	React.useEffect(() => {
 		void refreshRuntimeSessions();
 	}, [refreshRuntimeSessions]);
+
+	React.useEffect(() => {
+		if (workspaceNavigationPaths.has(location.pathname)) {
+			setRightPanelCollapsed(false);
+		}
+	}, [location.pathname, setRightPanelCollapsed]);
 
 	if (!isInitialized) {
 		return <LoadingScreen />;
@@ -125,8 +116,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 		? ""
 		: "transition-[width,flex-basis] duration-300 ease-out";
 	const isMobileWorkspaceOpen =
-		isNarrow &&
-		mobilePanelItems.some((item) => item.path === location.pathname);
+		isNarrow && workspaceNavigationPaths.has(location.pathname);
 
 	const handleResizeMouseDown = (event: React.MouseEvent) => {
 		event.preventDefault();
@@ -156,9 +146,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	};
 
 	return (
-		<div className="flex h-screen min-h-0 overflow-hidden bg-background text-foreground max-[499px]:block">
+		<div className="flex h-screen min-h-0 overflow-hidden bg-background text-foreground max-[500px]:block">
 			<section
-				className={`relative z-20 h-full min-h-0 flex-shrink-0 border-r bg-background max-[499px]:h-screen max-[499px]:w-full max-[499px]:border-r-0 ${panelTransitionClass}`}
+				className={`relative z-20 h-full min-h-0 flex-shrink-0 border-r bg-background max-[500px]:h-screen max-[500px]:w-full max-[500px]:border-r-0 ${panelTransitionClass}`}
 				style={{
 					width: chatPanelWidth,
 					flexBasis: chatPanelWidth,
@@ -166,7 +156,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 			>
 				{isNarrow && !isMobileWorkspaceOpen ? (
 					<div className="absolute right-3 top-3 z-40 flex items-center gap-1 rounded-lg border border-border/70 bg-background/85 p-1 shadow-sm backdrop-blur-xl">
-						{mobilePanelItems.map((item) => {
+						{workspaceNavigationItems.map((item) => {
 							const Icon = item.icon;
 							const isRuntime = item.path === "/runtime";
 							return (
@@ -174,8 +164,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 									key={item.path}
 									to={item.path}
 									className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
-									aria-label={item.label}
-									title={item.label}
+									aria-label={item.mobileLabel}
+									title={item.mobileLabel}
 								>
 									<Icon size={15} />
 									{isRuntime && runtimeCount > 0 ? (
@@ -202,7 +192,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 				</div>
 				<div
 					onMouseDown={handleResizeMouseDown}
-					className="absolute bottom-0 right-0 top-0 hidden w-1 cursor-col-resize transition-colors hover:bg-primary/40 min-[500px]:block"
+					className="absolute bottom-0 right-0 top-0 hidden w-1 cursor-col-resize transition-colors hover:bg-primary/40 min-[501px]:block"
 				/>
 				{!rightPanelCollapsed ? (
 					<Button
@@ -210,7 +200,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 						variant="ghost"
 						size="icon"
 						onClick={() => setChatShellCollapsed(!effectiveChatShellCollapsed)}
-						className="absolute right-2 top-2 z-30 hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground min-[500px]:inline-flex"
+						className="absolute right-2 top-2 z-30 hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground min-[501px]:inline-flex"
 						aria-label={
 							effectiveChatShellCollapsed
 								? "Restore chat panel"
@@ -232,7 +222,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 			</section>
 
 			<section
-				className={`min-h-0 min-w-0 flex-shrink-0 overflow-hidden max-[499px]:hidden ${panelTransitionClass}`}
+				className={`min-h-0 min-w-0 flex-shrink-0 overflow-hidden max-[500px]:hidden ${panelTransitionClass}`}
 				style={{
 					width: rightPanelWidth,
 					flexBasis: rightPanelWidth,
@@ -247,7 +237,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 			</section>
 
 			{isMobileWorkspaceOpen ? (
-				<section className="fixed inset-0 z-50 bg-background min-[500px]:hidden">
+				<section className="fixed inset-0 z-50 bg-background min-[501px]:hidden">
 					<RightApplicationLayout
 						collapsed={false}
 						onCollapsedChange={(collapsed) => {
