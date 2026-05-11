@@ -32,6 +32,7 @@ export const useAgentsWorkspaceController = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const {
+		presets,
 		filteredPresets,
 		selectedPreset,
 		selectedPresetId,
@@ -113,6 +114,53 @@ export const useAgentsWorkspaceController = () => {
 		if (!selectedPresetId) return;
 		void initialize(selectedPresetId);
 	}, [initialize, selectedPresetId]);
+
+	React.useEffect(() => {
+		if (location.pathname !== "/agents" || isPresetListLoading) return;
+
+		const requestedPresetId = (
+			location.state as { selectedAgentFlowId?: string | null } | null
+		)?.selectedAgentFlowId;
+		if (!requestedPresetId || requestedPresetId === "chat") return;
+
+		const requestedPreset = presets.find(
+			(preset) => preset.id === requestedPresetId,
+		);
+		if (!requestedPreset) return;
+
+		if (requestedPresetId !== selectedPresetId) {
+			if (
+				hasUnsavedChanges &&
+				!window.confirm(t("agents:confirm.discardSelection"))
+			) {
+				navigate(`${location.pathname}${location.search}`, {
+					replace: true,
+					state: null,
+				});
+				return;
+			}
+			selectPreset(requestedPresetId);
+		}
+
+		setSearchQuery("");
+		setIsAgentWizardMode(false);
+		setActiveCompactTab("config");
+		navigate(`${location.pathname}${location.search}`, {
+			replace: true,
+			state: null,
+		});
+	}, [
+		hasUnsavedChanges,
+		isPresetListLoading,
+		location.pathname,
+		location.search,
+		location.state,
+		navigate,
+		presets,
+		selectPreset,
+		selectedPresetId,
+		t,
+	]);
 
 	const configSummary = useAgentConfigSummary({
 		availableTools,

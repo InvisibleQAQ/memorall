@@ -40,6 +40,19 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 	onCreatePreset,
 }) => {
 	const { t } = useTranslation("agents");
+	const itemRefs = React.useRef(new Map<string, HTMLButtonElement>());
+
+	React.useEffect(() => {
+		if (!selectedPresetId) return;
+		const selectedElement = itemRefs.current.get(selectedPresetId);
+		if (!selectedElement) return;
+
+		selectedElement.scrollIntoView({
+			behavior: "smooth",
+			block: "nearest",
+		});
+		selectedElement.focus({ preventScroll: true });
+	}, [selectedPresetId, presets]);
 
 	return (
 		<div
@@ -112,6 +125,13 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 								<button
 									key={preset.id}
 									type="button"
+									ref={(element) => {
+										if (element) {
+											itemRefs.current.set(preset.id, element);
+											return;
+										}
+										itemRefs.current.delete(preset.id);
+									}}
 									onClick={() => onSelectPreset(preset.id)}
 									className={cn(
 										"w-full rounded-xl border px-3 py-3 text-left transition-colors",

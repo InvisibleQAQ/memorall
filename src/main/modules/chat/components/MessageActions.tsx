@@ -89,7 +89,7 @@ const EXACT_ICON_MAPPINGS: Record<string, LucideIcon> = {
 	pdf_to_image: FileImage,
 };
 
-const getActionIcon = (name: string): LucideIcon => {
+export const getActionIcon = (name: string): LucideIcon => {
 	const exact = EXACT_ICON_MAPPINGS[name];
 	if (exact) {
 		return exact;
@@ -103,7 +103,7 @@ const getActionIcon = (name: string): LucideIcon => {
 	);
 };
 
-const translateActionName = (
+export const translateActionName = (
 	t: ReturnType<typeof useTranslation>["t"],
 	actionName: string,
 ): string => {
@@ -264,6 +264,14 @@ const ActionContent: React.FC<ActionContentProps> = React.memo(
 			);
 		}
 	},
+);
+
+export const ToolActionDetails: React.FC<ActionContentProps> = React.memo(
+	({ item, isOpen }) => (
+		<ActionRenderErrorBoundary item={item}>
+			<ActionContent item={item} isOpen={isOpen} />
+		</ActionRenderErrorBoundary>
+	),
 );
 
 interface TaskItemRendererProps {

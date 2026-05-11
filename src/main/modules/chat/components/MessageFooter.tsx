@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	Sparkles,
@@ -9,14 +9,14 @@ import {
 	Box,
 	Copy,
 	Check,
-	Lightbulb,
+	FolderOpen,
 	Hash,
 } from "lucide-react";
 import dayjs from "dayjs";
 
 import type { Message as DBMessage } from "@/services/database/types";
-import { backgroundJob } from "@/services/background-jobs/background-job";
 import { logError } from "@/utils/logger";
+import { DocumentSaveFolderDialog } from "./DocumentSaveFolderDialog";
 
 export interface MessageFooterMetadata extends Record<string, unknown> {
 	model?: string;
@@ -34,11 +34,11 @@ interface MessageFooterProps {
 }
 
 export const MessageFooter: React.FC<MessageFooterProps> = React.memo(
-	({ message, groupMessages, selectedTopic, metadata }) => {
+	({ message, groupMessages, metadata }) => {
 		const { t } = useTranslation("chat");
 		const [copied, setCopied] = useState(false);
-		const [saving, setSaving] = useState(false);
 		const [saved, setSaved] = useState(false);
+		const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 		const [showFullInfo, setShowFullInfo] = useState(false);
 
 		const { model, provider, timeToAnswer, tokensPerSecond, estimatedTokens } =
@@ -77,46 +77,27 @@ export const MessageFooter: React.FC<MessageFooterProps> = React.memo(
 			}
 		}, [message.content]);
 
-		const handleSaveToRemembered = useCallback(async () => {
-			if (saving) return;
+		const documentContent = useMemo(() => {
+			const conversationText = groupMessages
+				.filter((msg) => msg.type !== "separator" && msg.content)
+				.map((msg) => {
+					const role = msg.role === "user" ? "User" : "Assistant";
+					return `${role}: ${msg.content}`;
+				})
+				.join("\n\n");
 
-			setSaving(true);
-			try {
-				const conversationText = groupMessages
-					.filter((msg) => msg.type !== "separator" && msg.content)
-					.map((msg) => {
-						const role = msg.role === "user" ? "User" : "Assistant";
-						return `${role}: ${msg.content}`;
-					})
-					.join("\n\n");
+			const sourceInfo = `Conversation from chat\nDate: ${dayjs().format("MMM D, YYYY h:mm A")}\n\n`;
+			return sourceInfo + conversationText;
+		}, [groupMessages]);
 
-				const conversationId = `conversation-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-				const sourceInfo = `Conversation from chat\nDate: ${dayjs().format("MMM D, YYYY h:mm A")}\n\n`;
-				const fullContent = sourceInfo + conversationText;
+		const documentFileName = useMemo(
+			() => `chat-conversation-${dayjs().format("YYYY-MM-DD-HHmmss")}.md`,
+			[],
+		);
 
-				const result = await backgroundJob.execute(
-					"knowledge-graph",
-					{
-						filePath: conversationId,
-						content: fullContent,
-						isSpecificTextConversion: true,
-						topicId: selectedTopic || undefined,
-					},
-					{ stream: false },
-				);
-
-				if ("promise" in result) {
-					await result.promise;
-				}
-
-				setSaved(true);
-				setTimeout(() => setSaved(false), 3000);
-			} catch (error) {
-				logError("Failed to save to remembered content:", error);
-			} finally {
-				setSaving(false);
-			}
-		}, [saving, groupMessages, selectedTopic]);
+		const handleSaveToRemembered = useCallback(() => {
+			setSaveDialogOpen(true);
+		}, []);
 
 		return (
 			<div className="mt-3 pt-3 border-t border-border/40">
@@ -124,7 +105,7 @@ export const MessageFooter: React.FC<MessageFooterProps> = React.memo(
 					<div className="flex items-center gap-1">
 						<button
 							onClick={handleCopy}
-							className="p-1.5 rounded hover:bg-accent transition-colors"
+							className="p-1.5 rounded hover:bg-accent transition-colors cursor-pointer"
 							title={
 								copied
 									? t("messages.copied", "Copied!")
@@ -140,20 +121,17 @@ export const MessageFooter: React.FC<MessageFooterProps> = React.memo(
 
 						<button
 							onClick={handleSaveToRemembered}
-							className="p-1.5 rounded hover:bg-accent transition-colors"
+							className="p-1.5 rounded hover:bg-accent transition-colors cursor-pointer"
 							title={
 								saved
 									? t("messages.saved", "Saved!")
-									: saving
-										? t("messages.saving", "Saving...")
-										: t("messages.remember", "Save to remembered content")
+									: t("messages.saveToDocuments", "Save to documents")
 							}
-							disabled={saving}
 						>
 							{saved ? (
 								<Check className="w-4 h-4 text-green-500" />
 							) : (
-								<Lightbulb className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+								<FolderOpen className="w-4 h-4 text-muted-foreground hover:text-foreground" />
 							)}
 						</button>
 					</div>
@@ -177,7 +155,7 @@ export const MessageFooter: React.FC<MessageFooterProps> = React.memo(
 
 						<button
 							onClick={() => setShowFullInfo(!showFullInfo)}
-							className="p-1.5 rounded hover:bg-accent transition-colors"
+							className="p-1.5 rounded hover:bg-accent transition-colors cursor-pointer"
 							title={showFullInfo ? "Hide details" : "Show details"}
 						>
 							{showFullInfo ? (
@@ -219,6 +197,20 @@ export const MessageFooter: React.FC<MessageFooterProps> = React.memo(
 						)}
 					</div>
 				</div>
+				<DocumentSaveFolderDialog
+					open={saveDialogOpen}
+					content={documentContent}
+					initialFileName={documentFileName}
+					mimeType="text/markdown"
+					onOpenChange={setSaveDialogOpen}
+					onSaved={() => {
+						setSaved(true);
+						setTimeout(() => setSaved(false), 3000);
+					}}
+					onError={(error) => {
+						logError("Failed to save chat transcript to documents:", error);
+					}}
+				/>
 			</div>
 		);
 	},

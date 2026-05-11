@@ -1,9 +1,14 @@
 import React, { memo } from "react";
 import { useTranslation } from "react-i18next";
-import { PanelLeftClose } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/main/components/ui/tabs";
+import {
+	ChevronDown,
+	ChevronRight,
+	Folder,
+	PanelLeftClose,
+} from "lucide-react";
 import { DocumentTreeDraggable } from "./DocumentTreeDraggable";
 import type { DocumentTreeNode } from "@/types/document-library";
+import { cn } from "@/lib/utils";
 
 interface DocumentLibraryCompactNavigatorProps {
 	tree: DocumentTreeNode[];
@@ -48,59 +53,81 @@ export const DocumentLibraryCompactNavigator = memo(
 		onDeleteNode,
 	}: DocumentLibraryCompactNavigatorProps) {
 		const { t } = useTranslation("documents");
-		const isWorkspaceSection = selectedSection === "workspace";
-		const activeTree = isWorkspaceSection ? workspaceTree : tree;
+		const renderSection = (
+			section: "documents" | "workspace",
+			label: string,
+			onSelectRoot: () => void,
+		) => {
+			const isActive = selectedSection === section;
+			const sectionTree = section === "workspace" ? workspaceTree : tree;
+			const handleSelectNode =
+				section === "workspace" ? onSelectWorkspaceNode : onSelectDocNode;
+			const handleToggleExpand =
+				section === "workspace" ? onToggleExpandWorkspace : onToggleExpand;
+			const handleMove = section === "workspace" ? undefined : onMove;
+
+			return (
+				<div
+					className={cn("relative min-h-0", isActive && "flex flex-1 flex-col")}
+				>
+					<button
+						type="button"
+						onClick={onSelectRoot}
+						className={cn(
+							"flex h-9 w-full items-center gap-2 rounded-md px-2 pr-8 text-left text-sm font-medium transition-colors",
+							isActive
+								? "bg-accent text-accent-foreground"
+								: "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+						)}
+						aria-expanded={isActive}
+					>
+						{isActive ? (
+							<ChevronDown className="h-4 w-4 flex-shrink-0" />
+						) : (
+							<ChevronRight className="h-4 w-4 flex-shrink-0" />
+						)}
+						<Folder className="h-4 w-4 flex-shrink-0 text-blue-500" />
+						<span className="min-w-0 flex-1 truncate">{label}</span>
+					</button>
+					{isActive && (
+						<div className="min-h-0 flex-1 overflow-hidden">
+							<DocumentTreeDraggable
+								tree={sectionTree}
+								selectedId={selectedNodeId}
+								onSelectNode={handleSelectNode}
+								onToggleExpand={handleToggleExpand}
+								onMove={handleMove}
+								onRename={onRenameNode}
+								onDelete={onDeleteNode}
+							/>
+						</div>
+					)}
+				</div>
+			);
+		};
 
 		if (isCollapsed) {
 			return null;
 		}
 
 		return (
-			<aside className="flex h-full w-[42%] min-w-[190px] max-w-[240px] flex-col border-r bg-card">
-				<div className="flex items-center gap-1 border-b px-2 py-2">
-					<Tabs
-						value={selectedSection}
-						className="flex-1"
-						onValueChange={(value) => {
-							if (value === "workspace") {
-								onSelectWorkspaceRoot();
-								return;
-							}
-							onSelectDocumentsRoot();
-						}}
-					>
-						<TabsList className="grid h-9 w-full grid-cols-2">
-							<TabsTrigger value="documents" className="px-2 text-xs">
-								{docsTitle}
-							</TabsTrigger>
-							<TabsTrigger value="workspace" className="px-2 text-xs">
-								{t("sidebar.workspace")}
-							</TabsTrigger>
-						</TabsList>
-					</Tabs>
-					<button
-						onClick={() => onCollapsedChange(true)}
-						className="flex-shrink-0 rounded p-1 hover:bg-accent"
-						title={t("navigator.collapse")}
-					>
-						<PanelLeftClose className="h-4 w-4" />
-					</button>
-				</div>
-
-				<div className="min-h-0 flex-1 overflow-hidden">
-					<DocumentTreeDraggable
-						tree={activeTree}
-						selectedId={selectedNodeId}
-						onSelectNode={
-							isWorkspaceSection ? onSelectWorkspaceNode : onSelectDocNode
-						}
-						onToggleExpand={
-							isWorkspaceSection ? onToggleExpandWorkspace : onToggleExpand
-						}
-						onMove={isWorkspaceSection ? undefined : onMove}
-						onRename={onRenameNode}
-						onDelete={onDeleteNode}
-					/>
+			<aside className="relative flex h-full w-[42%] min-w-[190px] max-w-[240px] flex-col border-r bg-card">
+				<button
+					type="button"
+					onClick={() => onCollapsedChange(true)}
+					className="absolute right-1 top-3 z-20 flex h-6 w-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+					title={t("navigator.collapse")}
+					aria-label={t("navigator.collapse")}
+				>
+					<PanelLeftClose className="h-5 w-5" />
+				</button>
+				<div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden p-2">
+					{renderSection("documents", docsTitle, onSelectDocumentsRoot)}
+					{renderSection(
+						"workspace",
+						t("sidebar.workspace"),
+						onSelectWorkspaceRoot,
+					)}
 				</div>
 			</aside>
 		);

@@ -154,34 +154,6 @@ const addMessage = async (
 	return message;
 };
 
-const getNextSeparatorCreatedAt = async (
-	conversationId: string,
-): Promise<Date | null> => {
-	return serviceManager.databaseService.use(async ({ db, schema }) => {
-		const [latestMessage] = await db
-			.select()
-			.from(schema.messages)
-			.where(eq(schema.messages.conversationId, conversationId))
-			.orderBy(desc(schema.messages.createdAt))
-			.limit(1);
-
-		if (!latestMessage) {
-			return null;
-		}
-
-		if (latestMessage.type === "separator") {
-			return null;
-		}
-
-		if (!latestMessage.createdAt) {
-			return new Date();
-		}
-
-		const latestTime = new Date(latestMessage.createdAt).getTime();
-		return Number.isFinite(latestTime) ? new Date(latestTime + 1) : new Date();
-	});
-};
-
 const finalizeMessage = async (
 	id: string,
 	input: Partial<StoredMessageInput>,
@@ -247,20 +219,12 @@ class EmbeddedChatHistoryHandler implements ProcessHandler<BaseJob> {
 				} satisfies EmbeddedChatHistoryResult;
 
 			case "insert-separator":
-				const createdAt = await getNextSeparatorCreatedAt(conversation.id);
-				if (!createdAt) {
-					return {
-						conversationId: conversation.id,
-						messages: [],
-					} satisfies EmbeddedChatHistoryResult;
-				}
-
 				await addMessage(
 					conversation.id,
 					{
 						role: "system",
 						content: "---",
-						createdAt,
+						createdAt: new Date(),
 						metadata: { source: "embedded-chat" },
 					},
 					"separator",

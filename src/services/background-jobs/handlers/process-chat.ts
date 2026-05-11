@@ -15,6 +15,7 @@ import {
 	normalizeLangGraphStreamChunk,
 	type FlowAction,
 } from "@/services/flows/utils/langgraph-stream";
+import type { ComplexContent } from "@/types/chat";
 import { handlerRegistry } from "./handler-registry";
 import type { FoundationState } from "@/services/flows/graph/foundation/state";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
@@ -70,6 +71,7 @@ export type ChatResult =
 					description: string;
 					metadata: Record<string, unknown>;
 				}>;
+				contentParts?: ComplexContent;
 				tool_calls?: ChatCompletionMessageToolCall[];
 				usage?: {
 					prompt_tokens: number;
@@ -298,20 +300,11 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 			const delta = choice.delta;
 
-			if (
+			const shouldStreamToolCalls =
 				deps.config.streamToolCallsImmediately &&
-				ChatHandler.hasToolCalls(delta)
-			) {
+				ChatHandler.hasToolCalls(delta);
+			if (shouldStreamToolCalls) {
 				deps.onToolCalls?.(delta.tool_calls);
-				await deps.dependencies.updateJobProgress(deps.jobId, {
-					stage: "Tool call in progress...",
-					progress: deps.getProgress(),
-					result: {
-						type: "chunk",
-						chunk,
-					} as ChatResult,
-				});
-				return;
 			}
 
 			const content = delta?.content ?? "";
@@ -319,7 +312,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				deps.streamBuffer.add(content);
 			}
 
-			if (delta?.role || choice.finish_reason) {
+			if (shouldStreamToolCalls || delta?.role || choice.finish_reason) {
 				const chunkToSend = content
 					? {
 							...chunk,

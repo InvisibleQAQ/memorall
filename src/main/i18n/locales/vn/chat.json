@@ -78,6 +78,7 @@
 		"web access": "Truy cập Web"
 	},
 	"messages": {
+		"assistant": "Trợ lý",
 		"thinking": "Đang suy nghĩ...",
 		"thought": "Suy nghĩ",
 		"error": "Không thể gửi tin nhắn",
@@ -129,6 +130,44 @@
 			"agent": "Chạy tác nhân",
 			"decision": "Quyết định bước tiếp",
 			"answer": "Tạo câu trả lời"
+		}
+	},
+	"workflow": {
+		"showDetails": "Hiện chi tiết lượt chạy",
+		"hideDetails": "Ẩn chi tiết lượt chạy",
+		"runningFeature": "Đang chuẩn bị {{name}}",
+		"steps": {
+			"instructions": {
+				"running": "Đang tải hướng dẫn",
+				"complete": "Đã tải hướng dẫn"
+			},
+			"skills": {
+				"running": "Đang tải skill",
+				"complete": "Đã tải skill"
+			},
+			"knowledge": {
+				"running": "Đang tìm kiến thức",
+				"complete": "Đã kiểm tra kiến thức"
+			},
+			"response": {
+				"running": "Đang soạn phản hồi",
+				"complete": "Đã chuẩn bị phản hồi"
+			},
+			"generic": {
+				"running": "Đang chuẩn bị {{name}}"
+			}
+		},
+		"descriptions": {
+			"instructions": "Đã áp dụng thiết lập của trợ lý.",
+			"skills": "Đã tải skill và ngữ cảnh đã chọn.",
+			"knowledge": "Đã kiểm tra bộ nhớ đã lưu và ngữ cảnh đồ thị.",
+			"response": "Đã tạo phản hồi của trợ lý.",
+			"generic": "Đã chuẩn bị lượt chạy này."
+		},
+		"evidence": {
+			"knowledge_graph": "Bằng chứng đồ thị tri thức",
+			"context_knowledge": "Ngữ cảnh tri thức",
+			"structmem_knowledge_retrieval": "Truy xuất StructMem"
 		}
 	},
 	"citation": {

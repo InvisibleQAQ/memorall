@@ -1,8 +1,9 @@
-import fs, { initializeFs } from "@/services/filesystem/fs";
+import fs from "@/services/filesystem/fs";
 import {
 	listDefaultSkills,
 	readDefaultSkill,
 } from "@/services/filesystem/default-skills";
+import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import { logError, logInfo } from "@/utils/logger";
 
 const SKILLS_FS_ROOT = "/home/documents/skills";
@@ -112,18 +113,8 @@ export class SkillFileSystem {
 
 	private async initialize(): Promise<void> {
 		if (this.initialized) return;
-		await initializeFs();
-		await this.ensureDir(SKILLS_FS_ROOT);
+		await documentFileSystemService.ensureFolderPath(SKILLS_LOGICAL_ROOT);
 		this.initialized = true;
-	}
-
-	private async ensureDir(path: string): Promise<void> {
-		try {
-			await fs.promises.mkdir(path, { recursive: true });
-		} catch (err) {
-			const e = err as { code?: string };
-			if (e.code !== "EEXIST") throw err;
-		}
 	}
 
 	private fsPath(name: string): string {
@@ -195,9 +186,10 @@ export class SkillFileSystem {
 			throw new Error(`Skill not found: ${name}`);
 		}
 
-		const path = this.fsPath(name);
 		try {
-			const raw = await fs.promises.readFile(path);
+			const raw = await documentFileSystemService.getFileContent(
+				this.logicalPath(name),
+			);
 			const text = new TextDecoder().decode(raw);
 			const { meta, body } = parseFrontmatter(text);
 			const resolvedName = meta.name ?? name;
@@ -233,7 +225,10 @@ export class SkillFileSystem {
 
 		const content = buildContent(name, description, body);
 		const path = `${SKILLS_FS_ROOT}/${sanitized}.md`;
-		await fs.promises.writeFile(path, new TextEncoder().encode(content));
+		await documentFileSystemService.writeFileContent(
+			this.logicalPath(name),
+			new TextEncoder().encode(content),
+		);
 
 		logInfo(`Skill written: ${path}`);
 
@@ -254,7 +249,7 @@ export class SkillFileSystem {
 
 		const path = this.fsPath(name);
 		try {
-			await fs.promises.unlink(path);
+			await documentFileSystemService.deleteFileContent(this.logicalPath(name));
 			logInfo(`Skill deleted: ${path}`);
 		} catch {
 			throw new Error(`Skill not found: ${name}`);

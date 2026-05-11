@@ -78,6 +78,7 @@
 		"web access": "Web Access"
 	},
 	"messages": {
+		"assistant": "Assistant",
 		"thinking": "Thinking...",
 		"thought": "Thought",
 		"error": "Failed to send message",
@@ -129,6 +130,44 @@
 			"agent": "Running agent",
 			"decision": "Deciding next step",
 			"answer": "Generating answer"
+		}
+	},
+	"workflow": {
+		"showDetails": "Show run details",
+		"hideDetails": "Hide run details",
+		"runningFeature": "Preparing {{name}}",
+		"steps": {
+			"instructions": {
+				"running": "Loading instructions",
+				"complete": "Instructions loaded"
+			},
+			"skills": {
+				"running": "Loading skills",
+				"complete": "Skills loaded"
+			},
+			"knowledge": {
+				"running": "Searching knowledge",
+				"complete": "Knowledge checked"
+			},
+			"response": {
+				"running": "Composing response",
+				"complete": "Response prepared"
+			},
+			"generic": {
+				"running": "Preparing {{name}}"
+			}
+		},
+		"descriptions": {
+			"instructions": "Applied the assistant setup.",
+			"skills": "Loaded selected skills and context.",
+			"knowledge": "Checked stored memories and graph context.",
+			"response": "Generated the assistant response.",
+			"generic": "Prepared this run."
+		},
+		"evidence": {
+			"knowledge_graph": "Knowledge graph evidence",
+			"context_knowledge": "Knowledge context",
+			"structmem_knowledge_retrieval": "StructMem retrieval"
 		}
 	},
 	"citation": {

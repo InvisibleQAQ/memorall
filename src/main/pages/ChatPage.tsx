@@ -83,7 +83,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 		React.useState<string[]>([]);
 	const [selectedAgentFeatureLabels, setSelectedAgentFeatureLabels] =
 		React.useState<string[]>([]);
-	const { isOpen, open, close } = useAgentConfigStore();
+	const { isOpen, open } = useAgentConfigStore();
 	const refreshRuntimeSessions = useRuntimeSessionsStore(
 		(state) => state.refresh,
 	);
@@ -750,12 +750,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 					onAttachedDocumentRefsChange={setAttachedDocumentRefs}
 					isModelReady={isChatInputModelReady}
 					onOpenAgentSettings={() => {
-						if (isOpen) {
-							close();
-							return;
-						}
 						open(selectedAgentFlowId);
+						setRightPanelCollapsed(false);
+						setRightWorkspaceTab("agent");
 						onOpenAgentWorkspace?.();
+						navigate("/agents", {
+							state: { selectedAgentFlowId },
+						});
 					}}
 				/>
 			</div>

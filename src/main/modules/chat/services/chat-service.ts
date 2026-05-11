@@ -4,6 +4,15 @@ import type {
 	ChatStreamConfig,
 } from "@/services/background-jobs/handlers/process-chat";
 import type { JobErrorMetadata } from "@/services/background-jobs/handlers/error-metadata";
+import {
+	appendTextPart,
+	cloneContentParts,
+	completeRunningExecutionParts,
+	stripTransientExecutionParts,
+	upsertExecutionPart,
+	upsertToolParts,
+} from "@/services/chat/content-parts";
+import type { ComplexContent } from "@/types/chat";
 import type {
 	ChatCompletionChunkToolCall,
 	ChatCompletionMessageToolCall,
@@ -37,6 +46,7 @@ export interface ChatAction {
 
 export interface ChatStreamCallbacks {
 	onContent?: (content: string) => void;
+	onContentParts?: (parts: ComplexContent) => void;
 	onAction?: (actions: ChatAction[]) => void;
 	onExecuteStart?: (event: {
 		node: string;
@@ -47,6 +57,7 @@ export interface ChatStreamCallbacks {
 
 export interface ChatStreamResult {
 	content: string;
+	contentParts: ComplexContent;
 	actions: ChatAction[];
 	toolCalls?: ChatCompletionMessageToolCall[];
 	failed: boolean;
@@ -244,10 +255,15 @@ export class ChatService {
 			let streamErrorMetadata: JobErrorMetadata | undefined;
 			let usage: ChatStreamResult["usage"];
 			const toolCallAccumulator: ToolCallAccumulator = new Map();
+			let contentParts: ComplexContent = [];
+			const emitContentParts = () => {
+				callbacks?.onContentParts?.(cloneContentParts(contentParts));
+			};
 
 			if (!("stream" in result)) {
 				return {
 					content: "",
+					contentParts: [],
 					actions,
 					failed: true,
 					error: "Chat request failed",
@@ -284,6 +300,10 @@ export class ChatService {
 								actions.length,
 								...mergeActions(actions, chatResult.metadata.actions),
 							);
+							contentParts = upsertToolParts(contentParts, actions);
+						}
+						if (chatResult.metadata?.contentParts) {
+							contentParts = chatResult.metadata.contentParts as ComplexContent;
 						}
 						if (chatResult.metadata?.tool_calls?.length) {
 							for (const [
@@ -296,6 +316,7 @@ export class ChatService {
 						if (chatResult.metadata?.usage) {
 							usage = chatResult.metadata.usage;
 						}
+						emitContentParts();
 					}
 				}
 
@@ -315,7 +336,12 @@ export class ChatService {
 						const content = chatResult.chunk.choices[0]?.delta?.content;
 						if (content) {
 							currentContent += content;
+							contentParts = appendTextPart(
+								completeRunningExecutionParts(contentParts),
+								content,
+							);
 							callbacks?.onContent?.(currentContent);
+							emitContentParts();
 						}
 					} else if (chatResult.type === "action" && chatResult.actions) {
 						// Handle action updates
@@ -324,22 +350,32 @@ export class ChatService {
 							actions.length,
 							...mergeActions(actions, chatResult.actions),
 						);
+						contentParts = upsertToolParts(contentParts, chatResult.actions);
 						callbacks?.onAction?.([...actions]);
+						emitContentParts();
 					} else if (chatResult.type === "execute-start") {
-						callbacks?.onExecuteStart?.({
+						const event = {
 							node: chatResult.node,
 							metadata: chatResult.metadata,
-						});
+						};
+						contentParts = upsertExecutionPart(contentParts, event);
+						callbacks?.onExecuteStart?.(event);
+						emitContentParts();
 					} else if (chatResult.type === "final") {
 						// Handle final content update (e.g., after citation step)
 						// This replaces the accumulated content with the final version
 						currentContent = chatResult.content;
+						contentParts = completeRunningExecutionParts(contentParts);
 						if (chatResult.metadata?.actions) {
 							actions.splice(
 								0,
 								actions.length,
 								...mergeActions(actions, chatResult.metadata.actions),
 							);
+							contentParts = upsertToolParts(contentParts, actions);
+						}
+						if (chatResult.metadata?.contentParts) {
+							contentParts = chatResult.metadata.contentParts as ComplexContent;
 						}
 						if (chatResult.metadata?.tool_calls?.length) {
 							for (const [
@@ -352,13 +388,22 @@ export class ChatService {
 						// Notify with the final cited content
 						callbacks?.onContent?.(currentContent);
 						callbacks?.onAction?.([...actions]);
+						emitContentParts();
 					}
 				}
+			}
+
+			if (
+				currentContent &&
+				!contentParts.some((part) => part.type === "text")
+			) {
+				contentParts = appendTextPart(contentParts, currentContent);
 			}
 
 			// Return result
 			return {
 				content: currentContent,
+				contentParts: stripTransientExecutionParts(contentParts),
 				actions,
 				toolCalls: getAccumulatedToolCalls(toolCallAccumulator),
 				failed: streamFailed,

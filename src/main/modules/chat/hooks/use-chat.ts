@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { chatService } from "@/main/modules/chat/services/chat-service";
 import type { ChatMessage } from "@/types/openai";
 import { useChatStore } from "@/main/stores/chat";
+import { useAgentConfigStore } from "@/main/stores/agent-config";
 import type {
 	ChatStatus,
 	ComplexContent,
@@ -28,6 +29,7 @@ import type { ChatCompletionMessageToolCall } from "@/types/openai";
 export interface InProgressMessage {
 	id: string;
 	content: string;
+	complexContent: ComplexContent | null;
 	actions: Array<{
 		id: string;
 		name: string;
@@ -56,6 +58,18 @@ const cloneToolCalls = (
 		function: { ...toolCall.function },
 	}));
 
+const cloneComplexContent = (
+	complexContent: ComplexContent | null | undefined,
+): ComplexContent | null =>
+	complexContent
+		? complexContent.map((part) => ({
+				...part,
+				...("metadata" in part && part.metadata
+					? { metadata: { ...part.metadata } }
+					: {}),
+			}))
+		: null;
+
 export const useChat = (model: string) => {
 	const [inputValue, setInputValue] = useState("");
 	const [status, setStatus] = useState<ChatStatus>("ready");
@@ -72,6 +86,10 @@ export const useChat = (model: string) => {
 	const selectedAgentFlowId = useChatStore(
 		(state) => state.selectedAgentFlowId,
 	);
+	const availableAgents = useAgentConfigStore((state) => state.availableAgents);
+	const agentFlowName = availableAgents.find(
+		(a) => a.id === selectedAgentFlowId,
+	)?.name;
 
 	// Action selectors - stable references, won't cause re-renders
 	const setSelectedTopic = useChatStore((state) => state.setSelectedTopic);
@@ -133,22 +151,13 @@ export const useChat = (model: string) => {
 	// Insert a separator message and reset sandbox container state
 	const insertSeparator = async () => {
 		if (isLoading) return;
-		if (messages.length === 0) return;
 
 		try {
-			const lastMessageCreatedAt = messages.at(-1)?.createdAt;
-			const lastMessageTime = lastMessageCreatedAt
-				? new Date(lastMessageCreatedAt).getTime()
-				: Number.NaN;
-			const createdAt = Number.isFinite(lastMessageTime)
-				? new Date(lastMessageTime + 1)
-				: new Date();
-
 			await addMessage({
 				role: "system",
 				content: "---",
 				type: "separator",
-				createdAt,
+				createdAt: new Date(),
 			});
 
 			// Reset sandbox container runtime in offscreen so the new conversation segment starts clean
@@ -189,6 +198,7 @@ export const useChat = (model: string) => {
 
 		let assistantMessage: Message | null = null;
 		let currentContent = "";
+		let currentComplexContent: ComplexContent | null = null;
 		const startTime = Date.now();
 		let provider = "unknown";
 
@@ -330,6 +340,7 @@ export const useChat = (model: string) => {
 			setInProgressMessage({
 				id: assistantMessage.id,
 				content: "",
+				complexContent: null,
 				actions: [],
 			});
 
@@ -355,6 +366,17 @@ export const useChat = (model: string) => {
 						// Only update in-progress message, not the store
 						setInProgressMessage((prev) =>
 							prev ? { ...prev, content } : null,
+						);
+					},
+					onContentParts: (parts) => {
+						currentComplexContent = cloneComplexContent(parts);
+						setInProgressMessage((prev) =>
+							prev
+								? {
+										...prev,
+										complexContent: currentComplexContent,
+									}
+								: null,
 						);
 					},
 					onAction: (actions) => {
@@ -397,6 +419,7 @@ export const useChat = (model: string) => {
 					"Sorry, I encountered an error processing your message.";
 				await finalizeMessage(assistantMessage.id, {
 					content: errorContent,
+					complexContent: cloneComplexContent(result.contentParts),
 					metadata: {
 						actions: result.actions,
 						tool_calls: cloneToolCalls(result.toolCalls),
@@ -409,6 +432,7 @@ export const useChat = (model: string) => {
 						timeToAnswer: timeToAnswer,
 						tokensPerSecond: tokensPerSecond,
 						estimatedTokens: totalTokens,
+						...(agentFlowName && { agentFlowName }),
 					},
 				});
 				setInProgressMessage(null);
@@ -422,6 +446,7 @@ export const useChat = (model: string) => {
 						? {
 								...prev,
 								content: result.content,
+								complexContent: cloneComplexContent(result.contentParts),
 								actions: cloneActions(result.actions),
 							}
 						: null,
@@ -433,6 +458,7 @@ export const useChat = (model: string) => {
 				// Finalize with final content and actions
 				await finalizeMessage(assistantMessage.id, {
 					content: result.content,
+					complexContent: cloneComplexContent(result.contentParts),
 					metadata: {
 						actions: result.actions,
 						tool_calls: cloneToolCalls(result.toolCalls),
@@ -441,6 +467,7 @@ export const useChat = (model: string) => {
 						timeToAnswer: timeToAnswer,
 						tokensPerSecond: tokensPerSecond,
 						estimatedTokens: totalTokens,
+						...(agentFlowName && { agentFlowName }),
 					},
 				});
 			}
@@ -459,7 +486,11 @@ export const useChat = (model: string) => {
 					try {
 						await finalizeMessage(assistantMessage.id, {
 							content: currentContent,
-							metadata: { actions: inProgressMessage?.actions || [] },
+							complexContent: cloneComplexContent(currentComplexContent),
+							metadata: {
+								actions: inProgressMessage?.actions || [],
+								...(agentFlowName && { agentFlowName }),
+							},
 						});
 						logInfo("Saved partial content from stopped generation");
 					} catch (saveError) {
@@ -481,10 +512,12 @@ export const useChat = (model: string) => {
 					"Sorry, I encountered an error processing your message.";
 				await finalizeMessage(assistantMessage.id, {
 					content: currentContent || errorContent,
+					complexContent: cloneComplexContent(currentComplexContent),
 					metadata: {
 						error: errorMetadata,
 						model,
 						provider,
+						...(agentFlowName && { agentFlowName }),
 					},
 				});
 			} else {
@@ -495,6 +528,7 @@ export const useChat = (model: string) => {
 						error: errorMetadata,
 						model,
 						provider,
+						...(agentFlowName && { agentFlowName }),
 					},
 				});
 			}
