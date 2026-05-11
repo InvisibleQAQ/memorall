@@ -27,11 +27,20 @@ export const createDefaultWebErrorResult = (error: unknown): string =>
 export const createWebResult = (payload: Record<string, unknown>): string =>
 	JSON.stringify(payload, null, 2);
 
+const NON_READABLE_ELEMENT_PATTERN =
+	/<(script|style|noscript|template)\b[^>]*>[\s\S]*?<\/\1>/gi;
+
+export const stripNonReadableHtml = (html: string): string =>
+	html
+		.replace(NON_READABLE_ELEMENT_PATTERN, " ")
+		.replace(/<link\b[^>]*>/gi, " ")
+		.replace(/<meta\b[^>]*>/gi, " ");
+
 export const createCleanHtml = (
 	html: string,
 	allowedAttributes?: Record<string, sanitizeHtml.AllowedAttribute[]>,
 ): string =>
-	sanitizeHtml(html, {
+	sanitizeHtml(stripNonReadableHtml(html), {
 		allowedTags: false,
 		allowedAttributes: allowedAttributes ?? {
 			a: ["href"],

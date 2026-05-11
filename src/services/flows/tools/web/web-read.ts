@@ -11,6 +11,7 @@ import {
 	createCleanHtml,
 	createDefaultWebErrorResult,
 	createWebResult,
+	stripNonReadableHtml,
 	truncateContent,
 	requireWebBrowserService,
 	type WebToolServices,
@@ -69,6 +70,14 @@ const parseHtml = (html: string): Document =>
 		"text/html",
 	);
 
+const NON_READABLE_SELECTOR = "script, style, noscript, link, template";
+
+const removeNonReadableNodes = (document: Document): void => {
+	document.querySelectorAll(NON_READABLE_SELECTOR).forEach((node) => {
+		node.remove();
+	});
+};
+
 const normalizeContentMode = (
 	contentMode: ContentMode,
 ): NormalizedContentMode =>
@@ -91,7 +100,8 @@ const extractSelectorHtml = (
 };
 
 const extractTextFromHtml = (html: string): string => {
-	const document = parseHtml(html);
+	const document = parseHtml(stripNonReadableHtml(html));
+	removeNonReadableNodes(document);
 	return (
 		document.body?.innerText ??
 		document.body?.textContent ??
@@ -117,9 +127,10 @@ const buildReadContent = ({
 	const normalizedMode = normalizeContentMode(contentMode);
 
 	if (normalizedMode === "text") {
+		const readableText = rawHtml ? extractTextFromHtml(rawHtml) : rawText;
 		return {
 			contentMode: normalizedMode,
-			content: truncateContent(rawText, maxChars),
+			content: truncateContent(readableText, maxChars),
 		};
 	}
 

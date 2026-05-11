@@ -80,6 +80,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	const { t } = useTranslation("chat");
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const textareaRef = useRef<MentionRichTextareaHandle>(null);
+	const composerRef = useRef<HTMLDivElement>(null);
 	const isCustomMode = selectedAgentFlowId !== "chat";
 
 	const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -87,6 +88,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	const [mentionDocFiles, setMentionDocFiles] = useState<DocumentFile[]>([]);
 	const [mentionSkillItems, setMentionSkillItems] = useState<MentionItem[]>([]);
 	const [mentionHighlight, setMentionHighlight] = useState(0);
+	const [mentionSource, setMentionSource] = useState<"inline" | "picker">(
+		"inline",
+	);
 	const isMentionOpen = mentionQuery !== null;
 
 	useEffect(() => {
@@ -113,6 +117,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 		// Support namespace prefixes: @skill:query or @doc:query
 		let q = mentionQuery.toLowerCase();
 		let kindFilter: "skill" | "document" | null = null;
+		if (mentionSource === "picker") {
+			kindFilter = "document";
+		}
 		if (q.startsWith("skill:")) {
 			kindFilter = "skill";
 			q = q.slice("skill:".length);
@@ -125,18 +132,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 			kindFilter === "skill"
 				? []
 				: mentionDocFiles
-						.filter((f) => !q || f.name.toLowerCase().includes(q))
+						.filter((f) => {
+							if (!q) return true;
+							const searchable = [
+								f.name,
+								f.path,
+								f.metadata?.title,
+								f.metadata?.description,
+								...(f.metadata?.tags ?? []),
+							]
+								.filter(Boolean)
+								.join(" ")
+								.toLowerCase();
+							return searchable.includes(q);
+						})
 						.map(documentFileToMentionItem);
 
 		const skillItems =
 			kindFilter === "document"
 				? []
 				: mentionSkillItems.filter(
-						(s) => !q || s.name.toLowerCase().includes(q),
+						(s) =>
+							!q ||
+							[s.name, s.description]
+								.filter(Boolean)
+								.join(" ")
+								.toLowerCase()
+								.includes(q),
 					);
 
 		return [...skillItems, ...docItems].slice(0, 8);
-	}, [mentionDocFiles, mentionSkillItems, mentionQuery]);
+	}, [mentionDocFiles, mentionSkillItems, mentionQuery, mentionSource]);
 
 	useEffect(() => {
 		setMentionHighlight(0);
@@ -147,8 +173,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	};
 
 	const handleOpenDocumentPicker = () => {
+		mentionAtIndexRef.current = inputValue.length;
+		setMentionSource("picker");
 		setMentionQuery("");
-		requestAnimationFrame(() => textareaRef.current?.focus());
 	};
 
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,6 +232,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 			const candidate = textBefore.slice(lastAt + 1);
 			if (!candidate.includes(" ") && !candidate.includes("\n")) {
 				mentionAtIndexRef.current = lastAt;
+				setMentionSource("inline");
 				setMentionQuery(candidate);
 				return;
 			}
@@ -220,11 +248,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 		const prefix =
 			item.kind === "skill" ? `@skill:${item.name} ` : `@doc:${item.name} `;
+		const insertAt = atIdx >= 0 ? atIdx : inputValue.length;
+		const replaceEnd =
+			mentionSource === "inline" ? insertAt + 1 + queryLen : insertAt;
+		const spacer =
+			mentionSource === "picker" && insertAt > 0 && !/\s$/.test(inputValue)
+				? " "
+				: "";
 		const newValue =
-			inputValue.slice(0, atIdx) +
+			inputValue.slice(0, insertAt) +
+			spacer +
 			prefix +
-			inputValue.slice(atIdx + 1 + queryLen);
-		const cursorAfter = atIdx + prefix.length;
+			inputValue.slice(replaceEnd);
+		const cursorAfter = insertAt + spacer.length + prefix.length;
 
 		// Signal where the cursor should land before the DOM re-renders
 		textareaRef.current?.setPendingCursor(cursorAfter);
@@ -284,7 +320,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	return (
 		<TooltipProvider>
 			<div className="w-full flex-shrink-0 bg-background/90 px-4 pb-4 pt-3 shadow-[0_-18px_45px_hsl(var(--background)/0.92)] backdrop-blur-xl pt-[8px]">
-				<div className="relative mx-auto max-w-4xl">
+				<div ref={composerRef} className="relative mx-auto max-w-4xl">
 					<input
 						ref={fileInputRef}
 						type="file"
@@ -300,6 +336,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 						highlightIndex={mentionHighlight}
 						title={t("mention.documents")}
 						searchText={mentionQuery ?? ""}
+						anchorRef={composerRef}
+						searchPlaceholder={t("mention.searchDocuments")}
+						emptyText={t("mention.noMatches")}
+						onSearchTextChange={
+							mentionSource === "picker" ? setMentionQuery : undefined
+						}
+						onHighlightChange={setMentionHighlight}
 						onClose={() => setMentionQuery(null)}
 						onSelect={handleSelectMention}
 					/>

@@ -323,7 +323,8 @@
 		}
 	},
 	"sandboxPanel": {
-		"title": "Phiên Runtime",
+		"title": "Không gian làm việc trực tiếp",
+		"description": "Xem trước nội dung đã tạo, trang đang mở, server và hoạt động lệnh.",
 		"commandsTitle": "Lệnh đang chạy",
 		"commandsShort": "Lệnh",
 		"serversTitle": "Máy chủ Sandbox",

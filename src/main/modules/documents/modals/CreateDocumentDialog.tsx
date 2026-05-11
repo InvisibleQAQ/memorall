@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { FileText } from "lucide-react";
@@ -13,6 +13,9 @@ import {
 import { Button } from "@/main/components/ui/button";
 import { Input } from "@/main/components/ui/input";
 import { Label } from "@/main/components/ui/label";
+import { cn } from "@/lib/utils";
+
+const PRESET_EXTENSIONS = ["md", "txt", "json", "yaml", "csv", "html"];
 
 export interface CreateDocumentDialogResult {
 	name: string;
@@ -22,10 +25,17 @@ export interface CreateDocumentDialogResult {
 export const CreateDocumentDialog = NiceModal.create<object>(() => {
 	const modal = useModal();
 	const { t } = useTranslation("documents");
+	const customInputRef = useRef<HTMLInputElement>(null);
 
 	const [documentName, setDocumentName] = useState("");
-	const [rawExt, setRawExt] = useState("md");
+	const [selectedExt, setSelectedExt] = useState("md");
+	const [customExt, setCustomExt] = useState("");
+	const [isCustom, setIsCustom] = useState(false);
 	const [error, setError] = useState("");
+
+	const activeExt = isCustom
+		? customExt.trim().replace(/^\.+/, "")
+		: selectedExt;
 
 	const handleCreate = () => {
 		if (!documentName.trim()) {
@@ -39,19 +49,14 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 			return;
 		}
 
-		const trimmedExt = rawExt.trim();
-		if (!trimmedExt) {
+		if (!activeExt) {
 			setError(t("create.extensionRequired"));
 			return;
 		}
 
-		const extension = trimmedExt.startsWith(".")
-			? trimmedExt
-			: `.${trimmedExt}`;
-
 		modal.resolve({
 			name: documentName.trim(),
-			extension,
+			extension: `.${activeExt}`,
 		} satisfies CreateDocumentDialogResult);
 		modal.hide();
 	};
@@ -61,11 +66,11 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 		modal.hide();
 	};
 
-	const previewExt = rawExt.trim()
-		? rawExt.trim().startsWith(".")
-			? rawExt.trim()
-			: `.${rawExt.trim()}`
-		: "";
+	const handleSelectCustom = () => {
+		setIsCustom(true);
+		setError("");
+		setTimeout(() => customInputRef.current?.focus(), 0);
+	};
 
 	return (
 		<Dialog
@@ -75,14 +80,14 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
-						<FileText className="h-5 w-5" />
+						<FileText className="h-5 w-5 text-primary" />
 						{t("create.title")}
 					</DialogTitle>
 				</DialogHeader>
 
-				<div className="space-y-4 py-4">
+				<div className="space-y-5 py-1">
 					{/* Name */}
-					<div className="space-y-2">
+					<div className="space-y-1.5">
 						<Label htmlFor="document-name">{t("create.nameLabel")}</Label>
 						<Input
 							id="document-name"
@@ -100,32 +105,67 @@ export const CreateDocumentDialog = NiceModal.create<object>(() => {
 
 					{/* Extension */}
 					<div className="space-y-2">
-						<Label htmlFor="document-ext">{t("create.extensionLabel")}</Label>
-						<div className="flex items-center">
-							<span className="inline-flex items-center px-3 h-9 rounded-l-md border border-r-0 bg-muted text-sm text-muted-foreground select-none">
-								.
-							</span>
-							<Input
-								id="document-ext"
-								className="rounded-l-none"
-								placeholder="md"
-								value={rawExt}
-								onChange={(e) => {
-									// Strip any leading dots the user might type
-									setRawExt(e.target.value.replace(/^\.+/, ""));
-									setError("");
-								}}
-								onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-							/>
+						<Label>{t("create.extensionLabel")}</Label>
+						<div className="flex flex-wrap gap-1.5">
+							{PRESET_EXTENSIONS.map((ext) => (
+								<button
+									key={ext}
+									type="button"
+									onClick={() => {
+										setSelectedExt(ext);
+										setIsCustom(false);
+										setError("");
+									}}
+									className={cn(
+										"px-2.5 py-1 rounded-md text-xs font-mono border transition-colors",
+										!isCustom && selectedExt === ext
+											? "bg-primary text-primary-foreground border-primary"
+											: "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
+									)}
+								>
+									.{ext}
+								</button>
+							))}
+							<button
+								type="button"
+								onClick={handleSelectCustom}
+								className={cn(
+									"px-2.5 py-1 rounded-md text-xs border transition-colors",
+									isCustom
+										? "bg-primary text-primary-foreground border-primary"
+										: "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
+								)}
+							>
+								{t("create.customExtension", { defaultValue: "other…" })}
+							</button>
 						</div>
+
+						{isCustom && (
+							<div className="relative">
+								<span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-muted-foreground select-none">
+									.
+								</span>
+								<Input
+									ref={customInputRef}
+									className="pl-6 font-mono"
+									placeholder="ext"
+									value={customExt}
+									onChange={(e) => {
+										setCustomExt(e.target.value.replace(/^\.+/, ""));
+										setError("");
+									}}
+									onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+								/>
+							</div>
+						)}
 					</div>
 
 					{/* Preview */}
-					<div className="text-sm text-muted-foreground">
-						{t("create.filenamePreview")}{" "}
-						<span className="font-medium font-mono">
+					<div className="flex items-center gap-2.5 rounded-lg border bg-muted/30 px-3 py-2.5">
+						<FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+						<span className="truncate font-mono text-sm text-foreground">
 							{documentName.trim() || t("create.unnamed")}
-							{previewExt}
+							{activeExt ? `.${activeExt}` : ""}
 						</span>
 					</div>
 				</div>

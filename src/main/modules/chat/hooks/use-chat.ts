@@ -13,6 +13,7 @@ import { backgroundJob } from "@/services/background-jobs/background-job";
 import type { Message } from "@/services/database";
 import { buildSendMessages } from "@/main/modules/chat/utils/build-send-messages";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
+import { createJobErrorMetadata } from "@/services/background-jobs/handlers/error-metadata";
 import {
 	extractDocumentText,
 	formatDocumentBlock,
@@ -375,13 +376,20 @@ export const useChat = (model: string) => {
 
 			// Handle completion or failure after stream finishes
 			if (result.failed) {
-				// Keep streamed content and append error message
-				const errorContent = `${result.content}\n\n---\n\n❌ **Error:** ${result.error}`;
+				const errorMessage =
+					result.errorMetadata?.message || result.error || "Chat failed";
+				const errorContent =
+					result.content ||
+					"Sorry, I encountered an error processing your message.";
 				await finalizeMessage(assistantMessage.id, {
 					content: errorContent,
 					metadata: {
 						actions: result.actions,
 						tool_calls: cloneToolCalls(result.toolCalls),
+						error: result.errorMetadata ?? {
+							message: errorMessage,
+							rawMessage: result.error || errorMessage,
+						},
 						model: model,
 						provider: provider,
 						timeToAnswer: timeToAnswer,
@@ -389,7 +397,9 @@ export const useChat = (model: string) => {
 						estimatedTokens: totalTokens,
 					},
 				});
-				throw new Error(result.error || "Chat failed");
+				setInProgressMessage(null);
+				setStatus("error");
+				return;
 			} else {
 				// Success - update in-progress message with final content before saving
 				// This ensures smooth transition from streaming to final
@@ -449,6 +459,7 @@ export const useChat = (model: string) => {
 			}
 
 			logError("Chat error:", error);
+			const errorMetadata = createJobErrorMetadata(error);
 
 			// Update error message if assistant message exists, otherwise create new one
 			if (assistantMessage) {
@@ -456,11 +467,21 @@ export const useChat = (model: string) => {
 					"Sorry, I encountered an error processing your message.";
 				await finalizeMessage(assistantMessage.id, {
 					content: currentContent || errorContent,
+					metadata: {
+						error: errorMetadata,
+						model,
+						provider,
+					},
 				});
 			} else {
 				await addMessage({
 					role: "assistant",
 					content: "Sorry, I encountered an error processing your message.",
+					metadata: {
+						error: errorMetadata,
+						model,
+						provider,
+					},
 				});
 			}
 

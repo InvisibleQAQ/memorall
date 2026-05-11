@@ -7,6 +7,7 @@ import type {
 	BaseJob,
 } from "./types";
 import { handlerRegistry, type HandlerRegistration } from "./handler-registry";
+import { createJobErrorMetadata, getErrorMessage } from "./error-metadata";
 
 export class ProcessFactory {
 	private static instance: ProcessFactory;
@@ -98,8 +99,8 @@ export class ProcessFactory {
 			);
 		} catch (error) {
 			// Handle unexpected errors
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
+			const errorMessage = getErrorMessage(error);
+			const errorMetadata = createJobErrorMetadata(error);
 
 			await this.dependencies.logger.error(
 				`💥 Unexpected error in job: ${jobId}`,
@@ -115,7 +116,7 @@ export class ProcessFactory {
 				completedAt: errorTimestamp,
 				status: "failed",
 				error: errorMessage,
-				metadata: { error: errorMessage },
+				metadata: { error: errorMetadata },
 			};
 			progressHistory.push(errorProgress);
 
@@ -125,6 +126,9 @@ export class ProcessFactory {
 				status: "failed",
 				progress: progressHistory,
 				error: errorMessage,
+				result: {
+					error: errorMetadata,
+				},
 			};
 
 			await this.dependencies.completeJob(jobId, jobResult);

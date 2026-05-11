@@ -56,11 +56,27 @@ import { logInfo } from "./utils/logger";
 let lastMouseX = 0;
 let lastMouseY = 0;
 
+const NON_READABLE_SELECTOR = "script, style, noscript, link, template";
+
+const removeNonReadableNodes = (root: ParentNode): void => {
+	root.querySelectorAll(NON_READABLE_SELECTOR).forEach((node) => node.remove());
+};
+
+const getReadableDocumentText = (): string => {
+	const clonedDocument = document.cloneNode(true) as Document;
+	removeNonReadableNodes(clonedDocument);
+	return (
+		clonedDocument.body?.innerText ||
+		clonedDocument.documentElement?.textContent ||
+		""
+	).trim();
+};
+
 const buildWebSnapshot = () => ({
 	url: window.location.href,
 	title: document.title || "",
 	html: document.documentElement?.outerHTML || document.body?.innerHTML || "",
-	text: document.body?.innerText || document.documentElement?.textContent || "",
+	text: getReadableDocumentText(),
 	domAccessible: true,
 });
 

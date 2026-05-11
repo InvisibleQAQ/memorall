@@ -36,6 +36,7 @@ interface DocumentLibraryHeaderProps {
 	homeTitle: string;
 	isWorkspaceSection: boolean;
 	compact?: boolean;
+	compactLeading?: React.ReactNode;
 	viewMode: "grid" | "list";
 	searchQuery: string;
 	topics: Array<Topic & { fileCount: number }>;
@@ -59,6 +60,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 	homeTitle,
 	isWorkspaceSection,
 	compact = false,
+	compactLeading,
 	viewMode,
 	searchQuery,
 	topics,
@@ -81,6 +83,7 @@ export const DocumentLibraryHeader = memo(function DocumentLibraryHeader({
 		return (
 			<div className="border-b bg-card !shadow-none">
 				<div className="flex items-center gap-2 border-b px-2 py-2">
+					{compactLeading}
 					<DocumentBreadcrumb
 						currentPath={currentPath}
 						tree={activeTree}

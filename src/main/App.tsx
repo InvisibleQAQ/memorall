@@ -27,7 +27,6 @@ import {
 import {
 	detectEncryptionFormat,
 	unlockMasterKey,
-	hasMasterKey,
 	isMasterKeyUnlocked,
 	getMasterStrongPassword,
 } from "@/utils/master-key";

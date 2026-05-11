@@ -3,6 +3,7 @@ import type {
 	ChatResult,
 	ChatStreamConfig,
 } from "@/services/background-jobs/handlers/process-chat";
+import type { JobErrorMetadata } from "@/services/background-jobs/handlers/error-metadata";
 import type {
 	ChatCompletionChunkToolCall,
 	ChatCompletionMessageToolCall,
@@ -50,6 +51,7 @@ export interface ChatStreamResult {
 	toolCalls?: ChatCompletionMessageToolCall[];
 	failed: boolean;
 	error?: string;
+	errorMetadata?: JobErrorMetadata;
 	usage?: {
 		prompt_tokens: number;
 		completion_tokens: number;
@@ -130,6 +132,41 @@ const mergeActions = (
 	return merged;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null;
+
+const getProgressErrorMetadata = (
+	metadata: Record<string, unknown> | undefined,
+	fallbackMessage: string,
+): JobErrorMetadata => {
+	const error = metadata?.error;
+	if (isRecord(error) && typeof error.message === "string") {
+		return {
+			message: error.message,
+			rawMessage:
+				typeof error.rawMessage === "string"
+					? error.rawMessage
+					: fallbackMessage,
+			statusCode:
+				typeof error.statusCode === "number" ? error.statusCode : undefined,
+			code:
+				typeof error.code === "string" || typeof error.code === "number"
+					? error.code
+					: undefined,
+			providerName:
+				typeof error.providerName === "string" || error.providerName === null
+					? error.providerName
+					: undefined,
+			userId: typeof error.userId === "string" ? error.userId : undefined,
+		};
+	}
+
+	return {
+		message: typeof error === "string" ? error : fallbackMessage,
+		rawMessage: fallbackMessage,
+	};
+};
+
 export class ChatService {
 	private static instance: ChatService;
 	private activeJobs = new Map<string, AbortController>();
@@ -204,6 +241,7 @@ export class ChatService {
 			const actions: ChatAction[] = [];
 			let streamFailed = false;
 			let streamError = "";
+			let streamErrorMetadata: JobErrorMetadata | undefined;
 			let usage: ChatStreamResult["usage"];
 			const toolCallAccumulator: ToolCallAccumulator = new Map();
 
@@ -226,7 +264,11 @@ export class ChatService {
 				if (progress.status === "failed") {
 					streamFailed = true;
 					streamError = progress.error || "Chat request failed";
-					callbacks?.onError?.(streamError);
+					streamErrorMetadata = getProgressErrorMetadata(
+						progress.metadata,
+						streamError,
+					);
+					callbacks?.onError?.(streamErrorMetadata.message);
 					break;
 				}
 
@@ -321,6 +363,7 @@ export class ChatService {
 				toolCalls: getAccumulatedToolCalls(toolCallAccumulator),
 				failed: streamFailed,
 				error: streamFailed ? streamError : undefined,
+				errorMetadata: streamFailed ? streamErrorMetadata : undefined,
 				usage,
 			};
 		} catch (error) {

@@ -1,11 +1,12 @@
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2 } from "lucide-react";
+import { Loader2, PanelLeftOpen } from "lucide-react";
 import { useDocumentLibrary } from "@/main/modules/documents/hooks/use-document-library";
 import { DocumentLibraryHeader } from "@/main/modules/documents/components/DocumentLibraryHeader";
 import { DocumentLibrarySidebar } from "@/main/modules/documents/components/DocumentLibrarySidebar";
 import { DocumentLibraryContent } from "@/main/modules/documents/components/DocumentLibraryContent";
 import { DocumentLibraryCompactNavigator } from "@/main/modules/documents/components/DocumentLibraryCompactNavigator";
+import { Button } from "@/main/components/ui/button";
 import type { DocumentTreeNode } from "@/types/document-library";
 
 const PANEL_STORAGE_KEY = "memorall.documents.workspace-panels.v1";
@@ -62,9 +63,23 @@ export const DocumentLibraryPage: React.FC = () => {
 	const [panelSizes, setPanelSizes] =
 		React.useState<[number, number]>(readStoredPanelSizes);
 	const [isDesktop, setIsDesktop] = React.useState(false);
+	const [compactNavigatorCollapsed, setCompactNavigatorCollapsed] =
+		React.useState(false);
 	const outerRef = React.useRef<HTMLDivElement | null>(null);
 	const containerRef = React.useRef<HTMLDivElement | null>(null);
 	const activeTree = lib.isWorkspaceSection ? lib.workspaceTree : lib.tree;
+	const compactNavigatorExpandButton = compactNavigatorCollapsed ? (
+		<Button
+			variant="ghost"
+			size="sm"
+			onClick={() => setCompactNavigatorCollapsed(false)}
+			className="h-8 w-8 flex-shrink-0 p-0"
+			title={t("navigator.expand")}
+			aria-label={t("navigator.expand")}
+		>
+			<PanelLeftOpen className="h-4 w-4" />
+		</Button>
+	) : null;
 	const homeOptions = [
 		{
 			label: t("title"),
@@ -131,6 +146,10 @@ export const DocumentLibraryPage: React.FC = () => {
 		if (typeof window === "undefined") return;
 		window.localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(panelSizes));
 	}, [panelSizes]);
+
+	React.useEffect(() => {
+		if (isDesktop) setCompactNavigatorCollapsed(false);
+	}, [isDesktop]);
 
 	const handleTreeRename = useCallback(
 		(node: DocumentTreeNode, newName: string) => {
@@ -262,6 +281,9 @@ export const DocumentLibraryPage: React.FC = () => {
 						}
 						isWorkspaceSection={lib.isWorkspaceSection}
 						compact
+						compactLeading={
+							lib.isFileSelected ? null : compactNavigatorExpandButton
+						}
 						viewMode={lib.viewMode}
 						searchQuery={lib.searchQuery}
 						topics={lib.topics}
@@ -285,6 +307,8 @@ export const DocumentLibraryPage: React.FC = () => {
 							selectedSection={lib.selectedSection}
 							selectedNodeId={lib.selectedNode?.id ?? null}
 							docsTitle={t("title")}
+							isCollapsed={compactNavigatorCollapsed}
+							onCollapsedChange={setCompactNavigatorCollapsed}
 							onSelectDocumentsRoot={lib.handleSelectDocumentsSection}
 							onSelectWorkspaceRoot={lib.handleSelectWorkspaceSection}
 							onSelectDocNode={lib.handleSelectDocNode}
@@ -306,6 +330,9 @@ export const DocumentLibraryPage: React.FC = () => {
 								fileTopicMap={lib.fileTopicMap}
 								selectedTopicIds={lib.selectedTopicIds}
 								compact
+								compactNavigatorToggle={
+									lib.isFileSelected ? compactNavigatorExpandButton : null
+								}
 								onSelectNodeById={lib.handleSelectNodeInActiveTree}
 								onOpenFolderByPath={lib.handleOpenFolderByPath}
 								onCloseViewer={lib.handleCloseViewer}

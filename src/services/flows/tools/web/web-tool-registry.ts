@@ -217,11 +217,20 @@ const normalizeInputUrl = (rawUrl: string): string => {
 const normalizeReadableText = (value: string): string =>
 	value.replace(/\s+/g, " ").trim();
 
+const NON_READABLE_SELECTOR = "script, style, noscript, link, template";
+
+const removeNonReadableNodes = (root: ParentNode): void => {
+	root.querySelectorAll(NON_READABLE_SELECTOR).forEach((node) => {
+		node.remove();
+	});
+};
+
 const extractReadableHtmlText = (html: string): string =>
 	html
 		.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
 		.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
 		.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, " ")
+		.replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi, " ")
 		.replace(/<!--[\s\S]*?-->/g, " ")
 		.replace(/<[^>]+>/g, " ")
 		.replace(/\s+/g, " ")
@@ -303,7 +312,13 @@ const safeText = (doc: Document | null): string => {
 	if (!doc) {
 		return "";
 	}
-	return doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
+	const clonedDocument = doc.cloneNode(true) as Document;
+	removeNonReadableNodes(clonedDocument);
+	return (
+		clonedDocument.body?.innerText ??
+		clonedDocument.documentElement?.textContent ??
+		""
+	);
 };
 
 const safeHtml = (doc: Document | null): string => {
@@ -313,8 +328,10 @@ const safeHtml = (doc: Document | null): string => {
 	return doc.documentElement?.outerHTML ?? "";
 };
 
-const extractTextFromDocument = (doc: Document): string =>
-	doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
+const extractTextFromDocument = (doc: Document): string => {
+	removeNonReadableNodes(doc);
+	return doc.body?.innerText ?? doc.documentElement?.textContent ?? "";
+};
 
 const scheduleInactivityClose = (sessionId: string): void => {
 	const existing = sessionTimeouts.get(sessionId);

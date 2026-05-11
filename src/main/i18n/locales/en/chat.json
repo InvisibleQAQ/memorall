@@ -30,7 +30,9 @@
 		"attachImage": "Attach image"
 	},
 	"mention": {
-		"documents": "Documents"
+		"documents": "Documents",
+		"searchDocuments": "Search documents...",
+		"noMatches": "No matches"
 	},
 	"mode": {
 		"normal": "Chat",

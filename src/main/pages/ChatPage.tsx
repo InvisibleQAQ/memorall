@@ -38,10 +38,12 @@ import { serviceManager } from "@/services";
 import type { AttachedDocumentRef } from "@/types/chat";
 import { ChatSidePanel } from "@/main/components/molecules/ChatSidePanel";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
+import { useShellLayoutStore } from "@/main/stores/shell-layout";
 import { isPopupSurface } from "@/utils/dom";
 import { useIsWideViewport } from "@/main/hooks/use-viewport";
 import { getAgentIconScreenFromMetadata } from "@/main/modules/agents/types";
 import type { FeatureCatalogMetadata } from "@/services/flows/feature-catalog-registry";
+import { collectRuntimeArtifacts } from "@/main/modules/chat/components/artifacts/artifact-protocol";
 
 type AgentFlowOption = Pick<Flow, "id" | "name" | "metadata">;
 
@@ -85,6 +87,12 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 	const refreshRuntimeSessions = useRuntimeSessionsStore(
 		(state) => state.refresh,
 	);
+	const setRightPanelCollapsed = useShellLayoutStore(
+		(state) => state.setRightPanelCollapsed,
+	);
+	const setRightWorkspaceTab = useShellLayoutStore(
+		(state) => state.setRightWorkspaceTab,
+	);
 	const isWideViewport = useIsWideViewport();
 	const [attachedImages, setAttachedImages] = React.useState<File[]>([]);
 	const [attachedDocumentRefs, setAttachedDocumentRefs] = React.useState<
@@ -123,6 +131,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 		insertSeparator,
 		loadMessageGroup,
 		deleteMessages,
+		messages,
 	} = useChat(model);
 
 	const handleChatSubmit = (
@@ -144,10 +153,26 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 	useEffect(() => {
 		const isNow = inProgressMessage != null;
 		if (!isNow && wasInProgressRef.current) {
-			void refreshRuntimeSessions();
+			void (async () => {
+				await refreshRuntimeSessions();
+				const hasRuntime = useRuntimeSessionsStore.getState().hasRuntime();
+				const hasArtifacts = collectRuntimeArtifacts(messages).length > 0;
+				if (hasRuntime || hasArtifacts) {
+					setRightPanelCollapsed(false);
+					setRightWorkspaceTab("page");
+					navigate("/runtime");
+				}
+			})();
 		}
 		wasInProgressRef.current = isNow;
-	}, [inProgressMessage, refreshRuntimeSessions]);
+	}, [
+		inProgressMessage,
+		messages,
+		navigate,
+		refreshRuntimeSessions,
+		setRightPanelCollapsed,
+		setRightWorkspaceTab,
+	]);
 
 	const completedGroups = useMemo(
 		() => messageGroups.filter((group) => !group.isLatest),

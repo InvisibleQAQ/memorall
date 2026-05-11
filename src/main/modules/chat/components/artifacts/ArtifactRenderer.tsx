@@ -13,6 +13,7 @@ import type { SandboxHandleSwRequestResult } from "@/services/sandbox-container"
 import { logError } from "@/utils/logger";
 import { DocumentSaveFolderDialog } from "../DocumentSaveFolderDialog";
 import type { ArtifactType } from "./artifact-protocol";
+import MarkdownMessage from "../MarkdownMessage";
 
 interface ArtifactProps {
 	content: string;
@@ -238,7 +239,7 @@ const HtmlArtifact: React.FC<ArtifactProps> = ({
 	);
 };
 
-const UrlArtifact: React.FC<ArtifactProps> = ({ content, title }) => {
+export const UrlArtifact: React.FC<ArtifactProps> = ({ content, title }) => {
 	const { t } = useTranslation("chat");
 	const url = content.trim();
 	const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -397,6 +398,18 @@ export const ArtifactRenderer: React.FC<ArtifactRendererProps> = ({
 			);
 		case "url":
 			return <UrlArtifact content={content} title={title} />;
+		case "markdown":
+			return (
+				<div className="my-2 rounded-md border border-border/70 bg-muted/10 p-3">
+					<MarkdownMessage>{content}</MarkdownMessage>
+				</div>
+			);
+		case "text":
+			return (
+				<pre className="my-2 max-h-96 overflow-auto rounded-md border border-border/70 bg-muted/10 p-3 text-xs leading-relaxed text-muted-foreground">
+					{content}
+				</pre>
+			);
 		default:
 			return null;
 	}

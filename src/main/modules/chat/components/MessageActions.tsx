@@ -32,6 +32,7 @@ import {
 	TaskItem,
 	TaskTrigger,
 } from "@/main/components/ui/shadcn-io/ai/task";
+import { cn } from "@/lib/utils";
 import type { MessageActionItem } from "./types";
 import { webAccessRenderer } from "./tools/WebAccess";
 import { apiResultRenderer } from "./tools/APIResult";
@@ -268,10 +269,11 @@ const ActionContent: React.FC<ActionContentProps> = React.memo(
 interface TaskItemRendererProps {
 	item: MessageActionItem;
 	index: number;
+	total: number;
 }
 
 const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
-	({ item, index }) => {
+	({ item, index, total }) => {
 		const { t } = useTranslation("chat");
 		const [isOpen, setIsOpen] = React.useState(false);
 
@@ -282,31 +284,69 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 		);
 
 		return (
-			<Task
-				key={`${item.name}_${index}`}
-				className="w-full"
-				defaultOpen={false}
-				onOpenChange={setIsOpen}
-			>
-				<TaskTrigger title={title}>
-					<div className="flex items-center gap-2 w-full">
-						<ChevronDown
-							className={`size-4 transition-transform duration-200 ${
-								isOpen ? "rotate-0" : "-rotate-90"
-							}`}
-						/>
-						<Icon className="w-4 h-4" />
-						<span className="flex-1">{title}</span>
-					</div>
-				</TaskTrigger>
-				<TaskContent>
-					<TaskItem>
-						<ActionRenderErrorBoundary item={item}>
-							<ActionContent item={item} isOpen={isOpen} />
-						</ActionRenderErrorBoundary>
-					</TaskItem>
-				</TaskContent>
-			</Task>
+			<div className="group/action relative grid grid-cols-[1rem_minmax(0,1fr)] gap-2.5">
+				<div className="relative flex justify-center pt-3">
+					{index < total - 1 ? (
+						<div className="absolute left-1/2 top-5 h-[calc(100%+0.5rem)] w-px -translate-x-1/2 bg-border/70" />
+					) : (
+						<div className="absolute left-1/2 top-5 h-10 w-px -translate-x-1/2 bg-gradient-to-b from-border/70 to-border/25" />
+					)}
+					<span
+						className={cn(
+							"relative z-10 h-2 w-2 rounded-full border bg-background transition-colors",
+							isOpen
+								? "border-primary bg-primary"
+								: "border-muted-foreground/35 group-hover/action:border-primary/60",
+						)}
+						aria-hidden="true"
+					/>
+				</div>
+				<Task
+					key={`${item.name}_${index}`}
+					className="min-w-0"
+					defaultOpen={false}
+					onOpenChange={setIsOpen}
+				>
+					<TaskTrigger title={title}>
+						<button
+							type="button"
+							className={cn(
+								"flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors duration-150",
+								isOpen ? "bg-muted/40" : "hover:bg-muted/25",
+							)}
+						>
+							<span
+								className={cn(
+									"flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors",
+									isOpen
+										? "border-primary/25 bg-primary/10 text-primary"
+										: "border-border/55 bg-background/70 text-muted-foreground",
+								)}
+							>
+								<Icon className="h-4 w-4" />
+							</span>
+							<span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+								{title}
+							</span>
+							<ChevronDown
+								className={cn(
+									"h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+									isOpen && "rotate-180 text-foreground",
+								)}
+							/>
+						</button>
+					</TaskTrigger>
+					<TaskContent className="[&>div]:mt-2 [&>div]:border-l-0 [&>div]:pl-0">
+						<div className="rounded-lg border border-border/60 bg-background/80 p-3 shadow-sm">
+							<TaskItem className="text-sm">
+								<ActionRenderErrorBoundary item={item}>
+									<ActionContent item={item} isOpen={isOpen} />
+								</ActionRenderErrorBoundary>
+							</TaskItem>
+						</div>
+					</TaskContent>
+				</Task>
+			</div>
 		);
 	},
 );
@@ -320,15 +360,18 @@ export const MessageActions: React.FC<MessageActionsProps> = React.memo(
 		if (actions.length === 0) return null;
 
 		return (
-			<>
-				{actions.map((item, index) => (
-					<TaskItemRenderer
-						key={`${item.name}_${index}`}
-						item={item}
-						index={index}
-					/>
-				))}
-			</>
+			<div className="w-full max-w-3xl pl-1">
+				<div className="space-y-1">
+					{actions.map((item, index) => (
+						<TaskItemRenderer
+							key={`${item.name}_${index}`}
+							item={item}
+							index={index}
+							total={actions.length}
+						/>
+					))}
+				</div>
+			</div>
 		);
 	},
 );
