@@ -1,15 +1,8 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-	MessageCircle,
-	Bot,
-	VectorSquareIcon,
-	Database,
 	Bug,
-	Network,
 	ChevronDown,
-	FileText,
-	BrainCircuit,
 	// GitBranch,
 	ExternalLink,
 } from "lucide-react";
@@ -33,34 +26,14 @@ import { useIsWideViewport } from "@/main/hooks/use-viewport";
 import { RuntimeSessionsPopover } from "@/main/components/molecules/RuntimeSessions";
 import { SettingPanel } from "@/main/components/molecules/SettingPanel";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
+import {
+	debugNavigationItems,
+	mainNavigationItems,
+} from "@/main/components/app-navigation";
 
 interface LayoutProps {
 	children: React.ReactNode;
 }
-
-const navigation = [
-	{ nameKey: "navigation.chat", path: "/", icon: MessageCircle },
-	{ nameKey: "navigation.documents", path: "/documents", icon: FileText },
-	{ nameKey: "navigation.agents", path: "/agents", icon: Bot },
-	{
-		nameKey: "navigation.knowledgeGraph",
-		path: "/knowledge-graph",
-		icon: Network,
-	},
-	// { nameKey: "navigation.flowBuilder", path: "/flow-builder", icon: GitBranch },
-	// { nameKey: "navigation.activities", path: "/activities", icon: BrainCircuit },
-	{ nameKey: "navigation.models", path: "/llm", icon: BrainCircuit },
-];
-
-const debugItems = [
-	{
-		nameKey: "navigation.embeddings",
-		path: "/embeddings",
-		icon: VectorSquareIcon,
-	},
-	{ nameKey: "navigation.database", path: "/database", icon: Database },
-	{ nameKey: "navigation.logs", path: "/logs", icon: Bug },
-];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
 	return <LayoutShell>{children}</LayoutShell>;
@@ -81,12 +54,12 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 		progress: 0,
 	});
 
-	const allPaths = [...navigation, ...debugItems];
+	const allPaths = [...mainNavigationItems, ...debugNavigationItems];
 	const checkIsExistNavigation = allPaths.some(
 		(item) => item.path === location.pathname,
 	);
 
-	const isDebugSelected = debugItems.some(
+	const isDebugSelected = debugNavigationItems.some(
 		(item) => item.path === location.pathname,
 	);
 	const isWideChatSidePanelVisible = !isPopupSurface() && isWideViewport;
@@ -111,7 +84,7 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 					<div className="flex h-12 items-center justify-between">
 						<div className="flex items-center space-x-1">
 							<TooltipProvider>
-								{navigation.map((item) => {
+								{mainNavigationItems.map((item) => {
 									const isSelected =
 										location.pathname === item.path ||
 										(!checkIsExistNavigation && item.path === "/");
@@ -169,7 +142,7 @@ const LayoutShell: React.FC<LayoutProps> = ({ children }) => {
 										</TooltipContent>
 									</Tooltip>
 									<DropdownMenuContent align="start">
-										{debugItems.map((item) => {
+										{debugNavigationItems.map((item) => {
 											const IconComponent = item.icon;
 											return (
 												<DropdownMenuItem key={item.path} asChild>

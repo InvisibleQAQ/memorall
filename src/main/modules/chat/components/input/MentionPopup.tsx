@@ -109,9 +109,9 @@ export const MentionPopup: React.FC<MentionPopupProps> = ({
 	return (
 		<div
 			ref={containerRef}
-			className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-lg shadow-md overflow-hidden z-50"
+			className="absolute bottom-full left-0 right-0 z-[80] mb-2 flex max-h-[min(22rem,calc(100vh-14rem))] flex-col overflow-hidden rounded-lg border border-border bg-background text-foreground shadow-2xl"
 		>
-			<div className="flex items-center justify-between gap-3 px-3 py-1.5 text-xs text-muted-foreground border-b border-border">
+			<div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-3 py-1.5 text-xs text-muted-foreground">
 				<span>{title}</span>
 				<div className="flex min-w-0 items-center gap-2">
 					{searchText ? (
@@ -129,7 +129,7 @@ export const MentionPopup: React.FC<MentionPopupProps> = ({
 					</button>
 				</div>
 			</div>
-			<div className="max-h-48 overflow-y-auto">
+			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background">
 				{items.map((item, idx) => (
 					<button
 						key={item.id}
@@ -142,7 +142,7 @@ export const MentionPopup: React.FC<MentionPopupProps> = ({
 							onSelect(item);
 						}}
 						className={cn(
-							"w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent transition-colors",
+							"flex w-full items-center gap-2 bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
 							idx === highlightIndex && "bg-accent",
 						)}
 					>

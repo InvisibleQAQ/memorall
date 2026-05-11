@@ -159,5 +159,20 @@
 	"navigator": {
 		"expand": "Expand",
 		"collapse": "Collapse"
+	},
+	"knowledgeConversionDialog": {
+		"title": "Convert to Knowledge",
+		"description": "Choose memory for \"{{fileName}}\". Conversion uses that memory's grow type.",
+		"memoryLabel": "Memory",
+		"defaultOption": "Default",
+		"noMemoryAssociation": "No memory association",
+		"noMemoriesAvailable": "No memories available",
+		"agent": "Agent: {{name}}",
+		"cancel": "Cancel",
+		"convert": "Convert",
+		"growTypes": {
+			"knowledge-graph": "Knowledge Graph",
+			"structmem": "StructMem"
+		}
 	}
 }

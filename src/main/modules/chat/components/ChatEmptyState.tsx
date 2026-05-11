@@ -47,7 +47,7 @@ export const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({
 	);
 
 	return (
-		<div className="flex min-h-[calc(100vh-15rem)] flex-1 flex-col items-center justify-center gap-7 py-12">
+		<div className="flex min-h-[calc(100vh-18rem)] flex-1 flex-col items-center justify-center gap-7 py-12">
 			<AgentIcon
 				size={132}
 				aria-label="Agent"
