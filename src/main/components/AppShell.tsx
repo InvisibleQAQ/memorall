@@ -25,7 +25,7 @@ interface AppShellProps {
 	children: React.ReactNode;
 }
 
-const MOBILE_WORKSPACE_QUERY = "(max-width: 500px)";
+const MOBILE_WORKSPACE_QUERY = "(max-width: 640px)";
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	const navigate = useNavigate();
@@ -146,9 +146,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	};
 
 	return (
-		<div className="flex h-screen min-h-0 overflow-hidden bg-background text-foreground max-[500px]:block">
+		<div className="flex h-full min-h-0 w-full overflow-hidden bg-background text-foreground">
 			<section
-				className={`relative z-20 h-full min-h-0 flex-shrink-0 border-r bg-background max-[500px]:h-screen max-[500px]:w-full max-[500px]:border-r-0 ${panelTransitionClass}`}
+				className={`relative z-20 h-full min-h-0 flex-shrink-0 border-r bg-background max-[640px]:w-full max-[640px]:border-r-0 ${panelTransitionClass}`}
 				style={{
 					width: chatPanelWidth,
 					flexBasis: chatPanelWidth,
@@ -192,7 +192,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 				</div>
 				<div
 					onMouseDown={handleResizeMouseDown}
-					className="absolute bottom-0 right-0 top-0 hidden w-1 cursor-col-resize transition-colors hover:bg-primary/40 min-[501px]:block"
+					className="absolute bottom-0 right-0 top-0 hidden w-1 cursor-col-resize transition-colors hover:bg-primary/40 min-[641px]:block"
 				/>
 				{!rightPanelCollapsed ? (
 					<Button
@@ -200,7 +200,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 						variant="ghost"
 						size="icon"
 						onClick={() => setChatShellCollapsed(!effectiveChatShellCollapsed)}
-						className="absolute right-2 top-2 z-30 hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground min-[501px]:inline-flex"
+						className="absolute right-2 top-2 z-30 hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground min-[641px]:inline-flex"
 						aria-label={
 							effectiveChatShellCollapsed
 								? "Restore chat panel"
@@ -222,7 +222,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 			</section>
 
 			<section
-				className={`min-h-0 min-w-0 flex-shrink-0 overflow-hidden max-[500px]:hidden ${panelTransitionClass}`}
+				className={`min-h-0 min-w-0 flex-shrink-0 overflow-hidden max-[640px]:!hidden ${panelTransitionClass}`}
 				style={{
 					width: rightPanelWidth,
 					flexBasis: rightPanelWidth,
@@ -237,7 +237,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 			</section>
 
 			{isMobileWorkspaceOpen ? (
-				<section className="fixed inset-0 z-50 bg-background min-[501px]:hidden">
+				<section className="fixed inset-0 z-50 bg-background min-[641px]:hidden">
 					<RightApplicationLayout
 						collapsed={false}
 						onCollapsedChange={(collapsed) => {

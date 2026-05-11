@@ -52,6 +52,7 @@ interface DocumentViewerProps {
 	file: DocumentFile;
 	isWorkspaceFile?: boolean;
 	compact?: boolean;
+	compactNavigatorToggle?: React.ReactNode;
 	onClose?: () => void;
 	onDelete?: () => void;
 	onDownload?: () => void;
@@ -66,6 +67,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 	file,
 	isWorkspaceFile = false,
 	compact = false,
+	compactNavigatorToggle,
 	onClose,
 	onDelete,
 	onDownload,
@@ -258,9 +260,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 		<div className="flex h-full min-w-0 flex-1 flex-col bg-card">
 			{/* Header */}
 			{compact ? (
-				<div className="flex flex-col gap-1 border-b px-3 py-2">
+				<div className="flex min-h-[53px] flex-col justify-center gap-1 border-b px-3 py-2">
 					{/* Line 1: filename + more popover */}
 					<div className="flex min-w-0 items-center gap-1">
+						{compactNavigatorToggle}
 						<h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
 							{file.name}
 						</h2>

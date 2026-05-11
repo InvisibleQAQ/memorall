@@ -28,6 +28,7 @@ import {
 	isRecallTypeValidForGrow,
 	type RecallType,
 } from "@/services/database/entities/topic-types";
+import { createJobErrorMetadata, getErrorMessage } from "./error-metadata";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
@@ -804,8 +805,8 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				},
 			};
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error";
+			const errorMessage = getErrorMessage(error);
+			const errorMetadata = createJobErrorMetadata(error);
 			await dependencies.logger.error(
 				`❌ Chat job ${jobId} failed`,
 				error,
@@ -816,6 +817,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				stage: "Chat failed",
 				progress: 100,
 				error: errorMessage,
+				metadata: { error: errorMetadata },
 			});
 
 			throw error;

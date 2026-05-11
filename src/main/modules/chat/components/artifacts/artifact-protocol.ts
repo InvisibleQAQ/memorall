@@ -5,7 +5,7 @@ export const STANDARD_ARTIFACT_TAG = "artifact";
 export const STANDARD_ARTIFACT_OPEN = `<${STANDARD_ARTIFACT_TAG}`;
 export const STANDARD_ARTIFACT_CLOSE = `</${STANDARD_ARTIFACT_TAG}>`;
 
-export const ARTIFACT_TYPES = ["html", "url"] as const;
+export const ARTIFACT_TYPES = ["html", "url", "markdown", "text"] as const;
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
 
 export type MessageContentSegment =
@@ -16,7 +16,38 @@ export type MessageContentSegment =
 			content: string;
 			identifier?: string;
 			title?: string;
+			blockIndex: number;
+			start: number;
+			openEnd: number;
+			contentStart: number;
+			contentEnd: number;
+			end: number;
 	  };
+
+export interface RuntimeArtifact {
+	id: string;
+	type: ArtifactType;
+	content: string;
+	identifier?: string;
+	title?: string;
+	messageId: string;
+	messageContent: string;
+	messageIndex: number;
+	blockIndex: number;
+	start: number;
+	openEnd: number;
+	contentStart: number;
+	contentEnd: number;
+	end: number;
+	createdAt?: Date | string | null;
+}
+
+interface ArtifactMessageLike {
+	id: string;
+	role: string;
+	content: string;
+	createdAt?: Date | string | null;
+}
 
 const DEFAULT_ARTIFACT_TYPE: ArtifactType = "html";
 
@@ -28,6 +59,16 @@ const normalizeArtifactType = (value: string | undefined): ArtifactType => {
 		case "text/html":
 		case "html":
 			return "html";
+		case "text/markdown":
+		case "text/x-markdown":
+		case "markdown":
+		case "md":
+			return "markdown";
+		case "text/plain":
+		case "plain":
+		case "txt":
+		case "text":
+			return "text";
 		case "text/uri-list":
 		case "url":
 			return "url";
@@ -68,6 +109,7 @@ export const parseArtifactSegments = (
 ): MessageContentSegment[] => {
 	const segments: MessageContentSegment[] = [];
 	let cursor = 0;
+	let blockIndex = 0;
 
 	while (cursor < content.length) {
 		const standardOpenIdx = content.indexOf(STANDARD_ARTIFACT_OPEN, cursor);
@@ -112,10 +154,65 @@ export const parseArtifactSegments = (
 			content: content.slice(openEnd + 1, closeIdx),
 			identifier: attrs.identifier,
 			title: attrs.title,
+			blockIndex,
+			start: openIdx,
+			openEnd,
+			contentStart: openEnd + 1,
+			contentEnd: closeIdx,
+			end: closeIdx + closeTag.length,
 		});
+		blockIndex += 1;
 
 		cursor = closeIdx + closeTag.length;
 	}
 
 	return segments;
+};
+
+export const getArtifactSegments = (content: string) =>
+	parseArtifactSegments(content).filter(
+		(segment) => segment.kind === "artifact",
+	);
+
+export const collectRuntimeArtifacts = (
+	messages: ArtifactMessageLike[],
+): RuntimeArtifact[] =>
+	messages.flatMap((message, messageIndex) => {
+		if (message.role !== "assistant") {
+			return [];
+		}
+
+		return getArtifactSegments(message.content).map((segment) => ({
+			id: `${message.id}:${segment.blockIndex}`,
+			type: segment.type,
+			content: segment.content,
+			identifier: segment.identifier,
+			title: segment.title,
+			messageId: message.id,
+			messageContent: message.content,
+			messageIndex,
+			blockIndex: segment.blockIndex,
+			start: segment.start,
+			openEnd: segment.openEnd,
+			contentStart: segment.contentStart,
+			contentEnd: segment.contentEnd,
+			end: segment.end,
+			createdAt: message.createdAt,
+		}));
+	});
+
+export const replaceArtifactContent = (
+	messageContent: string,
+	blockIndex: number,
+	nextContent: string,
+): string => {
+	const artifact = getArtifactSegments(messageContent).find(
+		(segment) => segment.blockIndex === blockIndex,
+	);
+
+	if (!artifact) {
+		return messageContent;
+	}
+
+	return `${messageContent.slice(0, artifact.contentStart)}${nextContent}${messageContent.slice(artifact.contentEnd)}`;
 };

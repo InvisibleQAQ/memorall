@@ -34,6 +34,7 @@ interface ChatStore {
 	// Actions
 	addMessage: (message: Partial<Message>) => Promise<Message>;
 	updateMessage: (id: string, message: Partial<Message>) => void;
+	persistMessageContent: (id: string, content: string) => Promise<void>;
 	finalizeMessage: (id: string, message: Partial<Message>) => Promise<void>;
 	loadConversation: (id: string) => Promise<void>;
 	loadConversations: () => Promise<void>;
@@ -283,6 +284,32 @@ export const useChatStore = create<ChatStore>((set, get) => {
 				),
 				messageGroups: replaceMessageInGroups(state.messageGroups, id, message),
 			}));
+		},
+
+		persistMessageContent: async (id, content) => {
+			const updatedAt = new Date();
+
+			try {
+				await serviceManager.databaseService.use(({ db, schema }) =>
+					db
+						.update(schema.messages)
+						.set({ content, updatedAt })
+						.where(eq(schema.messages.id, id)),
+				);
+
+				set((state) => ({
+					messages: state.messages.map((msg) =>
+						msg.id === id ? { ...msg, content, updatedAt } : msg,
+					),
+					messageGroups: replaceMessageInGroups(state.messageGroups, id, {
+						content,
+						updatedAt,
+					}),
+				}));
+			} catch (error) {
+				logError("Failed to persist message content:", error);
+				throw error;
+			}
 		},
 
 		finalizeMessage: async (id, inputMessage) => {

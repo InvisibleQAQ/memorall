@@ -163,26 +163,32 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 		return (
 			<div
 				className={`flex items-center justify-center bg-background ${
-					isPopup ? "h-full min-h-0 px-3 py-3" : "min-h-screen px-4"
+					isPopup
+						? "h-full min-h-0 px-2 py-2 sm:px-3 sm:py-3"
+						: "min-h-dvh px-3 py-4 sm:px-4"
 				}`}
 			>
 				<Card
 					className={`border-destructive ${
-						isPopup ? "w-full max-w-none shadow-lg" : "w-[480px]"
+						isPopup ? "w-full max-w-none shadow-lg" : "w-full max-w-[480px]"
 					}`}
 				>
-					<CardContent className={isPopup ? "p-4" : "p-6"}>
+					<CardContent className={isPopup ? "p-3 sm:p-4" : "p-4 sm:p-6"}>
 						<div className="text-center">
 							<div
 								className={`mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center overflow-hidden ${
-									isPopup ? "h-12 w-12" : "h-16 w-16"
+									isPopup
+										? "h-11 w-11 sm:h-12 sm:w-12"
+										: "h-14 w-14 sm:h-16 sm:w-16"
 								}`}
 							>
 								<img
 									src="/logo.png"
 									alt="Memorall Logo"
 									className={`object-contain opacity-50 ${
-										isPopup ? "h-10 w-10" : "h-14 w-14"
+										isPopup
+											? "h-9 w-9 sm:h-10 sm:w-10"
+											: "h-12 w-12 sm:h-14 sm:w-14"
 									}`}
 								/>
 							</div>
@@ -217,38 +223,38 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 
 	if (isPopup) {
 		return (
-			<div className="h-full min-h-0 bg-background p-3">
-				<Card className="relative h-full overflow-hidden border-0 shadow-xl">
-					<div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-br from-primary/14 via-primary/5 to-transparent" />
-					<CardContent className="relative flex h-full flex-col gap-4 p-4">
+			<div className="flex h-full min-h-0 items-center justify-center bg-background p-2 sm:p-3">
+				<Card className="relative h-full w-full max-w-[560px] overflow-hidden border-0 shadow-xl">
+					<div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br from-primary/14 via-primary/5 to-transparent sm:h-28" />
+					<CardContent className="relative flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 sm:gap-4 sm:p-4">
 						<div className="flex items-start gap-3">
-							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/15">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/15 sm:h-12 sm:w-12 sm:rounded-2xl">
 								<img
 									src="/logo.png"
 									alt="Memorall Logo"
-									className="h-9 w-9 object-contain"
+									className="h-8 w-8 object-contain sm:h-9 sm:w-9"
 								/>
 							</div>
 							<div className="min-w-0 flex-1">
 								<div className="label-mono text-[11px] text-primary/80">
 									Memorall
 								</div>
-								<h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
+								<h2 className="mt-1 text-base font-semibold tracking-tight text-foreground sm:text-lg">
 									{t("appLoading.title")}
 								</h2>
-								<p className="mt-1 text-xs leading-5 text-muted-foreground">
+								<p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
 									{activeStep?.description ?? t("appLoading.subtitle")}
 								</p>
 							</div>
-							<div className="rounded-full border border-border bg-background/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+							<div className="shrink-0 rounded-full border border-border bg-background/80 px-2 py-1 text-[11px] font-medium text-muted-foreground sm:px-2.5">
 								{progressToUse}%
 							</div>
 						</div>
 
-						<div className="space-y-2.5 rounded-2xl border border-border/80 bg-background/80 p-3">
+						<div className="space-y-2 rounded-xl border border-border/80 bg-background/80 p-3 sm:space-y-2.5 sm:rounded-2xl">
 							<div className="flex items-center justify-between gap-3">
 								<div className="min-w-0">
-									<div className="text-sm font-medium text-foreground">
+									<div className="truncate text-sm font-medium text-foreground">
 										{serviceProgress.step}
 									</div>
 									<div className="text-[11px] text-muted-foreground">
@@ -265,14 +271,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 							/>
 						</div>
 
-						<div className="grid gap-2">
+						<div className="grid gap-1.5 sm:gap-2">
 							{LOADING_STEPS.map((step, index) => {
 								const { isCompleted, isCurrent } = getStepStatus(step.id);
 
 								return (
 									<div
 										key={step.id}
-										className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-300 ${
+										className={`flex items-center gap-2.5 rounded-xl border px-2.5 py-2 transition-all duration-300 sm:gap-3 sm:px-3 sm:py-2.5 ${
 											isCompleted
 												? "border-emerald-200 bg-emerald-50/90 dark:border-emerald-900 dark:bg-emerald-950/30"
 												: isCurrent
@@ -281,7 +287,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 										}`}
 									>
 										<div
-											className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+											className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-300 sm:h-8 sm:w-8 ${
 												isCompleted
 													? "bg-emerald-500 text-white"
 													: isCurrent
@@ -302,7 +308,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 												<div className="truncate text-sm font-medium text-foreground">
 													{step.title}
 												</div>
-												<div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+												<div className="shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:tracking-[0.18em]">
 													0{index + 1}
 												</div>
 											</div>
@@ -315,9 +321,11 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 							})}
 						</div>
 
-						<div className="mt-auto flex items-center justify-between rounded-xl border border-dashed border-border/80 bg-muted/15 px-3 py-2 text-[11px] text-muted-foreground">
-							<span>{t("appLoading.firstLaunch")}</span>
-							<span>{activeStep?.title}</span>
+						<div className="mt-auto flex items-center justify-between gap-3 rounded-xl border border-dashed border-border/80 bg-muted/15 px-3 py-2 text-[11px] text-muted-foreground">
+							<span className="min-w-0 truncate">
+								{t("appLoading.firstLaunch")}
+							</span>
+							<span className="shrink-0 truncate">{activeStep?.title}</span>
 						</div>
 					</CardContent>
 				</Card>
@@ -326,17 +334,17 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 	}
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-background px-4">
-			<Card className="w-[520px] border-0 shadow-xl">
-				<CardContent className="p-8">
+		<div className="flex min-h-dvh items-center justify-center bg-background px-3 py-4 sm:px-4">
+			<Card className="w-full max-w-[520px] border-0 shadow-xl">
+				<CardContent className="p-4 sm:p-8">
 					<div className="text-center">
 						{/* Header with animated title */}
-						<div className="mb-8">
-							<div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center overflow-hidden">
+						<div className="mb-5 sm:mb-8">
+							<div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-primary/60 sm:h-20 sm:w-20">
 								<img
 									src="/logo.png"
 									alt="Memorall Logo"
-									className="w-14 h-14 object-contain"
+									className="h-12 w-12 object-contain sm:h-14 sm:w-14"
 								/>
 							</div>
 							<TypingText
@@ -351,7 +359,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 								pauseDuration={200}
 								showCursor={true}
 								cursorCharacter="|"
-								className="text-4xl font-bold"
+								className="break-words text-2xl font-bold leading-tight sm:text-4xl"
 								textColors={["#3b82f6", "#8b5cf6", "#06b6d4"]}
 								variableSpeed={{ min: 50, max: 120 }}
 							/>
@@ -361,7 +369,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 						</div>
 
 						{/* Progress bar */}
-						<div className="mb-6">
+						<div className="mb-5 sm:mb-6">
 							<div className="flex justify-between items-center mb-2">
 								<span className="text-sm font-medium text-foreground">
 									{serviceProgress.step}
@@ -377,14 +385,14 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 						</div>
 
 						{/* Loading steps */}
-						<div className="space-y-3 text-left">
+						<div className="space-y-2 text-left sm:space-y-3">
 							{LOADING_STEPS.map((step) => {
 								const { isCompleted, isCurrent } = getStepStatus(step.id);
 
 								return (
 									<div
 										key={step.id}
-										className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
+										className={`flex items-center gap-2.5 rounded-lg p-2.5 transition-all duration-300 sm:gap-3 sm:p-3 ${
 											isCompleted
 												? "bg-green-50 dark:bg-green-950/20"
 												: isCurrent
@@ -393,7 +401,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 										}`}
 									>
 										<div
-											className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+											className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full transition-all duration-300 sm:h-8 sm:w-8 ${
 												isCompleted
 													? "bg-green-500 text-white"
 													: isCurrent
@@ -402,16 +410,16 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 											}`}
 										>
 											{isCompleted ? (
-												<CheckCircle2 className="w-4 h-4" />
+												<CheckCircle2 className="h-4 w-4" />
 											) : isCurrent ? (
-												<Loader2 className="w-4 h-4 animate-spin" />
+												<Loader2 className="h-4 w-4 animate-spin" />
 											) : (
 												step.icon
 											)}
 										</div>
-										<div className="flex-1 min-w-0">
+										<div className="min-w-0 flex-1">
 											<div
-												className={`font-medium text-sm transition-colors ${
+												className={`truncate text-sm font-medium transition-colors ${
 													isCompleted
 														? "text-green-700 dark:text-green-300"
 														: isCurrent
@@ -422,7 +430,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 												{step.title}
 											</div>
 											<div
-												className={`text-xs transition-colors ${
+												className={`line-clamp-2 text-xs transition-colors ${
 													isCompleted
 														? "text-green-600 dark:text-green-400"
 														: isCurrent
@@ -434,7 +442,7 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 											</div>
 										</div>
 										{isCompleted && (
-											<div className="text-xs text-green-600 dark:text-green-400 font-medium">
+											<div className="shrink-0 text-xs font-medium text-green-600 dark:text-green-400">
 												{t("appLoading.done")}
 											</div>
 										)}
@@ -444,8 +452,8 @@ export const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({
 						</div>
 
 						{/* Footer info */}
-						<div className="mt-8 pt-6 border-t border-border">
-							<div className="flex justify-between items-center text-xs text-muted-foreground">
+						<div className="mt-5 border-t border-border pt-4 sm:mt-8 sm:pt-6">
+							<div className="flex flex-col gap-1 text-xs text-muted-foreground min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
 								<span>
 									{t("appLoading.elapsed", {
 										time: formatElapsedTime(elapsedTime),

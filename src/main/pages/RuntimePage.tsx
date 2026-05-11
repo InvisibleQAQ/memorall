@@ -1,8 +1,215 @@
-import React from "react";
-import { Server } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+	Check,
+	ChevronDown,
+	Code2,
+	Eye,
+	FileText,
+	Save,
+	Server,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/main/components/ui/button";
+import { Textarea } from "@/main/components/ui/textarea";
 import { RuntimeSessionsSectionList } from "@/main/components/molecules/RuntimeSessions/RuntimeSessionsSectionList";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
+import { useChatStore } from "@/main/stores/chat";
+import MarkdownMessage from "@/main/modules/chat/components/MarkdownMessage";
+import { UrlArtifact } from "@/main/modules/chat/components/artifacts/ArtifactRenderer";
+import {
+	collectRuntimeArtifacts,
+	replaceArtifactContent,
+	type RuntimeArtifact,
+} from "@/main/modules/chat/components/artifacts/artifact-protocol";
+import { cn } from "@/lib/utils";
+
+type RuntimeSection = "artifacts" | "runtime";
+type ArtifactMode = "preview" | "code" | "edit";
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+const getArtifactTitle = (artifact: RuntimeArtifact, index: number) =>
+	artifact.title?.trim() ||
+	artifact.identifier?.trim() ||
+	`${artifact.type.toUpperCase()} artifact ${index + 1}`;
+
+const getArtifactSummary = (artifact: RuntimeArtifact) => {
+	const trimmed = artifact.content.trim().replace(/\s+/g, " ");
+	return trimmed || "Empty artifact";
+};
+
+const getArtifactTypeLabel = (type: RuntimeArtifact["type"]) => {
+	switch (type) {
+		case "html":
+			return "Interactive HTML";
+		case "markdown":
+			return "Markdown draft";
+		case "text":
+			return "Text note";
+		case "url":
+			return "Web preview";
+		default:
+			return "Artifact";
+	}
+};
+
+const RuntimeArtifactViewer: React.FC<{
+	artifact: RuntimeArtifact;
+	index: number;
+	onSave: (artifact: RuntimeArtifact, content: string) => Promise<void>;
+}> = ({ artifact, index, onSave }) => {
+	const [mode, setMode] = useState<ArtifactMode>(
+		artifact.type === "html" || artifact.type === "url" ? "preview" : "edit",
+	);
+	const [draft, setDraft] = useState(artifact.content);
+	const [saveState, setSaveState] = useState<SaveState>("idle");
+	const isEditable = artifact.type !== "url";
+	const isDirty = draft !== artifact.content;
+
+	useEffect(() => {
+		setDraft(artifact.content);
+		setSaveState("idle");
+		setMode((current) => {
+			if (artifact.type === "url") return "preview";
+			if (artifact.type === "html") {
+				return current === "code" ? "code" : "preview";
+			}
+			return current === "preview" ? "preview" : "edit";
+		});
+	}, [artifact.id, artifact.content, artifact.type]);
+
+	const handleSave = async () => {
+		if (!isEditable || saveState === "saving") return;
+		setSaveState("saving");
+		try {
+			await onSave(artifact, draft);
+			setSaveState("saved");
+			window.setTimeout(() => setSaveState("idle"), 1600);
+		} catch {
+			setSaveState("error");
+		}
+	};
+
+	const title = getArtifactTitle(artifact, index);
+
+	return (
+		<div className="flex h-full min-h-0 flex-col">
+			<div className="flex flex-shrink-0 items-center justify-between gap-3 border-b bg-muted/10 px-5 py-3.5">
+				<div className="min-w-0">
+					<div className="truncate text-sm font-semibold text-foreground">
+						{title}
+					</div>
+					<div className="mt-1 text-xs font-medium text-muted-foreground">
+						{getArtifactTypeLabel(artifact.type)}
+					</div>
+				</div>
+				<div className="flex flex-shrink-0 items-center gap-2">
+					{artifact.type === "html" ? (
+						<div className="flex rounded-lg border border-border/70 bg-background/70 p-0.5 shadow-sm">
+							<Button
+								type="button"
+								variant={mode === "preview" ? "secondary" : "ghost"}
+								size="sm"
+								className="h-8 gap-1.5 rounded-md px-3 text-xs font-medium"
+								onClick={() => setMode("preview")}
+							>
+								<Eye size={13} />
+								View
+							</Button>
+							<Button
+								type="button"
+								variant={mode === "code" ? "secondary" : "ghost"}
+								size="sm"
+								className="h-8 gap-1.5 rounded-md px-3 text-xs font-medium"
+								onClick={() => setMode("code")}
+							>
+								<Code2 size={13} />
+								Source
+							</Button>
+						</div>
+					) : null}
+					{artifact.type === "markdown" ? (
+						<div className="flex rounded-lg border border-border/70 bg-background/70 p-0.5 shadow-sm">
+							<Button
+								type="button"
+								variant={mode === "preview" ? "secondary" : "ghost"}
+								size="sm"
+								className="h-8 gap-1.5 rounded-md px-3 text-xs font-medium"
+								onClick={() => setMode("preview")}
+							>
+								<Eye size={13} />
+								View
+							</Button>
+							<Button
+								type="button"
+								variant={mode === "edit" ? "secondary" : "ghost"}
+								size="sm"
+								className="h-8 gap-1.5 rounded-md px-3 text-xs font-medium"
+								onClick={() => setMode("edit")}
+							>
+								<Code2 size={13} />
+								Edit
+							</Button>
+						</div>
+					) : null}
+					{isEditable ? (
+						<Button
+							type="button"
+							size="sm"
+							className="h-8 gap-1.5 rounded-md px-3 font-medium"
+							disabled={!isDirty || saveState === "saving"}
+							onClick={handleSave}
+						>
+							{saveState === "saved" ? <Check size={14} /> : <Save size={14} />}
+							{saveState === "saving"
+								? "Saving..."
+								: saveState === "saved"
+									? "Saved"
+									: "Save changes"}
+						</Button>
+					) : null}
+				</div>
+			</div>
+
+			<div className="min-h-0 flex-1 overflow-auto bg-background">
+				{artifact.type === "url" ? (
+					<div className="p-3">
+						<UrlArtifact content={artifact.content} title={title} />
+					</div>
+				) : artifact.type === "html" && mode === "preview" ? (
+					<iframe
+						srcDoc={draft}
+						sandbox="allow-scripts allow-same-origin"
+						className="h-full min-h-[420px] w-full bg-white"
+						style={{ border: "none" }}
+						title={title}
+					/>
+				) : artifact.type === "markdown" && mode === "preview" ? (
+					<div className="mx-auto max-w-3xl p-5">
+						<MarkdownMessage>{draft}</MarkdownMessage>
+					</div>
+				) : (
+					<Textarea
+						value={draft}
+						onChange={(event) => setDraft(event.target.value)}
+						spellCheck={artifact.type !== "html"}
+						className={cn(
+							"h-full min-h-[420px] resize-none rounded-none border-0 bg-background p-4 text-sm leading-relaxed shadow-none focus-visible:ring-0",
+							artifact.type === "html" || artifact.type === "text"
+								? "font-mono"
+								: "font-sans",
+						)}
+					/>
+				)}
+			</div>
+
+			{saveState === "error" ? (
+				<div className="flex-shrink-0 border-t px-4 py-2 text-xs text-destructive">
+					Failed to save artifact changes.
+				</div>
+			) : null}
+		</div>
+	);
+};
 
 export const RuntimePage: React.FC = () => {
 	const { t } = useTranslation();
@@ -14,36 +221,186 @@ export const RuntimePage: React.FC = () => {
 	const refreshRuntimeSessions = useRuntimeSessionsStore(
 		(state) => state.refresh,
 	);
+	const messages = useChatStore((state) => state.messages);
+	const persistMessageContent = useChatStore(
+		(state) => state.persistMessageContent,
+	);
+	const artifacts = useMemo(
+		() => collectRuntimeArtifacts(messages),
+		[messages],
+	);
+	const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(
+		null,
+	);
+	const [artifactListOpen, setArtifactListOpen] = useState(true);
 	const hasRuntime =
 		commands.length > 0 || servers.length > 0 || activeWebSession.isOpen;
+	const hasArtifacts = artifacts.length > 0;
+	const [section, setSection] = useState<RuntimeSection>(
+		hasArtifacts ? "artifacts" : "runtime",
+	);
+
+	useEffect(() => {
+		if (hasArtifacts) {
+			const selectedExists = artifacts.some(
+				(artifact) => artifact.id === selectedArtifactId,
+			);
+			if (!selectedExists) {
+				setSelectedArtifactId(artifacts.at(-1)?.id ?? null);
+				setSection("artifacts");
+			}
+			return;
+		}
+
+		setSelectedArtifactId(null);
+		setSection("runtime");
+	}, [artifacts, hasArtifacts, selectedArtifactId]);
+
+	const selectedArtifact =
+		artifacts.find((artifact) => artifact.id === selectedArtifactId) ??
+		artifacts.at(-1) ??
+		null;
+	const selectedArtifactIndex = selectedArtifact
+		? artifacts.findIndex((artifact) => artifact.id === selectedArtifact.id)
+		: -1;
+
+	const handleSaveArtifact = async (
+		artifact: RuntimeArtifact,
+		content: string,
+	) => {
+		const nextMessageContent = replaceArtifactContent(
+			artifact.messageContent,
+			artifact.blockIndex,
+			content,
+		);
+		await persistMessageContent(artifact.messageId, nextMessageContent);
+	};
+
+	const showSectionTabs = hasArtifacts && hasRuntime;
 
 	return (
 		<div className="flex h-full min-h-0 flex-col bg-background">
-			<div className="flex flex-shrink-0 items-center gap-3 border-b px-5 py-4">
-				<Server size={18} className="text-muted-foreground" />
-				<div>
-					<h1 className="text-lg font-semibold">{t("sandboxPanel.title")}</h1>
-					<p className="text-sm text-muted-foreground">
-						{t("sandboxPanel.description", {
-							defaultValue: "Web sessions, servers, and running commands.",
-						})}
-					</p>
+			<div className="flex flex-shrink-0 items-center justify-between gap-4 border-b bg-muted/5 px-5 py-4">
+				<div className="flex min-w-0 items-center gap-3">
+					<div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background shadow-sm">
+						<Server size={18} className="text-primary" />
+					</div>
+					<div className="min-w-0">
+						<h1 className="truncate text-lg font-semibold">
+							{t("sandboxPanel.title")}
+						</h1>
+						<p className="mt-0.5 text-sm text-muted-foreground">
+							{t("sandboxPanel.description", {
+								defaultValue:
+									"Preview generated work, live pages, servers, and command activity.",
+							})}
+						</p>
+					</div>
 				</div>
+				{showSectionTabs ? (
+					<div className="flex flex-shrink-0 rounded-lg border border-border/70 bg-background/70 p-0.5 shadow-sm">
+						<Button
+							type="button"
+							variant={section === "artifacts" ? "secondary" : "ghost"}
+							size="sm"
+							className="h-8 rounded-md px-4 font-medium"
+							onClick={() => setSection("artifacts")}
+						>
+							Outputs
+						</Button>
+						<Button
+							type="button"
+							variant={section === "runtime" ? "secondary" : "ghost"}
+							size="sm"
+							className="h-8 rounded-md px-4 font-medium"
+							onClick={() => setSection("runtime")}
+						>
+							Live Runtime
+						</Button>
+					</div>
+				) : null}
 			</div>
-			<div className="min-h-0 flex-1 overflow-y-auto p-4">
-				{hasRuntime ? (
-					<RuntimeSessionsSectionList
-						commands={commands}
-						servers={servers}
-						activeWebSession={activeWebSession}
-						onRefresh={refreshRuntimeSessions}
-						variant="docked"
-					/>
+
+			<div className="min-h-0 flex-1">
+				{section === "artifacts" && selectedArtifact ? (
+					<div className="flex h-full min-h-0">
+						{artifacts.length > 1 ? (
+							<aside className="flex h-full w-56 flex-shrink-0 flex-col border-r bg-muted/10">
+								<button
+									type="button"
+									className="flex items-center justify-between gap-2 border-b px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground"
+									onClick={() => setArtifactListOpen((open) => !open)}
+								>
+									<span>Generated outputs ({artifacts.length})</span>
+									<ChevronDown
+										size={14}
+										className={cn(
+											"transition-transform",
+											artifactListOpen && "rotate-180",
+										)}
+									/>
+								</button>
+								{artifactListOpen ? (
+									<div className="min-h-0 flex-1 overflow-y-auto p-2">
+										{artifacts.map((artifact, index) => {
+											const selected = artifact.id === selectedArtifact.id;
+											return (
+												<button
+													key={artifact.id}
+													type="button"
+													className={cn(
+														"mb-1 flex w-full min-w-0 items-start gap-2 rounded-md px-2 py-2 text-left transition-colors",
+														selected
+															? "bg-blue-500/10 text-blue-500"
+															: "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+													)}
+													onClick={() => setSelectedArtifactId(artifact.id)}
+												>
+													<FileText
+														size={14}
+														className="mt-0.5 flex-shrink-0"
+													/>
+													<span className="min-w-0 flex-1">
+														<span className="block truncate text-xs font-medium">
+															{getArtifactTitle(artifact, index)}
+														</span>
+														<span className="mt-0.5 block truncate text-[11px] opacity-75">
+															{getArtifactTypeLabel(artifact.type)} -{" "}
+															{getArtifactSummary(artifact)}
+														</span>
+													</span>
+												</button>
+											);
+										})}
+									</div>
+								) : null}
+							</aside>
+						) : null}
+						<div className="min-w-0 flex-1">
+							<RuntimeArtifactViewer
+								artifact={selectedArtifact}
+								index={Math.max(0, selectedArtifactIndex)}
+								onSave={handleSaveArtifact}
+							/>
+						</div>
+					</div>
+				) : hasRuntime ? (
+					<div className="h-full overflow-y-auto p-4">
+						<RuntimeSessionsSectionList
+							commands={commands}
+							servers={servers}
+							activeWebSession={activeWebSession}
+							onRefresh={refreshRuntimeSessions}
+							variant="docked"
+						/>
+					</div>
 				) : (
-					<div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/70 text-sm text-muted-foreground">
-						{t("sandboxPanel.empty", {
-							defaultValue: "No active runtime sessions",
-						})}
+					<div className="flex h-full items-center justify-center p-4">
+						<div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-border/70 text-sm text-muted-foreground">
+							{t("sandboxPanel.empty", {
+								defaultValue: "No active runtime sessions",
+							})}
+						</div>
 					</div>
 				)}
 			</div>

@@ -30,7 +30,9 @@
 		"attachImage": "Đính kèm ảnh"
 	},
 	"mention": {
-		"documents": "Tài liệu"
+		"documents": "Tài liệu",
+		"searchDocuments": "Tìm tài liệu...",
+		"noMatches": "Không có kết quả"
 	},
 	"mode": {
 		"normal": "Trò chuyện",

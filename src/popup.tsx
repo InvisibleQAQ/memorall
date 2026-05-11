@@ -13,7 +13,7 @@ const PopupApp: React.FC = () => {
 		});
 	}, []);
 	return (
-		<div className="w-full h-screen overflow-hidden bg-app">
+		<div className="h-full w-full overflow-hidden bg-app">
 			<App />
 		</div>
 	);

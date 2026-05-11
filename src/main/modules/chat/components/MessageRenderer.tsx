@@ -1,7 +1,9 @@
 import React, { lazy, Suspense, useMemo, useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import dayjs from "dayjs";
 import {
+	AlertCircle,
 	Check,
 	ChevronDown,
 	Code2,
@@ -114,6 +116,22 @@ const USE_STREAMDOWN = false;
 const Streamdown = lazy(() => import("./MessageStreamDown"));
 const MarkdownMessage = lazy(() => import("./MarkdownMessage"));
 const ContentComponent = USE_STREAMDOWN ? Streamdown : MarkdownMessage;
+
+const CompactArtifactReference: React.FC<{
+	type: string;
+	title?: string;
+	identifier?: string;
+}> = ({ type, title, identifier }) => (
+	<Link
+		to="/runtime"
+		className="my-2 inline-flex max-w-full items-center gap-2 rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+	>
+		<FileText size={14} className="flex-shrink-0" />
+		<span className="min-w-0 truncate">
+			{title?.trim() || identifier?.trim() || `${type.toUpperCase()} artifact`}
+		</span>
+	</Link>
+);
 
 type UserContextSection = {
 	type: "text" | "html" | "screenshot";
@@ -314,13 +332,25 @@ const UserMessageContent: React.FC<{
 const MessageContentWithArtifacts: React.FC<{
 	content: string;
 	isStreaming: boolean;
-}> = ({ content, isStreaming }) => {
+	suppressArtifactPreviews?: boolean;
+}> = ({ content, isStreaming, suppressArtifactPreviews = false }) => {
 	const segments = useMemo(() => parseArtifactSegments(content), [content]);
 
 	return (
 		<>
 			{segments.map((seg, i) => {
 				if (seg.kind === "artifact") {
+					if (suppressArtifactPreviews) {
+						return (
+							<CompactArtifactReference
+								key={i}
+								type={seg.type}
+								title={seg.title}
+								identifier={seg.identifier}
+							/>
+						);
+					}
+
 					return (
 						<ArtifactRenderer
 							key={i}
@@ -346,11 +376,47 @@ const MessageContentWithArtifacts: React.FC<{
 interface MessageMetadata extends MessageFooterMetadata {
 	actions?: MessageActionItem[];
 	attachedDocuments?: AttachedDocumentRef[];
+	error?: {
+		message: string;
+		rawMessage?: string;
+		statusCode?: number;
+		code?: string | number;
+		providerName?: string | null;
+	};
 	executeState?: {
 		node: string;
 		metadata?: Record<string, unknown>;
 	};
 }
+
+const MessageErrorNotice: React.FC<{
+	error: NonNullable<MessageMetadata["error"]>;
+}> = ({ error }) => {
+	const details = [
+		error.statusCode ? `HTTP ${error.statusCode}` : null,
+		error.code ? `Code ${error.code}` : null,
+		error.providerName ? `Provider ${error.providerName}` : null,
+	].filter(Boolean);
+
+	return (
+		<div className="my-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+			<div className="flex items-start gap-2">
+				<AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+				<div className="min-w-0 flex-1">
+					<div className="font-medium">Request failed</div>
+					<div className="mt-1 whitespace-pre-wrap break-words text-destructive/90">
+						{error.message}
+					</div>
+					{details.length > 0 ? (
+						<div className="mt-1 text-xs text-destructive/75">
+							{details.join(" | ")}
+						</div>
+					) : null}
+				</div>
+			</div>
+		</div>
+	);
+};
 
 interface MessageRendererProps {
 	message: DBMessage;
@@ -371,6 +437,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 		selectedTopic,
 		showMessageControls = true,
 	}) => {
+		const location = useLocation();
 		const formattedDate = useMemo(
 			() => dayjs(message.createdAt).format("MMM D, YYYY h:mm A"),
 			[message.createdAt],
@@ -400,6 +467,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 		const executeState = useMemo(() => {
 			const metadata = message.metadata as MessageMetadata | undefined;
 			return metadata?.executeState;
+		}, [message.metadata]);
+
+		const messageError = useMemo(() => {
+			const metadata = message.metadata as MessageMetadata | undefined;
+			return metadata?.error;
 		}, [message.metadata]);
 
 		const executionLabel = useMemo(() => {
@@ -444,11 +516,6 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 					isUserMessage ? "items-end" : "items-start",
 				)}
 			>
-				{showMessageControls && actions.length > 0 ? (
-					<div className="w-full space-y-2">
-						<MessageActions actions={actions} />
-					</div>
-				) : null}
 				{!isUserMessage ? (
 					<div className="flex items-center justify-start gap-2 px-1 text-[11px] font-medium tracking-normal text-muted-foreground/80">
 						<span>Assistant</span>
@@ -456,6 +523,11 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 						<time dateTime={new Date(message.createdAt).toISOString()}>
 							{formattedDate}
 						</time>
+					</div>
+				) : null}
+				{showMessageControls && actions.length > 0 ? (
+					<div className="w-full">
+						<MessageActions actions={actions} />
 					</div>
 				) : null}
 				<Message key={message.id} from={message.role}>
@@ -490,10 +562,18 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 											isStreaming={isStreaming}
 										/>
 									) : (
-										<MessageContentWithArtifacts
-											content={message.content}
-											isStreaming={isStreaming}
-										/>
+										<>
+											<MessageContentWithArtifacts
+												content={message.content}
+												isStreaming={isStreaming}
+												suppressArtifactPreviews={
+													location.pathname === "/runtime"
+												}
+											/>
+											{messageError ? (
+												<MessageErrorNotice error={messageError} />
+											) : null}
+										</>
 									)}
 									{isStreaming && (
 										<>

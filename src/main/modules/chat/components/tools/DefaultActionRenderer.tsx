@@ -7,9 +7,12 @@ import {
 	TaskMermaidDiagram,
 } from "./TaskMermaidDiagram";
 import {
+	getString,
+	getToolCallArguments,
 	ToolDetail,
 	ToolDetailsGrid,
 	ToolItemRawIO,
+	ToolSection,
 	getMCPActionMetadata,
 } from "./ToolCommon";
 import { Badge } from "@/main/components/ui/badge";
@@ -96,11 +99,56 @@ const ToolResultImages: React.FC<{ metadata?: Record<string, unknown> }> = ({
 	);
 };
 
+const RenderArtifactSummary: React.FC<{
+	item: Parameters<ActionRenderer>[0];
+}> = ({ item }) => {
+	const args = getToolCallArguments(item);
+	const type = args ? getString(args, "type") : undefined;
+	const title = args ? getString(args, "title") : undefined;
+	const identifier = args ? getString(args, "identifier") : undefined;
+	const content = args ? getString(args, "content") : undefined;
+
+	return (
+		<div className="space-y-3">
+			<ToolSection>
+				<div className="space-y-3">
+					<div>
+						<div className="text-sm font-medium text-foreground">
+							{title || "Artifact rendered"}
+						</div>
+						<div className="mt-1 text-xs text-muted-foreground">
+							The visual output is attached to this assistant message.
+						</div>
+					</div>
+					<ToolDetailsGrid>
+						<ToolDetail label="Type" value={type || "artifact"} mono />
+						{identifier ? (
+							<ToolDetail label="Identifier" value={identifier} mono />
+						) : null}
+						{content ? (
+							<ToolDetail
+								label="Content"
+								value={`${content.length.toLocaleString()} characters`}
+								mono
+							/>
+						) : null}
+					</ToolDetailsGrid>
+				</div>
+			</ToolSection>
+			<ToolItemRawIO item={item} input={args ?? undefined} />
+		</div>
+	);
+};
+
 export const defaultActionRenderer: ActionRenderer = (item, isOpen) => {
 	if (!isOpen) return null;
 
 	const trimmedDesc = item.description?.trim() || "";
 	const mcpMetadata = getMCPActionMetadata(item);
+	if (item.name === "render_memorall_artifact") {
+		return <RenderArtifactSummary item={item} />;
+	}
+
 	if (isMermaidOnly(trimmedDesc)) {
 		return (
 			<div className="space-y-3">

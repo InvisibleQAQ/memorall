@@ -25,6 +25,7 @@ interface DocumentLibraryContentProps {
 	fileTopicMap: Map<string, Topic[]>;
 	selectedTopicIds: string[];
 	compact?: boolean;
+	compactNavigatorToggle?: React.ReactNode;
 	/** Navigate to a node by id in the active tree */
 	onSelectNodeById: (id: string) => void;
 	/** Navigate to a folder by path in the active tree */
@@ -50,6 +51,7 @@ export const DocumentLibraryContent = memo(function DocumentLibraryContent({
 	viewMode,
 	fileTopicMap,
 	selectedTopicIds,
+	compactNavigatorToggle,
 	onSelectNodeById,
 	onOpenFolderByPath,
 	onCloseViewer,
@@ -133,6 +135,7 @@ export const DocumentLibraryContent = memo(function DocumentLibraryContent({
 				file={selectedNode.file}
 				isWorkspaceFile={isWorkspaceSection}
 				compact={compact}
+				compactNavigatorToggle={compactNavigatorToggle}
 				onClose={onCloseViewer}
 				onDelete={onDeleteSelectedFile}
 				onDownload={onDownloadSelectedFile}

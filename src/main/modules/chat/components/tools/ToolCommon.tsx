@@ -165,12 +165,12 @@ export const ToolSection: React.FC<{
 }> = ({ title, className, children }) => (
 	<div
 		className={cn(
-			"rounded-lg border border-border/60 bg-background overflow-hidden",
+			"overflow-hidden rounded-lg border border-border/60 bg-gradient-to-b from-background to-muted/20 shadow-sm",
 			className,
 		)}
 	>
 		{title ? (
-			<div className="border-b border-border/60 bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground">
+			<div className="border-b border-border/60 bg-muted/35 px-3 py-2 text-xs font-semibold text-foreground">
 				{title}
 			</div>
 		) : null}
@@ -192,7 +192,7 @@ export const ToolDetail: React.FC<{
 	mono?: boolean;
 }> = ({ label, value, mono = false }) => (
 	<div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2">
-		<div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
+		<div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
 			{label}
 		</div>
 		<div className={cn("break-words text-foreground", mono && "font-mono")}>
@@ -207,7 +207,7 @@ export const ToolCodeBlock: React.FC<{
 }> = ({ children, className }) => (
 	<pre
 		className={cn(
-			"max-h-80 overflow-auto rounded-md border border-border/60 bg-muted/20 p-3 text-xs whitespace-pre-wrap break-words",
+			"max-h-80 overflow-auto rounded-md border border-border/60 bg-muted/25 p-3 text-xs whitespace-pre-wrap break-words shadow-inner",
 			className,
 		)}
 	>
@@ -232,23 +232,23 @@ export const ToolRawIO: React.FC<{
 	};
 
 	return (
-		<div className="rounded-lg border border-border/60 bg-muted/10 overflow-hidden text-xs">
+		<div className="overflow-hidden rounded-lg border border-border/60 bg-background/70 text-xs shadow-sm">
 			<div className="flex items-center gap-2 px-3 py-2">
 				<button
 					type="button"
-					className="flex-1 text-left text-muted-foreground hover:text-foreground transition-colors select-none"
+					className="flex-1 select-none text-left font-medium text-muted-foreground transition-colors hover:text-foreground"
 					onClick={() => setOpen((p) => !p)}
 				>
 					Raw
 				</button>
-				<div className="flex items-center gap-0.5 rounded-md border border-border/40 p-0.5">
+				<div className="flex items-center gap-0.5 rounded-md border border-border/50 bg-muted/20 p-0.5">
 					<button
 						type="button"
 						onClick={() => switchTo("input")}
 						className={cn(
-							"rounded px-2 py-0.5 text-[10px] transition-colors",
+							"rounded px-2 py-0.5 text-[10px] font-medium transition-colors",
 							tab === "input" && open
-								? "bg-muted text-foreground"
+								? "bg-background text-foreground shadow-sm"
 								: "text-muted-foreground hover:text-foreground",
 						)}
 					>
@@ -258,9 +258,9 @@ export const ToolRawIO: React.FC<{
 						type="button"
 						onClick={() => switchTo("output")}
 						className={cn(
-							"rounded px-2 py-0.5 text-[10px] transition-colors",
+							"rounded px-2 py-0.5 text-[10px] font-medium transition-colors",
 							tab === "output" && open
-								? "bg-muted text-foreground"
+								? "bg-background text-foreground shadow-sm"
 								: "text-muted-foreground hover:text-foreground",
 						)}
 					>

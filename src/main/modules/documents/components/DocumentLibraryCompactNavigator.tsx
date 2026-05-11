@@ -1,6 +1,6 @@
-import React, { memo, useState } from "react";
+import React, { memo } from "react";
 import { useTranslation } from "react-i18next";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/main/components/ui/tabs";
 import { DocumentTreeDraggable } from "./DocumentTreeDraggable";
 import type { DocumentTreeNode } from "@/types/document-library";
@@ -11,6 +11,8 @@ interface DocumentLibraryCompactNavigatorProps {
 	selectedSection: "documents" | "workspace";
 	selectedNodeId: string | null;
 	docsTitle: string;
+	isCollapsed: boolean;
+	onCollapsedChange: (collapsed: boolean) => void;
 	onSelectDocumentsRoot: () => void;
 	onSelectWorkspaceRoot: () => void;
 	onSelectDocNode: (node: DocumentTreeNode) => void;
@@ -33,6 +35,8 @@ export const DocumentLibraryCompactNavigator = memo(
 		selectedSection,
 		selectedNodeId,
 		docsTitle,
+		isCollapsed,
+		onCollapsedChange,
 		onSelectDocumentsRoot,
 		onSelectWorkspaceRoot,
 		onSelectDocNode,
@@ -44,22 +48,11 @@ export const DocumentLibraryCompactNavigator = memo(
 		onDeleteNode,
 	}: DocumentLibraryCompactNavigatorProps) {
 		const { t } = useTranslation("documents");
-		const [isCollapsed, setIsCollapsed] = useState(false);
 		const isWorkspaceSection = selectedSection === "workspace";
 		const activeTree = isWorkspaceSection ? workspaceTree : tree;
 
 		if (isCollapsed) {
-			return (
-				<aside className="flex h-full flex-col border-r bg-card">
-					<button
-						onClick={() => setIsCollapsed(false)}
-						className="flex items-center justify-center p-2 hover:bg-accent"
-						title={t("navigator.expand")}
-					>
-						<PanelLeftOpen className="h-4 w-4" />
-					</button>
-				</aside>
-			);
+			return null;
 		}
 
 		return (
@@ -86,7 +79,7 @@ export const DocumentLibraryCompactNavigator = memo(
 						</TabsList>
 					</Tabs>
 					<button
-						onClick={() => setIsCollapsed(true)}
+						onClick={() => onCollapsedChange(true)}
 						className="flex-shrink-0 rounded p-1 hover:bg-accent"
 						title={t("navigator.collapse")}
 					>
