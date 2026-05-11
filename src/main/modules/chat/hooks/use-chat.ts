@@ -12,6 +12,11 @@ import { serviceManager } from "@/services";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type { Message } from "@/services/database";
 import { buildSendMessages } from "@/main/modules/chat/utils/build-send-messages";
+import {
+	trimToContextBudget,
+	CONTEXT_BUDGET_RATIO,
+} from "@/main/modules/chat/utils/context-manager";
+import { estimatePromptTokens } from "@/services/llm/utils/token-usage";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import { createJobErrorMetadata } from "@/services/background-jobs/handlers/error-metadata";
 import {
@@ -301,8 +306,17 @@ export const useChat = (model: string) => {
 
 			// Build messages for the API, prefixing assistant messages with their stored actions
 			// buildSendMessages is async because it resolves image paths to base64 data URIs
-			const sendMessages: ChatMessage[] =
+			let sendMessages: ChatMessage[] =
 				await buildSendMessages(relevantMessages);
+
+			// Trim input to CONTEXT_BUDGET_RATIO of the context window,
+			// leaving headroom for the model's response.
+			const maxModelTokens =
+				await serviceManager.llmService.getMaxModelTokens(model);
+			const tokenBudget = Math.floor(maxModelTokens * CONTEXT_BUDGET_RATIO);
+			if (estimatePromptTokens(sendMessages) > tokenBudget) {
+				sendMessages = trimToContextBudget(sendMessages, tokenBudget);
+			}
 
 			// Create assistant message placeholder
 			assistantMessage = await addMessage({

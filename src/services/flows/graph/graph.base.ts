@@ -26,6 +26,7 @@ import {
 	FLOW_RUN_LIFECYCLE_CONFIG_KEY,
 	createFlowRunLifecycle,
 	getFlowRunLifecycle,
+	toNode,
 	type FlowRunFinishCallback,
 	type FlowRunLifecycle,
 } from "@/services/flows/runtime/run-lifecycle";
@@ -542,6 +543,30 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 		callback: FlowRunFinishCallback,
 	): void {
 		this.getRunLifecycle(runConfig)?.onFinish(key, callback);
+	}
+
+	// fn must preserve its `this` binding — use arrow class fields or .bind(this) when passing node methods
+	protected addNode(
+		name: N,
+		fn: (
+			state: T,
+			config?: LangGraphRunnableConfig,
+		) => Promise<Partial<T>> | Partial<T>,
+	): void {
+		const asyncFn = async (
+			state: T,
+			config?: LangGraphRunnableConfig,
+		): Promise<Partial<T>> => fn(state, config);
+		this.workflow.addNode(
+			name,
+			toNode(
+				name,
+				asyncFn as unknown as (
+					state: Record<string, unknown>,
+					config?: LangGraphRunnableConfig,
+				) => Promise<Partial<Record<string, unknown>>>,
+			),
+		);
 	}
 
 	private withRunLifecycle<

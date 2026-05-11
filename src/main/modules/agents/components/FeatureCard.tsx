@@ -1,9 +1,13 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+	AppWindow,
+	Bot,
 	Briefcase,
 	ChevronRight,
 	Database,
+	FileOutput,
+	FilePlus,
 	FileText,
 	FolderOpen,
 	GitFork,
@@ -35,8 +39,12 @@ const LUCIDE_MAP: Record<
 	string,
 	React.ComponentType<{ size?: number; className?: string }>
 > = {
+	AppWindow,
+	Bot,
 	Briefcase,
 	Database,
+	FileOutput,
+	FilePlus,
 	FileText,
 	FolderOpen,
 	GitFork,
@@ -72,6 +80,10 @@ const FEATURE_ICON_ACCENTS: Record<string, string> = {
 	"shopping-assistant-feature": "#f43f5e",
 	"multi-agent-feature": "#818cf8",
 	"finance-tracker-feature": "#22c55e",
+	"artifact-feature": "#6366f1",
+	"document-convert-feature": "#f59e0b",
+	"pdf-generate-feature": "#ef4444",
+	"co-agent-feature": "#10b981",
 };
 
 const getFeatureAccent = (feature: AgentFeatureDefinition): string =>
@@ -212,38 +224,36 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
 					)}
 			</div>
 
-			{/* Footer row: badge + detail */}
-			{(showToolsBadge || showDetailBtn) && (
-				<div className="flex items-center justify-between gap-2">
-					{showToolsBadge ? (
-						<Badge variant="secondary" className="text-[10px]">
-							{toolCount}/{totalToolCount}
-						</Badge>
-					) : feature.type === "catalog" ? (
-						<Badge variant="secondary" className="text-[10px]">
-							{t("agentSettings.toolCount", { count: feature.tools.length })}
-						</Badge>
-					) : (
-						<span />
-					)}
-					{showDetailBtn && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							className="h-7 rounded-lg px-2 text-[10px]"
-							onClick={() =>
-								void NiceModal.show(AgentFeatureDetailModal, {
-									featureName: feature.name,
-								})
-							}
-						>
-							<ChevronRight size={10} className="mr-1" />
-							{t("agentSettings.detail")}
-						</Button>
-					)}
-				</div>
-			)}
+			{/* Footer row: badge + detail — always rendered for consistent card height */}
+			<div className="flex items-center justify-between gap-2">
+				{showToolsBadge ? (
+					<Badge variant="secondary" className="text-[10px]">
+						{toolCount}/{totalToolCount}
+					</Badge>
+				) : feature.type === "catalog" ? (
+					<Badge variant="secondary" className="text-[10px]">
+						{t("agentSettings.toolCount", { count: feature.tools.length })}
+					</Badge>
+				) : (
+					<span />
+				)}
+				{showDetailBtn && (
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						className="h-7 rounded-lg px-2 text-[10px]"
+						onClick={() =>
+							void NiceModal.show(AgentFeatureDetailModal, {
+								featureName: feature.name,
+							})
+						}
+					>
+						<ChevronRight size={10} className="mr-1" />
+						{t("agentSettings.detail")}
+					</Button>
+				)}
+			</div>
 		</div>
 	);
 };
