@@ -754,6 +754,74 @@ export class DocumentFileSystem {
 	}
 
 	/**
+	 * Ensure a logical document folder exists, e.g. "/skills".
+	 */
+	async ensureFolderPath(folderPath: string): Promise<void> {
+		await this.initialize();
+		const normalizedPath = this.normalizePath(
+			folderPath.startsWith("/") ? folderPath : `/${folderPath}`,
+		);
+		await this.ensureDirectory(`${DOCUMENTS_ROOT}${normalizedPath}`);
+	}
+
+	/**
+	 * Write raw bytes to a logical document path, creating parent folders as needed.
+	 */
+	async writeFileContent(filePath: string, content: Uint8Array): Promise<void> {
+		await this.initialize();
+		const normalizedPath = this.normalizePath(
+			filePath.startsWith("/") ? filePath : `/${filePath}`,
+		);
+		if (normalizedPath === "/") {
+			throw new Error("Cannot write document root");
+		}
+
+		const fullPath = `${DOCUMENTS_ROOT}${normalizedPath}`;
+		const dirPath = fullPath.substring(0, fullPath.lastIndexOf("/"));
+		await this.ensureDirectory(dirPath);
+
+		let operation: FilesystemChangeOperation = "create";
+		try {
+			await fs.promises.stat(fullPath);
+			operation = "write";
+		} catch (error) {
+			if (!this.isNotFoundError(error)) throw error;
+		}
+
+		await fs.promises.writeFile(fullPath, content);
+		logInfo(`📝 Wrote document file: ${normalizedPath}`);
+
+		this.notifyFilesystemChanged({
+			scope: "documents",
+			operation,
+			path: normalizedPath,
+		});
+	}
+
+	/**
+	 * Delete a file at a logical document path.
+	 */
+	async deleteFileContent(filePath: string): Promise<void> {
+		await this.initialize();
+		const normalizedPath = this.normalizePath(
+			filePath.startsWith("/") ? filePath : `/${filePath}`,
+		);
+		if (normalizedPath === "/") {
+			throw new Error("Cannot delete document root");
+		}
+
+		const fullPath = `${DOCUMENTS_ROOT}${normalizedPath}`;
+		await fs.promises.unlink(fullPath);
+		logInfo(`🗑️ Deleted document file: ${normalizedPath}`);
+
+		this.notifyFilesystemChanged({
+			scope: "documents",
+			operation: "delete",
+			path: normalizedPath,
+		});
+	}
+
+	/**
 	 * Get tree structure by scanning filesystem
 	 * Uses internal cache to avoid re-scanning when data hasn't changed
 	 * Cache is automatically invalidated when filesystem changes in ANY context

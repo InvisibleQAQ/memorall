@@ -1,0 +1,86 @@
+import React from "react";
+import type {
+	ComplexContent,
+	ComplexContentPartExecution,
+	ComplexContentPartTool,
+} from "@/types/chat";
+import {
+	AssistantWorkflowPart,
+	AssistantWorkflowSummary,
+	isWorkflowEvidencePart,
+} from "./AssistantWorkflow";
+import { AssistantToolTimelinePart } from "./AssistantToolTimelinePart";
+import { MessageContentWithArtifacts } from "./MessageContentWithArtifacts";
+
+export type AssistantContentPart =
+	| { type: "text"; text: string }
+	| ComplexContentPartTool
+	| ComplexContentPartExecution;
+
+export const isAssistantContentPart = (
+	part: ComplexContent[number],
+): part is AssistantContentPart =>
+	part.type === "text" || part.type === "tool" || part.type === "execution";
+
+export const AssistantContentFlow: React.FC<{
+	parts: AssistantContentPart[];
+	isStreaming: boolean;
+	suppressArtifactPreviews?: boolean;
+}> = ({ parts, isStreaming, suppressArtifactPreviews = false }) => {
+	const latestWorkflowIndex = parts.findLastIndex(
+		(part) => part.type === "execution",
+	);
+	const completedWorkflowParts = parts.filter(
+		(part): part is ComplexContentPartExecution =>
+			part.type === "execution" && part.state === "complete",
+	);
+	const workflowEvidenceParts = parts.filter(
+		(part): part is ComplexContentPartTool =>
+			part.type === "tool" && isWorkflowEvidencePart(part),
+	);
+
+	return (
+		<div className="space-y-3">
+			<AssistantWorkflowSummary
+				parts={completedWorkflowParts}
+				evidenceParts={workflowEvidenceParts}
+			/>
+			{parts.map((part, index) => {
+				if (part.type === "text") {
+					if (!part.text.trim()) return null;
+					return (
+						<MessageContentWithArtifacts
+							key={`text-${index}`}
+							content={part.text}
+							isStreaming={isStreaming}
+							suppressArtifactPreviews={suppressArtifactPreviews}
+						/>
+					);
+				}
+
+				if (part.type === "execution") {
+					if (part.state === "complete") return null;
+					if (index !== latestWorkflowIndex) return null;
+					return (
+						<AssistantWorkflowPart key={`workflow-${part.id}`} part={part} />
+					);
+				}
+				if (isWorkflowEvidencePart(part)) return null;
+
+				return (
+					<AssistantToolTimelinePart
+						key={`${part.type}-${part.id}-${index}`}
+						part={part}
+						isLast={
+							!parts
+								.slice(index + 1)
+								.some(
+									(next) => next.type === "tool" || next.type === "execution",
+								)
+						}
+					/>
+				);
+			})}
+		</div>
+	);
+};

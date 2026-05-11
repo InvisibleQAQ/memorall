@@ -30,9 +30,32 @@ export interface ComplexContentPartImage {
 	mimeType: string;
 }
 
+export type AssistantToolPartState = "running" | "complete" | "error";
+
+/** Tool/action part of an assistant message, stored in order with text parts. */
+export interface ComplexContentPartTool {
+	type: "tool";
+	id: string;
+	name: string;
+	description: string;
+	metadata?: Record<string, unknown>;
+	state: AssistantToolPartState;
+}
+
+/** Transient execution part used while an assistant response is streaming. */
+export interface ComplexContentPartExecution {
+	type: "execution";
+	id: string;
+	node: string;
+	metadata?: Record<string, unknown>;
+	state: "running" | "complete";
+}
+
 export type ComplexContentPart =
 	| ComplexContentPartText
-	| ComplexContentPartImage;
+	| ComplexContentPartImage
+	| ComplexContentPartTool
+	| ComplexContentPartExecution;
 
 /** Stored in messages.complexContent (jsonb) when the message has multipart content */
 export type ComplexContent = ComplexContentPart[];

@@ -1,5 +1,9 @@
 import type { ChatMessage, ChatCompletionContentPart } from "@/types/openai";
-import type { ComplexContent, ComplexContentPartImage } from "@/types/chat";
+import type {
+	ComplexContent,
+	ComplexContentPartImage,
+	ComplexContentPartTool,
+} from "@/types/chat";
 import type { Message } from "@/services/database";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
@@ -25,6 +29,23 @@ function renderAction(a: StoredAction): string {
 }
 
 function buildAssistantContent(msg: Message): string {
+	const complexContent = msg.complexContent as
+		| ComplexContent
+		| null
+		| undefined;
+	if (complexContent?.some((part) => part.type === "tool")) {
+		return complexContent
+			.map((part) => {
+				if (part.type === "text") return part.text;
+				if (part.type === "tool" && part.state !== "running") {
+					return renderAction(part as ComplexContentPartTool);
+				}
+				return "";
+			})
+			.filter(Boolean)
+			.join("\n\n");
+	}
+
 	const metadata = msg.metadata as Record<string, unknown> | null;
 	const actions = metadata?.actions as StoredAction[] | undefined;
 
@@ -72,7 +93,10 @@ async function buildUserContent(
 			if (part.type === "text") {
 				return { type: "text", text: part.text };
 			}
-			return resolveImagePart(part);
+			if (part.type === "image") {
+				return resolveImagePart(part);
+			}
+			return { type: "text", text: "" };
 		}),
 	);
 

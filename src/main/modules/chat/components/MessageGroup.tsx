@@ -7,6 +7,20 @@ import { MessageRenderer } from "./MessageRenderer";
 import type { InProgressMessage } from "../hooks/use-chat";
 import type { ChatMessageGroup } from "@/main/stores/chat";
 
+const hasRenderableMessageContent = (
+	message: ChatMessageGroup["messages"][number],
+) => {
+	if (message.content) return true;
+	if (message.complexContent) return true;
+	if (!message.metadata || typeof message.metadata !== "object") return false;
+	return (
+		("actions" in message.metadata &&
+			Array.isArray(message.metadata.actions) &&
+			message.metadata.actions.length > 0) ||
+		"error" in message.metadata
+	);
+};
+
 interface MessageGroupProps {
 	group: ChatMessageGroup;
 	inProgressMessage?: InProgressMessage | null;
@@ -88,7 +102,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 
 		const messageComponents = useMemo(() => {
 			return group.messages.map((message, index) =>
-				message.content ? (
+				hasRenderableMessageContent(message) ? (
 					<MessageRenderer
 						key={message.id}
 						message={message}
@@ -118,7 +132,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 				conversationId: "",
 				type: "",
 				role: "assistant" as const,
-				complexContent: null,
+				complexContent: inProgressMessage.complexContent,
 				topicId: null,
 				embedding: null,
 				embeddingSmall: null,
