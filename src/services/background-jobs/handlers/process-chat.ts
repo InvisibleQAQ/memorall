@@ -1022,28 +1022,23 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					progress: 20,
 				});
 
-				try {
-					// Use the exact same pattern from use-chat.ts lines 294-304
-					if (request.stream) {
-						// For streaming, the result should be an AsyncIterableIterator
-						const stream = serviceManager.llmService.chatCompletions(
-							request,
-						) as AsyncIterableIterator<ChatCompletionChunk>;
-						const handleChunk = ChatHandler.createHandleChunk({
-							jobId,
-							model,
-							config,
-							dependencies,
-							streamBuffer,
-							getProgress: () => Math.min(80, 20 + currentContent.length / 10),
-							onUsage: addUsage,
-							onToolCalls: (toolCalls) =>
-								accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
-						});
-						await ChatHandler.streamChatCompletions(stream, handleChunk);
-					}
-				} catch (streamError) {
-					throw streamError;
+				if (request.stream) {
+					// For streaming, the result should be an AsyncIterableIterator
+					const stream = serviceManager.llmService.chatCompletions(
+						request,
+					) as AsyncIterableIterator<ChatCompletionChunk>;
+					const handleChunk = ChatHandler.createHandleChunk({
+						jobId,
+						model,
+						config,
+						dependencies,
+						streamBuffer,
+						getProgress: () => Math.min(80, 20 + currentContent.length / 10),
+						onUsage: addUsage,
+						onToolCalls: (toolCalls) =>
+							accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
+					});
+					await ChatHandler.streamChatCompletions(stream, handleChunk);
 				}
 
 				// Flush any remaining buffered content
@@ -1102,23 +1097,30 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			const errorToolCalls = getAccumulatedToolCalls(toolCallAccumulator);
 			const errorUsage =
 				accumulatedUsage.total_tokens > 0 ? accumulatedUsage : undefined;
-			const persistenceMetadata =
-				await ChatHandler.buildAssistantMessageMetadata({
-					conversation,
-					content: currentContent,
-					model,
-					startTime,
-					usage: errorUsage,
-					actions: hasErrorToolParts ? [] : errorActions,
-					toolCalls: hasErrorToolParts ? [] : errorToolCalls,
-					error: isAbort ? undefined : errorMetadata,
+			try {
+				const persistenceMetadata =
+					await ChatHandler.buildAssistantMessageMetadata({
+						conversation,
+						content: currentContent,
+						model,
+						startTime,
+						usage: errorUsage,
+						actions: hasErrorToolParts ? [] : errorActions,
+						toolCalls: hasErrorToolParts ? [] : errorToolCalls,
+						error: isAbort ? undefined : errorMetadata,
+					});
+				await finalizeConversation({
+					content: errorContentParts.length > 0 ? "" : currentContent,
+					complexContent: errorContentParts,
+					metadata: persistenceMetadata,
 				});
-
-			await finalizeConversation({
-				content: errorContentParts.length > 0 ? "" : currentContent,
-				complexContent: errorContentParts,
-				metadata: persistenceMetadata,
-			});
+			} catch (persistError) {
+				await dependencies.logger.warn(
+					`Failed to persist error state for job ${jobId}`,
+					`${persistError}`,
+					"offscreen",
+				);
+			}
 
 			await dependencies.logger.error(
 				`❌ Chat job ${jobId} failed`,
