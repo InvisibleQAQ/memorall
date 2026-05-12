@@ -1,8 +1,17 @@
 export type LLMProvider = "transformer" | "webllm" | "wllama";
 
 export interface TransformerRunnerConfig {
-	runtime: "causal" | "gemma4" | "pipeline";
-	dtype: string;
+	runtime:
+		| "causal_lm"
+		| "text_generation_pipeline"
+		| "image_text_to_text"
+		| "vision2seq"
+		| "seq2seq_lm";
+	dtype?: string;
+	moduleDtype?: Record<string, string>;
+	postprocess?: "none" | "gemma_clean";
+	processorMode?: "chat_template_images";
+	modelClassFallback?: "gemma4" | "florence2";
 	webgpuMaxContextTokens?: number;
 }
 

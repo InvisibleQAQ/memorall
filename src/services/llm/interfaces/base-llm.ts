@@ -36,6 +36,13 @@ export interface ModelInfo {
 	downloaded?: boolean; // Model files are downloaded/cached locally
 	size?: number;
 	provider?: string; // Added provider field
+	dtype?: string;
+	device?: string;
+	numThreads?: number;
+	modelLoader?: string;
+	supportsNativeTools?: boolean;
+	supportsVision?: boolean;
+	webgpuCapabilities?: unknown;
 }
 
 export interface ModelsResponse {

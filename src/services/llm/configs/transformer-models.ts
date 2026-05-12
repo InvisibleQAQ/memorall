@@ -19,8 +19,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-05",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4f16",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -41,8 +41,9 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-05",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "gemma4",
-			dtype: "q4f16",
+			runtime: "image_text_to_text",
+			dtype: "auto",
+			postprocess: "gemma_clean",
 			webgpuMaxContextTokens: 8192,
 		},
 	},
@@ -64,8 +65,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-03",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "pipeline",
-			dtype: "q4",
+			runtime: "text_generation_pipeline",
+			dtype: "auto",
 		},
 	},
 	{
@@ -86,8 +87,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-03",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4f16",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -108,8 +109,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-03",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4f16",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -130,8 +131,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-07",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -152,8 +153,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-01",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -174,8 +175,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-04",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -196,8 +197,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-02",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -218,8 +219,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2024-11",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -240,8 +241,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2024-11",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -262,8 +263,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2024-11",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -284,8 +285,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2025-03",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -305,8 +306,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		contextScore: 60,
 		releaseDate: "2024-11",
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -327,8 +328,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2024-11",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -348,8 +349,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		contextScore: 60,
 		releaseDate: "2024-11",
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -370,8 +371,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		releaseDate: "2024-09",
 		quickDownload: true,
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{
@@ -391,8 +392,8 @@ export const TRANSFORMER_MODELS: LLMModelConfig[] = [
 		contextScore: 98,
 		releaseDate: "2024-09",
 		runnerConfig: {
-			runtime: "causal",
-			dtype: "q4",
+			runtime: "causal_lm",
+			dtype: "auto",
 		},
 	},
 	{

@@ -31,6 +31,16 @@ const WLLAMA_NATIVE_TOOL_SUPPORT: ToolCapabilityInfo = {
 	notes: "Native tool calling detected from model chat template at load time.",
 };
 
+const TRANSFORMER_NATIVE_TOOL_SUPPORT: ToolCapabilityInfo = {
+	supported: true,
+	mode: "native",
+	parallelCalls: false,
+	streamingToolCalls: true,
+	strictMode: false,
+	notes:
+		"Native Transformers.js tool calling detected from the model chat template at load time.",
+};
+
 const WLLAMA_PROMPT_TOOL_SUPPORT: ToolCapabilityInfo = {
 	...PROMPT_TOOL_SUPPORT_WITH_STREAMING,
 	notes:
@@ -57,8 +67,12 @@ export function getWebLLMToolCapabilities(model?: string): ToolCapabilityInfo {
 	return WEBLLM_PROMPT_TOOL_SUPPORT;
 }
 
-export function getTransformerToolCapabilities(): ToolCapabilityInfo {
-	return TRANSFORMER_PROMPT_TOOL_SUPPORT;
+export function getTransformerToolCapabilities(
+	supportsNativeTools = false,
+): ToolCapabilityInfo {
+	return supportsNativeTools
+		? TRANSFORMER_NATIVE_TOOL_SUPPORT
+		: TRANSFORMER_PROMPT_TOOL_SUPPORT;
 }
 
 export function getWllamaToolCapabilities(): ToolCapabilityInfo {
@@ -66,6 +80,7 @@ export function getWllamaToolCapabilities(): ToolCapabilityInfo {
 }
 
 export { WLLAMA_NATIVE_TOOL_SUPPORT };
+export { TRANSFORMER_NATIVE_TOOL_SUPPORT };
 
 export function resolveToolCapabilitiesForLLM(
 	llmType: string,
