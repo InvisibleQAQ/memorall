@@ -74,12 +74,14 @@ async function ensureWllama() {
 // CacheManager is accessed via the Wllama instance's public cacheManager field.
 // OPFS is shared so any instance sees the same cache — create a temporary one
 // when no model is currently loaded.
+const WLLAMA_CONFIG = { allowOffline: true };
+
 async function getCacheManager() {
 	if (wllamaManager.model?.cacheManager) {
 		return wllamaManager.model.cacheManager;
 	}
 	await ensureWllama();
-	return new Wllama(WASM_PATHS).cacheManager;
+	return new Wllama(WASM_PATHS, WLLAMA_CONFIG).cacheManager;
 }
 
 /**
@@ -99,32 +101,66 @@ function parseModelName(model) {
 	};
 }
 
+// Two-layer cache: memory (session) + localStorage (persistent across browser restarts).
+const mmprojFilenameCache = new Map();
+const MMPROJ_STORAGE_PREFIX = "wllama:mmproj:";
+const MMPROJ_NONE_SENTINEL = "__none__";
+
+function readMmprojCache(repo) {
+	// Memory first
+	if (mmprojFilenameCache.has(repo)) return { hit: true, value: mmprojFilenameCache.get(repo) };
+	// Persistent storage
+	try {
+		const raw = localStorage.getItem(MMPROJ_STORAGE_PREFIX + repo);
+		if (raw !== null) {
+			const value = raw === MMPROJ_NONE_SENTINEL ? null : raw;
+			mmprojFilenameCache.set(repo, value);
+			return { hit: true, value };
+		}
+	} catch {}
+	return { hit: false, value: undefined };
+}
+
+function writeMmprojCache(repo, filename) {
+	mmprojFilenameCache.set(repo, filename);
+	try {
+		localStorage.setItem(MMPROJ_STORAGE_PREFIX + repo, filename ?? MMPROJ_NONE_SENTINEL);
+	} catch {}
+}
+
 /**
- * Query HuggingFace API to discover the mmproj filename in the same repo.
- * Returns just the filename (not the full URL) for use with loadModelFromHF.
- * No hardcoded quants — uses whatever the repo actually provides.
+ * Discover the mmproj filename for a HuggingFace repo.
+ * Cached persistently in localStorage — survives browser restarts.
+ * Network errors are not cached so the next load retries.
  * @param {string} repo - e.g. "LiquidAI/LFM2-VL-450M-GGUF"
- * @returns {Promise<string|null>} mmproj filename or null if not found
+ * @returns {Promise<string|null>}
  */
 async function resolveHFMmprojFilename(repo) {
+	const cached = readMmprojCache(repo);
+	if (cached.hit) return cached.value;
+
+	let result = null;
 	try {
 		const res = await fetch(`https://huggingface.co/api/models/${repo}`);
-		if (!res.ok) return null;
-		const data = await res.json();
-		const siblings = data.siblings ?? [];
-		const mmprojFiles = siblings
-			.map((s) => s.rfilename)
-			.filter((f) => f.endsWith(".gguf") && f.toLowerCase().includes("mmproj"));
-		if (mmprojFiles.length === 0) return null;
-		// Prefer higher quality quant if available, otherwise take first found
-		return (
-			mmprojFiles.find((f) => f.includes("Q8_0")) ??
-			mmprojFiles.find((f) => f.includes("Q4_K_M")) ??
-			mmprojFiles[0]
-		);
+		if (res.ok) {
+			const data = await res.json();
+			const siblings = data.siblings ?? [];
+			const mmprojFiles = siblings
+				.map((s) => s.rfilename)
+				.filter((f) => f.endsWith(".gguf") && f.toLowerCase().includes("mmproj"));
+			result =
+				mmprojFiles.find((f) => f.includes("Q8_0")) ??
+				mmprojFiles.find((f) => f.includes("Q4_K_M")) ??
+				mmprojFiles[0] ??
+				null;
+		}
 	} catch {
+		// Network unavailable — do not cache, retry on next load
 		return null;
 	}
+
+	writeMmprojCache(repo, result);
+	return result;
 }
 
 /**
@@ -146,7 +182,7 @@ async function loadWllamaModel(modelId, notifyProgress) {
 	await ensureWllama();
 
 	const { repo, filename } = parseModelName(modelId);
-	const wllama = new Wllama(WASM_PATHS);
+	const wllama = new Wllama(WASM_PATHS, WLLAMA_CONFIG);
 	const memoryHint = pendingLoadMemoryHints.get(modelId);
 	const memoryContextTokens = resolveMemoryContextTokens(memoryHint);
 
