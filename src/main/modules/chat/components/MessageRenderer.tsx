@@ -77,11 +77,14 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 		const assistantContentParts = useMemo<AssistantContentPart[]>(() => {
 			if (message.role !== "assistant" || !complexContent) return [];
 			const parts = complexContent.filter(isAssistantContentPart);
-			const hasAssistantOnlyPart = parts.some(
-				(part) => part.type === "tool" || part.type === "execution",
-			);
-			return hasAssistantOnlyPart ? parts : [];
+			return parts.some((part) =>
+				part.type === "text" ? part.text.trim() : true,
+			)
+				? parts
+				: [];
 		}, [complexContent, message.role]);
+		const hasRenderableContent =
+			message.content.trim().length > 0 || assistantContentParts.length > 0;
 		const showGenericStreamingStatus =
 			isStreaming && assistantContentParts.length === 0;
 
@@ -186,7 +189,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 						{complexContent && (
 							<MessageComplexImages complexContent={complexContent} />
 						)}
-						{!message.content &&
+						{!hasRenderableContent &&
 						assistantContentParts.length === 0 &&
 						isLastMessage &&
 						isStreaming ? (

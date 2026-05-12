@@ -1,6 +1,7 @@
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type {
 	ChatResult,
+	ConversationContext,
 	ChatStreamConfig,
 } from "@/services/background-jobs/handlers/process-chat";
 import type { JobErrorMetadata } from "@/services/background-jobs/handlers/error-metadata";
@@ -35,6 +36,7 @@ export interface ChatServiceOptions {
 	tools?: ChatCompletionTool[];
 	tool_choice?: ChatCompletionToolChoiceOption;
 	parallel_tool_calls?: boolean;
+	conversation?: ConversationContext;
 }
 
 export interface ChatAction {
@@ -63,6 +65,7 @@ export interface ChatStreamResult {
 	failed: boolean;
 	error?: string;
 	errorMetadata?: JobErrorMetadata;
+	metadata?: Record<string, unknown>;
 	usage?: {
 		prompt_tokens: number;
 		completion_tokens: number;
@@ -178,6 +181,16 @@ const getProgressErrorMetadata = (
 	};
 };
 
+const stripContentPartsMetadata = (
+	metadata: Extract<ChatResult, { type: "final" }>["metadata"],
+): Record<string, unknown> | undefined => {
+	if (!metadata) {
+		return undefined;
+	}
+	const { contentParts: _contentParts, ...rest } = metadata;
+	return rest;
+};
+
 export class ChatService {
 	private static instance: ChatService;
 	private activeJobs = new Map<string, AbortController>();
@@ -210,6 +223,7 @@ export class ChatService {
 			tools,
 			tool_choice,
 			parallel_tool_calls,
+			conversation,
 		} = options;
 
 		const abortController = new AbortController();
@@ -240,6 +254,7 @@ export class ChatService {
 					tools,
 					tool_choice,
 					parallel_tool_calls,
+					conversation,
 					streamConfig: streamConfig || {
 						minWordsToStream: 5,
 						streamToolCallsImmediately: true,
@@ -253,6 +268,7 @@ export class ChatService {
 			let streamFailed = false;
 			let streamError = "";
 			let streamErrorMetadata: JobErrorMetadata | undefined;
+			let finalMetadata: Record<string, unknown> | undefined;
 			let usage: ChatStreamResult["usage"];
 			const toolCallAccumulator: ToolCallAccumulator = new Map();
 			let contentParts: ComplexContent = [];
@@ -294,6 +310,7 @@ export class ChatService {
 					if (chatResult.type === "final") {
 						// Use the final content from the job result
 						currentContent = chatResult.content;
+						finalMetadata = stripContentPartsMetadata(chatResult.metadata);
 						if (chatResult.metadata?.actions) {
 							actions.splice(
 								0,
@@ -365,6 +382,7 @@ export class ChatService {
 						// Handle final content update (e.g., after citation step)
 						// This replaces the accumulated content with the final version
 						currentContent = chatResult.content;
+						finalMetadata = stripContentPartsMetadata(chatResult.metadata);
 						contentParts = completeRunningExecutionParts(contentParts);
 						if (chatResult.metadata?.actions) {
 							actions.splice(
@@ -409,6 +427,7 @@ export class ChatService {
 				failed: streamFailed,
 				error: streamFailed ? streamError : undefined,
 				errorMetadata: streamFailed ? streamErrorMetadata : undefined,
+				metadata: finalMetadata,
 				usage,
 			};
 		} catch (error) {

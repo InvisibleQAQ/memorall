@@ -205,7 +205,6 @@ export const useEmbeddedChatSession = ({
 			let currentContent = "";
 			let latestActions: ChatAction[] = [];
 			let latestToolCalls: unknown[] = [];
-			const startTime = Date.now();
 
 			try {
 				const topicId =
@@ -281,6 +280,10 @@ export const useEmbeddedChatSession = ({
 					flowConfig: coAgentEnabled
 						? createCoAgentEnabledFlowConfig()
 						: undefined,
+					conversation: {
+						id: storedAssistantMessage.conversationId ?? "embedded",
+						inProgressMessage: { id: assistantMessageId },
+					},
 					signal: controller.signal,
 					onProgress: (content: string, isComplete: boolean) => {
 						currentContent = content;
@@ -369,41 +372,26 @@ export const useEmbeddedChatSession = ({
 				currentContent = result.content || currentContent;
 				latestActions = cloneActions(result.actions || latestActions);
 				latestToolCalls = result.toolCalls || latestToolCalls;
-				const endTime = Date.now();
-				const timeToAnswer = (endTime - startTime) / 1000;
-				const totalTokens =
-					result.usage?.total_tokens ?? Math.round(currentContent.length / 4);
-				const outputTokens =
-					result.usage?.completion_tokens ??
-					Math.round(currentContent.length / 4);
-
-				await embeddedChatHistoryService.finalizeMessage(assistantMessageId, {
-					content: currentContent,
-					metadata: {
-						actions: latestActions,
-						tool_calls: latestToolCalls,
-						model: selectedModel,
-						timeToAnswer,
-						tokensPerSecond: timeToAnswer > 0 ? outputTokens / timeToAnswer : 0,
-						estimatedTokens: totalTokens,
-						usage: result.usage,
-					},
-				});
+				setMessages((prev) =>
+					prev.map((message) =>
+						message.id === assistantMessageId
+							? {
+									...message,
+									content: currentContent,
+									isStreaming: false,
+									metadata: {
+										...message.metadata,
+										actions: latestActions,
+										tool_calls: latestToolCalls,
+										model: selectedModel,
+									},
+								}
+							: message,
+					),
+				);
 			} catch (error) {
 				logError("Chat submission error:", error);
 				const errorContent = currentContent || t("errorMessage");
-				try {
-					await embeddedChatHistoryService.finalizeMessage(assistantMessageId, {
-						content: errorContent,
-						metadata: {
-							actions: latestActions,
-							tool_calls: latestToolCalls,
-							model: selectedModel,
-						},
-					});
-				} catch (saveError) {
-					logError("Failed to persist embedded error message:", saveError);
-				}
 				setMessages((prev) =>
 					prev.map((message) => {
 						if (message.id === assistantMessageId) {
@@ -411,6 +399,12 @@ export const useEmbeddedChatSession = ({
 								...message,
 								content: errorContent,
 								isStreaming: false,
+								metadata: {
+									...message.metadata,
+									actions: latestActions,
+									tool_calls: latestToolCalls,
+									model: selectedModel,
+								},
 							};
 						}
 						return message;

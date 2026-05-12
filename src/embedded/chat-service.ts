@@ -3,6 +3,7 @@ import type { ChatMessage } from "./types";
 import type {
 	ChatResult,
 	ChatPayload,
+	ConversationContext,
 } from "@/services/background-jobs/handlers/process-chat";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import type {
@@ -27,6 +28,7 @@ export interface ChatServiceOptions {
 	agentFlowId?: string;
 	flowConfig?: UnifiedFlowConfig;
 	systemMessages?: string[];
+	conversation?: ConversationContext;
 }
 
 export interface ChatAction {
@@ -194,6 +196,7 @@ export class EmbeddedChatService {
 			agentFlowId,
 			flowConfig,
 			systemMessages,
+			conversation,
 			onProgress,
 			onContentParts,
 			onAction,
@@ -246,6 +249,7 @@ export class EmbeddedChatService {
 				topicId,
 				agentFlowId,
 				flowConfig,
+				conversation,
 				streamConfig: {
 					minWordsToStream: 5,
 					streamToolCallsImmediately: true,

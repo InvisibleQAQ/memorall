@@ -18,24 +18,42 @@ import {
 import type { ComplexContent } from "@/types/chat";
 import { handlerRegistry } from "./handler-registry";
 import type { FoundationState } from "@/services/flows/graph/foundation/state";
+import {
+	appendTextPart,
+	completeRunningExecutionParts,
+	replaceTextParts,
+	stripTransientExecutionParts,
+	upsertExecutionPart,
+	upsertToolParts,
+} from "@/services/chat/content-parts";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import { buildDefaultFlowConfig } from "@/services/flows/build-flow-config";
 import { mergeWithDefaultConfig } from "@/services/flows/build-flow-config";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import {
 	getValidRecallTypes,
 	isRecallTypeValidForGrow,
 	type RecallType,
 } from "@/services/database/entities/topic-types";
-import { createJobErrorMetadata, getErrorMessage } from "./error-metadata";
+import {
+	createJobErrorMetadata,
+	getErrorMessage,
+	type JobErrorMetadata,
+} from "./error-metadata";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
 	minWordsToStream?: number;
 	/** Whether to stream tool calls immediately (default: true) */
 	streamToolCallsImmediately?: boolean;
+}
+
+export interface ConversationContext {
+	id: string;
+	inProgressMessage: { id: string };
+	agentFlowName?: string;
 }
 
 export interface ChatPayload {
@@ -49,6 +67,7 @@ export interface ChatPayload {
 	tools?: ChatCompletionTool[];
 	tool_choice?: ChatCompletionToolChoiceOption;
 	parallel_tool_calls?: boolean;
+	conversation?: ConversationContext;
 }
 
 export type ChatResult =
@@ -78,6 +97,13 @@ export type ChatResult =
 					completion_tokens: number;
 					total_tokens: number;
 				};
+				model?: string;
+				provider?: string;
+				timeToAnswer?: number;
+				tokensPerSecond?: number;
+				estimatedTokens?: number;
+				agentFlowName?: string;
+				error?: JobErrorMetadata;
 			};
 	  }
 	| {
@@ -250,9 +276,176 @@ type StreamBufferDeps = {
 	getProgress: () => number;
 };
 
+type FlowCustomPayloadDeps = {
+	payload: unknown;
+	handleChunk: (chunk: ChatCompletionChunk) => Promise<void>;
+	handleActions: (actions: FlowAction[]) => void;
+	actions: FlowAction[];
+	contentParts: ComplexContent;
+	dependencies: ProcessDependencies;
+	jobId: string;
+	executeStage: string;
+};
+
+type FlowServices = Parameters<typeof chatFlowRegistry.create>[1];
+
+type FlowRuntimeDeps = {
+	jobId: string;
+	model: string;
+	config: Required<ChatStreamConfig>;
+	dependencies: ProcessDependencies;
+	streamBuffer: StreamBuffer;
+	actions: FlowAction[];
+	toolCallAccumulator: ToolCallAccumulator;
+	addUsage: (usage: TokenUsage) => void;
+	getProgress: () => number;
+};
+
+type AssistantMessageFinalization = {
+	conversation?: ConversationContext;
+	content: string;
+	model: string;
+	startTime: number;
+	usage?: TokenUsage;
+	actions: ChatResultFinalAction[];
+	toolCalls: ChatCompletionMessageToolCall[];
+	error?: JobErrorMetadata;
+};
+
+type AssistantMessagePersistence = {
+	conversation: ConversationContext;
+	content: string;
+	complexContent: ComplexContent | null;
+	metadata: AssistantMessageMetadata;
+};
+
+type AssistantMessageMetadata = {
+	model: string;
+	provider: string;
+	timeToAnswer: number;
+	tokensPerSecond: number;
+	estimatedTokens: number;
+	actions?: ChatResultFinalAction[];
+	tool_calls?: ChatCompletionMessageToolCall[];
+	usage?: TokenUsage;
+	agentFlowName?: string;
+	error?: JobErrorMetadata;
+};
+
+type ChatResultFinalAction = NonNullable<
+	NonNullable<Extract<ChatResult, { type: "final" }>["metadata"]>["actions"]
+>[number];
+
+const normalizeActions = (actions: FlowAction[]): ChatResultFinalAction[] =>
+	actions.map((action) => ({
+		id: action.id,
+		name: action.name,
+		description: action.description ?? "",
+		metadata: action.metadata,
+	}));
+
+function sanitizeForJson(value: unknown, seen = new WeakSet()): unknown {
+	if (value === undefined || value === null) return null;
+
+	const type = typeof value;
+	if (type === "string" || type === "number" || type === "boolean") {
+		return value;
+	}
+	if (type === "bigint") return value.toString();
+	if (type === "function" || type === "symbol") return null;
+	if (value instanceof Date) return value.toISOString();
+
+	if (Array.isArray(value)) {
+		return value.map((item) => sanitizeForJson(item, seen));
+	}
+
+	if (type === "object") {
+		if (seen.has(value as object)) return null;
+		seen.add(value as object);
+		const result: Record<string, unknown> = {};
+		for (const [key, item] of Object.entries(
+			value as Record<string, unknown>,
+		)) {
+			result[key] = sanitizeForJson(item, seen);
+		}
+		return result;
+	}
+
+	return null;
+}
+
 export class ChatHandler extends BaseProcessHandler<ChatJob> {
 	constructor() {
 		super();
+	}
+
+	private static async persistAssistantMessage({
+		conversation,
+		content,
+		complexContent,
+		metadata,
+	}: AssistantMessagePersistence): Promise<void> {
+		await serviceManager.databaseService.use(async ({ db, schema }) => {
+			const [existing] = await db
+				.select()
+				.from(schema.messages)
+				.where(eq(schema.messages.id, conversation.inProgressMessage.id))
+				.limit(1);
+
+			if (!existing) {
+				return;
+			}
+
+			await db
+				.update(schema.messages)
+				.set({
+					content,
+					complexContent,
+					metadata: sanitizeForJson({
+						...(typeof existing.metadata === "object" &&
+						existing.metadata !== null
+							? existing.metadata
+							: {}),
+						...metadata,
+					}) as Record<string, unknown>,
+					updatedAt: new Date(),
+				})
+				.where(eq(schema.messages.id, conversation.inProgressMessage.id));
+		});
+	}
+
+	private static async buildAssistantMessageMetadata({
+		conversation,
+		content,
+		model,
+		startTime,
+		usage,
+		actions,
+		toolCalls,
+		error,
+	}: AssistantMessageFinalization): Promise<AssistantMessageMetadata> {
+		const timeToAnswer = (Date.now() - startTime) / 1000;
+		const outputTokens =
+			usage?.completion_tokens ?? Math.round(content.length / 4);
+		const totalTokens = usage?.total_tokens ?? Math.round(content.length / 4);
+		const provider =
+			(await serviceManager.llmService.getCurrentModel())?.provider ??
+			"unknown";
+
+		return {
+			model,
+			provider,
+			timeToAnswer,
+			tokensPerSecond: timeToAnswer > 0 ? outputTokens / timeToAnswer : 0,
+			estimatedTokens: totalTokens,
+			...(actions.length > 0 ? { actions } : {}),
+			...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+			...(conversation?.agentFlowName
+				? { agentFlowName: conversation.agentFlowName }
+				: {}),
+			...(usage ? { usage } : {}),
+			...(error ? { error } : {}),
+		};
 	}
 
 	private static createStreamBuffer(deps: StreamBufferDeps): StreamBuffer {
@@ -366,6 +559,97 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		};
 	}
 
+	private static getFlowServices(): FlowServices {
+		return {
+			llm: serviceManager.llmService,
+			embedding: serviceManager.embeddingService,
+			database: serviceManager.databaseService,
+			sandboxContainer: serviceManager.getSandboxContainerService(),
+			webBrowser: serviceManager.getWebBrowserService(),
+			documentFileSystem: documentFileSystemService,
+		};
+	}
+
+	private static createFlowRuntime({
+		jobId,
+		model,
+		config,
+		dependencies,
+		streamBuffer,
+		actions,
+		toolCallAccumulator,
+		addUsage,
+		getProgress,
+	}: FlowRuntimeDeps) {
+		return {
+			handleChunk: ChatHandler.createHandleChunk({
+				jobId,
+				model,
+				config,
+				dependencies,
+				streamBuffer,
+				getProgress,
+				onUsage: addUsage,
+				onToolCalls: (toolCalls) =>
+					accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
+			}),
+			handleActions: ChatHandler.createFlowHandleActions(
+				dependencies,
+				jobId,
+				actions,
+			),
+		};
+	}
+
+	private static async handleFlowCustomPayload({
+		payload,
+		handleChunk,
+		handleActions,
+		actions,
+		contentParts,
+		dependencies,
+		jobId,
+		executeStage,
+	}: FlowCustomPayloadDeps): Promise<ComplexContent | null> {
+		if (!isCustomChunkPayload(payload)) {
+			return null;
+		}
+
+		switch (payload.type) {
+			case "llm":
+				if ("chunk" in payload) {
+					await handleChunk(payload.chunk as ChatCompletionChunk);
+				}
+				return contentParts;
+			case "actions":
+				if ("actions" in payload) {
+					handleActions(payload.actions as FlowAction[]);
+					return upsertToolParts(contentParts, normalizeActions(actions));
+				}
+				return contentParts;
+			case "execute-start":
+				if ("node" in payload) {
+					const event = {
+						node: payload.node,
+						metadata: payload.metadata,
+					};
+					await dependencies.updateJobProgress(jobId, {
+						stage: executeStage,
+						progress: 12,
+						result: {
+							type: "execute-start",
+							node: event.node,
+							metadata: event.metadata,
+						} as ChatResult,
+					});
+					return upsertExecutionPart(contentParts, event);
+				}
+				return contentParts;
+			default:
+				return contentParts;
+		}
+	}
+
 	private static async streamChatCompletions(
 		stream: AsyncIterableIterator<ChatCompletionChunk>,
 		handleChunk: (chunk: ChatCompletionChunk) => Promise<void>,
@@ -390,7 +674,9 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			tools,
 			tool_choice,
 			parallel_tool_calls,
+			conversation,
 		} = job.payload;
+		const startTime = Date.now();
 
 		// Apply default stream config
 		const config: Required<ChatStreamConfig> = {
@@ -411,6 +697,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		);
 
 		let currentContent = "";
+		let contentParts: ComplexContent = [];
 		const actions: FlowAction[] = [];
 		const toolCallAccumulator: ToolCallAccumulator = new Map();
 		const accumulatedUsage: TokenUsage = {
@@ -423,6 +710,26 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			accumulatedUsage.completion_tokens += usage.completion_tokens;
 			accumulatedUsage.total_tokens += usage.total_tokens;
 		};
+		const finalizeConversation = async (
+			input: Omit<AssistantMessagePersistence, "conversation">,
+		) => {
+			if (!conversation) {
+				return;
+			}
+
+			try {
+				await ChatHandler.persistAssistantMessage({
+					conversation,
+					...input,
+				});
+			} catch (finalizeError) {
+				await dependencies.logger.warn(
+					`Failed to finalize assistant message for conversation ${conversation.id}`,
+					`${finalizeError}`,
+					"offscreen",
+				);
+			}
+		};
 
 		// Create stream buffer for content
 		const streamBuffer = ChatHandler.createStreamBuffer({
@@ -432,6 +739,10 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			dependencies,
 			onContent: (bufferedContent) => {
 				currentContent += bufferedContent;
+				contentParts = appendTextPart(
+					completeRunningExecutionParts(contentParts),
+					bufferedContent,
+				);
 			},
 			getProgress: () => Math.min(80, 20 + currentContent.length / 10),
 		});
@@ -469,17 +780,9 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				const resolvedConfig = flowConfig
 					? mergeWithDefaultConfig(flowConfig, flowConfig.graphType)
 					: buildDefaultFlowConfig("agent");
-				const allServices = {
-					llm: serviceManager.llmService,
-					embedding: serviceManager.embeddingService,
-					database: serviceManager.databaseService,
-					sandboxContainer: serviceManager.getSandboxContainerService(),
-					webBrowser: serviceManager.getWebBrowserService(),
-					documentFileSystem: documentFileSystemService,
-				};
 				const { graph, getInitialState } = chatFlowRegistry.create(
 					resolvedConfig.graphType ?? "agent",
-					allServices,
+					ChatHandler.getFlowServices(),
 					resolvedConfig,
 				);
 				const stream = await graph.stream(
@@ -491,52 +794,35 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 				const responseProgress = () =>
 					Math.min(80, 20 + currentContent.length / 10);
-				const handleChunk = ChatHandler.createHandleChunk({
+				const { handleChunk, handleActions } = ChatHandler.createFlowRuntime({
 					jobId,
 					model,
 					config,
 					dependencies,
 					streamBuffer,
-					getProgress: responseProgress,
-					onUsage: addUsage,
-					onToolCalls: (toolCalls) =>
-						accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
-				});
-				const handleActions = ChatHandler.createFlowHandleActions(
-					dependencies,
-					jobId,
 					actions,
-				);
+					toolCallAccumulator,
+					addUsage,
+					getProgress: responseProgress,
+				});
 
 				let finalState: Record<string, unknown> | null = null;
 				for await (const partial of stream) {
 					const { mode, payload } = normalizeLangGraphStreamChunk(partial);
 
-					if (mode === "custom" && isCustomChunkPayload(payload)) {
-						switch (payload.type) {
-							case "llm":
-								if ("chunk" in payload) {
-									await handleChunk(payload.chunk as ChatCompletionChunk);
-								}
-								break;
-							case "actions":
-								if ("actions" in payload) {
-									handleActions(payload.actions as FlowAction[]);
-								}
-								break;
-							case "execute-start":
-								if ("node" in payload) {
-									dependencies.updateJobProgress(jobId, {
-										stage: "Executing agent action...",
-										progress: 12,
-										result: {
-											type: "execute-start",
-											node: payload.node,
-											metadata: payload.metadata,
-										} as ChatResult,
-									});
-								}
-								break;
+					if (mode === "custom") {
+						const nextContentParts = await ChatHandler.handleFlowCustomPayload({
+							payload,
+							handleChunk,
+							handleActions,
+							actions,
+							contentParts,
+							dependencies,
+							jobId,
+							executeStage: "Executing agent action...",
+						});
+						if (nextContentParts) {
+							contentParts = nextContentParts;
 						}
 						continue;
 					}
@@ -550,6 +836,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 				if (typeof finalState?.response === "string") {
 					currentContent = finalState.response;
+					contentParts = replaceTextParts(contentParts, currentContent);
 					await dependencies.updateJobProgress(jobId, {
 						stage: "Agent complete",
 						progress: 95,
@@ -640,17 +927,9 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 				// Resolve the chat flow via registry — no graph-type branching here.
 				// Each graph module self-registers its adapter in chat-flow-registry.ts.
-				const allServices = {
-					llm: serviceManager.llmService,
-					embedding: serviceManager.embeddingService,
-					database: serviceManager.databaseService,
-					sandboxContainer: serviceManager.getSandboxContainerService(),
-					webBrowser: serviceManager.getWebBrowserService(),
-					documentFileSystem: documentFileSystemService,
-				};
 				const { graph, getInitialState } = chatFlowRegistry.create(
 					graphType,
-					allServices,
+					ChatHandler.getFlowServices(),
 					resolvedConfig,
 				);
 
@@ -665,51 +944,34 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 
 				const responseProgress = () =>
 					Math.min(80, 20 + currentContent.length / 10);
-				const handleChunk = ChatHandler.createHandleChunk({
+				const { handleChunk, handleActions } = ChatHandler.createFlowRuntime({
 					jobId,
 					model,
 					config,
 					dependencies,
 					streamBuffer,
-					getProgress: responseProgress,
-					onUsage: addUsage,
-					onToolCalls: (toolCalls) =>
-						accumulateChunkToolCalls(toolCallAccumulator, toolCalls),
-				});
-				const handleActions = ChatHandler.createFlowHandleActions(
-					dependencies,
-					jobId,
 					actions,
-				);
+					toolCallAccumulator,
+					addUsage,
+					getProgress: responseProgress,
+				});
 
 				for await (const partial of stream) {
 					const { mode, payload } = normalizeLangGraphStreamChunk(partial);
 
-					if (mode === "custom" && isCustomChunkPayload(payload)) {
-						switch (payload.type) {
-							case "llm":
-								if ("chunk" in payload) {
-									await handleChunk(payload.chunk as ChatCompletionChunk);
-								}
-								break;
-							case "actions":
-								if ("actions" in payload) {
-									handleActions(payload.actions as FlowAction[]);
-								}
-								break;
-							case "execute-start":
-								if ("node" in payload) {
-									dependencies.updateJobProgress(jobId, {
-										stage: "Executing...",
-										progress: 12,
-										result: {
-											type: "execute-start",
-											node: payload.node,
-											metadata: payload.metadata,
-										} as ChatResult,
-									});
-								}
-								break;
+					if (mode === "custom") {
+						const nextContentParts = await ChatHandler.handleFlowCustomPayload({
+							payload,
+							handleChunk,
+							handleActions,
+							actions,
+							contentParts,
+							dependencies,
+							jobId,
+							executeStage: "Executing...",
+						});
+						if (nextContentParts) {
+							contentParts = nextContentParts;
 						}
 						continue;
 					}
@@ -729,6 +991,7 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					// If found and different from current content, update
 					if (response && response !== currentContent) {
 						currentContent = response;
+						contentParts = replaceTextParts(contentParts, currentContent);
 
 						// Send a final update to replace the streamed content with cited version
 						await dependencies.updateJobProgress(jobId, {
@@ -787,19 +1050,76 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				streamBuffer.flush();
 			}
 
-			return {
-				type: "final",
+			const finalActions = normalizeActions(actions);
+			const finalToolCalls = getAccumulatedToolCalls(toolCallAccumulator);
+			const finalUsage =
+				accumulatedUsage.total_tokens > 0 ? accumulatedUsage : undefined;
+			if (
+				currentContent &&
+				!contentParts.some((part) => part.type === "text")
+			) {
+				contentParts = appendTextPart(contentParts, currentContent);
+			}
+			const finalContentParts = stripTransientExecutionParts(contentParts);
+			const hasToolParts = finalContentParts.some(
+				(part) => part.type === "tool",
+			);
+			const resultContent = finalContentParts.length > 0 ? "" : currentContent;
+			const finalMetadata = await ChatHandler.buildAssistantMessageMetadata({
+				conversation,
 				content: currentContent,
+				model,
+				startTime,
+				usage: finalUsage,
+				actions: hasToolParts ? [] : finalActions,
+				toolCalls: hasToolParts ? [] : finalToolCalls,
+			});
+			const result = {
+				type: "final",
+				content: resultContent,
 				metadata: {
-					actions,
-					tool_calls: getAccumulatedToolCalls(toolCallAccumulator),
-					usage:
-						accumulatedUsage.total_tokens > 0 ? accumulatedUsage : undefined,
+					...finalMetadata,
+					contentParts: finalContentParts,
 				},
-			};
+			} satisfies ChatResult;
+
+			await finalizeConversation({
+				content: resultContent,
+				complexContent: finalContentParts,
+				metadata: finalMetadata,
+			});
+
+			return result;
 		} catch (error) {
 			const errorMessage = getErrorMessage(error);
 			const errorMetadata = createJobErrorMetadata(error);
+			const isAbort = errorMessage === "Operation aborted";
+			const errorContentParts = stripTransientExecutionParts(contentParts);
+			const hasErrorToolParts = errorContentParts.some(
+				(part) => part.type === "tool",
+			);
+			const errorActions = normalizeActions(actions);
+			const errorToolCalls = getAccumulatedToolCalls(toolCallAccumulator);
+			const errorUsage =
+				accumulatedUsage.total_tokens > 0 ? accumulatedUsage : undefined;
+			const persistenceMetadata =
+				await ChatHandler.buildAssistantMessageMetadata({
+					conversation,
+					content: currentContent,
+					model,
+					startTime,
+					usage: errorUsage,
+					actions: hasErrorToolParts ? [] : errorActions,
+					toolCalls: hasErrorToolParts ? [] : errorToolCalls,
+					error: isAbort ? undefined : errorMetadata,
+				});
+
+			await finalizeConversation({
+				content: errorContentParts.length > 0 ? "" : currentContent,
+				complexContent: errorContentParts,
+				metadata: persistenceMetadata,
+			});
+
 			await dependencies.logger.error(
 				`❌ Chat job ${jobId} failed`,
 				error,

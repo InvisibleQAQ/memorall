@@ -86,6 +86,9 @@ export const useChat = (model: string) => {
 	const selectedAgentFlowId = useChatStore(
 		(state) => state.selectedAgentFlowId,
 	);
+	const currentConversation = useChatStore(
+		(state) => state.currentConversation,
+	);
 	const availableAgents = useAgentConfigStore((state) => state.availableAgents);
 	const agentFlowName = availableAgents.find(
 		(a) => a.id === selectedAgentFlowId,
@@ -97,7 +100,7 @@ export const useChat = (model: string) => {
 		(state) => state.setSelectedAgentFlowId,
 	);
 	const addMessage = useChatStore((state) => state.addMessage);
-	const finalizeMessage = useChatStore((state) => state.finalizeMessage);
+	const updateMessage = useChatStore((state) => state.updateMessage);
 	const setLoading = useChatStore((state) => state.setLoading);
 	const ensureMainConversation = useChatStore(
 		(state) => state.ensureMainConversation,
@@ -199,18 +202,6 @@ export const useChat = (model: string) => {
 		let assistantMessage: Message | null = null;
 		let currentContent = "";
 		let currentComplexContent: ComplexContent | null = null;
-		const startTime = Date.now();
-		let provider = "unknown";
-
-		// Get current model provider
-		try {
-			const currentModel = await serviceManager.llmService.getCurrentModel();
-			if (currentModel?.provider) {
-				provider = currentModel.provider;
-			}
-		} catch (error) {
-			logError("Failed to get current model provider:", error);
-		}
 
 		try {
 			// Separate document refs by kind
@@ -355,6 +346,11 @@ export const useChat = (model: string) => {
 							? selectedTopic
 							: undefined,
 					agentFlowId: selectedAgentFlowId ?? undefined,
+					conversation: {
+						id: currentConversation?.id ?? userMessage.conversationId,
+						inProgressMessage: { id: assistantMessage.id },
+						agentFlowName: agentFlowName ?? undefined,
+					},
 					streamConfig: {
 						minWordsToStream: 5,
 						streamToolCallsImmediately: true,
@@ -397,18 +393,15 @@ export const useChat = (model: string) => {
 				controller.signal,
 			);
 
-			// Calculate timing and performance metrics
-			const endTime = Date.now();
-			const timeToAnswer = (endTime - startTime) / 1000; // in seconds
-
-			// Use actual token count from API if available, otherwise estimate (~4 chars per token)
-			const totalTokens =
-				result.usage?.total_tokens ?? Math.round(result.content.length / 4);
-			const outputTokens =
-				result.usage?.completion_tokens ??
-				Math.round(result.content.length / 4);
-			const tokensPerSecond =
-				timeToAnswer > 0 ? outputTokens / timeToAnswer : 0;
+			const hasStructuredToolParts = result.contentParts.some(
+				(part) => part.type === "tool",
+			);
+			const actionMetadata = hasStructuredToolParts
+				? {}
+				: {
+						actions: result.actions,
+						tool_calls: cloneToolCalls(result.toolCalls),
+					};
 
 			// Handle completion or failure after stream finishes
 			if (result.failed) {
@@ -417,21 +410,17 @@ export const useChat = (model: string) => {
 				const errorContent =
 					result.content ||
 					"Sorry, I encountered an error processing your message.";
-				await finalizeMessage(assistantMessage.id, {
+				updateMessage(assistantMessage.id, {
 					content: errorContent,
 					complexContent: cloneComplexContent(result.contentParts),
 					metadata: {
-						actions: result.actions,
-						tool_calls: cloneToolCalls(result.toolCalls),
+						...(result.metadata ?? {}),
+						...actionMetadata,
 						error: result.errorMetadata ?? {
 							message: errorMessage,
 							rawMessage: result.error || errorMessage,
 						},
-						model: model,
-						provider: provider,
-						timeToAnswer: timeToAnswer,
-						tokensPerSecond: tokensPerSecond,
-						estimatedTokens: totalTokens,
+						model,
 						...(agentFlowName && { agentFlowName }),
 					},
 				});
@@ -455,18 +444,13 @@ export const useChat = (model: string) => {
 				// Small delay to let React render the updated content
 				await new Promise((resolve) => setTimeout(resolve, 150));
 
-				// Finalize with final content and actions
-				await finalizeMessage(assistantMessage.id, {
+				updateMessage(assistantMessage.id, {
 					content: result.content,
 					complexContent: cloneComplexContent(result.contentParts),
 					metadata: {
-						actions: result.actions,
-						tool_calls: cloneToolCalls(result.toolCalls),
-						model: model,
-						provider: provider,
-						timeToAnswer: timeToAnswer,
-						tokensPerSecond: tokensPerSecond,
-						estimatedTokens: totalTokens,
+						...(result.metadata ?? {}),
+						...actionMetadata,
+						model,
 						...(agentFlowName && { agentFlowName }),
 					},
 				});
@@ -483,19 +467,15 @@ export const useChat = (model: string) => {
 
 				// Save any partial content that was streamed before abort
 				if (assistantMessage && currentContent) {
-					try {
-						await finalizeMessage(assistantMessage.id, {
-							content: currentContent,
-							complexContent: cloneComplexContent(currentComplexContent),
-							metadata: {
-								actions: inProgressMessage?.actions || [],
-								...(agentFlowName && { agentFlowName }),
-							},
-						});
-						logInfo("Saved partial content from stopped generation");
-					} catch (saveError) {
-						logError("Failed to save partial content:", saveError);
-					}
+					updateMessage(assistantMessage.id, {
+						content: currentContent,
+						complexContent: cloneComplexContent(currentComplexContent),
+						metadata: {
+							actions: inProgressMessage?.actions || [],
+							...(agentFlowName && { agentFlowName }),
+						},
+					});
+					logInfo("Saved partial content from stopped generation");
 				}
 
 				// Clear in-progress message
@@ -510,13 +490,12 @@ export const useChat = (model: string) => {
 			if (assistantMessage) {
 				const errorContent =
 					"Sorry, I encountered an error processing your message.";
-				await finalizeMessage(assistantMessage.id, {
+				updateMessage(assistantMessage.id, {
 					content: currentContent || errorContent,
 					complexContent: cloneComplexContent(currentComplexContent),
 					metadata: {
 						error: errorMetadata,
 						model,
-						provider,
 						...(agentFlowName && { agentFlowName }),
 					},
 				});
@@ -527,7 +506,6 @@ export const useChat = (model: string) => {
 					metadata: {
 						error: errorMetadata,
 						model,
-						provider,
 						...(agentFlowName && { agentFlowName }),
 					},
 				});

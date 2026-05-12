@@ -183,22 +183,28 @@ const persistAgentChatRun = async (
 		);
 
 		await db.insert(schema.messages).values(
-			createMessage(conversationId, "assistant", result.content, {
-				topicId,
-				metadata: {
-					source: "cron",
-					actionType: ACTION_TYPE,
-					cronJobId: cronJob.id,
-					triggeredAt: now.toISOString(),
-					reason,
-					actions: result.metadata?.actions ?? [],
-					tool_calls: result.metadata?.tool_calls ?? [],
-					usage: result.metadata?.usage,
-					model: payload.model,
+			createMessage(
+				conversationId,
+				"assistant",
+				result.metadata?.contentParts ? "" : result.content,
+				{
+					topicId,
+					complexContent: result.metadata?.contentParts ?? null,
+					metadata: {
+						source: "cron",
+						actionType: ACTION_TYPE,
+						cronJobId: cronJob.id,
+						triggeredAt: now.toISOString(),
+						reason,
+						actions: result.metadata?.actions ?? [],
+						tool_calls: result.metadata?.tool_calls ?? [],
+						usage: result.metadata?.usage,
+						model: payload.model,
+					},
+					createdAt: new Date(now.getTime() + 2),
+					updatedAt: new Date(now.getTime() + 2),
 				},
-				createdAt: new Date(now.getTime() + 2),
-				updatedAt: new Date(now.getTime() + 2),
-			}),
+			),
 		);
 
 		await db

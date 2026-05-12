@@ -33,7 +33,7 @@ function buildAssistantContent(msg: Message): string {
 		| ComplexContent
 		| null
 		| undefined;
-	if (complexContent?.some((part) => part.type === "tool")) {
+	if (complexContent && complexContent.length > 0) {
 		return complexContent
 			.map((part) => {
 				if (part.type === "text") return part.text;

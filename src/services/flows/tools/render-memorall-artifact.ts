@@ -61,7 +61,7 @@ const buildArtifactMessageContent = ({
 	)}"`;
 	const typeAttr = ` type="${escapeAttribute(toStandardArtifactType(type))}"`;
 	const titleAttr = title ? ` title="${escapeAttribute(title)}"` : "";
-	return `<artifact${identifierAttr}${typeAttr}${titleAttr}>${content}</artifact>`;
+	return `\n\n<artifact${identifierAttr}${typeAttr}${titleAttr}>${content}</artifact>\n\n`;
 };
 
 export const createRenderMemorallArtifactTool: ToolFactory<
