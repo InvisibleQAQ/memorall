@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { serviceManager } from "@/services";
 import type { AgentChatCronPayload, Message } from "@/services/database/types";
 import type { ChatPayload, ChatResult } from "../process-chat";
+import type { ComplexContent } from "@/types/chat";
 import { handlerRegistry } from "../handler-registry";
 import { v4 } from "@/utils/uuid";
 import {
@@ -182,14 +183,17 @@ const persistAgentChatRun = async (
 			}),
 		);
 
+		const cronContentParts = Array.isArray(result.metadata?.contentParts)
+			? (result.metadata.contentParts as ComplexContent)
+			: null;
 		await db.insert(schema.messages).values(
 			createMessage(
 				conversationId,
 				"assistant",
-				result.metadata?.contentParts ? "" : result.content,
+				cronContentParts ? "" : result.content,
 				{
 					topicId,
-					complexContent: result.metadata?.contentParts ?? null,
+					complexContent: cronContentParts,
 					metadata: {
 						source: "cron",
 						actionType: ACTION_TYPE,
