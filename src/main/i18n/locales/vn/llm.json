@@ -357,6 +357,33 @@
 		},
 		"useAdvancedSetup": "Sử dụng Thiết lập Nâng cao Thay thế"
 	},
+	"offscreenServices": {
+		"title": "Dịch vụ Offscreen",
+		"description": "Iframe chạy AI cục bộ",
+		"running": "Đang chạy",
+		"offline": "Ngoại tuyến",
+		"refreshStatus": "Làm mới trạng thái",
+		"status": {
+			"ready": "Sẵn sàng",
+			"loading": "Đang tải",
+			"idle": "Chờ"
+		},
+		"reset": "Đặt lại",
+		"services": {
+			"webllm": {
+				"label": "WebLLM",
+				"description": "Trình chạy suy luận WebGPU"
+			},
+			"wllama": {
+				"label": "Wllama",
+				"description": "Trình chạy GGUF WASM"
+			},
+			"transformer": {
+				"label": "Transformer",
+				"description": "Trình chạy Transformers.js"
+			}
+		}
+	},
 	"empty": "Không có mô hình nào",
 	"error": "Không thể tải mô hình"
 }

@@ -41,14 +41,14 @@ export async function ensureTransformers() {
 				transformerContext.webgpuCapabilities = {
 					available: true,
 					supportsF16: Boolean(adapter.features?.has?.("shader-f16")),
+					features: Array.from(adapter.features || []),
 					maxBufferSize: Number(adapter.limits?.maxBufferSize ?? 0),
 					maxStorageBufferBindingSize: Number(
 						adapter.limits?.maxStorageBufferBindingSize ?? 0,
 					),
-					adapterInfo: adapter.info ?? null,
 				};
 				console.log("[transformer-runner] WebGPU adapter obtained:", {
-					features: Array.from(adapter.features || []),
+					features: transformerContext.webgpuCapabilities.features,
 					limits: adapter.limits,
 					capabilities: transformerContext.webgpuCapabilities,
 				});

@@ -359,6 +359,33 @@
 		},
 		"useAdvancedSetup": "Use Advanced Setup Instead"
 	},
+	"offscreenServices": {
+		"title": "Offscreen Services",
+		"description": "Local AI runner iframes",
+		"running": "Running",
+		"offline": "Offline",
+		"refreshStatus": "Refresh status",
+		"status": {
+			"ready": "Ready",
+			"loading": "Loading",
+			"idle": "Idle"
+		},
+		"reset": "Reset",
+		"services": {
+			"webllm": {
+				"label": "WebLLM",
+				"description": "WebGPU inference runner"
+			},
+			"wllama": {
+				"label": "Wllama",
+				"description": "WASM GGUF runner"
+			},
+			"transformer": {
+				"label": "Transformer",
+				"description": "Transformers.js runner"
+			}
+		}
+	},
 	"empty": "No models available",
 	"error": "Failed to load model"
 }
