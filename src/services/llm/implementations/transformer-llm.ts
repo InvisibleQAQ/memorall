@@ -116,6 +116,10 @@ export class TransformerLLM implements BaseLLM {
 	private loading = false;
 	private pending = new Map<string, PendingRequest>();
 	private signalMap = new Map<string, AbortSignal>();
+	private servedModelCapabilities = new Map<
+		string,
+		{ supportsNativeTools: boolean; supportsVision: boolean }
+	>();
 	private systemSpecsPromise: Promise<Awaited<
 		ReturnType<typeof detectSystemSpecs>
 	> | null> | null = null;
@@ -209,20 +213,27 @@ export class TransformerLLM implements BaseLLM {
 		const capability = await this.getToolCapabilities(request.model);
 		const shouldNormalizePromptMessages =
 			capability.mode === "prompt_injection";
-		const usePromptToolParsing =
-			shouldNormalizePromptMessages && !!request.tools?.length;
+		const useToolParsing = !!request.tools?.length;
 		const processedRequest = shouldNormalizePromptMessages
 			? preparePromptToolRequest(request)
 			: request;
 
-		// Remove signal and tool fields from request payload (can't serialize)
-		const {
-			signal,
-			tools,
-			tool_choice,
-			parallel_tool_calls,
-			...requestPayload
-		} = processedRequest;
+		const { signal } = processedRequest;
+		const requestPayload = shouldNormalizePromptMessages
+			? (() => {
+					const {
+						signal: _signal,
+						tools: _tools,
+						tool_choice: _toolChoice,
+						parallel_tool_calls: _parallelToolCalls,
+						...payload
+					} = processedRequest;
+					return payload;
+				})()
+			: (() => {
+					const { signal: _signal, ...payload } = processedRequest;
+					return payload;
+				})();
 		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
 
 		let signalId: string | undefined;
@@ -245,8 +256,8 @@ export class TransformerLLM implements BaseLLM {
 				),
 			};
 
-			// Extract tool calls from text if using prompt injection
-			if (usePromptToolParsing) {
+			// Extract tool calls from generated text for both native templates and prompt fallback.
+			if (useToolParsing) {
 				response = extractToolCallsFromResponse(response);
 			}
 
@@ -266,20 +277,27 @@ export class TransformerLLM implements BaseLLM {
 		const capability = await this.getToolCapabilities(request.model);
 		const shouldNormalizePromptMessages =
 			capability.mode === "prompt_injection";
-		const usePromptToolParsing =
-			shouldNormalizePromptMessages && !!request.tools?.length;
+		const useToolParsing = !!request.tools?.length;
 		const processedRequest = shouldNormalizePromptMessages
 			? preparePromptToolRequest(request)
 			: request;
 
-		// Remove signal and tool fields from request payload (can't serialize)
-		const {
-			signal,
-			tools,
-			tool_choice,
-			parallel_tool_calls,
-			...requestPayload
-		} = processedRequest;
+		const { signal } = processedRequest;
+		const requestPayload = shouldNormalizePromptMessages
+			? (() => {
+					const {
+						signal: _signal,
+						tools: _tools,
+						tool_choice: _toolChoice,
+						parallel_tool_calls: _parallelToolCalls,
+						...payload
+					} = processedRequest;
+					return payload;
+				})()
+			: (() => {
+					const { signal: _signal, ...payload } = processedRequest;
+					return payload;
+				})();
 		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
 
 		let signalId: string | undefined;
@@ -294,7 +312,7 @@ export class TransformerLLM implements BaseLLM {
 			let streamError: Error | null = null;
 			let completionOutput = "";
 			let finalUsage = normalizeTokenUsage(undefined);
-			const promptToolTransformer = usePromptToolParsing
+			const promptToolTransformer = useToolParsing
 				? new PromptToolStreamTransformer()
 				: null;
 
@@ -373,15 +391,9 @@ export class TransformerLLM implements BaseLLM {
 	}
 
 	private async withRunnerMemoryHint(
-		requestPayload: Omit<
-			ChatCompletionRequest,
-			"signal" | "tools" | "tool_choice" | "parallel_tool_calls"
-		>,
+		requestPayload: Omit<ChatCompletionRequest, "signal">,
 	): Promise<
-		Omit<
-			ChatCompletionRequest,
-			"signal" | "tools" | "tool_choice" | "parallel_tool_calls"
-		> & {
+		Omit<ChatCompletionRequest, "signal"> & {
 			_memoryHint?: RunnerMemoryHint;
 		}
 	> {
@@ -429,8 +441,11 @@ export class TransformerLLM implements BaseLLM {
 		await this.send("delete", request);
 	}
 
-	async getToolCapabilities(_model?: string): Promise<ToolCapabilityInfo> {
-		return getTransformerToolCapabilities();
+	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
+		const supportsNativeTools = model
+			? this.servedModelCapabilities.get(model)?.supportsNativeTools === true
+			: false;
+		return getTransformerToolCapabilities(supportsNativeTools);
 	}
 
 	async supportsTools(model?: string): Promise<boolean> {
@@ -470,7 +485,12 @@ export class TransformerLLM implements BaseLLM {
 
 		const request: ServeRequest = { model };
 		const response = await this.send("serve", request, { onProgress });
-		return response as ModelInfo;
+		const modelInfo = response as ModelInfo;
+		this.servedModelCapabilities.set(model, {
+			supportsNativeTools: modelInfo.supportsNativeTools === true,
+			supportsVision: modelInfo.supportsVision === true,
+		});
+		return modelInfo;
 	}
 
 	async loadModelFromHF(
