@@ -15,9 +15,9 @@ export const transformerContext = {
 	webgpuCapabilities: {
 		available: false,
 		supportsF16: false,
+		features: [],
 		maxBufferSize: 0,
 		maxStorageBufferBindingSize: 0,
-		adapterInfo: null,
 	},
 };
 

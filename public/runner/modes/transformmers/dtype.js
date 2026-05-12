@@ -2,6 +2,7 @@ import { getTransformersContext, getWebgpuCapabilities } from "./context.js";
 
 const dtypeAvailabilityCache = new Map();
 const resolvedDtypeCache = new Map();
+const DTYPE_STORAGE_PREFIX = "transformer:available-dtypes:";
 
 export function isDtypeAuto(dtype) {
 	return !dtype || dtype === "auto";
@@ -53,9 +54,37 @@ function normalizeAvailableDtypes(value) {
 	return new Set(["fp32"]);
 }
 
-async function getAvailableDtypes(modelId) {
+function readAvailableDtypesCache(modelId) {
 	if (dtypeAvailabilityCache.has(modelId)) {
-		return dtypeAvailabilityCache.get(modelId);
+		return { hit: true, value: dtypeAvailabilityCache.get(modelId) };
+	}
+
+	try {
+		const raw = localStorage.getItem(DTYPE_STORAGE_PREFIX + modelId);
+		if (raw !== null) {
+			const value = normalizeAvailableDtypes(JSON.parse(raw));
+			dtypeAvailabilityCache.set(modelId, value);
+			return { hit: true, value };
+		}
+	} catch {}
+
+	return { hit: false, value: undefined };
+}
+
+function writeAvailableDtypesCache(modelId, available) {
+	dtypeAvailabilityCache.set(modelId, available);
+	try {
+		localStorage.setItem(
+			DTYPE_STORAGE_PREFIX + modelId,
+			JSON.stringify(Array.from(available)),
+		);
+	} catch {}
+}
+
+async function getAvailableDtypes(modelId) {
+	const cached = readAvailableDtypesCache(modelId);
+	if (cached.hit) {
+		return cached.value;
 	}
 
 	const { ModelRegistry } = getTransformersContext();
@@ -78,6 +107,39 @@ async function getAvailableDtypes(modelId) {
 
 	dtypeAvailabilityCache.set(modelId, available);
 	return available;
+}
+
+export function recordLoadableDtype(modelId, dtypeSpec) {
+	if (!modelId || typeof dtypeSpec !== "string") {
+		return;
+	}
+
+	const available = new Set(dtypeAvailabilityCache.get(modelId) ?? []);
+	available.add(dtypeSpec);
+	writeAvailableDtypesCache(modelId, available);
+
+	for (const cacheKey of Array.from(resolvedDtypeCache.keys())) {
+		if (cacheKey.startsWith(`${modelId}:`)) {
+			resolvedDtypeCache.delete(cacheKey);
+		}
+	}
+}
+
+export function clearLoadableDtypeCache(modelId) {
+	if (!modelId) {
+		return;
+	}
+
+	dtypeAvailabilityCache.delete(modelId);
+	try {
+		localStorage.removeItem(DTYPE_STORAGE_PREFIX + modelId);
+	} catch {}
+
+	for (const cacheKey of Array.from(resolvedDtypeCache.keys())) {
+		if (cacheKey.startsWith(`${modelId}:`)) {
+			resolvedDtypeCache.delete(cacheKey);
+		}
+	}
 }
 
 function getDeviceDtypePreference(device) {

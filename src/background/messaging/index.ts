@@ -438,6 +438,44 @@ function handleContentExtracted(
 	return true;
 }
 
+function handleResetLLMService(
+	message: Record<string, unknown>,
+	sendResponse: SendResponse,
+): true {
+	(async () => {
+		try {
+			const response = await chrome.runtime.sendMessage({
+				type: "OFFSCREEN_RESET_LLM_SERVICE",
+				service: message.service,
+			});
+			sendResponse(
+				response ?? { success: false, error: "No response from offscreen" },
+			);
+		} catch (error) {
+			sendResponse({
+				success: false,
+				error:
+					error instanceof Error ? error.message : "Failed to reset service",
+			});
+		}
+	})();
+	return true;
+}
+
+function handleGetServiceStatus(sendResponse: SendResponse): true {
+	(async () => {
+		try {
+			const response = await chrome.runtime.sendMessage({
+				type: "OFFSCREEN_GET_SERVICE_STATUS",
+			});
+			sendResponse(response ?? { success: false, statuses: {} });
+		} catch (error) {
+			sendResponse({ success: false, statuses: {} });
+		}
+	})();
+	return true;
+}
+
 function handleFilesystemChanged(message: Record<string, unknown>): false {
 	if (message.relayedByBackground === true) return false;
 
@@ -536,5 +574,11 @@ export function registerMessageHandler(onPopupOpened: () => void): void {
 
 		if (type === BACKGROUND_EVENTS.FILESYSTEM_CHANGED)
 			return handleFilesystemChanged(msg);
+
+		if (type === BACKGROUND_EVENTS.RESET_LLM_SERVICE)
+			return handleResetLLMService(msg, sendResponse);
+
+		if (type === BACKGROUND_EVENTS.GET_SERVICE_STATUS)
+			return handleGetServiceStatus(sendResponse);
 	});
 }

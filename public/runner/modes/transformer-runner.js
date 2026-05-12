@@ -10,7 +10,10 @@ import {
 	isRecoverableWebGPUExecutionError,
 } from "./transformmers/chat-completions.js";
 import { getWebgpuCapabilities } from "./transformmers/context.js";
-import { dtypeSpecLabel } from "./transformmers/dtype.js";
+import {
+	clearLoadableDtypeCache,
+	dtypeSpecLabel,
+} from "./transformmers/dtype.js";
 import {
 	loadTransformerModel,
 	unloadTransformerModel,
@@ -25,6 +28,31 @@ const transformerManager = new ModelLifecycleManager({
 	loadFn: loadTransformerModel,
 	unloadFn: unloadTransformerModel,
 });
+
+function serializeWebgpuCapabilities(value) {
+	return {
+		available: Boolean(value?.available),
+		supportsF16: Boolean(value?.supportsF16),
+		features: Array.isArray(value?.features)
+			? value.features.filter((feature) => typeof feature === "string")
+			: [],
+		maxBufferSize: Number(value?.maxBufferSize ?? 0),
+		maxStorageBufferBindingSize: Number(
+			value?.maxStorageBufferBindingSize ?? 0,
+		),
+	};
+}
+
+function serializeModelInfo(modelInfo) {
+	if (!modelInfo) return undefined;
+	const { webgpuCapabilities, ...rest } = modelInfo;
+	return {
+		...rest,
+		...(webgpuCapabilities
+			? { webgpuCapabilities: serializeWebgpuCapabilities(webgpuCapabilities) }
+			: {}),
+	};
+}
 
 async function handleModels(src, origin, messageId) {
 	await ensureTransformerRunnerCatalog();
@@ -41,7 +69,10 @@ async function handleModels(src, origin, messageId) {
 
 		const downloadedModels = Array.from(modelIds).map((modelId) => {
 			const isLoaded = currentModelId === modelId && transformerManager.isLoaded;
-			const cachedModelInfo = loadedModelsCache.get(modelId);
+			const cachedModelInfo = serializeModelInfo(loadedModelsCache.get(modelId));
+			if (cachedModelInfo) {
+				cachedModelInfo.loaded = isLoaded;
+			}
 			return {
 				id: modelId,
 				name: modelId,
@@ -50,7 +81,7 @@ async function handleModels(src, origin, messageId) {
 				owned_by: "transformer",
 				downloaded: true,
 				...(cachedModelInfo ?? {}),
-				loaded: isLoaded || Boolean(cachedModelInfo?.loaded),
+				loaded: isLoaded,
 			};
 		});
 
@@ -99,7 +130,7 @@ async function handleServe(src, origin, messageId, payload) {
 			modelLoader: bundle.modelLoader,
 			supportsNativeTools: Boolean(bundle.supportsNativeTools),
 			supportsVision: Boolean(bundle.supportsVision),
-			webgpuCapabilities: getWebgpuCapabilities(),
+			webgpuCapabilities: serializeWebgpuCapabilities(getWebgpuCapabilities()),
 		};
 
 		loadedModelsCache.set(model, modelInfo);
@@ -202,7 +233,17 @@ async function handleUnload(src, origin, messageId, payload) {
 	const currentModel = transformerManager.modelId;
 
 	if (model && model !== currentModel) {
-		throw new Error(`Model ${model} is not loaded`);
+		const modelInfo = loadedModelsCache.get(model);
+		if (modelInfo) {
+			modelInfo.loaded = false;
+			loadedModelsCache.set(model, modelInfo);
+		}
+
+		reply(src, origin, messageId, "complete", {
+			status: "unloaded",
+			model,
+		});
+		return;
 	}
 
 	await transformerManager.unload();
@@ -239,6 +280,7 @@ async function handleDelete(src, origin, messageId, payload) {
 		}
 
 		loadedModelsCache.delete(model);
+		clearLoadableDtypeCache(model);
 		reply(src, origin, messageId, "complete", { status: "deleted", model });
 	} catch (error) {
 		reply(src, origin, messageId, "error", {

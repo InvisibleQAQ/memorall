@@ -20,6 +20,10 @@ import { serviceManager } from "@/services";
 import { sharedStorageService } from "@/services/shared-storage";
 import { EmbeddingServiceMain } from "@/services/embedding/embedding-service-main";
 import { EmbeddingServiceCore } from "@/services/embedding/embedding-service-core";
+import {
+	DEFAULT_ON_DEMAND_SERVICE_CONFIGS,
+	type DefaultOnDemandServiceName,
+} from "@/services/llm/constants";
 
 type OffscreenGlobal = typeof globalThis & {
 	__memorallOffscreenProcessor__?: OffscreenProcessor;
@@ -116,6 +120,64 @@ class OffscreenProcessor {
 					this.reportProgress();
 					return false;
 				}
+
+				if (message && message.type === "OFFSCREEN_RESET_LLM_SERVICE") {
+					const serviceName = message.service as DefaultOnDemandServiceName;
+					(async () => {
+						try {
+							logInfo(
+								`🔄 [OFFSCREEN] Resetting LLM service iframe: ${serviceName}`,
+							);
+							serviceManager.llmService.remove(serviceName);
+							const config = DEFAULT_ON_DEMAND_SERVICE_CONFIGS[serviceName];
+							if (!config) {
+								sendResponse({
+									success: false,
+									error: `Unknown service: ${serviceName}`,
+								});
+								return;
+							}
+							await serviceManager.llmService.create(serviceName, config);
+							logInfo(
+								`✅ [OFFSCREEN] LLM service iframe reset: ${serviceName}`,
+							);
+							sendResponse({ success: true });
+						} catch (error) {
+							logError(
+								`❌ [OFFSCREEN] Failed to reset LLM service ${serviceName}:`,
+								error,
+							);
+							sendResponse({
+								success: false,
+								error: error instanceof Error ? error.message : "Reset failed",
+							});
+						}
+					})();
+					return true;
+				}
+
+				if (message && message.type === "OFFSCREEN_GET_SERVICE_STATUS") {
+					const statuses: Record<
+						string,
+						{ registered: boolean; ready: boolean }
+					> = {
+						webllm: {
+							registered: serviceManager.llmService.has("webllm"),
+							ready: serviceManager.llmService.isReadyByName("webllm"),
+						},
+						wllama: {
+							registered: serviceManager.llmService.has("wllama"),
+							ready: serviceManager.llmService.isReadyByName("wllama"),
+						},
+						transformer: {
+							registered: serviceManager.llmService.has("transformer"),
+							ready: serviceManager.llmService.isReadyByName("transformer"),
+						},
+					};
+					sendResponse({ success: true, statuses });
+					return false;
+				}
+
 				return false;
 			};
 

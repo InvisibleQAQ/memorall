@@ -24,6 +24,30 @@ async function loadMessageImages(messages) {
 	return images;
 }
 
+function normalizeProcessorMessageContent(content) {
+	if (!Array.isArray(content)) {
+		return content;
+	}
+
+	return content.map((part) => {
+		if (part?.type !== "image_url") {
+			return part;
+		}
+
+		const url = part.image_url?.url;
+		return typeof url === "string" && url
+			? { type: "image", image: url }
+			: { type: "image" };
+	});
+}
+
+function normalizeProcessorMessages(messages) {
+	return (messages ?? []).map((message) => ({
+		...message,
+		content: normalizeProcessorMessageContent(message?.content),
+	}));
+}
+
 function stringifyMessageText(messages) {
 	return (messages ?? [])
 		.map((message) => {
@@ -53,10 +77,11 @@ export async function buildModelInputs(bundle, messages, tools, toolChoice) {
 	};
 
 	if (processor) {
+		const processorMessages = normalizeProcessorMessages(messages);
 		const prompt =
 			typeof processor.apply_chat_template === "function"
-				? processor.apply_chat_template(messages, chatTemplateOptions)
-				: stringifyMessageText(messages);
+				? processor.apply_chat_template(processorMessages, chatTemplateOptions)
+				: stringifyMessageText(processorMessages);
 		const images = await loadMessageImages(messages);
 		return processor(prompt, images.length ? images : null, null, {
 			add_special_tokens: false,

@@ -7,6 +7,7 @@ import {
 	useRepoEffect,
 } from "@/main/modules/llm/components";
 import { YourModels } from "@/main/modules/llm/components/YourModels";
+import { OffscreenServicesCard } from "@/main/modules/llm/components/OffscreenServicesCard";
 import {
 	Card,
 	CardHeader,
@@ -444,6 +445,8 @@ export const LLMPage: React.FC = () => {
 
 				<main className={isDesktop ? "min-h-0 overflow-y-auto" : ""}>
 					<div className="mx-auto w-full max-w-5xl space-y-3 px-3 pb-3 sm:p-4">
+						<OffscreenServicesCard />
+
 						<Card className="rounded-none md:rounded-lg">
 							<CardHeader className="p-3">
 								<CardTitle className="text-lg">

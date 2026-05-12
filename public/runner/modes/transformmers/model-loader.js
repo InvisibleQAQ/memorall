@@ -6,6 +6,7 @@ import {
 import {
 	dtypeSpecLabel,
 	isLoadRetryable,
+	recordLoadableDtype,
 	resolveDtypeChainForDevice,
 } from "./dtype.js";
 import { detectNativeToolSupport, detectVisionSupport } from "./capabilities.js";
@@ -76,6 +77,8 @@ async function loadWithExecutionFallback({
 					console.log(
 						`[transformer-runner] ${kind} model loaded successfully with dtype: ${dtypeLabel}, device: ${tryDevice}, threads: ${numThreads}`,
 					);
+
+					recordLoadableDtype(modelId, tryDtype);
 
 					return { ...loaded, dtype: tryDtype, device: tryDevice, numThreads };
 				} catch (err) {
