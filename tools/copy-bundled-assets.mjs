@@ -220,14 +220,10 @@ async function main() {
 			path.join(wllamaDestLibs, "wllama.js"),
 		);
 
-		// Copy WASM files (single-thread and multi-thread)
-		const wllamaWasmDirs = ["single-thread", "multi-thread"];
-		for (const dir of wllamaWasmDirs) {
-			const srcDir = path.join(wllamaSrc, dir);
-			const destDir = path.join(wllamaDestLibs, dir);
-			if (fs.existsSync(srcDir)) {
-				copyDirectory(srcDir, destDir);
-			}
+		// Copy WASM files — v3 ships a single wasm/ directory
+		const wllamaWasmSrc = path.join(wllamaSrc, "wasm");
+		if (fs.existsSync(wllamaWasmSrc)) {
+			copyDirectory(wllamaWasmSrc, path.join(wllamaDestLibs, "wasm"));
 		}
 
 		console.log("✅ Wllama library and WASM files copied.\n");

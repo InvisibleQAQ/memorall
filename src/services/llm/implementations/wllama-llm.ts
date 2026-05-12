@@ -15,7 +15,10 @@ import {
 	preparePromptToolRequest,
 	PromptToolStreamTransformer,
 } from "../tools/tool-adapter";
-import { getWllamaToolCapabilities } from "../tools/tool-capability-resolver";
+import {
+	getWllamaToolCapabilities,
+	WLLAMA_NATIVE_TOOL_SUPPORT,
+} from "../tools/tool-capability-resolver";
 import {
 	chunkHasFinishReason,
 	extractChunkOutputText,
@@ -78,6 +81,11 @@ interface ErrorResponse {
 	};
 }
 
+interface DetectedCapabilities {
+	supportsNativeTools: boolean;
+	supportsVision: boolean;
+}
+
 type PendingRequest = {
 	resolve: (value: unknown) => void;
 	reject: (error: Error) => void;
@@ -93,6 +101,7 @@ export class WllamaLLM implements BaseLLM {
 	private loading = false;
 	private pending = new Map<string, PendingRequest>();
 	private signalMap = new Map<string, AbortSignal>();
+	private modelCapabilities = new Map<string, DetectedCapabilities>();
 	private systemSpecsPromise: Promise<Awaited<
 		ReturnType<typeof detectSystemSpecs>
 	> | null> | null = null;
@@ -192,14 +201,14 @@ export class WllamaLLM implements BaseLLM {
 			? preparePromptToolRequest(request)
 			: request;
 
-		// Remove signal from request payload (can't serialize AbortSignal)
-		const {
-			signal,
-			tools,
-			tool_choice,
-			parallel_tool_calls,
-			...requestPayload
-		} = processedRequest;
+		const { signal, tools, tool_choice, parallel_tool_calls, ...basePayload } =
+			processedRequest;
+
+		// Pass tools to the runner only when the model natively supports them
+		const requestPayload =
+			capability.mode === "native"
+				? { ...basePayload, tools, tool_choice }
+				: basePayload;
 
 		let signalId: string | undefined;
 		if (signal) {
@@ -222,7 +231,6 @@ export class WllamaLLM implements BaseLLM {
 				),
 			};
 
-			// Extract tool calls from text if using prompt injection
 			if (usePromptToolParsing) {
 				response = extractToolCallsFromResponse(response);
 			}
@@ -249,14 +257,14 @@ export class WllamaLLM implements BaseLLM {
 			? preparePromptToolRequest(request)
 			: request;
 
-		// Remove signal and tool fields from request payload (can't serialize)
-		const {
-			signal,
-			tools,
-			tool_choice,
-			parallel_tool_calls,
-			...requestPayload
-		} = processedRequest;
+		const { signal, tools, tool_choice, parallel_tool_calls, ...basePayload } =
+			processedRequest;
+
+		// Pass tools to the runner only when the model natively supports them
+		const requestPayload =
+			capability.mode === "native"
+				? { ...basePayload, tools, tool_choice }
+				: basePayload;
 
 		let signalId: string | undefined;
 		if (signal) {
@@ -370,7 +378,11 @@ export class WllamaLLM implements BaseLLM {
 	}
 
 	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
-		return getWllamaToolCapabilities(model);
+		const detected = model ? this.modelCapabilities.get(model) : undefined;
+		if (detected?.supportsNativeTools) {
+			return WLLAMA_NATIVE_TOOL_SUPPORT;
+		}
+		return getWllamaToolCapabilities();
 	}
 
 	async supportsTools(model?: string): Promise<boolean> {
@@ -411,20 +423,25 @@ export class WllamaLLM implements BaseLLM {
 			}
 			return existingModel;
 		}
+
 		const request: ServeRequest = { model };
-		const response = await this.send(
+		const response = (await this.send(
 			"serve",
 			await this.withRunnerMemoryHint(request),
 			{ onProgress },
-		);
-		return response as ModelInfo;
+		)) as ModelInfo & { capabilities?: DetectedCapabilities };
+
+		if (response.capabilities) {
+			this.modelCapabilities.set(model, response.capabilities);
+		}
+
+		return response;
 	}
 
 	async loadModelFromHF(
 		model: string,
 		onProgress?: (progress: ProgressEvent) => void,
 	): Promise<void> {
-		// Ensure model is in the correct 3-part format
 		const parts = model.split("/");
 		if (parts.length < 3) {
 			throw new Error('Model must be in format "username/repo/filename"');
@@ -476,6 +493,7 @@ export class WllamaLLM implements BaseLLM {
 			reject(new Error("Service destroyed")),
 		);
 		this.pending.clear();
+		this.modelCapabilities.clear();
 		this.ready = false;
 		this.systemSpecsPromise = null;
 	}
@@ -486,7 +504,6 @@ export class WllamaLLM implements BaseLLM {
 		// CRITICAL: Only process messages from our own iframe to prevent cross-contamination
 		const fromRunner = ev.source === this.iframe?.contentWindow;
 		if (!fromRunner) {
-			// Silently ignore messages from other iframes
 			return;
 		}
 
@@ -563,7 +580,6 @@ export class WllamaLLM implements BaseLLM {
 				signalId: options?.signalId,
 			});
 
-			// Set up abort signal listener if signalId provided
 			if (options?.signalId) {
 				const signal = this.signalMap.get(options.signalId);
 				if (signal) {

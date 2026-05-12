@@ -22,10 +22,19 @@ const WEBLLM_NATIVE_TOOL_SUPPORT: ToolCapabilityInfo = {
 		"Native WebLLM function calling is limited to the pinned allowlist and returns tool_calls in the terminal chunk.",
 };
 
+const WLLAMA_NATIVE_TOOL_SUPPORT: ToolCapabilityInfo = {
+	supported: true,
+	mode: "native",
+	parallelCalls: false,
+	streamingToolCalls: true,
+	strictMode: false,
+	notes: "Native tool calling detected from model chat template at load time.",
+};
+
 const WLLAMA_PROMPT_TOOL_SUPPORT: ToolCapabilityInfo = {
 	...PROMPT_TOOL_SUPPORT_WITH_STREAMING,
 	notes:
-		"Wllama uses prompt-based tool calling. Native OpenAI-style tools are not exposed by the current package API.",
+		"Wllama uses prompt-based tool calling. Fallback for models without a tool_calls chat template.",
 };
 
 const TRANSFORMER_PROMPT_TOOL_SUPPORT: ToolCapabilityInfo = {
@@ -52,9 +61,11 @@ export function getTransformerToolCapabilities(): ToolCapabilityInfo {
 	return TRANSFORMER_PROMPT_TOOL_SUPPORT;
 }
 
-export function getWllamaToolCapabilities(_model?: string): ToolCapabilityInfo {
+export function getWllamaToolCapabilities(): ToolCapabilityInfo {
 	return WLLAMA_PROMPT_TOOL_SUPPORT;
 }
+
+export { WLLAMA_NATIVE_TOOL_SUPPORT };
 
 export function resolveToolCapabilitiesForLLM(
 	llmType: string,
@@ -66,7 +77,7 @@ export function resolveToolCapabilitiesForLLM(
 		case "transformer":
 			return getTransformerToolCapabilities();
 		case "wllama":
-			return getWllamaToolCapabilities(model);
+			return getWllamaToolCapabilities();
 		default:
 			return NO_TOOL_SUPPORT;
 	}

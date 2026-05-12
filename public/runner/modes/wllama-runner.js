@@ -1,24 +1,17 @@
-// Wllama Runner - Local LLM inference via WebAssembly
+// Wllama Runner - Local LLM inference via WebAssembly (wllama v3)
 import { reply, generateId, sendReady } from "../utils/common.js";
 import { ModelLifecycleManager } from "../utils/model-lifecycle.js";
 
+// v3: single WASM file — local relative path, never CDN (Chrome extension CSP)
 const WASM_PATHS = {
-	"single-thread/wllama.wasm":
-		"https://cdn.jsdelivr.net/npm/@wllama/wllama@2.3.5/src/single-thread/wllama.wasm",
-	"multi-thread/wllama.wasm":
-		"https://cdn.jsdelivr.net/npm/@wllama/wllama@2.3.5/src/multi-thread/wllama.wasm",
+	default: "./libs/wasm/wllama.wasm",
 };
 
-// Scoped state
 let Wllama;
 const loadedModelsCache = new Map();
-const activeOperations = new Map(); // Track active operations for abort support
-const WLLAMA_METADATA_PREFIX = "__metadata__";
+const activeOperations = new Map();
 const pendingLoadMemoryHints = new Map();
 const DEFAULT_WLLAMA_N_CTX = 65536;
-
-// Stored progress callback for current load operation
-let currentProgressCallback = null;
 
 function resolveMemoryContextTokens(memoryHint) {
 	if (!memoryHint || typeof memoryHint !== "object") {
@@ -60,34 +53,38 @@ function resolveMemoryContextTokens(memoryHint) {
 	return roundedTokens;
 }
 
-async function resolveWllamaPromptLength(wllama, messages) {
-	const prompt = await wllama.formatChat(messages, true);
-	const tokens = await wllama.tokenize(prompt, true);
-	let promptLength = Array.isArray(tokens) ? tokens.length : 0;
-
-	if (
-		wllama.addBosToken &&
-		typeof wllama.bosToken === "number" &&
-		Array.isArray(tokens) &&
-		tokens[0] !== wllama.bosToken
-	) {
-		promptLength += 1;
-	}
-
-	return promptLength;
+// Detect capabilities from the loaded model's own embedded metadata.
+// Works for any GGUF from HuggingFace — no hardcoded model lists.
+function detectModelCapabilities(wllama) {
+	const template = wllama.getChatTemplate();
+	// Native tool calling = model embeds an OAI-compatible tool_calls chat template
+	const supportsNativeTools = template != null && template.includes("tool_calls");
+	// Vision = wllama v3 reports this directly from model architecture metadata
+	const supportsVision = wllama.supportInputModality?.("image") ?? false;
+	return { supportsNativeTools, supportsVision };
 }
 
 async function ensureWllama() {
 	if (Wllama) return;
 	const mod = await import("../libs/wllama.js");
-	Wllama = mod.Wllama || mod.default || mod;
+	Wllama = mod.Wllama || mod.default;
 	if (!Wllama) throw new Error("Failed to load @wllama/wllama");
 }
 
+// CacheManager is accessed via the Wllama instance's public cacheManager field.
+// OPFS is shared so any instance sees the same cache — create a temporary one
+// when no model is currently loaded.
+async function getCacheManager() {
+	if (wllamaManager.model?.cacheManager) {
+		return wllamaManager.model.cacheManager;
+	}
+	await ensureWllama();
+	return new Wllama(WASM_PATHS).cacheManager;
+}
+
 /**
- * Parse model name and return HuggingFace URL
+ * Parse model name and return components
  * @param {string} model - Format: username/repo/filename
- * @returns {{ modelId: string, url: string }}
  */
 function parseModelName(model) {
 	const parts = model.split("/");
@@ -96,75 +93,59 @@ function parseModelName(model) {
 	}
 	return {
 		modelId: model,
+		repo: `${parts[0]}/${parts[1]}`,
+		filename: parts[2],
 		url: `https://huggingface.co/${parts[0]}/${parts[1]}/resolve/main/${parts[2]}`,
 	};
 }
 
-function normalizeWllamaCacheURL(url) {
-	return url.replace(/-\d{5}-of-\d{5}(?=\.gguf(?:[?#].*)?$)/i, "");
-}
-
-async function deleteWllamaModelFromCache(modelId) {
-	const { url } = parseModelName(modelId);
-	const targetURL = normalizeWllamaCacheURL(url);
-	const targetFilename = modelId.split("/").pop() || "";
-	const root = await navigator.storage.getDirectory();
-
-	let cacheDir;
+/**
+ * Query HuggingFace API to discover the mmproj filename in the same repo.
+ * Returns just the filename (not the full URL) for use with loadModelFromHF.
+ * No hardcoded quants — uses whatever the repo actually provides.
+ * @param {string} repo - e.g. "LiquidAI/LFM2-VL-450M-GGUF"
+ * @returns {Promise<string|null>} mmproj filename or null if not found
+ */
+async function resolveHFMmprojFilename(repo) {
 	try {
-		cacheDir = await root.getDirectoryHandle("cache");
-	} catch (error) {
-		return;
+		const res = await fetch(`https://huggingface.co/api/models/${repo}`);
+		if (!res.ok) return null;
+		const data = await res.json();
+		const siblings = data.siblings ?? [];
+		const mmprojFiles = siblings
+			.map((s) => s.rfilename)
+			.filter((f) => f.endsWith(".gguf") && f.toLowerCase().includes("mmproj"));
+		if (mmprojFiles.length === 0) return null;
+		// Prefer higher quality quant if available, otherwise take first found
+		return (
+			mmprojFiles.find((f) => f.includes("Q8_0")) ??
+			mmprojFiles.find((f) => f.includes("Q4_K_M")) ??
+			mmprojFiles[0]
+		);
+	} catch {
+		return null;
 	}
-
-	const entriesToDelete = new Set();
-
-	for await (const [name, handle] of cacheDir.entries()) {
-		if (handle.kind !== "file" || !name.startsWith(WLLAMA_METADATA_PREFIX)) {
-			continue;
-		}
-
-		const file = await handle.getFile();
-		const metadata = await new Response(file.stream()).json().catch(() => null);
-		const originalURL =
-			typeof metadata?.originalURL === "string" ? metadata.originalURL : "";
-
-		if (!originalURL) {
-			if (!targetFilename || !name.endsWith(`_${targetFilename}`)) {
-				continue;
-			}
-			entriesToDelete.add(name);
-			entriesToDelete.add(name.replace(WLLAMA_METADATA_PREFIX, ""));
-			continue;
-		}
-
-		if (normalizeWllamaCacheURL(originalURL) !== targetURL) {
-			continue;
-		}
-
-		entriesToDelete.add(name);
-		entriesToDelete.add(name.replace(WLLAMA_METADATA_PREFIX, ""));
-	}
-
-	await Promise.all(
-		Array.from(entriesToDelete).map(async (name) => {
-			try {
-				await cacheDir.removeEntry(name);
-			} catch (_) {}
-		}),
-	);
 }
 
 /**
- * Load a Wllama model
+ * Delete a cached model using v3 CacheManager API
+ * @param {string} modelId
+ */
+async function deleteWllamaModelFromCache(modelId) {
+	const { url } = parseModelName(modelId);
+	const cm = await getCacheManager();
+	await cm.delete(url);
+}
+
+/**
+ * Load a Wllama model, auto-discovering mmproj from HuggingFace if available
  * @param {string} modelId - Model identifier (username/repo/filename)
  * @param {Function} [notifyProgress]
- * @returns {Promise<any>} - The Wllama instance with model loaded
  */
 async function loadWllamaModel(modelId, notifyProgress) {
 	await ensureWllama();
 
-	const { url } = parseModelName(modelId);
+	const { repo, filename } = parseModelName(modelId);
 	const wllama = new Wllama(WASM_PATHS);
 	const memoryHint = pendingLoadMemoryHints.get(modelId);
 	const memoryContextTokens = resolveMemoryContextTokens(memoryHint);
@@ -180,19 +161,21 @@ async function loadWllamaModel(modelId, notifyProgress) {
 			? Math.min(DEFAULT_WLLAMA_N_CTX, memoryContextTokens)
 			: DEFAULT_WLLAMA_N_CTX;
 
-	const progressCallback = (progress) => {
+	const progressCallback = ({ loaded, total }) => {
 		if (notifyProgress) {
-			const { loaded, total } = progress;
 			const percent = Math.max(0, Math.min(100, Math.round((loaded / (total || 1)) * 100)));
 			notifyProgress({ loaded, total, percent, text: "" });
 		}
 	};
 
+	// Discover mmproj filename from HF repo — loadModelFromHF resolves the full URL internally
+	const mmprojFile = await resolveHFMmprojFilename(repo);
+
 	try {
-		await wllama.loadModelFromUrl(url, {
-			progressCallback,
-			n_ctx: nCtx,
-		});
+		await wllama.loadModelFromHF(
+			mmprojFile ? { repo, file: filename, mmprojFile } : { repo, file: filename },
+			{ progressCallback, n_ctx: nCtx, n_gpu_layers: 0 },
+		);
 	} finally {
 		pendingLoadMemoryHints.delete(modelId);
 	}
@@ -214,7 +197,7 @@ async function unloadWllamaModel(wllama) {
 	}
 }
 
-// Model lifecycle manager - handles caching and auto-unload after 5 min idle
+// Model lifecycle manager — handles caching and auto-unload after idle
 const wllamaManager = new ModelLifecycleManager({
 	name: "wllama-runner",
 	loadFn: loadWllamaModel,
@@ -230,12 +213,13 @@ window.addEventListener("message", async (event) => {
 		switch (type) {
 			case "abort": {
 				const operation = activeOperations.get(messageId);
-				if (operation && operation.abortController) {
+				if (operation?.abortController) {
 					operation.abortController.abort();
 					activeOperations.delete(messageId);
 				}
-				return; // Don't reply for abort messages
+				return;
 			}
+
 			case "init": {
 				await ensureWllama();
 				reply(src, origin, messageId, "complete", {
@@ -247,58 +231,40 @@ window.addEventListener("message", async (event) => {
 
 			case "models": {
 				await ensureWllama();
-				let downloadedModels = [];
-				const wllama = wllamaManager.model;
+				const cm = await getCacheManager();
 				const currentModelId = wllamaManager.modelId;
+				let downloadedModels = [];
 
-				if (wllama && wllama.cacheManager) {
-					try {
-						const cacheEntries = await wllama.cacheManager.list();
-						downloadedModels = cacheEntries
-							.filter((entry) => entry.name.endsWith(".gguf"))
-							.map((entry) => {
-								const originURL = entry.metadata?.originalURL || "";
-								const match = originURL.match(
-									/^https:\/\/huggingface\.co\/([^\/]+\/[^\/]+)\/resolve\/main\/(.+)$/,
-								);
-								const name = match ? match[1] : "";
-								const filename = match ? match[2] : entry.name;
-								const fullModelId =
-									name && filename ? `${name}/${filename}` : entry.name;
-								const isLoaded =
-									currentModelId &&
-									fullModelId.toLowerCase() === currentModelId.toLowerCase();
-								return {
-									id: fullModelId,
-									name: fullModelId,
-									filename,
-									loaded: !!isLoaded,
-									downloaded: true,
-									object: "model",
-									created: Date.now(),
-									owned_by: "local",
-									size: entry.size || 0,
-								};
-							});
-					} catch (error) {
-						console.error("Failed to get cached models:", error);
-					}
-				}
-
-				if (downloadedModels.length === 0 && wllama && wllama.currentModel && wllama.isModelLoaded) {
-					const currentModelName = wllama.currentModel.name || "unknown";
-					const modelId = currentModelName.replace(".gguf", "").replace(/_/g, "/");
-					downloadedModels = [
-						{
-							id: modelId,
-							name: modelId,
-							loaded: true,
-							downloaded: true,
-							object: "model",
-							created: Date.now(),
-							owned_by: "local",
-						},
-					];
+				try {
+					const cacheEntries = await cm.list();
+					downloadedModels = cacheEntries
+						.filter((entry) => entry.name.endsWith(".gguf"))
+						.map((entry) => {
+							const originURL = entry.metadata?.originalURL || "";
+							const match = originURL.match(
+								/^https:\/\/huggingface\.co\/([^/]+\/[^/]+)\/resolve\/main\/(.+)$/,
+							);
+							const name = match ? match[1] : "";
+							const filename = match ? match[2] : entry.name;
+							const fullModelId =
+								name && filename ? `${name}/${filename}` : entry.name;
+							const isLoaded =
+								currentModelId &&
+								fullModelId.toLowerCase() === currentModelId.toLowerCase();
+							return {
+								id: fullModelId,
+								name: fullModelId,
+								filename,
+								loaded: !!isLoaded,
+								downloaded: true,
+								object: "model",
+								created: Date.now(),
+								owned_by: "local",
+								size: entry.size || 0,
+							};
+						});
+				} catch (error) {
+					console.error("Failed to get cached models:", error);
 				}
 
 				reply(src, origin, messageId, "complete", {
@@ -312,7 +278,6 @@ window.addEventListener("message", async (event) => {
 				const { model, _memoryHint } = payload || {};
 				if (!model) throw new Error("Model name is required");
 
-				// Validate format
 				parseModelName(model);
 				if (_memoryHint) {
 					pendingLoadMemoryHints.set(model, _memoryHint);
@@ -325,6 +290,8 @@ window.addEventListener("message", async (event) => {
 				try {
 					await wllamaManager.load(model, notifyProgress);
 
+					const capabilities = detectModelCapabilities(wllamaManager.model);
+
 					const modelInfo = {
 						id: model,
 						object: "model",
@@ -335,6 +302,7 @@ window.addEventListener("message", async (event) => {
 						parent: null,
 						loaded: true,
 						downloaded: true,
+						capabilities,
 					};
 
 					loadedModelsCache.set(model, modelInfo);
@@ -361,6 +329,8 @@ window.addEventListener("message", async (event) => {
 					top_p = 0.9,
 					top_k = 40,
 					stop,
+					tools,
+					tool_choice,
 					_memoryHint,
 				} = payload || {};
 
@@ -371,167 +341,86 @@ window.addEventListener("message", async (event) => {
 					throw new Error("No model specified and no model loaded. Call serve first.");
 				}
 
-				// Validate format
 				parseModelName(targetModel);
 
-				// Create abort controller for this operation
 				const abortController = new AbortController();
 				activeOperations.set(messageId, { abortController });
 				if (_memoryHint) {
 					pendingLoadMemoryHints.set(targetModel, _memoryHint);
 				}
 
-				// Convert OpenAI format to wllama format
-				const wllamaMessages = messages.map((msg) => ({
-					role: msg.role,
-					content: msg.content,
-				}));
-
 				try {
 					await wllamaManager.withModel(targetModel, async (wllama) => {
-						const promptLength = await resolveWllamaPromptLength(
-							wllama,
-							wllamaMessages,
-						);
-						const loadedContextInfo = wllama.getLoadedContextInfo?.();
+						const loadedCtx = wllama.getLoadedContextInfo?.();
 						const maxContextTokens =
-							typeof loadedContextInfo?.n_ctx === "number"
-								? loadedContextInfo.n_ctx
-								: typeof _memoryHint?.contextLength === "number"
-									? _memoryHint.contextLength
-									: undefined;
+							typeof loadedCtx?.n_ctx === "number" ? loadedCtx.n_ctx : undefined;
 						const memoryContextTokens = resolveMemoryContextTokens(_memoryHint);
-						const maxTotalContextTokens =
+						const maxTotalContext =
 							typeof maxContextTokens === "number" &&
 							typeof memoryContextTokens === "number"
 								? Math.min(maxContextTokens, memoryContextTokens)
 								: typeof maxContextTokens === "number"
-									? maxContextTokens
-									: memoryContextTokens;
-						const maxNewTokensLimit =
-							typeof maxTotalContextTokens === "number"
-								? Math.max(0, maxTotalContextTokens - promptLength)
-								: undefined;
+								? maxContextTokens
+								: memoryContextTokens;
+
 						const requestedMaxTokens =
 							typeof max_tokens === "number" && Number.isFinite(max_tokens)
 								? max_tokens
-								: 256;
+								: 512;
 						const effectiveMaxTokens =
-							typeof maxNewTokensLimit === "number"
-								? Math.min(requestedMaxTokens, maxNewTokensLimit)
+							typeof maxTotalContext === "number"
+								? Math.min(requestedMaxTokens, Math.max(0, maxTotalContext))
 								: requestedMaxTokens;
 
-						if (
-							typeof maxNewTokensLimit === "number" &&
-							maxNewTokensLimit <= 0
-						) {
-							throw new Error(
-								typeof memoryContextTokens === "number" &&
-								(typeof maxContextTokens !== "number" ||
-									memoryContextTokens <= maxContextTokens)
-									? `Prompt is too long for available device memory (promptLength=${promptLength}, memoryContextTokens=${memoryContextTokens}, availableGB=${_memoryHint?.availableGB ?? "unknown"})`
-									: `Prompt is too long for the model context window (promptLength=${promptLength}, maxContextTokens=${maxContextTokens})`,
-							);
-						}
-
-						if (effectiveMaxTokens < requestedMaxTokens) {
-							console.log("[wllama-runner] clamped nPredict", {
-								requested: requestedMaxTokens,
-								effective: effectiveMaxTokens,
-								promptLength,
-								maxContextTokens,
-								memoryContextTokens,
-								availableGB: _memoryHint?.availableGB,
-							});
-						}
-
-						const wllamaOptions = {
-							nPredict: effectiveMaxTokens,
-							sampling: {
-								temp: typeof temperature === "number" ? temperature : 0.7,
-								top_p: typeof top_p === "number" ? top_p : 0.9,
-								top_k: typeof top_k === "number" ? top_k : 40,
-							},
+						const completionOptions = {
+							messages,
+							max_tokens: effectiveMaxTokens,
+							temperature: typeof temperature === "number" ? temperature : 0.8,
+							top_p: typeof top_p === "number" ? top_p : 0.9,
+							top_k: typeof top_k === "number" ? top_k : 40,
+							...(stop ? { stop: Array.isArray(stop) ? stop : [stop] } : {}),
+							...(tools ? { tools, tool_choice } : {}),
 						};
-						if (stop) {
-							wllamaOptions.stopSequence = Array.isArray(stop) ? stop : [stop];
-						}
 
 						if (stream) {
-							const responseId = `chatcmpl-${generateId()}`;
-							let content = "";
-
-							await wllama.createChatCompletion(wllamaMessages, {
-								...wllamaOptions,
-								onNewToken: (_token, piece, currentText) => {
-									if (abortController.signal.aborted) {
-										throw new Error("Operation aborted");
-									}
-
-									const deltaText =
-										typeof currentText === "string"
-											? currentText.slice(content.length)
-											: typeof piece === "string"
-												? piece
-												: String(piece ?? "");
-									if (!deltaText) return;
-									content += deltaText;
-									const chunk = {
-										id: responseId,
-										object: "chat.completion.chunk",
-										created: Math.floor(Date.now() / 1000),
-										model: targetModel,
-										choices: [
-											{
-												index: 0,
-												delta: { content: deltaText },
-												finish_reason: null,
-											},
-										],
-									};
-									reply(src, origin, messageId, "stream_chunk", chunk);
-								},
+							const streamIter = await wllama.createChatCompletion({
+								...completionOptions,
+								stream: true,
+								onData: () => {},
+								abortSignal: abortController.signal,
 							});
 
-							const finalChunk = {
-								id: responseId,
+							let lastChunk = null;
+							for await (const chunk of streamIter) {
+								if (abortController.signal.aborted) break;
+								const enriched = { ...chunk, model: targetModel };
+								if (chunk.choices?.[0]?.finish_reason != null) {
+									lastChunk = enriched;
+								} else {
+									reply(src, origin, messageId, "stream_chunk", enriched);
+								}
+							}
+
+							reply(src, origin, messageId, "stream_end", lastChunk ?? {
+								id: `chatcmpl-${generateId()}`,
 								object: "chat.completion.chunk",
 								created: Math.floor(Date.now() / 1000),
 								model: targetModel,
-								choices: [
-									{
-										index: 0,
-										delta: {},
-										finish_reason: "stop",
-									},
-								],
-							};
-							reply(src, origin, messageId, "stream_end", finalChunk);
+								choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+							});
 						} else {
-							const text = await wllama.createChatCompletion(wllamaMessages, wllamaOptions);
-							const response = {
-								id: `chatcmpl-${generateId()}`,
-								object: "chat.completion",
-								created: Math.floor(Date.now() / 1000),
+							const response = await wllama.createChatCompletion({
+								...completionOptions,
+								stream: false,
+							});
+							reply(src, origin, messageId, "complete", {
+								...response,
 								model: targetModel,
-								choices: [
-									{
-										index: 0,
-										message: { role: "assistant", content: text || "" },
-										finish_reason: "stop",
-									},
-								],
-								usage: {
-									prompt_tokens: -1,
-									completion_tokens: -1,
-									total_tokens: -1,
-								},
-							};
-							reply(src, origin, messageId, "complete", response);
+							});
 						}
 					});
 				} catch (error) {
-					console.error("Wllama error:", error);
+					console.error("Wllama chat error:", error);
 					throw error;
 				} finally {
 					activeOperations.delete(messageId);
@@ -573,7 +462,6 @@ window.addEventListener("message", async (event) => {
 
 				parseModelName(model);
 
-				// If this model is currently loaded, unload it first
 				if (wllamaManager.modelId === model) {
 					await wllamaManager.unload();
 				}
@@ -613,4 +501,4 @@ const endpoints = [
 ];
 sendReady("wllama", endpoints);
 
-console.log("Wllama runner initialized");
+console.log("Wllama runner initialized (v3)");

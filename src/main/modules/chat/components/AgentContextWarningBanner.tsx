@@ -203,10 +203,10 @@ export const AgentContextWarningBanner: React.FC<
 	const Icon = isHeavyFlow ? AlertTriangle : Gauge;
 
 	return (
-		<div className="w-full flex-shrink-0 px-4 pt-1.5">
+		<div className="relative z-30 w-full flex-shrink-0 px-4">
 			<div className="mx-auto max-w-4xl">
 				<div
-					className={`mx-5 -mb-2 flex items-center justify-between gap-3 rounded-lg rounded-bl-none rounded-br-none border px-3 py-2 ${severityClass}`}
+					className={`relative z-30 mx-5 -mb-px flex items-center justify-between gap-3 rounded-lg rounded-bl-none rounded-br-none border px-3 py-2 ${severityClass}`}
 				>
 					<div className="min-w-0">
 						<div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
