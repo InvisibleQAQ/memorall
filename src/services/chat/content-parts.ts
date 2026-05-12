@@ -69,6 +69,17 @@ export const appendTextPart = (
 	return [...next, { type: "text", text }];
 };
 
+export const replaceTextParts = (
+	parts: ComplexContent,
+	text: string,
+): ComplexContent => {
+	const nonTextParts = completeRunningExecutionParts(parts).filter(
+		(part) => part.type !== "text",
+	);
+	if (!text) return nonTextParts;
+	return [...nonTextParts, { type: "text", text }];
+};
+
 export const upsertExecutionPart = (
 	parts: ComplexContent,
 	event: { node: string; metadata?: Record<string, unknown> },

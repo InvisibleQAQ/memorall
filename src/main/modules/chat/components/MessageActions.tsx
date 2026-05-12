@@ -89,6 +89,9 @@ const EXACT_ICON_MAPPINGS: Record<string, LucideIcon> = {
 	pdf_to_image: FileImage,
 };
 
+const looksLikeI18nKey = (value: string): boolean =>
+	value.includes(".") && /^[\w.-]+$/.test(value);
+
 export const getActionIcon = (name: string): LucideIcon => {
 	const exact = EXACT_ICON_MAPPINGS[name];
 	if (exact) {
@@ -114,12 +117,39 @@ export const translateActionName = (
 		return translated;
 	}
 
+	if (looksLikeI18nKey(actionName)) {
+		const commonTranslated = t(actionName, {
+			ns: "common",
+			defaultValue: "",
+		});
+		if (commonTranslated) {
+			return commonTranslated;
+		}
+	}
+
 	const coAgentTitle = getCoAgentActionTitle(actionName);
 	if (coAgentTitle) {
 		return coAgentTitle;
 	}
 
 	return actionName.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+};
+
+const translateActionDescription = (
+	t: ReturnType<typeof useTranslation>["t"],
+	description: string,
+): string => {
+	const trimmed = description.trim();
+	if (!looksLikeI18nKey(trimmed)) {
+		return description;
+	}
+
+	const commonTranslated = t(trimmed, {
+		ns: "common",
+		defaultValue: "",
+	});
+
+	return commonTranslated || description;
 };
 
 type ActionRenderer = (
@@ -252,13 +282,18 @@ class ActionRenderErrorBoundary extends React.Component<
 
 const ActionContent: React.FC<ActionContentProps> = React.memo(
 	({ item, isOpen }) => {
+		const { t } = useTranslation("chat");
 		const renderer = ACTION_RENDERERS[item.name] || defaultActionRenderer;
+		const displayItem = {
+			...item,
+			description: translateActionDescription(t, item.description),
+		};
 		try {
-			return <>{renderer(item, isOpen)}</>;
+			return <>{renderer(displayItem, isOpen)}</>;
 		} catch (error) {
 			return (
 				<ActionRenderFallback
-					item={item}
+					item={displayItem}
 					error={error instanceof Error ? error : new Error(String(error))}
 				/>
 			);

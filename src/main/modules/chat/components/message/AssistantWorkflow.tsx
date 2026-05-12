@@ -35,6 +35,15 @@ const humanizeStepName = (name: string): string =>
 const getCatalogStep = (part: ComplexContentPartExecution) =>
 	FLOW_STEP_BY_NAME.get(getExecutionActionName(part));
 
+const translateCommonKey = (
+	key: string | undefined,
+	t: ReturnType<typeof useTranslation>["t"],
+): string | undefined => {
+	if (!key) return undefined;
+	const translated = t(key, { ns: "common", defaultValue: "" });
+	return translated || undefined;
+};
+
 export const getWorkflowLabel = (
 	part: ComplexContentPartExecution,
 	t: ReturnType<typeof useTranslation>["t"],
@@ -46,7 +55,7 @@ export const getWorkflowLabel = (
 			? catalogStep.metadata.nameKey
 			: undefined;
 	const displayName =
-		(nameKey ? t(nameKey, { ns: "common" }) : undefined) ||
+		translateCommonKey(nameKey, t) ||
 		(typeof catalogStep?.metadata?.displayName === "string"
 			? catalogStep.metadata.displayName
 			: undefined);
@@ -102,7 +111,7 @@ const getWorkflowDescription = (
 			? catalogStep.metadata.descriptionKey
 			: undefined;
 	const description =
-		(descriptionKey ? t(descriptionKey, { ns: "common" }) : undefined) ||
+		translateCommonKey(descriptionKey, t) ||
 		(typeof catalogStep?.metadata?.description === "string"
 			? catalogStep.metadata.description
 			: undefined);

@@ -240,6 +240,7 @@ export class AgentGraph extends GraphBase<
 		const committedMessages = [...state.outputMessages, finalMessage];
 
 		return {
+			outputMessages: [finalMessage],
 			messages: [...state.messages, ...committedMessages],
 			response: buildResponseFromOutputMessages([], committedMessages),
 			currentIteration: state.currentIteration + 1,
