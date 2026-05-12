@@ -1570,6 +1570,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@huggingface/jinja@npm:^0.5.8":
+  version: 0.5.9
+  resolution: "@huggingface/jinja@npm:0.5.9"
+  checksum: 10c0/dab021c4c94ac931983682a66de2558b4ee6ffded45495bed403b3909b934f2a09129cd4274a6f75622d89ea9af8e95fd5957ecee6445c6e2bf983181df09aa5
+  languageName: node
+  linkType: hard
+
 "@huggingface/tokenizers@npm:^0.1.3":
   version: 0.1.3
   resolution: "@huggingface/tokenizers@npm:0.1.3"
@@ -5814,10 +5821,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wllama/wllama@npm:^2.3.7":
-  version: 2.3.7
-  resolution: "@wllama/wllama@npm:2.3.7"
-  checksum: 10c0/9864f2dc77e4a337578a534fdf1a433e5b4c9010300cc857e06e132811ad09ee985394b10165d5cbd74636ffc38a8636d5b7e0e581ca154b5c150634872c47cc
+"@wllama/wllama@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "@wllama/wllama@npm:3.1.0"
+  dependencies:
+    "@huggingface/jinja": "npm:^0.5.8"
+  checksum: 10c0/c69e9be3f413eaef2b91c5a6f45f98295e4b78ae498399cf4b68c832edc597200ac95e313cf3d60002f2bd475528772320d38faec19ce501147a9cc0b0fab974
   languageName: node
   linkType: hard
 
@@ -11486,7 +11495,7 @@ __metadata:
     "@univerjs/sheets-numfmt-ui": "npm:^0.10.11"
     "@univerjs/sheets-ui": "npm:^0.10.11"
     "@univerjs/ui": "npm:^0.10.11"
-    "@wllama/wllama": "npm:^2.3.7"
+    "@wllama/wllama": "npm:^3.1.0"
     "@xyflow/react": "npm:^12.10.0"
     "@zenfs/core": "npm:^2.4.4"
     "@zenfs/dom": "npm:^1.2.7"
