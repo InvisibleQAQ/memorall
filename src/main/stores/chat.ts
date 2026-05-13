@@ -7,6 +7,7 @@ import {
 } from "@/services/database/types";
 import { serviceManager } from "@/services";
 import { logError } from "@/utils/logger";
+import { sanitizeForJson } from "@/utils/sanitize-json";
 import { v4 } from "@/utils/uuid";
 import type { ChatMode } from "@/main/modules/chat/services/chat-service";
 
@@ -53,43 +54,6 @@ interface ChatStore {
 	syncWithDB: () => Promise<void>;
 }
 
-/**
- * Sanitize a value so it is safe to store in a Postgres jsonb column.
- * - undefined -> null (undefined is not valid JSON)
- * - Date -> ISO string
- * - BigInt -> string
- * - functions / symbols -> null
- * - circular references are broken (replaced with null)
- */
-function sanitizeForJson(value: unknown, seen = new WeakSet()): unknown {
-	if (value === undefined) return null;
-	if (value === null) return null;
-
-	const type = typeof value;
-	if (type === "string" || type === "number" || type === "boolean") {
-		return value;
-	}
-	if (type === "bigint") return value.toString();
-	if (type === "function" || type === "symbol") return null;
-
-	if (value instanceof Date) return value.toISOString();
-
-	if (Array.isArray(value)) {
-		return value.map((item) => sanitizeForJson(item, seen));
-	}
-
-	if (type === "object") {
-		if (seen.has(value as object)) return null;
-		seen.add(value as object);
-		const result: Record<string, unknown> = {};
-		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-			result[k] = sanitizeForJson(v, seen);
-		}
-		return result;
-	}
-
-	return null;
-}
 
 const buildLatestGroupId = (previousSeparator: Message | null) =>
 	`group:latest:${previousSeparator?.id ?? "root"}`;

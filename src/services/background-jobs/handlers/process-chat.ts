@@ -42,6 +42,7 @@ import {
 	getErrorMessage,
 	type JobErrorMetadata,
 } from "./error-metadata";
+import { sanitizeForJson } from "@/utils/sanitize-json";
 
 export interface ChatStreamConfig {
 	/** Minimum number of words to buffer before streaming (default: 5) */
@@ -305,6 +306,7 @@ type AssistantMessageFinalization = {
 	conversation?: ConversationContext;
 	content: string;
 	model: string;
+	provider: string;
 	startTime: number;
 	usage?: TokenUsage;
 	actions: ChatResultFinalAction[];
@@ -344,48 +346,18 @@ const normalizeActions = (actions: FlowAction[]): ChatResultFinalAction[] =>
 		metadata: action.metadata,
 	}));
 
-function sanitizeForJson(value: unknown, seen = new WeakSet()): unknown {
-	if (value === undefined || value === null) return null;
-
-	const type = typeof value;
-	if (type === "string" || type === "number" || type === "boolean") {
-		return value;
-	}
-	if (type === "bigint") return value.toString();
-	if (type === "function" || type === "symbol") return null;
-	if (value instanceof Date) return value.toISOString();
-
-	if (Array.isArray(value)) {
-		return value.map((item) => sanitizeForJson(item, seen));
-	}
-
-	if (type === "object") {
-		if (seen.has(value as object)) return null;
-		seen.add(value as object);
-		const result: Record<string, unknown> = {};
-		for (const [key, item] of Object.entries(
-			value as Record<string, unknown>,
-		)) {
-			result[key] = sanitizeForJson(item, seen);
-		}
-		return result;
-	}
-
-	return null;
-}
 
 export class ChatHandler extends BaseProcessHandler<ChatJob> {
 	constructor() {
 		super();
 	}
 
-	private static async persistAssistantMessage({
+	private static persistAssistantMessage = ({
 		conversation,
 		content,
 		complexContent,
 		metadata,
-	}: AssistantMessagePersistence): Promise<void> {
-		await serviceManager.databaseService.use(async ({ db, schema }) => {
+	}: AssistantMessagePersistence) => serviceManager.databaseService.use(async ({ db, schema }) => {
 			const [existing] = await db
 				.select()
 				.from(schema.messages)
@@ -412,25 +384,22 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				})
 				.where(eq(schema.messages.id, conversation.inProgressMessage.id));
 		});
-	}
 
-	private static async buildAssistantMessageMetadata({
+	private static buildAssistantMessageMetadata({
 		conversation,
 		content,
 		model,
+		provider,
 		startTime,
 		usage,
 		actions,
 		toolCalls,
 		error,
-	}: AssistantMessageFinalization): Promise<AssistantMessageMetadata> {
+	}: AssistantMessageFinalization): AssistantMessageMetadata {
 		const timeToAnswer = (Date.now() - startTime) / 1000;
 		const outputTokens =
 			usage?.completion_tokens ?? Math.round(content.length / 4);
 		const totalTokens = usage?.total_tokens ?? Math.round(content.length / 4);
-		const provider =
-			(await serviceManager.llmService.getCurrentModel())?.provider ??
-			"unknown";
 
 		return {
 			model,
@@ -677,6 +646,9 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			conversation,
 		} = job.payload;
 		const startTime = Date.now();
+		const provider =
+			(await serviceManager.llmService.getCurrentModel())?.provider ??
+			"unknown";
 
 		// Apply default stream config
 		const config: Required<ChatStreamConfig> = {
@@ -1060,10 +1032,11 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				(part) => part.type === "tool",
 			);
 			const resultContent = finalContentParts.length > 0 ? "" : currentContent;
-			const finalMetadata = await ChatHandler.buildAssistantMessageMetadata({
+			const finalMetadata = ChatHandler.buildAssistantMessageMetadata({
 				conversation,
 				content: currentContent,
 				model,
+				provider,
 				startTime,
 				usage: finalUsage,
 				actions: hasToolParts ? [] : finalActions,
@@ -1093,22 +1066,22 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 			const hasErrorToolParts = errorContentParts.some(
 				(part) => part.type === "tool",
 			);
-			const errorActions = normalizeActions(actions);
-			const errorToolCalls = getAccumulatedToolCalls(toolCallAccumulator);
 			const errorUsage =
 				accumulatedUsage.total_tokens > 0 ? accumulatedUsage : undefined;
 			try {
-				const persistenceMetadata =
-					await ChatHandler.buildAssistantMessageMetadata({
-						conversation,
-						content: currentContent,
-						model,
-						startTime,
-						usage: errorUsage,
-						actions: hasErrorToolParts ? [] : errorActions,
-						toolCalls: hasErrorToolParts ? [] : errorToolCalls,
-						error: isAbort ? undefined : errorMetadata,
-					});
+				const persistenceMetadata = ChatHandler.buildAssistantMessageMetadata({
+					conversation,
+					content: currentContent,
+					model,
+					provider,
+					startTime,
+					usage: errorUsage,
+					actions: hasErrorToolParts ? [] : normalizeActions(actions),
+					toolCalls: hasErrorToolParts
+						? []
+						: getAccumulatedToolCalls(toolCallAccumulator),
+					error: isAbort ? undefined : errorMetadata,
+				});
 				await finalizeConversation({
 					content: errorContentParts.length > 0 ? "" : currentContent,
 					complexContent: errorContentParts,

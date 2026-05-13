@@ -9,6 +9,7 @@ let prebuiltAppConfig;
 const loadedModelsCache = new Map(); // Cache model metadata
 const activeOperations = new Map(); // Track active operations for abort support
 const IMAGE_EMBED_SIZE = 1921;
+const MODEL_LOAD_STALL_TIMEOUT_MS = 2 * 60 * 1000;
 
 // Query downloaded status via WebLLM engine APIs when available
 async function isDownloaded(modelId) {
@@ -300,15 +301,45 @@ async function loadWebLLMModel(modelId, notifyProgress) {
 		throw new Error(`Model ${modelId} not found in WebLLM prebuilt config`);
 	}
 
-	currentProgressCallback = notifyProgress;
+	let stallTimer = null;
+	let rejectStalledLoad = null;
+
+	const clearStallTimer = () => {
+		if (stallTimer !== null) {
+			clearTimeout(stallTimer);
+			stallTimer = null;
+		}
+	};
+
+	const resetStallTimer = (engine) => {
+		clearStallTimer();
+		stallTimer = setTimeout(() => {
+			const message =
+				`WebLLM did not report model load progress for ${Math.round(
+					MODEL_LOAD_STALL_TIMEOUT_MS / 1000,
+				)} seconds. The browser may have blocked the download or WebGPU initialization.`;
+			try {
+				engine?.reloadController?.abort?.();
+			} catch {}
+			rejectStalledLoad?.(new Error(message));
+		}, MODEL_LOAD_STALL_TIMEOUT_MS);
+	};
+
+	currentProgressCallback = (info) => {
+		if (notifyProgress) {
+			notifyProgress(info);
+		}
+	};
 
 	const engine = new WebLLMEngine({
+		appConfig: prebuiltAppConfig,
 		initProgressCallback: (progressData) => {
 			const { progress, text } = progressData || {};
 			if (currentProgressCallback) {
 				const percent = Math.max(0, Math.min(100, Math.round(progress * 100)));
 				currentProgressCallback({ loaded: progress, total: 1, percent, text });
 			}
+			resetStallTimer(engine);
 		},
 	});
 
@@ -316,8 +347,31 @@ async function loadWebLLMModel(modelId, notifyProgress) {
 		throw new Error("MLCEngine.reload is not available");
 	}
 
-	await engine.reload(modelId);
-	currentProgressCallback = null;
+	try {
+		currentProgressCallback({
+			loaded: 0,
+			total: 1,
+			percent: 1,
+			text: `Starting WebLLM load for ${modelId}`,
+		});
+		resetStallTimer(engine);
+
+		await Promise.race([
+			engine.reload(modelId),
+			new Promise((_, reject) => {
+				rejectStalledLoad = reject;
+			}),
+		]);
+	} catch (error) {
+		try {
+			await engine.unload?.();
+		} catch {}
+		throw error;
+	} finally {
+		clearStallTimer();
+		currentProgressCallback = null;
+		rejectStalledLoad = null;
+	}
 
 	return engine;
 }

@@ -205,6 +205,12 @@ export function useModelOperations({
 			} catch (err) {
 				logError(`Error loading ${modelId}`, err);
 			} finally {
+				setDownloadProgress({
+					loaded: 0,
+					total: 0,
+					percent: 0,
+					text: "",
+				});
 				setLoading(false);
 			}
 		},

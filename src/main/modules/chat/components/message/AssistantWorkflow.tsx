@@ -19,6 +19,7 @@ import type {
 import { DEFAULT_FLOW_STEPS } from "@/services/flows/flow-builder-catalog";
 import { cn } from "@/lib/utils";
 import { ToolActionDetails } from "../MessageActions";
+import { translateCommonKey } from "../../utils/i18n-helpers";
 
 const FLOW_STEP_BY_NAME = new Map(
 	DEFAULT_FLOW_STEPS.map((step) => [step.name, step]),
@@ -35,14 +36,6 @@ const humanizeStepName = (name: string): string =>
 const getCatalogStep = (part: ComplexContentPartExecution) =>
 	FLOW_STEP_BY_NAME.get(getExecutionActionName(part));
 
-const translateCommonKey = (
-	key: string | undefined,
-	t: ReturnType<typeof useTranslation>["t"],
-): string | undefined => {
-	if (!key) return undefined;
-	const translated = t(key, { ns: "common", defaultValue: "" });
-	return translated || undefined;
-};
 
 export const getWorkflowLabel = (
 	part: ComplexContentPartExecution,
