@@ -89,8 +89,9 @@ const EXACT_ICON_MAPPINGS: Record<string, LucideIcon> = {
 	pdf_to_image: FileImage,
 };
 
+const I18N_KEY_REGEX = /^[\w.-]+$/;
 const looksLikeI18nKey = (value: string): boolean =>
-	value.includes(".") && /^[\w.-]+$/.test(value);
+	value.includes(".") && I18N_KEY_REGEX.test(value);
 
 export const getActionIcon = (name: string): LucideIcon => {
 	const exact = EXACT_ICON_MAPPINGS[name];
@@ -222,9 +223,7 @@ const ActionRenderFallback: React.FC<{
 			<div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
 				<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
 				<div className="min-w-0">
-					<div className="font-medium">Renderer fallback</div>
 					<div className="text-xs break-words text-amber-800/90 dark:text-amber-100/90">
-						Failed to render this tool output. Showing raw content instead.
 						{error?.message ? ` ${error.message}` : ""}
 					</div>
 				</div>

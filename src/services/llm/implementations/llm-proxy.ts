@@ -382,6 +382,10 @@ export class LLMProxy implements BaseLLM {
 			}
 			throw new Error("Failed to serve model");
 		} catch (error) {
+			this.emitProgressEvent(
+				{ loaded: 0, total: 0, percent: 0 },
+				error instanceof Error ? error.message : "Model load failed",
+			);
 			throw new Error(`Background job failed: ${error}`);
 		}
 	}
