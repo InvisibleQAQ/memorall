@@ -1,9 +1,8 @@
-import type { ChatMessage, ChatCompletionContentPart } from "@/types/openai";
 import type {
-	ComplexContent,
-	ComplexContentPartImage,
-	ComplexContentPartTool,
-} from "@/types/chat";
+	ChatMessage,
+	ChatCompletionContentPart,
+} from "@/types/openai";
+import type { ComplexContent, MessageParts } from "@/types/chat";
 import type { Message } from "@/services/database";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
@@ -29,21 +28,20 @@ function renderAction(a: StoredAction): string {
 }
 
 function buildAssistantContent(msg: Message): string {
-	const complexContent = msg.complexContent as
-		| ComplexContent
-		| null
-		| undefined;
-	if (complexContent && complexContent.length > 0) {
-		return complexContent
-			.map((part) => {
-				if (part.type === "text") return part.text;
-				if (part.type === "tool" && part.state !== "running") {
-					return renderAction(part as ComplexContentPartTool);
-				}
-				return "";
-			})
+	const complexContent = Array.isArray(msg.complexContent)
+		? (msg.complexContent as Array<{ type?: unknown; text?: unknown }>)
+		: null;
+	const complexText =
+		complexContent
+			?.map((part) => (part.type === "text" && typeof part.text === "string" ? part.text : ""))
 			.filter(Boolean)
-			.join("\n\n");
+			.join("\n\n") ?? "";
+	const hasLegacyTimelineParts =
+		complexContent?.some(
+			(part) => part.type === "tool" || part.type === "execution",
+		) ?? false;
+	if (hasLegacyTimelineParts || (!msg.content && complexText)) {
+		return complexText;
 	}
 
 	const metadata = msg.metadata as Record<string, unknown> | null;
@@ -57,24 +55,10 @@ function buildAssistantContent(msg: Message): string {
 	return content;
 }
 
-/** Convert a stored image part into an OpenAI image_url content part (base64 data URI). */
-async function resolveImagePart(
-	part: ComplexContentPartImage,
-): Promise<ChatCompletionContentPart> {
-	const dataUri = await documentFileSystemService.readFileAsBase64(
-		part.path,
-		part.mimeType,
-	);
-	return {
-		type: "image_url",
-		image_url: { url: dataUri, detail: "auto" },
-	};
-}
-
 /**
  * Build the OpenAI content value for a user message.
- * If the message has complexContent (multipart), resolve images to base64 data URIs
- * and return a content array. Otherwise return the plain string.
+ * If the message has complexContent, it is already stored as OpenAI-compatible
+ * content parts. Otherwise return the plain string.
  */
 async function buildUserContent(
 	msg: Message,
@@ -93,8 +77,22 @@ async function buildUserContent(
 			if (part.type === "text") {
 				return { type: "text", text: part.text };
 			}
-			if (part.type === "image") {
-				return resolveImagePart(part);
+			if (part.type === "image_url") {
+				const { url, detail = "auto", mimeType } = part.image_url;
+				if (url.startsWith("data:") || !mimeType) {
+					return {
+						type: "image_url",
+						image_url: { url, detail },
+					};
+				}
+				const dataUrl = await documentFileSystemService.readFileAsBase64(
+					url,
+					mimeType,
+				);
+				return {
+					type: "image_url",
+					image_url: { url: dataUrl, detail },
+				};
 			}
 			return { type: "text", text: "" };
 		}),
@@ -107,22 +105,28 @@ export async function buildSendMessages(
 	relevantMessages: Message[],
 ): Promise<ChatMessage[]> {
 	const filtered = relevantMessages.filter((msg) => msg.type !== "separator");
+	const built: ChatMessage[] = [];
 
-	return Promise.all(
-		filtered.map(async (msg): Promise<ChatMessage> => {
-			const role = msg.role as "system" | "user" | "assistant";
-			if (role === "system") {
-				return { role, content: msg.content };
-			}
-			if (role === "user") {
-				const content = await buildUserContent(msg);
-				return { role, content };
-			}
-			// Persisted assistant tool calls must not be replayed on later turns.
-			// OpenAI-compatible providers require matching tool result messages for
-			// every assistant tool call, but we store only the finalized assistant
-			// answer plus action summaries, not the raw tool-message chain.
-			return { role: "assistant", content: buildAssistantContent(msg) };
-		}),
-	);
+	for (const msg of filtered) {
+		const role = msg.role as "system" | "user" | "assistant";
+		if (role === "system") {
+			built.push({ role, content: msg.content });
+			continue;
+		}
+		if (role === "user") {
+			const content = await buildUserContent(msg);
+			built.push({ role, content });
+			continue;
+		}
+
+		const parts = msg.parts as MessageParts | null | undefined;
+		if (Array.isArray(parts) && parts.length > 0) {
+			built.push(...parts);
+			continue;
+		}
+
+		built.push({ role: "assistant", content: buildAssistantContent(msg) });
+	}
+
+	return built;
 }

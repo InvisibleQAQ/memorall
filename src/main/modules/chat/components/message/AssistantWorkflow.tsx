@@ -234,7 +234,7 @@ export const AssistantWorkflowSummary: React.FC<{
 				/>
 			</button>
 			{isOpen ? (
-				<div className="mt-2 space-y-2 border-l border-border/55 pl-3">
+				<div className="mt-2 space-y-2 pl-3">
 					{parts.map((part, index) => (
 						<div
 							key={`${part.id}-${index}`}

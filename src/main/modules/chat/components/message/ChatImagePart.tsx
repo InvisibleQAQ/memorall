@@ -1,30 +1,41 @@
-import React, { useState, useEffect } from "react";
-import type { ComplexContent, ComplexContentPartImage } from "@/types/chat";
+import React from "react";
+import type { ComplexContent, ComplexContentPartImageUrl } from "@/types/chat";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 
-export const ChatImagePart: React.FC<{ part: ComplexContentPartImage }> = ({
+export const ChatImagePart: React.FC<{ part: ComplexContentPartImageUrl }> = ({
 	part,
 }) => {
-	const [dataUri, setDataUri] = useState<string | null>(null);
+	const [resolvedUrl, setResolvedUrl] = React.useState(part.image_url.url);
+	const url = part.image_url.url;
 
-	useEffect(() => {
-		let cancelled = false;
+	React.useEffect(() => {
+		let mounted = true;
+		const mimeType = part.image_url.mimeType;
+
+		if (!url || url.startsWith("data:") || !mimeType) {
+			setResolvedUrl(url);
+			return;
+		}
+
 		documentFileSystemService
-			.readFileAsBase64(part.path, part.mimeType)
-			.then((uri) => {
-				if (!cancelled) setDataUri(uri);
+			.readFileAsBase64(url, mimeType)
+			.then((dataUrl) => {
+				if (mounted) setResolvedUrl(dataUrl);
 			})
-			.catch(() => {});
-		return () => {
-			cancelled = true;
-		};
-	}, [part.path, part.mimeType]);
+			.catch(() => {
+				if (mounted) setResolvedUrl(url);
+			});
 
-	if (!dataUri) return null;
+		return () => {
+			mounted = false;
+		};
+	}, [part.image_url.mimeType, url]);
+
+	if (!url) return null;
 
 	return (
 		<img
-			src={dataUri}
+			src={resolvedUrl}
 			alt=""
 			className="max-h-48 rounded-md object-contain border border-border mt-1"
 		/>
@@ -35,8 +46,8 @@ export const MessageComplexImages: React.FC<{
 	complexContent: ComplexContent;
 }> = ({ complexContent }) => {
 	const imageParts = complexContent.filter(
-		(p) => p.type === "image",
-	) as ComplexContentPartImage[];
+		(p) => p.type === "image_url",
+	) as ComplexContentPartImageUrl[];
 	if (imageParts.length === 0) return null;
 
 	return (

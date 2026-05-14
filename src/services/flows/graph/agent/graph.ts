@@ -19,7 +19,6 @@ import {
 } from "@/services/flows/interfaces/tool";
 import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
-import { formatYAML } from "@/utils/yaml";
 import { flowRegistry, FEATURE_SLOT } from "@/services/flows/flow-registry";
 import type { BaseFlow } from "@/services/flows/flow-registry";
 import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
@@ -34,31 +33,6 @@ type AgentServices = CombinedServices<typeof DEFAULT_TOOL_NAMES, "llm">;
 type AgentGraphConfig = {
 	systemPrompt?: string;
 	tools?: GraphTool[];
-};
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null;
-
-const parseStructuredActionPayload = (
-	content: string,
-): Record<string, unknown> | null => {
-	try {
-		const parsed = JSON.parse(content);
-		return isObject(parsed) ? parsed : null;
-	} catch {
-		return null;
-	}
-};
-
-const ACTION_OUTPUT_MAX_LENGTH = 1000;
-
-/** Truncate tool output to `ACTION_OUTPUT_MAX_LENGTH` characters. */
-const truncateOutput = (content: string): string => {
-	if (content.length <= ACTION_OUTPUT_MAX_LENGTH) return content;
-	return (
-		content.slice(0, ACTION_OUTPUT_MAX_LENGTH) +
-		`\n… (truncated, ${content.length - ACTION_OUTPUT_MAX_LENGTH} more characters)`
-	);
 };
 
 /**
@@ -266,13 +240,6 @@ export class AgentGraph extends GraphBase<
 		const toolState: AgentState = { ...state, outputMessages: [] };
 		let toolStateOffset = 0;
 		const outputMessages: AgentState["outputMessages"] = [];
-		const toolResults: Array<{
-			toolName: string;
-			content: ReturnType<typeof extractToolResult>["content"];
-			contentText: string;
-			toolCall: (typeof lastMessage.tool_calls)[number];
-			toolMetadata?: Record<string, unknown>;
-		}> = [];
 
 		logInfo("[TOOL EXECUTE] Start tool calls", lastMessage.tool_calls);
 
@@ -287,12 +254,15 @@ export class AgentGraph extends GraphBase<
 
 			if (!combined) {
 				const content = `Error: Tool '${toolName}' not found`;
-				outputMessages.push({
+				const toolMessage = {
 					role: "tool" as const,
 					content,
 					tool_call_id: toolCall.id,
-				});
-				toolResults.push({ toolName, content, contentText: content, toolCall });
+				};
+				outputMessages.push(toolMessage);
+				for (const chunk of createOutputMessageChunks([toolMessage])) {
+					runConfig?.writer?.({ type: "llm", chunk });
+				}
 				continue;
 			}
 
@@ -313,18 +283,15 @@ export class AgentGraph extends GraphBase<
 					runConfig?.writer?.({ type: "llm", chunk });
 				}
 
-				outputMessages.push({
+				const toolMessage = {
 					role: "tool" as const,
 					content,
 					tool_call_id: toolCall.id,
-				});
-				toolResults.push({
-					toolName,
-					content,
-					contentText,
-					toolCall,
-					toolMetadata: combined.executor.metadata,
-				});
+				};
+				outputMessages.push(toolMessage);
+				for (const chunk of createOutputMessageChunks([toolMessage])) {
+					runConfig?.writer?.({ type: "llm", chunk });
+				}
 				logInfo(
 					"[TOOL EXECUTE] Tool result",
 					toolCall.function.name,
@@ -336,61 +303,16 @@ export class AgentGraph extends GraphBase<
 				logError(`[TOOLS] Error executing ${toolName}:`, error);
 
 				const content = `Error: ${errorMessage}`;
-				outputMessages.push({
+				const toolMessage = {
 					role: "tool" as const,
 					content,
 					tool_call_id: toolCall.id,
-				});
-				toolResults.push({
-					toolName,
-					content,
-					contentText: content,
-					toolCall,
-					toolMetadata: combined.executor.metadata,
-				});
+				};
+				outputMessages.push(toolMessage);
+				for (const chunk of createOutputMessageChunks([toolMessage])) {
+					runConfig?.writer?.({ type: "llm", chunk });
+				}
 			}
-		}
-
-		const actions = toolResults.map((result) => {
-			const structured = parseStructuredActionPayload(result.contentText);
-			const actionName =
-				typeof structured?.actionType === "string"
-					? structured.actionType
-					: result.toolName;
-			const actionDescription =
-				typeof structured?.description === "string"
-					? structured.description
-					: result.contentText;
-			const mcpMetadata = isObject(result.toolMetadata?.mcp)
-				? result.toolMetadata.mcp
-				: undefined;
-
-			let rawArgs: Record<string, unknown> = {};
-			try {
-				const parsed = JSON.parse(result.toolCall.function.arguments);
-				if (isObject(parsed)) rawArgs = parsed;
-			} catch {
-				// leave rawArgs empty
-			}
-
-			return {
-				id: crypto.randomUUID(),
-				name: actionName,
-				description: `${formatYAML(rawArgs)}\noutput:\n${truncateOutput(actionDescription)}`,
-				metadata: {
-					tool: result.toolName,
-					tool_call: result.toolCall,
-					...(result.toolMetadata
-						? { tool_metadata: result.toolMetadata }
-						: {}),
-					...(mcpMetadata ? { mcp: mcpMetadata } : {}),
-					...(structured || {}),
-				},
-			};
-		});
-
-		if (actions.length) {
-			runConfig?.writer?.({ type: "actions", actions });
 		}
 
 		// Only update working memory — messages stays intact until agentNode finishes

@@ -12,6 +12,7 @@ const hasRenderableMessageContent = (
 ) => {
 	if (message.content) return true;
 	if (message.complexContent) return true;
+	if (message.parts) return true;
 	if (!message.metadata || typeof message.metadata !== "object") return false;
 	return (
 		("actions" in message.metadata &&
@@ -123,6 +124,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 				metadata: {
 					actions: inProgressMessage.actions,
 					executeState: inProgressMessage.executeState,
+					executions: inProgressMessage.executions,
 				},
 				createdAt: new Date(),
 				updatedAt: new Date(),
@@ -133,6 +135,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = React.memo(
 				type: "",
 				role: "assistant" as const,
 				complexContent: inProgressMessage.complexContent,
+				parts: inProgressMessage.parts,
 				topicId: null,
 				embedding: null,
 				embeddingSmall: null,

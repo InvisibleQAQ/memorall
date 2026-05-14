@@ -24,6 +24,7 @@ export const message = pgTable(
 		role: text("role").notNull(), // 'user', 'assistant', 'system'
 		content: text("content").notNull(),
 		complexContent: jsonb("complex_content"), // For storing structured content like images, files, etc.
+		parts: jsonb("parts"), // Canonical role-based message records for this row
 		topicId: uuid("topic_id").references(() => topic.id),
 		embeddingSmall: vector("embedding_small", { dimensions: 384 }),
 		embedding: vector("embedding", { dimensions: 768 }),

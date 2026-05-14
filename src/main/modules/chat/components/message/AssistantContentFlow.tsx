@@ -1,9 +1,5 @@
 import React from "react";
-import type {
-	ComplexContent,
-	ComplexContentPartExecution,
-	ComplexContentPartTool,
-} from "@/types/chat";
+import type { ComplexContentPartExecution, ComplexContentPartTool } from "@/types/chat";
 import {
 	AssistantWorkflowPart,
 	AssistantWorkflowSummary,
@@ -18,9 +14,24 @@ export type AssistantContentPart =
 	| ComplexContentPartExecution;
 
 export const isAssistantContentPart = (
-	part: ComplexContent[number],
+	part: unknown,
 ): part is AssistantContentPart =>
-	part.type === "text" || part.type === "tool" || part.type === "execution";
+	!!part &&
+	typeof part === "object" &&
+	"type" in part &&
+	(part.type === "text" || part.type === "tool" || part.type === "execution");
+
+const isVisibleTimelinePart = (
+	part: AssistantContentPart,
+	index: number,
+	latestWorkflowIndex: number,
+): boolean => {
+	if (part.type === "tool") return !isWorkflowEvidencePart(part);
+	if (part.type === "execution") {
+		return part.state !== "complete" && index === latestWorkflowIndex;
+	}
+	return false;
+};
 
 export const AssistantContentFlow: React.FC<{
 	parts: AssistantContentPart[];
@@ -71,11 +82,26 @@ export const AssistantContentFlow: React.FC<{
 					<AssistantToolTimelinePart
 						key={`${part.type}-${part.id}-${index}`}
 						part={part}
+						connectsToPrevious={
+							parts
+								.slice(0, index)
+								.some((previous, previousIndex) =>
+									isVisibleTimelinePart(
+										previous,
+										previousIndex,
+										latestWorkflowIndex,
+									),
+								)
+						}
 						isLast={
 							!parts
 								.slice(index + 1)
-								.some(
-									(next) => next.type === "tool" || next.type === "execution",
+								.some((next, nextOffset) =>
+									isVisibleTimelinePart(
+										next,
+										index + nextOffset + 1,
+										latestWorkflowIndex,
+									),
 								)
 						}
 					/>

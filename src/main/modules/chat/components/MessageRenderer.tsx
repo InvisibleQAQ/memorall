@@ -10,7 +10,12 @@ import {
 } from "@/main/components/ui/shadcn-io/ai/message";
 import type { Message as DBMessage } from "@/services/database/types";
 import type { MessageActionItem } from "@/main/modules/chat/components/types";
-import type { AttachedDocumentRef, ComplexContent } from "@/types/chat";
+import type {
+	AssistantExecutionPart,
+	AttachedDocumentRef,
+	ComplexContent,
+	MessageParts,
+} from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { MessageActions } from "./MessageActions";
 import { MessageFooter, type MessageFooterMetadata } from "./MessageFooter";
@@ -24,6 +29,10 @@ import {
 	type AssistantContentPart,
 } from "./message/AssistantContentFlow";
 import { MessageErrorNotice } from "./message/MessageErrorNotice";
+import {
+	buildAssistantContentParts,
+	hasAssistantContentParts,
+} from "./message/message-parts-adapter";
 
 interface MessageMetadata extends MessageFooterMetadata {
 	actions?: MessageActionItem[];
@@ -40,6 +49,7 @@ interface MessageMetadata extends MessageFooterMetadata {
 		node: string;
 		metadata?: Record<string, unknown>;
 	};
+	executions?: AssistantExecutionPart[];
 }
 
 interface MessageRendererProps {
@@ -76,18 +86,19 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 
 		const assistantContentParts = useMemo<AssistantContentPart[]>(() => {
 			if (message.role !== "assistant" || !complexContent) return [];
-			const parts = complexContent.filter(isAssistantContentPart);
+			const parts = (complexContent as unknown[]).filter(isAssistantContentPart);
 			return parts.some((part) =>
 				part.type === "text" ? part.text.trim() : true,
 			)
 				? parts
 				: [];
 		}, [complexContent, message.role]);
-		const hasRenderableContent =
-			message.content.trim().length > 0 || assistantContentParts.length > 0;
-		const showGenericStreamingStatus =
-			isStreaming && assistantContentParts.length === 0;
-
+		const messageParts = useMemo<MessageParts | null>(() => {
+			if (message.role !== "assistant") return null;
+			if (!message.parts || !Array.isArray(message.parts)) return null;
+			return message.parts as MessageParts;
+		}, [message.parts, message.role]);
+		const metadata = message.metadata as MessageMetadata | undefined;
 		const actions = useMemo<MessageActionItem[]>(() => {
 			if (!message.metadata || typeof message.metadata !== "object") return [];
 			if (!("actions" in message.metadata)) return [];
@@ -102,20 +113,39 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 			return message.metadata.attachedDocuments as AttachedDocumentRef[];
 		}, [message.metadata]);
 
-		const executeState = useMemo(() => {
-			const metadata = message.metadata as MessageMetadata | undefined;
-			return metadata?.executeState;
-		}, [message.metadata]);
+		const executeState = useMemo(() => metadata?.executeState, [metadata]);
+		const executionParts = useMemo<AssistantExecutionPart[]>(
+			() => (Array.isArray(metadata?.executions) ? metadata.executions : []),
+			[metadata],
+		);
+		const partsContentParts = useMemo<AssistantContentPart[]>(
+			() =>
+				message.role === "assistant"
+					? buildAssistantContentParts({
+							parts: messageParts,
+							executions: executionParts,
+							executeState: isStreaming ? executeState : undefined,
+						})
+					: [],
+			[executeState, executionParts, isStreaming, message.role, messageParts],
+		);
+		const renderedAssistantContentParts =
+			partsContentParts.length > 0 ? partsContentParts : assistantContentParts;
+		const hasStructuredAssistantContent = hasAssistantContentParts(
+			renderedAssistantContentParts,
+		);
+		const hasRenderableContent =
+			message.content.trim().length > 0 || hasStructuredAssistantContent;
+		const showGenericStreamingStatus =
+			isStreaming && actions.length === 0 && !hasStructuredAssistantContent;
 
 		const messageError = useMemo(() => {
-			const metadata = message.metadata as MessageMetadata | undefined;
 			return metadata?.error;
-		}, [message.metadata]);
+		}, [metadata]);
 
 		const agentFlowName = useMemo(() => {
-			const metadata = message.metadata as MessageMetadata | undefined;
 			return metadata?.agentFlowName;
-		}, [message.metadata]);
+		}, [metadata]);
 
 		const executionLabel = useMemo(() => {
 			if (!executeState?.node) return "";
@@ -170,19 +200,20 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 				) : null}
 				{showMessageControls &&
 				actions.length > 0 &&
-				assistantContentParts.length === 0 ? (
+				!hasStructuredAssistantContent ? (
 					<div className="w-full">
 						<MessageActions actions={actions} />
 					</div>
 				) : null}
-				<Message key={message.id} from={message.role}>
-					<MessageContent
-						className={cn(
-							"relative",
-							assistantContentParts.length > 0 &&
-								"group-[.is-assistant]:overflow-visible group-[.is-assistant]:rounded-none group-[.is-assistant]:border-0 group-[.is-assistant]:bg-transparent group-[.is-assistant]:px-0 group-[.is-assistant]:py-0 group-[.is-assistant]:shadow-none",
-						)}
-					>
+				{hasRenderableContent || showGenericStreamingStatus ? (
+					<Message key={message.id} from={message.role}>
+						<MessageContent
+							className={cn(
+								"relative",
+								hasStructuredAssistantContent &&
+									"group-[.is-assistant]:overflow-visible group-[.is-assistant]:rounded-none group-[.is-assistant]:border-0 group-[.is-assistant]:bg-transparent group-[.is-assistant]:px-0 group-[.is-assistant]:py-0 group-[.is-assistant]:shadow-none",
+							)}
+						>
 						{message.role === "user" && attachedDocuments.length > 0 && (
 							<MessageAttachedDocuments documents={attachedDocuments} />
 						)}
@@ -190,7 +221,6 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 							<MessageComplexImages complexContent={complexContent} />
 						)}
 						{!hasRenderableContent &&
-						assistantContentParts.length === 0 &&
 						isLastMessage &&
 						isStreaming ? (
 							<div className="py-2 flex items-center gap-2">
@@ -215,10 +245,10 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 											content={message.content}
 											isStreaming={isStreaming}
 										/>
-									) : assistantContentParts.length > 0 ? (
+									) : hasStructuredAssistantContent ? (
 										<>
 											<AssistantContentFlow
-												parts={assistantContentParts}
+												parts={renderedAssistantContentParts}
 												isStreaming={isStreaming}
 												suppressArtifactPreviews={
 													location.pathname === "/runtime"
@@ -280,8 +310,9 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 								</div>
 							</Suspense>
 						)}
-					</MessageContent>
-				</Message>
+						</MessageContent>
+					</Message>
+				) : null}
 			</div>
 		);
 	},
@@ -290,6 +321,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 			prev.message.id === next.message.id &&
 			prev.message.content === next.message.content &&
 			prev.message.complexContent === next.message.complexContent &&
+			prev.message.parts === next.message.parts &&
 			prev.message.metadata === next.message.metadata &&
 			prev.isLastMessage === next.isLastMessage &&
 			prev.isStreaming === next.isStreaming &&

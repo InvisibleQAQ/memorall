@@ -36,6 +36,76 @@ interface RightApplicationLayoutProps {
 	onCollapsedChange?: (collapsed: boolean) => void;
 }
 
+type SettingsPanelStateProps = Pick<
+	React.ComponentProps<typeof SettingPanel>,
+	"setIsReloadingModel" | "setReloadProgress"
+>;
+
+type RightPanelVerticalRailProps = SettingsPanelStateProps & {
+	runtimeCount: number;
+	onOpenPanel: () => void;
+	renderRuntimeBadge: (count: number) => React.ReactNode;
+};
+
+const RightPanelVerticalRail: React.FC<RightPanelVerticalRailProps> = ({
+	runtimeCount,
+	onOpenPanel,
+	renderRuntimeBadge,
+	setIsReloadingModel,
+	setReloadProgress,
+}) => {
+	const { t } = useTranslation();
+
+	return (
+		<aside className="flex h-full min-h-0 w-14 flex-col items-center border-l bg-app py-2">
+			<Button
+				type="button"
+				variant="ghost"
+				size="icon"
+				className="h-9 w-9 text-muted-foreground hover:text-foreground"
+				aria-label="Expand workspace panel"
+				title="Expand workspace panel"
+				onClick={onOpenPanel}
+			>
+				<ChevronsLeft size={17} />
+			</Button>
+			<div className="mt-3 flex flex-col items-center gap-1">
+				<TooltipProvider>
+					{workspaceNavigationItems.map((item) => {
+						const IconComponent = item.icon;
+						return (
+							<Tooltip key={item.path}>
+								<TooltipTrigger asChild>
+									<Link
+										to={item.path}
+										onClick={onOpenPanel}
+										className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+									>
+										<IconComponent size={16} />
+										{item.path === "/runtime"
+											? renderRuntimeBadge(runtimeCount)
+											: null}
+									</Link>
+								</TooltipTrigger>
+								<TooltipContent side="left">
+									<p>{t(item.nameKey)}</p>
+								</TooltipContent>
+							</Tooltip>
+						);
+					})}
+				</TooltipProvider>
+			</div>
+			<div className="mt-auto flex flex-col items-center pb-1">
+				<SettingPanel
+					setIsReloadingModel={setIsReloadingModel}
+					setReloadProgress={setReloadProgress}
+					tooltipSide="left"
+				/>
+			</div>
+		</aside>
+	);
+};
+
 export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 	children,
 	collapsed = false,
@@ -79,6 +149,11 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 		onCollapsedChange?.(false);
 	};
 
+	const settingsPanelStateProps = {
+		setIsReloadingModel,
+		setReloadProgress,
+	} satisfies SettingsPanelStateProps;
+
 	const renderRuntimeBadge = (count: number) =>
 		count > 0 ? (
 			<span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold leading-none text-white shadow-sm">
@@ -86,47 +161,46 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 			</span>
 		) : null;
 
+	const reloadOverlay = isReloadingModel ? (
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+			<div className="mx-4 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
+				<h3 className="mb-4 text-lg font-semibold">
+					{t("embedding.reloading", {
+						defaultValue: "Reloading Embedding Model",
+					})}
+				</h3>
+				<p className="mb-4 text-sm text-muted-foreground">
+					{reloadProgress.stage || "Downloading model..."}
+				</p>
+				<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+					<div
+						className="h-full bg-primary transition-all duration-300"
+						style={{ width: `${reloadProgress.progress}%` }}
+					/>
+				</div>
+				<p className="mt-2 text-center text-xs text-muted-foreground">
+					{+reloadProgress.progress.toFixed(2)}%
+				</p>
+				<p className="mt-4 text-xs text-muted-foreground">
+					{t("embedding.pleaseWait", {
+						defaultValue: "Please wait, do not close this window...",
+					})}
+				</p>
+			</div>
+		</div>
+	) : null;
+
 	if (collapsed) {
 		return (
-			<aside className="flex h-full min-h-0 w-14 flex-col items-center border-l bg-app py-2">
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="h-9 w-9 text-muted-foreground hover:text-foreground"
-					aria-label="Expand workspace panel"
-					title="Expand workspace panel"
-					onClick={() => openPanel()}
-				>
-					<ChevronsLeft size={17} />
-				</Button>
-				<div className="mt-3 flex flex-col items-center gap-1">
-					<TooltipProvider>
-						{workspaceNavigationItems.map((item) => {
-							const IconComponent = item.icon;
-							return (
-								<Tooltip key={item.path}>
-									<TooltipTrigger asChild>
-										<Link
-											to={item.path}
-											onClick={() => openPanel()}
-											className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
-										>
-											<IconComponent size={16} />
-											{item.path === "/runtime"
-												? renderRuntimeBadge(runtimeCount)
-												: null}
-										</Link>
-									</TooltipTrigger>
-									<TooltipContent side="left">
-										<p>{t(item.nameKey)}</p>
-									</TooltipContent>
-								</Tooltip>
-							);
-						})}
-					</TooltipProvider>
-				</div>
-			</aside>
+			<>
+				<RightPanelVerticalRail
+					runtimeCount={runtimeCount}
+					onOpenPanel={openPanel}
+					renderRuntimeBadge={renderRuntimeBadge}
+					{...settingsPanelStateProps}
+				/>
+				{reloadOverlay}
+			</>
 		);
 	}
 
@@ -268,10 +342,7 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 								</TooltipProvider>
 							)}
 							<ProcessMonitor />
-							<SettingPanel
-								setIsReloadingModel={setIsReloadingModel}
-								setReloadProgress={setReloadProgress}
-							/>
+							<SettingPanel {...settingsPanelStateProps} />
 						</div>
 					</div>
 				</div>
@@ -281,34 +352,7 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 				{children}
 			</div>
 
-			{isReloadingModel && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-					<div className="mx-4 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
-						<h3 className="mb-4 text-lg font-semibold">
-							{t("embedding.reloading", {
-								defaultValue: "Reloading Embedding Model",
-							})}
-						</h3>
-						<p className="mb-4 text-sm text-muted-foreground">
-							{reloadProgress.stage || "Downloading model..."}
-						</p>
-						<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-							<div
-								className="h-full bg-primary transition-all duration-300"
-								style={{ width: `${reloadProgress.progress}%` }}
-							/>
-						</div>
-						<p className="mt-2 text-center text-xs text-muted-foreground">
-							{+reloadProgress.progress.toFixed(2)}%
-						</p>
-						<p className="mt-4 text-xs text-muted-foreground">
-							{t("embedding.pleaseWait", {
-								defaultValue: "Please wait, do not close this window...",
-							})}
-						</p>
-					</div>
-				</div>
-			)}
+			{reloadOverlay}
 		</div>
 	);
 };

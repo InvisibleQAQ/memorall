@@ -7,6 +7,8 @@ import type {
 	ChatStatus,
 	ComplexContent,
 	AttachedDocumentRef,
+	AssistantExecutionPart,
+	MessageParts,
 } from "@/types/chat";
 import { logError, logInfo } from "@/utils/logger";
 import { serviceManager } from "@/services";
@@ -24,12 +26,14 @@ import {
 	extractDocumentText,
 	formatDocumentBlock,
 } from "@/main/modules/chat/utils/extract-document-text";
-import type { ChatCompletionMessageToolCall } from "@/types/openai";
+import { cloneMessageParts } from "@/services/chat/message-parts";
+import { isAbortError } from "@/utils/abort";
 
 export interface InProgressMessage {
 	id: string;
 	content: string;
 	complexContent: ComplexContent | null;
+	parts: MessageParts | null;
 	actions: Array<{
 		id: string;
 		name: string;
@@ -40,6 +44,7 @@ export interface InProgressMessage {
 		node: string;
 		metadata?: Record<string, unknown>;
 	};
+	executions?: AssistantExecutionPart[];
 }
 
 const cloneActions = (
@@ -50,25 +55,71 @@ const cloneActions = (
 		metadata: { ...action.metadata },
 	}));
 
-const cloneToolCalls = (
-	toolCalls: ChatCompletionMessageToolCall[] | undefined,
-): ChatCompletionMessageToolCall[] | undefined =>
-	toolCalls?.map((toolCall) => ({
-		...toolCall,
-		function: { ...toolCall.function },
-	}));
-
 const cloneComplexContent = (
 	complexContent: ComplexContent | null | undefined,
 ): ComplexContent | null =>
 	complexContent
-		? complexContent.map((part) => ({
-				...part,
-				...("metadata" in part && part.metadata
-					? { metadata: { ...part.metadata } }
-					: {}),
-			}))
+		? complexContent.map((part) => ({ ...part }))
 		: null;
+
+const pickResultMetadata = (
+	metadata: Record<string, unknown> | undefined,
+): Record<string, unknown> => {
+	if (!metadata) return {};
+
+	const allowedKeys = [
+		"provider",
+		"timeToAnswer",
+		"tokensPerSecond",
+		"estimatedTokens",
+		"usage",
+		"executions",
+	] as const;
+
+	return Object.fromEntries(
+		allowedKeys
+			.filter((key) => key in metadata)
+			.map((key) => [key, metadata[key]]),
+	);
+};
+
+const getExecutionPartId = (event: {
+	node: string;
+	metadata?: Record<string, unknown>;
+}): string =>
+	(typeof event.metadata?.tool_call_id === "string" &&
+		event.metadata.tool_call_id) ||
+	(typeof event.metadata?.tool === "string" && event.metadata.tool) ||
+	event.node;
+
+const isToolExecution = (event: {
+	metadata?: Record<string, unknown>;
+}): boolean =>
+	typeof event.metadata?.tool === "string" ||
+	typeof event.metadata?.tool_call_id === "string";
+
+const addStreamingExecution = (
+	executions: AssistantExecutionPart[] | undefined,
+	event: { node: string; metadata?: Record<string, unknown> },
+): AssistantExecutionPart[] => {
+	if (isToolExecution(event)) return executions ?? [];
+
+	const completed = (executions ?? []).map((part) =>
+		part.state === "running" ? { ...part, state: "complete" as const } : part,
+	);
+	const next: AssistantExecutionPart = {
+		type: "execution",
+		id: getExecutionPartId(event),
+		node: event.node,
+		metadata: event.metadata,
+		state: "running",
+	};
+	const existingIndex = completed.findIndex((part) => part.id === next.id);
+	if (existingIndex === -1) return [...completed, next];
+	const copy = [...completed];
+	copy[existingIndex] = next;
+	return copy;
+};
 
 export const useChat = (model: string) => {
 	const [inputValue, setInputValue] = useState("");
@@ -202,6 +253,7 @@ export const useChat = (model: string) => {
 		let assistantMessage: Message | null = null;
 		let currentContent = "";
 		let currentComplexContent: ComplexContent | null = null;
+		let currentParts: MessageParts | null = null;
 
 		try {
 			// Separate document refs by kind
@@ -235,16 +287,26 @@ export const useChat = (model: string) => {
 			// Upload new images and merge with image document refs to build complexContent
 			let complexContent: ComplexContent | undefined;
 			const imageParts: Array<{
-				type: "image";
-				path: string;
-				mimeType: string;
+				type: "image_url";
+				image_url: {
+					url: string;
+					detail: "auto";
+					mimeType: string;
+				};
 			}> = [];
 
 			if (attachedImages.length > 0) {
 				const uploaded = await Promise.all(
 					attachedImages.map(async (file) => {
 						const path = await documentFileSystemService.uploadChatImage(file);
-						return { type: "image" as const, path, mimeType: file.type };
+						return {
+							type: "image_url" as const,
+							image_url: {
+								url: path,
+								detail: "auto" as const,
+								mimeType: file.type,
+							},
+						};
 					}),
 				);
 				imageParts.push(...uploaded);
@@ -253,9 +315,12 @@ export const useChat = (model: string) => {
 			if (imageRefs.length > 0) {
 				imageParts.push(
 					...imageRefs.map((ref) => ({
-						type: "image" as const,
-						path: ref.path,
-						mimeType: ref.mimeType,
+						type: "image_url" as const,
+						image_url: {
+							url: ref.path,
+							detail: "auto" as const,
+							mimeType: ref.mimeType,
+						},
 					})),
 				);
 			}
@@ -332,6 +397,7 @@ export const useChat = (model: string) => {
 				id: assistantMessage.id,
 				content: "",
 				complexContent: null,
+				parts: null,
 				actions: [],
 			});
 
@@ -375,15 +441,40 @@ export const useChat = (model: string) => {
 								: null,
 						);
 					},
+					onParts: (parts) => {
+						currentParts = cloneMessageParts(parts);
+						setInProgressMessage((prev) =>
+							prev
+								? {
+										...prev,
+										parts: currentParts,
+									}
+								: null,
+						);
+					},
 					onAction: (actions) => {
 						// Only update in-progress message, not the store
 						setInProgressMessage((prev) =>
-							prev ? { ...prev, actions: cloneActions(actions) } : null,
+							prev
+								? {
+										...prev,
+										actions: cloneActions(actions),
+									}
+								: null,
 						);
 					},
 					onExecuteStart: (event) => {
 						setInProgressMessage((prev) =>
-							prev ? { ...prev, executeState: event } : null,
+							prev
+								? {
+										...prev,
+										executeState: event,
+										executions: addStreamingExecution(
+											prev.executions,
+											event,
+										),
+									}
+								: null,
 						);
 					},
 					onError: (error) => {
@@ -393,28 +484,27 @@ export const useChat = (model: string) => {
 				controller.signal,
 			);
 
-			const hasStructuredToolParts = result.contentParts.some(
-				(part) => part.type === "tool",
-			);
-			const actionMetadata = hasStructuredToolParts
-				? {}
-				: {
-						actions: result.actions,
-						tool_calls: cloneToolCalls(result.toolCalls),
-					};
+			const actionMetadata = {
+				actions: result.actions,
+			};
+			const finalContent = result.parts?.length ? "" : result.content;
+			const finalComplexContent = result.parts?.length
+				? null
+				: cloneComplexContent(result.contentParts);
 
 			// Handle completion or failure after stream finishes
 			if (result.failed) {
 				const errorMessage =
 					result.errorMetadata?.message || result.error || "Chat failed";
 				const errorContent =
-					result.content ||
+					finalContent ||
 					"Sorry, I encountered an error processing your message.";
 				updateMessage(assistantMessage.id, {
 					content: errorContent,
-					complexContent: cloneComplexContent(result.contentParts),
+					complexContent: finalComplexContent,
+					parts: result.parts ?? null,
 					metadata: {
-						...(result.metadata ?? {}),
+						...pickResultMetadata(result.metadata),
 						...actionMetadata,
 						error: result.errorMetadata ?? {
 							message: errorMessage,
@@ -434,8 +524,9 @@ export const useChat = (model: string) => {
 					prev
 						? {
 								...prev,
-								content: result.content,
-								complexContent: cloneComplexContent(result.contentParts),
+								content: finalContent,
+								complexContent: finalComplexContent,
+								parts: result.parts ?? null,
 								actions: cloneActions(result.actions),
 							}
 						: null,
@@ -445,10 +536,11 @@ export const useChat = (model: string) => {
 				await new Promise((resolve) => setTimeout(resolve, 150));
 
 				updateMessage(assistantMessage.id, {
-					content: result.content,
-					complexContent: cloneComplexContent(result.contentParts),
+					content: finalContent,
+					complexContent: finalComplexContent,
+					parts: result.parts ?? null,
 					metadata: {
-						...(result.metadata ?? {}),
+						...pickResultMetadata(result.metadata),
 						...actionMetadata,
 						model,
 						...(agentFlowName && { agentFlowName }),
@@ -461,15 +553,21 @@ export const useChat = (model: string) => {
 			setStatus("ready");
 		} catch (error) {
 			// Check if error is due to user aborting the request
-			if (error instanceof Error && error.message === "Operation aborted") {
+			if (isAbortError(error)) {
 				logInfo("Chat request was stopped by user");
 				setStatus("ready");
 
 				// Save any partial content that was streamed before abort
 				if (assistantMessage && currentContent) {
+					const savedParts = currentParts as MessageParts | null;
+					const hasSavedParts =
+						Array.isArray(savedParts) && savedParts.length > 0;
 					updateMessage(assistantMessage.id, {
-						content: currentContent,
-						complexContent: cloneComplexContent(currentComplexContent),
+						content: hasSavedParts ? "" : currentContent,
+						complexContent: hasSavedParts
+							? null
+							: cloneComplexContent(currentComplexContent),
+						parts: savedParts,
 						metadata: {
 							actions: inProgressMessage?.actions || [],
 							...(agentFlowName && { agentFlowName }),
@@ -493,6 +591,7 @@ export const useChat = (model: string) => {
 				updateMessage(assistantMessage.id, {
 					content: currentContent || errorContent,
 					complexContent: cloneComplexContent(currentComplexContent),
+					parts: currentParts,
 					metadata: {
 						error: errorMetadata,
 						model,
