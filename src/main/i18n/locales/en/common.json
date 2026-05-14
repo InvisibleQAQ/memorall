@@ -70,6 +70,10 @@
 		"total": "Total",
 		"version": "Version {{version}}"
 	},
+	"rightPanel": {
+		"expandWorkspacePanel": "Expand workspace panel",
+		"collapseWorkspacePanel": "Collapse workspace panel"
+	},
 	"appLoading": {
 		"title": "Initializing Memorall...",
 		"subtitle": "Setting up your AI-powered knowledge assistant",

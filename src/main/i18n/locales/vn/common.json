@@ -69,6 +69,10 @@
 		"noResults": "Không tìm thấy kết quả",
 		"total": "Tổng"
 	},
+	"rightPanel": {
+		"expandWorkspacePanel": "Mở rộng bảng workspace",
+		"collapseWorkspacePanel": "Thu gọn bảng workspace"
+	},
 	"appLoading": {
 		"title": "Đang khởi tạo Memorall...",
 		"subtitle": "Thiết lập trợ lý tri thức AI của bạn",

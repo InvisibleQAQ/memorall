@@ -152,12 +152,14 @@ export const createOutputMessageChunks = (
 						role: message.role,
 						content,
 						...(message.role === "assistant" && message.tool_calls?.length
-							? { tool_calls: message.tool_calls.map((toolCall, index) => ({
-									index,
-									id: toolCall.id,
-									type: toolCall.type,
-									function: { ...toolCall.function },
-								})) }
+							? {
+									tool_calls: message.tool_calls.map((toolCall, index) => ({
+										index,
+										id: toolCall.id,
+										type: toolCall.type,
+										function: { ...toolCall.function },
+									})),
+								}
 							: {}),
 						...(message.role === "tool"
 							? { tool_call_id: message.tool_call_id }

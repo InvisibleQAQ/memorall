@@ -20,6 +20,9 @@
 		"similarity": "Độ tương tự"
 	},
 	"label": "Kích thước nhúng",
+	"reloading": "Đang tải lại mô hình nhúng",
+	"downloadingModel": "Đang tải mô hình...",
+	"pleaseWait": "Vui lòng chờ, không đóng cửa sổ này...",
 	"changeWarning": "Thay đổi kích thước nhúng sẽ xóa các nhúng hiện có trong nodes và edges. Bạn có muốn tiếp tục?",
 	"clearError": "Không thể xóa nhúng. Vui lòng thử lại.",
 	"sizes": {

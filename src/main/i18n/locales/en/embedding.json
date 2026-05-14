@@ -46,6 +46,9 @@
 		"enterQuery": "Enter a query to find semantically similar items"
 	},
 	"label": "Embedding Size",
+	"reloading": "Reloading Embedding Model",
+	"downloadingModel": "Downloading model...",
+	"pleaseWait": "Please wait, do not close this window...",
 	"changeWarning": "Changing embedding size will require clearing existing embeddings in nodes and edges. Do you want to continue?",
 	"clearError": "Failed to clear embeddings. Please try again.",
 	"sizes": {

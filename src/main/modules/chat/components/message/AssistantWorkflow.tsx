@@ -36,7 +36,6 @@ const humanizeStepName = (name: string): string =>
 const getCatalogStep = (part: ComplexContentPartExecution) =>
 	FLOW_STEP_BY_NAME.get(getExecutionActionName(part));
 
-
 export const getWorkflowLabel = (
 	part: ComplexContentPartExecution,
 	t: ReturnType<typeof useTranslation>["t"],

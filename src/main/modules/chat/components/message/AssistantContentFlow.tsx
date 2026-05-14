@@ -1,5 +1,8 @@
 import React from "react";
-import type { ComplexContentPartExecution, ComplexContentPartTool } from "@/types/chat";
+import type {
+	ComplexContentPartExecution,
+	ComplexContentPartTool,
+} from "@/types/chat";
 import {
 	AssistantWorkflowPart,
 	AssistantWorkflowSummary,
@@ -82,17 +85,15 @@ export const AssistantContentFlow: React.FC<{
 					<AssistantToolTimelinePart
 						key={`${part.type}-${part.id}-${index}`}
 						part={part}
-						connectsToPrevious={
-							parts
-								.slice(0, index)
-								.some((previous, previousIndex) =>
-									isVisibleTimelinePart(
-										previous,
-										previousIndex,
-										latestWorkflowIndex,
-									),
-								)
-						}
+						connectsToPrevious={parts
+							.slice(0, index)
+							.some((previous, previousIndex) =>
+								isVisibleTimelinePart(
+									previous,
+									previousIndex,
+									latestWorkflowIndex,
+								),
+							)}
 						isLast={
 							!parts
 								.slice(index + 1)
