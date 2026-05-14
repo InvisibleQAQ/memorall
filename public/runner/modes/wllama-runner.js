@@ -7,11 +7,29 @@ const WASM_PATHS = {
 	default: "./libs/wasm/wllama.wasm",
 };
 
+let _webGPUCached = null;
 let Wllama;
 const loadedModelsCache = new Map();
 const activeOperations = new Map();
 const pendingLoadMemoryHints = new Map();
 const DEFAULT_WLLAMA_N_CTX = 65536;
+
+async function detectWebGPU() {
+	if (_webGPUCached !== null) return _webGPUCached;
+	if (!navigator.gpu) {
+		_webGPUCached = false;
+		return false;
+	}
+
+	try {
+		const adapter = await navigator.gpu.requestAdapter();
+		_webGPUCached = adapter !== null;
+	} catch {
+		_webGPUCached = false;
+	}
+
+	return _webGPUCached;
+}
 
 function resolveMemoryContextTokens(memoryHint) {
 	if (!memoryHint || typeof memoryHint !== "object") {
@@ -61,7 +79,8 @@ function detectModelCapabilities(wllama) {
 	const supportsNativeTools = template != null && template.includes("tool_calls");
 	// Vision = wllama v3 reports this directly from model architecture metadata
 	const supportsVision = wllama.supportInputModality?.("image") ?? false;
-	return { supportsNativeTools, supportsVision };
+	const usesGPU = wllama._usesGPU ?? false;
+	return { supportsNativeTools, supportsVision, usesGPU };
 }
 
 async function ensureWllama() {
@@ -182,7 +201,6 @@ async function loadWllamaModel(modelId, notifyProgress) {
 	await ensureWllama();
 
 	const { repo, filename } = parseModelName(modelId);
-	const wllama = new Wllama(WASM_PATHS, WLLAMA_CONFIG);
 	const memoryHint = pendingLoadMemoryHints.get(modelId);
 	const memoryContextTokens = resolveMemoryContextTokens(memoryHint);
 
@@ -206,17 +224,33 @@ async function loadWllamaModel(modelId, notifyProgress) {
 
 	// Discover mmproj filename from HF repo — loadModelFromHF resolves the full URL internally
 	const mmprojFile = await resolveHFMmprojFilename(repo);
+	const loadArgs = mmprojFile
+		? { repo, file: filename, mmprojFile }
+		: { repo, file: filename };
+	const baseOpts = { progressCallback, n_ctx: nCtx };
 
 	try {
-		await wllama.loadModelFromHF(
-			mmprojFile ? { repo, file: filename, mmprojFile } : { repo, file: filename },
-			{ progressCallback, n_ctx: nCtx, n_gpu_layers: 0 },
-		);
+		// WebGPU currently loads some multimodal projector models but can stall during generation.
+		const useGPU = !mmprojFile && (await detectWebGPU());
+
+		if (useGPU) {
+			try {
+				const wllamaGPU = new Wllama(WASM_PATHS, WLLAMA_CONFIG);
+				await wllamaGPU.loadModelFromHF(loadArgs, { ...baseOpts, n_gpu_layers: 999 });
+				wllamaGPU._usesGPU = true;
+				return wllamaGPU;
+			} catch (gpuErr) {
+				console.warn("[wllama-runner] WebGPU load failed, retrying on CPU:", gpuErr?.message);
+			}
+		}
+
+		const wllama = new Wllama(WASM_PATHS, WLLAMA_CONFIG);
+		await wllama.loadModelFromHF(loadArgs, { ...baseOpts, n_gpu_layers: 0 });
+		wllama._usesGPU = false;
+		return wllama;
 	} finally {
 		pendingLoadMemoryHints.delete(modelId);
 	}
-
-	return wllama;
 }
 
 /**
