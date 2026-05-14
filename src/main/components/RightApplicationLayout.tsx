@@ -55,6 +55,7 @@ const RightPanelVerticalRail: React.FC<RightPanelVerticalRailProps> = ({
 	setReloadProgress,
 }) => {
 	const { t } = useTranslation();
+	const expandPanelLabel = t("rightPanel.expandWorkspacePanel");
 
 	return (
 		<aside className="flex h-full min-h-0 w-14 flex-col items-center border-l bg-app py-2">
@@ -63,8 +64,8 @@ const RightPanelVerticalRail: React.FC<RightPanelVerticalRailProps> = ({
 				variant="ghost"
 				size="icon"
 				className="h-9 w-9 text-muted-foreground hover:text-foreground"
-				aria-label="Expand workspace panel"
-				title="Expand workspace panel"
+				aria-label={expandPanelLabel}
+				title={expandPanelLabel}
 				onClick={onOpenPanel}
 			>
 				<ChevronsLeft size={17} />
@@ -144,6 +145,7 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 	const isDebugSelected = debugNavigationItems.some(
 		(item) => item.path === location.pathname,
 	);
+	const collapsePanelLabel = t("rightPanel.collapseWorkspacePanel");
 
 	const openPanel = () => {
 		onCollapsedChange?.(false);
@@ -165,12 +167,10 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
 			<div className="mx-4 w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
 				<h3 className="mb-4 text-lg font-semibold">
-					{t("embedding.reloading", {
-						defaultValue: "Reloading Embedding Model",
-					})}
+					{t("reloading", { ns: "embedding" })}
 				</h3>
 				<p className="mb-4 text-sm text-muted-foreground">
-					{reloadProgress.stage || "Downloading model..."}
+					{reloadProgress.stage || t("downloadingModel", { ns: "embedding" })}
 				</p>
 				<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
 					<div
@@ -182,9 +182,7 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 					{+reloadProgress.progress.toFixed(2)}%
 				</p>
 				<p className="mt-4 text-xs text-muted-foreground">
-					{t("embedding.pleaseWait", {
-						defaultValue: "Please wait, do not close this window...",
-					})}
+					{t("pleaseWait", { ns: "embedding" })}
 				</p>
 			</div>
 		</div>
@@ -226,15 +224,15 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 											variant="ghost"
 											size="icon"
 											className="h-9 w-9 text-muted-foreground hover:text-foreground"
-											aria-label="Collapse workspace panel"
-											title="Collapse workspace panel"
+											aria-label={collapsePanelLabel}
+											title={collapsePanelLabel}
 											onClick={() => onCollapsedChange?.(true)}
 										>
 											<ChevronsRight size={16} />
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent side="bottom">
-										<p>Collapse workspace panel</p>
+										<p>{collapsePanelLabel}</p>
 									</TooltipContent>
 								</Tooltip>
 								{workspaceNavigationItems.map((item) => {

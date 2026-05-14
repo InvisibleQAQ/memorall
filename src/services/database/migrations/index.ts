@@ -155,7 +155,8 @@ export const migrations: Migration[] = [
 	{
 		id: "add_message_parts",
 		version: 13,
-		description: "Add message parts column for canonical role-based message records",
+		description:
+			"Add message parts column for canonical role-based message records",
 		up: addMessagePartsUp,
 		down: addMessagePartsDown,
 	},

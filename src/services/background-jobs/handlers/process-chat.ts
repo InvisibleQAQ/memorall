@@ -358,7 +358,6 @@ const completeExecutionParts = (
 		part.state === "running" ? { ...part, state: "complete" as const } : part,
 	);
 
-
 export class ChatHandler extends BaseProcessHandler<ChatJob> {
 	constructor() {
 		super();
@@ -370,7 +369,8 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 		complexContent,
 		parts,
 		metadata,
-	}: AssistantMessagePersistence) => serviceManager.databaseService.use(async ({ db, schema }) => {
+	}: AssistantMessagePersistence) =>
+		serviceManager.databaseService.use(async ({ db, schema }) => {
 			const [existing] = await db
 				.select()
 				.from(schema.messages)
@@ -958,7 +958,10 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					addUsage,
 					getProgress: () => Math.min(80, 20 + currentContent.length / 10),
 				})) as FoundationState | null;
-				finalMessageState = finalState as unknown as Record<string, unknown> | null;
+				finalMessageState = finalState as unknown as Record<
+					string,
+					unknown
+				> | null;
 
 				// Flush any remaining buffered content from streaming
 				streamBuffer.flush();

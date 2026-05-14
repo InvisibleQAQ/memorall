@@ -132,6 +132,11 @@
 			"answer": "Generating answer"
 		}
 	},
+	"toolStatus": {
+		"running": "Running",
+		"error": "Error",
+		"done": "Done"
+	},
 	"workflow": {
 		"showDetails": "Show run details",
 		"hideDetails": "Hide run details",

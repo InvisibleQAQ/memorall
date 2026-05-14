@@ -10,10 +10,7 @@ import {
 	type ToolCallAccumulator,
 } from "@/services/chat/tool-call-accumulator";
 
-type AssistantPart = Extract<
-	ChatCompletionMessageParam,
-	{ role: "assistant" }
->;
+type AssistantPart = Extract<ChatCompletionMessageParam, { role: "assistant" }>;
 type ToolPart = Extract<ChatCompletionMessageParam, { role: "tool" }>;
 
 const isAssistantOrToolMessage = (

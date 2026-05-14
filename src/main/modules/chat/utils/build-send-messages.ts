@@ -1,7 +1,4 @@
-import type {
-	ChatMessage,
-	ChatCompletionContentPart,
-} from "@/types/openai";
+import type { ChatMessage, ChatCompletionContentPart } from "@/types/openai";
 import type { ComplexContent, MessageParts } from "@/types/chat";
 import type { Message } from "@/services/database";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
@@ -33,7 +30,9 @@ function buildAssistantContent(msg: Message): string {
 		: null;
 	const complexText =
 		complexContent
-			?.map((part) => (part.type === "text" && typeof part.text === "string" ? part.text : ""))
+			?.map((part) =>
+				part.type === "text" && typeof part.text === "string" ? part.text : "",
+			)
 			.filter(Boolean)
 			.join("\n\n") ?? "";
 	const hasLegacyTimelineParts =

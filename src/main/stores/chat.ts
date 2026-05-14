@@ -54,7 +54,6 @@ interface ChatStore {
 	syncWithDB: () => Promise<void>;
 }
 
-
 const buildLatestGroupId = (previousSeparator: Message | null) =>
 	`group:latest:${previousSeparator?.id ?? "root"}`;
 

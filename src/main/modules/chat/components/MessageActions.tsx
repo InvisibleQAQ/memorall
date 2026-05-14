@@ -326,19 +326,19 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 		);
 
 		return (
-			<div className="group/action relative grid grid-cols-[1rem_minmax(0,1fr)] gap-2.5">
+			<div className="group/action relative grid grid-cols-[1rem_minmax(0,1fr)] gap-2.5 animate-in fade-in-0 slide-in-from-top-1 duration-200 ease-out">
 				<div className="relative flex justify-center pt-3">
 					{index < total - 1 ? (
-						<div className="absolute left-1/2 top-5 h-[calc(100%+0.5rem)] w-px -translate-x-1/2 bg-border/70" />
+						<div className="absolute left-1/2 top-5 h-[calc(100%+0.5rem)] w-px -translate-x-1/2 bg-border/70 transition-colors duration-200 group-hover/action:bg-border" />
 					) : (
-						<div className="absolute left-1/2 top-5 h-10 w-px -translate-x-1/2 bg-gradient-to-b from-border/70 to-border/25" />
+						<div className="absolute left-1/2 top-5 h-10 w-px -translate-x-1/2 bg-gradient-to-b from-border/70 to-border/25 transition-opacity duration-200 group-hover/action:opacity-80" />
 					)}
 					<span
 						className={cn(
-							"relative z-10 h-2 w-2 rounded-full border bg-background transition-colors",
+							"relative z-10 h-2 w-2 rounded-full border bg-background transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out",
 							isOpen
-								? "border-primary bg-primary"
-								: "border-muted-foreground/35 group-hover/action:border-primary/60",
+								? "scale-110 border-primary bg-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.12)]"
+								: "border-muted-foreground/35 group-hover/action:scale-105 group-hover/action:border-primary/60",
 						)}
 						aria-hidden="true"
 					/>
@@ -353,13 +353,13 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 						<button
 							type="button"
 							className={cn(
-								"flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors duration-150",
-								isOpen ? "bg-muted/40" : "hover:bg-muted/25",
+								"flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-muted/25 active:scale-[0.995]",
+								isOpen && "bg-muted/40 shadow-sm",
 							)}
 						>
 							<span
 								className={cn(
-									"flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors",
+									"flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-[background-color,border-color,color,transform] duration-200 ease-out group-hover/action:scale-105",
 									isOpen
 										? "border-primary/25 bg-primary/10 text-primary"
 										: "border-border/55 bg-background/70 text-muted-foreground",
@@ -367,19 +367,19 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 							>
 								<Icon className="h-4 w-4" />
 							</span>
-							<span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+							<span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground transition-colors duration-200">
 								{title}
 							</span>
 							<ChevronDown
 								className={cn(
-									"h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+									"h-4 w-4 shrink-0 text-muted-foreground transition-[transform,color] duration-200 ease-out",
 									isOpen && "rotate-180 text-foreground",
 								)}
 							/>
 						</button>
 					</TaskTrigger>
-					<TaskContent className="[&>div]:mt-2 [&>div]:border-l-0 [&>div]:pl-0">
-						<div className="rounded-lg border border-border/60 bg-background/80 p-3 shadow-sm">
+					<TaskContent className="overflow-hidden duration-200 ease-out [&>div]:mt-2 [&>div]:border-l-0 [&>div]:pl-0">
+						<div className="rounded-lg border border-border/60 bg-background/80 p-3 shadow-sm animate-in fade-in-0 zoom-in-95 duration-200 ease-out">
 							<TaskItem className="text-sm">
 								<ActionRenderErrorBoundary item={item}>
 									<ActionContent item={item} isOpen={isOpen} />

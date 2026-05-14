@@ -86,7 +86,9 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 
 		const assistantContentParts = useMemo<AssistantContentPart[]>(() => {
 			if (message.role !== "assistant" || !complexContent) return [];
-			const parts = (complexContent as unknown[]).filter(isAssistantContentPart);
+			const parts = (complexContent as unknown[]).filter(
+				isAssistantContentPart,
+			);
 			return parts.some((part) =>
 				part.type === "text" ? part.text.trim() : true,
 			)
@@ -214,102 +216,100 @@ export const MessageRenderer: React.FC<MessageRendererProps> = React.memo(
 									"group-[.is-assistant]:overflow-visible group-[.is-assistant]:rounded-none group-[.is-assistant]:border-0 group-[.is-assistant]:bg-transparent group-[.is-assistant]:px-0 group-[.is-assistant]:py-0 group-[.is-assistant]:shadow-none",
 							)}
 						>
-						{message.role === "user" && attachedDocuments.length > 0 && (
-							<MessageAttachedDocuments documents={attachedDocuments} />
-						)}
-						{complexContent && (
-							<MessageComplexImages complexContent={complexContent} />
-						)}
-						{!hasRenderableContent &&
-						isLastMessage &&
-						isStreaming ? (
-							<div className="py-2 flex items-center gap-2">
-								<ThreeDotsLoader className="text-muted-foreground" />
-								{executionText ? (
-									<span className="text-muted-foreground animate-pulse">
-										{executionText}
-									</span>
-								) : null}
-							</div>
-						) : (
-							<Suspense
-								fallback={
-									<div className="py-2">
-										<ThreeDotsLoader className="text-muted-foreground" />
-									</div>
-								}
-							>
-								<div className="relative z-10">
-									{isUserMessage ? (
-										<UserMessageContent
-											content={message.content}
-											isStreaming={isStreaming}
-										/>
-									) : hasStructuredAssistantContent ? (
-										<>
-											<AssistantContentFlow
-												parts={renderedAssistantContentParts}
-												isStreaming={isStreaming}
-												suppressArtifactPreviews={
-													location.pathname === "/runtime"
-												}
-											/>
-											{messageError ? (
-												<MessageErrorNotice error={messageError} />
-											) : null}
-										</>
-									) : (
-										<>
-											<MessageContentWithArtifacts
-												content={message.content}
-												isStreaming={isStreaming}
-												suppressArtifactPreviews={
-													location.pathname === "/runtime"
-												}
-											/>
-											{messageError ? (
-												<MessageErrorNotice error={messageError} />
-											) : null}
-										</>
-									)}
-									{showGenericStreamingStatus && (
-										<>
-											<div className="mt-4 flex items-center gap-2">
-												<ThreeDotsLoader
-													className="text-muted-foreground"
-													size="sm"
-												/>
-												{executionText ? (
-													<span className="text-muted-foreground animate-pulse">
-														{executionText}
-													</span>
-												) : null}
-											</div>
-											<div
-												className="absolute -bottom-6 -left-6 -right-6 h-10 pointer-events-none rounded-b-lg z-0"
-												style={{
-													background:
-														"linear-gradient(to top, hsl(var(--background) / 0.2) 0%, hsl(var(--background) / 0.08) 55%, transparent 100%)",
-												}}
-											/>
-										</>
-									)}
-									{showMessageControls &&
-									!isStreaming &&
-									message.role === "assistant" &&
-									message.metadata &&
-									groupMessages &&
-									groupMessages.length > 0 ? (
-										<MessageFooter
-											message={message}
-											groupMessages={groupMessages}
-											selectedTopic={selectedTopic}
-											metadata={message.metadata as MessageMetadata}
-										/>
+							{message.role === "user" && attachedDocuments.length > 0 && (
+								<MessageAttachedDocuments documents={attachedDocuments} />
+							)}
+							{complexContent && (
+								<MessageComplexImages complexContent={complexContent} />
+							)}
+							{!hasRenderableContent && isLastMessage && isStreaming ? (
+								<div className="py-2 flex items-center gap-2">
+									<ThreeDotsLoader className="text-muted-foreground" />
+									{executionText ? (
+										<span className="text-muted-foreground animate-pulse">
+											{executionText}
+										</span>
 									) : null}
 								</div>
-							</Suspense>
-						)}
+							) : (
+								<Suspense
+									fallback={
+										<div className="py-2">
+											<ThreeDotsLoader className="text-muted-foreground" />
+										</div>
+									}
+								>
+									<div className="relative z-10">
+										{isUserMessage ? (
+											<UserMessageContent
+												content={message.content}
+												isStreaming={isStreaming}
+											/>
+										) : hasStructuredAssistantContent ? (
+											<>
+												<AssistantContentFlow
+													parts={renderedAssistantContentParts}
+													isStreaming={isStreaming}
+													suppressArtifactPreviews={
+														location.pathname === "/runtime"
+													}
+												/>
+												{messageError ? (
+													<MessageErrorNotice error={messageError} />
+												) : null}
+											</>
+										) : (
+											<>
+												<MessageContentWithArtifacts
+													content={message.content}
+													isStreaming={isStreaming}
+													suppressArtifactPreviews={
+														location.pathname === "/runtime"
+													}
+												/>
+												{messageError ? (
+													<MessageErrorNotice error={messageError} />
+												) : null}
+											</>
+										)}
+										{showGenericStreamingStatus && (
+											<>
+												<div className="mt-4 flex items-center gap-2">
+													<ThreeDotsLoader
+														className="text-muted-foreground"
+														size="sm"
+													/>
+													{executionText ? (
+														<span className="text-muted-foreground animate-pulse">
+															{executionText}
+														</span>
+													) : null}
+												</div>
+												<div
+													className="absolute -bottom-6 -left-6 -right-6 h-10 pointer-events-none rounded-b-lg z-0"
+													style={{
+														background:
+															"linear-gradient(to top, hsl(var(--background) / 0.2) 0%, hsl(var(--background) / 0.08) 55%, transparent 100%)",
+													}}
+												/>
+											</>
+										)}
+										{showMessageControls &&
+										!isStreaming &&
+										message.role === "assistant" &&
+										message.metadata &&
+										groupMessages &&
+										groupMessages.length > 0 ? (
+											<MessageFooter
+												message={message}
+												groupMessages={groupMessages}
+												selectedTopic={selectedTopic}
+												metadata={message.metadata as MessageMetadata}
+											/>
+										) : null}
+									</div>
+								</Suspense>
+							)}
 						</MessageContent>
 					</Message>
 				) : null}

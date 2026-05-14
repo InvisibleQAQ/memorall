@@ -58,9 +58,7 @@ const cloneActions = (
 const cloneComplexContent = (
 	complexContent: ComplexContent | null | undefined,
 ): ComplexContent | null =>
-	complexContent
-		? complexContent.map((part) => ({ ...part }))
-		: null;
+	complexContent ? complexContent.map((part) => ({ ...part })) : null;
 
 const pickResultMetadata = (
 	metadata: Record<string, unknown> | undefined,
@@ -469,10 +467,7 @@ export const useChat = (model: string) => {
 								? {
 										...prev,
 										executeState: event,
-										executions: addStreamingExecution(
-											prev.executions,
-											event,
-										),
+										executions: addStreamingExecution(prev.executions, event),
 									}
 								: null,
 						);

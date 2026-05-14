@@ -132,6 +132,11 @@
 			"answer": "Tạo câu trả lời"
 		}
 	},
+	"toolStatus": {
+		"running": "Đang chạy",
+		"error": "Lỗi",
+		"done": "Hoàn tất"
+	},
 	"workflow": {
 		"showDetails": "Hiện chi tiết lượt chạy",
 		"hideDetails": "Ẩn chi tiết lượt chạy",
