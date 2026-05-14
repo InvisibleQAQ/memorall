@@ -174,14 +174,14 @@ export const ToolSection: React.FC<{
 				{title}
 			</div>
 		) : null}
-		<div className="p-3">{children}</div>
+		<div className="min-w-0 p-2 sm:p-3">{children}</div>
 	</div>
 );
 
 export const ToolDetailsGrid: React.FC<{ children: React.ReactNode }> = ({
 	children,
 }) => (
-	<div className="grid gap-2 sm:grid-cols-2 text-xs text-muted-foreground">
+	<div className="grid min-w-0 gap-2 text-xs text-muted-foreground min-[520px]:grid-cols-2">
 		{children}
 	</div>
 );
@@ -191,11 +191,16 @@ export const ToolDetail: React.FC<{
 	value: React.ReactNode;
 	mono?: boolean;
 }> = ({ label, value, mono = false }) => (
-	<div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2">
+	<div className="min-w-0 rounded-md border border-border/50 bg-muted/20 px-3 py-2">
 		<div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
 			{label}
 		</div>
-		<div className={cn("break-words text-foreground", mono && "font-mono")}>
+		<div
+			className={cn(
+				"min-w-0 overflow-hidden break-words text-foreground",
+				mono && "font-mono",
+			)}
+		>
 			{value}
 		</div>
 	</div>
@@ -207,7 +212,7 @@ export const ToolCodeBlock: React.FC<{
 }> = ({ children, className }) => (
 	<pre
 		className={cn(
-			"max-h-80 overflow-auto rounded-md border border-border/60 bg-muted/25 p-3 text-xs whitespace-pre-wrap break-words shadow-inner",
+			"max-h-80 max-w-full overflow-auto rounded-md border border-border/60 bg-muted/25 p-3 text-xs whitespace-pre-wrap break-words shadow-inner",
 			className,
 		)}
 	>
@@ -232,8 +237,8 @@ export const ToolRawIO: React.FC<{
 	};
 
 	return (
-		<div className="overflow-hidden rounded-lg border border-border/60 bg-background/70 text-xs shadow-sm">
-			<div className="flex items-center gap-2 px-3 py-2">
+		<div className="min-w-0 overflow-hidden rounded-lg border border-border/60 bg-background/70 text-xs shadow-sm">
+			<div className="flex min-w-0 flex-wrap items-center gap-2 px-3 py-2">
 				<button
 					type="button"
 					className="flex-1 select-none text-left font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -269,7 +274,7 @@ export const ToolRawIO: React.FC<{
 				</div>
 			</div>
 			{open && (
-				<div className="border-t border-border/60 p-3">
+				<div className="min-w-0 border-t border-border/60 p-2 sm:p-3">
 					<ToolCodeBlock>
 						{activeValue === undefined
 							? fallbackText

@@ -43,7 +43,7 @@ export const AssistantToolTimelinePart: React.FC<{
 	};
 
 	return (
-		<div className="grid min-w-[34rem] max-w-full grid-cols-[1rem_minmax(0,1fr)] gap-2.5 animate-in fade-in-0 slide-in-from-top-1 duration-200 ease-out">
+		<div className="grid w-full min-w-0 max-w-full grid-cols-[0.875rem_minmax(0,1fr)] gap-2 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-2.5 animate-in fade-in-0 slide-in-from-top-1 duration-200 ease-out">
 			<div className="relative flex h-11 justify-center">
 				{connectsToPrevious ? (
 					<div className="absolute left-1/2 top-0 h-[1.25rem] w-px -translate-x-1/2 bg-border/70 transition-colors duration-200" />
@@ -87,7 +87,7 @@ export const AssistantToolTimelinePart: React.FC<{
 							<span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground transition-colors duration-200">
 								{title}
 							</span>
-							<span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors duration-200">
+							<span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors duration-200 max-[420px]:sr-only">
 								{isRunning ? (
 									<Loader2 className="h-3.5 w-3.5 animate-spin" />
 								) : isError ? (
@@ -110,7 +110,7 @@ export const AssistantToolTimelinePart: React.FC<{
 							"overflow-hidden text-sm outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 duration-200 ease-out",
 						)}
 					>
-						<div className="mt-2 rounded-lg border border-border/60 bg-background/80 p-3 shadow-sm">
+						<div className="mt-2 min-w-0 overflow-hidden rounded-lg border border-border/60 bg-background/80 p-2 shadow-sm sm:p-3">
 							<ToolActionDetails item={actionItem} isOpen={isOpen} />
 						</div>
 					</CollapsibleContent>

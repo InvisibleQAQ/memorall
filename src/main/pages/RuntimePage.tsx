@@ -62,7 +62,7 @@ const RuntimeArtifactViewer: React.FC<{
 	);
 	const [draft, setDraft] = useState(artifact.content);
 	const [saveState, setSaveState] = useState<SaveState>("idle");
-	const isEditable = artifact.type !== "url";
+	const isEditable = artifact.type !== "url" && artifact.source === "content";
 	const isDirty = draft !== artifact.content;
 
 	useEffect(() => {

@@ -10,6 +10,7 @@ const SMOOTH_SCROLL_SETTLE_MS = 720;
 export type AgentCursorMode = "moveTo" | "jumpTo" | "jumTo";
 
 export interface AgentCursorEventDetail {
+	hide?: boolean;
 	targetKey?: string;
 	selector?: string;
 	index?: number;
@@ -49,6 +50,16 @@ export const moveTo = (
 	window.dispatchEvent(
 		new CustomEvent<AgentCursorEventDetail>(AGENT_CURSOR_EVENT, {
 			detail: { targetKey, message, mode },
+		}),
+	);
+};
+
+export const hideAgentCursor = (): void => {
+	if (typeof window === "undefined") return;
+
+	window.dispatchEvent(
+		new CustomEvent<AgentCursorEventDetail>(AGENT_CURSOR_EVENT, {
+			detail: { hide: true },
 		}),
 	);
 };
@@ -364,6 +375,11 @@ export const AgentCursorOverlay: React.FC<AgentCursorOverlayProps> = ({
 			if (!detail) return;
 
 			clearTimers();
+			if (detail.hide) {
+				hideCursor();
+				return;
+			}
+
 			if (detail.point) {
 				moveToPosition(detail.point, detail);
 				return;

@@ -135,11 +135,11 @@ export const MemorallToolCallCard: React.FC<{ code: string }> = React.memo(
 								{summaryItems.map((item) => (
 									<div
 										key={item.label}
-										className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 text-xs"
+										className="grid min-w-0 gap-1 text-xs min-[420px]:grid-cols-[6.5rem_minmax(0,1fr)] min-[420px]:gap-2"
 									>
 										<span className="text-muted-foreground">{item.label}</span>
 										<span
-											className="truncate text-foreground/90"
+											className="min-w-0 truncate text-foreground/90"
 											title={item.value}
 										>
 											{item.value}

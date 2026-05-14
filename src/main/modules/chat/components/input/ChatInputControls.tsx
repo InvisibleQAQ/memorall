@@ -105,10 +105,10 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 					t("topic.select");
 
 	return (
-		<PromptInputToolbar>
-			<div className="flex items-center gap-2 min-w-0 flex-1">
-				<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
-					<PromptInputTools>
+		<PromptInputToolbar className="items-center gap-1 p-1.5">
+			<div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-1.5">
+				<div className="min-w-0 flex-1 basis-[13rem] overflow-hidden">
+					<PromptInputTools className="min-w-0 flex-wrap gap-x-1 gap-y-1">
 						<DropdownMenu
 							open={isAttachMenuOpen}
 							onOpenChange={setIsAttachMenuOpen}
@@ -122,7 +122,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 											size="sm"
 											disabled={isLoading}
 											onMouseEnter={() => setIsAttachMenuOpen(true)}
-											className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
+											className="h-8 min-w-8 rounded-xl px-2 text-xs text-muted-foreground hover:text-foreground"
 										>
 											<Paperclip size={12} />
 										</Button>
@@ -162,14 +162,14 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 											type="button"
 											variant="ghost"
 											size="sm"
-											className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
+											className="h-8 min-w-0 max-w-[11rem] gap-1 rounded-xl px-2 text-xs text-muted-foreground hover:text-foreground"
 										>
 											{selectedFlow?.id === "chat" ? (
 												<MessageCircle size={12} />
 											) : (
 												<Brain size={12} />
 											)}
-											<span className="max-w-24 truncate">
+											<span className="min-w-0 max-w-24 truncate max-[420px]:max-w-16">
 												{selectedFlow?.name ?? t("flowSelector.chat")}
 											</span>
 											<ChevronDown size={10} className="opacity-50" />
@@ -216,10 +216,10 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 													variant="ghost"
 													size="sm"
 													disabled={isLoadingTopics}
-													className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
+													className="h-8 min-w-0 max-w-[9rem] gap-1 rounded-xl px-2 text-xs text-muted-foreground hover:text-foreground"
 												>
 													<Tags size={12} />
-													<span className="max-w-20 truncate">
+													<span className="min-w-0 max-w-20 truncate max-[420px]:max-w-12">
 														{isLoadingTopics
 															? t("topic.loading")
 															: selectedTopicName}
@@ -287,7 +287,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 											variant="ghost"
 											size="sm"
 											onClick={onOpenAgentSettings}
-											className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
+											className="h-8 min-w-8 rounded-xl px-2 text-xs text-muted-foreground hover:text-foreground"
 										>
 											<Settings2 size={12} />
 										</Button>
@@ -301,7 +301,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 					</PromptInputTools>
 				</div>
 
-				<div className="flex items-center gap-2 flex-shrink-0">
+				<div className="ml-auto flex shrink-0 items-center gap-1">
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
@@ -310,10 +310,11 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 								size="sm"
 								disabled={isLoading}
 								onClick={onInsertSeparator}
-								className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground whitespace-nowrap px-2"
+								aria-label={t("tooltips.newMessage")}
+								title={t("tooltips.newMessage")}
+								className="h-8 w-8 rounded-xl px-0 text-xs text-muted-foreground hover:text-foreground"
 							>
 								<Plus size={12} />
-								<span>{t("input.clearButton")}</span>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -330,7 +331,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 										variant="ghost"
 										size="sm"
 										disabled={isLoading}
-										className="text-muted-foreground hover:text-foreground"
+										className="h-8 w-8 rounded-xl px-0 text-muted-foreground hover:text-foreground"
 									>
 										<MoreHorizontal size={14} />
 									</Button>
@@ -359,7 +360,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 									onClick={onStop}
 									size="sm"
 									variant="outline"
-									className="border-red-200 text-red-600 hover:bg-red-50"
+									className="h-10 w-10 rounded-[16px] border-red-200 px-0 text-red-600 hover:bg-red-50"
 								>
 									<Square size={16} />
 								</Button>
@@ -374,6 +375,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 								<PromptInputSubmit
 									disabled={!canSubmit || isLoading || !model}
 									status={status}
+									className="h-9 w-9 rounded-xl bg-foreground/90 text-background shadow-sm transition hover:bg-foreground disabled:bg-muted/70 disabled:text-muted-foreground disabled:opacity-100"
 								/>
 							</TooltipTrigger>
 							<TooltipContent>

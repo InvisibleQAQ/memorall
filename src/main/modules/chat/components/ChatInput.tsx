@@ -319,8 +319,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 	return (
 		<TooltipProvider>
-			<div className="relative z-10 w-full flex-shrink-0 bg-background/90 px-4 pb-4 pt-0 shadow-[0_-18px_45px_hsl(var(--background)/0.92)] backdrop-blur-xl">
-				<div ref={composerRef} className="relative mx-auto max-w-4xl">
+			<div className="relative z-10 w-full flex-shrink-0 bg-background/90 px-2 pb-3 pt-0 shadow-[0_-18px_45px_hsl(var(--background)/0.92)] backdrop-blur-xl sm:px-4 sm:pb-4">
+				<div ref={composerRef} className="relative mx-auto min-w-0 max-w-4xl">
 					<input
 						ref={fileInputRef}
 						type="file"
@@ -348,7 +348,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 					/>
 
 					<PromptInput
-						className="divide-border/50 rounded-2xl border-border/70 bg-card/95 shadow-[0_18px_55px_hsl(var(--foreground)/0.10)]"
+						className="divide-border/50 rounded-[22px] border-border/70 bg-card/95 shadow-[0_18px_55px_hsl(var(--foreground)/0.10)]"
 						onSubmit={handleSubmitWithImages}
 					>
 						<div>
@@ -370,7 +370,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 									isModelReady ? t("input.placeholder") : t("model.notLoaded")
 								}
 								disabled={isLoading || !isModelReady}
-								className="min-h-[92px] !border-0 !border-t-0 px-4 py-4 text-[15px] leading-6 !shadow-none focus:!border-0 focus:!ring-0 focus:!ring-offset-0 focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0"
+								className="min-h-[92px] !border-0 !border-t-0 px-3 py-3 text-[15px] leading-6 !shadow-none focus:!border-0 focus:!ring-0 focus:!ring-offset-0 focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0 sm:px-4 sm:py-4"
 							/>
 						</div>
 

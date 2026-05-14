@@ -326,7 +326,7 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 		);
 
 		return (
-			<div className="group/action relative grid grid-cols-[1rem_minmax(0,1fr)] gap-2.5 animate-in fade-in-0 slide-in-from-top-1 duration-200 ease-out">
+			<div className="group/action relative grid w-full min-w-0 grid-cols-[0.875rem_minmax(0,1fr)] gap-2 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-2.5 animate-in fade-in-0 slide-in-from-top-1 duration-200 ease-out">
 				<div className="relative flex justify-center pt-3">
 					{index < total - 1 ? (
 						<div className="absolute left-1/2 top-5 h-[calc(100%+0.5rem)] w-px -translate-x-1/2 bg-border/70 transition-colors duration-200 group-hover/action:bg-border" />
@@ -378,9 +378,9 @@ const TaskItemRenderer: React.FC<TaskItemRendererProps> = React.memo(
 							/>
 						</button>
 					</TaskTrigger>
-					<TaskContent className="overflow-hidden duration-200 ease-out [&>div]:mt-2 [&>div]:border-l-0 [&>div]:pl-0">
-						<div className="rounded-lg border border-border/60 bg-background/80 p-3 shadow-sm animate-in fade-in-0 zoom-in-95 duration-200 ease-out">
-							<TaskItem className="text-sm">
+					<TaskContent className="min-w-0 overflow-hidden duration-200 ease-out [&>div]:mt-2 [&>div]:border-l-0 [&>div]:pl-0">
+						<div className="min-w-0 overflow-hidden rounded-lg border border-border/60 bg-background/80 p-2 shadow-sm animate-in fade-in-0 zoom-in-95 duration-200 ease-out sm:p-3">
+							<TaskItem className="min-w-0 text-sm">
 								<ActionRenderErrorBoundary item={item}>
 									<ActionContent item={item} isOpen={isOpen} />
 								</ActionRenderErrorBoundary>
@@ -402,7 +402,7 @@ export const MessageActions: React.FC<MessageActionsProps> = React.memo(
 		if (actions.length === 0) return null;
 
 		return (
-			<div className="w-full max-w-3xl pl-1">
+			<div className="w-full min-w-0 max-w-3xl overflow-hidden pl-0 sm:pl-1">
 				<div className="space-y-1">
 					{actions.map((item, index) => (
 						<TaskItemRenderer

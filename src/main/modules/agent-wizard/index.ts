@@ -3,6 +3,7 @@ export { AgentWizardChatPanel } from "./components/AgentWizardChatPanel";
 export { AgentWizardTemplatePanel } from "./components/AgentWizardTemplatePanel";
 export {
 	AGENT_WIZARD_CURSOR_KEYS,
+	clearQueuedAgentWizardCursorMoves,
 	jumAgentWizardCursorTo,
 	jumpAgentWizardCursorTo,
 	moveAgentWizardCursorTo,
