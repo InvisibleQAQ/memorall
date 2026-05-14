@@ -41,6 +41,21 @@ type SettingsPanelStateProps = Pick<
 	"setIsReloadingModel" | "setReloadProgress"
 >;
 
+const getCopilotNavigationId = (path: string) => {
+	switch (path) {
+		case "/documents":
+			return "documents";
+		case "/agents":
+			return "agents";
+		case "/knowledge-graph":
+			return "knowledge";
+		case "/llm":
+			return "models";
+		default:
+			return null;
+	}
+};
+
 type RightPanelVerticalRailProps = SettingsPanelStateProps & {
 	runtimeCount: number;
 	onOpenPanel: () => void;
@@ -74,12 +89,19 @@ const RightPanelVerticalRail: React.FC<RightPanelVerticalRailProps> = ({
 				<TooltipProvider>
 					{workspaceNavigationItems.map((item) => {
 						const IconComponent = item.icon;
+						const copilotId = getCopilotNavigationId(item.path);
 						return (
 							<Tooltip key={item.path}>
 								<TooltipTrigger asChild>
 									<Link
 										to={item.path}
 										onClick={onOpenPanel}
+										data-copilot={
+											copilotId ? `rail-nav-${copilotId}` : undefined
+										}
+										data-agent-cursor-point={
+											copilotId ? `copilot-rail-nav-${copilotId}` : undefined
+										}
 										className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
 									>
 										<IconComponent size={16} />
@@ -246,12 +268,21 @@ export const RightApplicationLayout: React.FC<RightApplicationLayoutProps> = ({
 										location.pathname === item.path ||
 										(!checkIsExistNavigation && item.path === "/");
 									const IconComponent = item.icon;
+									const copilotId = getCopilotNavigationId(item.path);
 									return (
 										<Tooltip key={item.path}>
 											<TooltipTrigger asChild>
 												<Link
 													to={item.path}
 													onClick={() => openPanel()}
+													data-copilot={
+														copilotId ? `header-nav-${copilotId}` : undefined
+													}
+													data-agent-cursor-point={
+														copilotId
+															? `copilot-header-nav-${copilotId}`
+															: undefined
+													}
 													className={`${
 														isSelected
 															? "bg-blue-500/10 text-blue-500 border border-blue-500/30 shadow-[0_0_0_1px_rgba(59,130,246,0.28),0_4px_20px_rgba(59,130,246,0.12)]"

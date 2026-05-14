@@ -3,7 +3,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { RightApplicationLayout } from "@/main/components/RightApplicationLayout";
 import { ChatPage } from "@/main/pages/ChatPage";
-import { useShellLayoutStore } from "@/main/stores/shell-layout";
+import {
+	SHELL_CHAT_WIDTH_MAX,
+	SHELL_CHAT_WIDTH_MIN,
+	useShellLayoutStore,
+} from "@/main/stores/shell-layout";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { Button } from "@/main/components/ui/button";
 import { useMediaQuery } from "@/main/hooks/use-viewport";
@@ -11,11 +15,7 @@ import {
 	workspaceNavigationItems,
 	workspaceNavigationPaths,
 } from "@/main/components/app-navigation";
-import {
-	LoadingScreen,
-	NoModelsScreen,
-	useCurrentModel,
-} from "@/main/modules/chat/components";
+import { LoadingScreen, useCurrentModel } from "@/main/modules/chat/components";
 import {
 	ModelDownloadingScreen,
 	useDownloadProgress,
@@ -27,10 +27,25 @@ interface AppShellProps {
 
 const MOBILE_WORKSPACE_QUERY = "(max-width: 640px)";
 
+const getCopilotNavigationId = (path: string) => {
+	switch (path) {
+		case "/documents":
+			return "documents";
+		case "/agents":
+			return "agents";
+		case "/knowledge-graph":
+			return "knowledge";
+		case "/llm":
+			return "models";
+		default:
+			return null;
+	}
+};
+
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { model, isInitialized, handleModelLoaded } = useCurrentModel();
+	const { isInitialized } = useCurrentModel();
 	const { downloadProgress, quickDownloadModel } = useDownloadProgress();
 	const chatShellCollapsed = useShellLayoutStore(
 		(state) => state.chatShellCollapsed,
@@ -89,15 +104,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 		);
 	}
 
-	if (!model) {
-		return (
-			<NoModelsScreen
-				onModelLoaded={handleModelLoaded}
-				onNavigateToModels={() => navigate("/llm")}
-			/>
-		);
-	}
-
 	const effectiveChatShellCollapsed =
 		!rightPanelCollapsed && chatShellCollapsed;
 	const chatPanelWidth = isNarrow
@@ -130,7 +136,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 			const viewportWidth = window.innerWidth || 1;
 			const delta =
 				((moveEvent.clientX - startXRef.current) / viewportWidth) * 100;
-			const next = Math.max(28, Math.min(60, startWidthRef.current + delta));
+			const next = Math.max(
+				SHELL_CHAT_WIDTH_MIN,
+				Math.min(SHELL_CHAT_WIDTH_MAX, startWidthRef.current + delta),
+			);
 			setChatShellWidth(next);
 		};
 
@@ -146,9 +155,15 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	};
 
 	return (
-		<div className="flex h-full min-h-0 w-full overflow-hidden bg-background text-foreground">
+		<div
+			className="flex h-full min-h-0 w-full overflow-hidden bg-background text-foreground"
+			data-copilot="app-layout"
+			data-agent-cursor-point="copilot-app-layout"
+		>
 			<section
 				className={`relative z-20 h-full min-h-0 flex-shrink-0 border-r bg-background max-[640px]:w-full max-[640px]:border-r-0 ${panelTransitionClass}`}
+				data-copilot="chat-left-panel"
+				data-agent-cursor-point="copilot-chat-left-panel"
 				style={{
 					width: chatPanelWidth,
 					flexBasis: chatPanelWidth,
@@ -159,10 +174,17 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 						{workspaceNavigationItems.map((item) => {
 							const Icon = item.icon;
 							const isRuntime = item.path === "/runtime";
+							const copilotId = getCopilotNavigationId(item.path);
 							return (
 								<Link
 									key={item.path}
 									to={item.path}
+									data-copilot={
+										copilotId ? `mobile-nav-${copilotId}` : undefined
+									}
+									data-agent-cursor-point={
+										copilotId ? `copilot-mobile-nav-${copilotId}` : undefined
+									}
 									className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
 									aria-label={item.mobileLabel}
 									title={item.mobileLabel}
@@ -223,6 +245,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
 			<section
 				className={`min-h-0 min-w-0 flex-shrink-0 overflow-hidden max-[640px]:!hidden ${panelTransitionClass}`}
+				data-copilot="right-panel"
+				data-agent-cursor-point="copilot-right-panel"
 				style={{
 					width: rightPanelWidth,
 					flexBasis: rightPanelWidth,

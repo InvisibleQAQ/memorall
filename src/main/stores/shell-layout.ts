@@ -2,6 +2,10 @@ import { create } from "zustand";
 
 export type RightWorkspaceTab = "page" | "agent";
 
+export const SHELL_CHAT_WIDTH_MIN = 24;
+export const SHELL_CHAT_WIDTH_MAX = 60;
+export const COPILOT_WORKSPACE_FOCUS_CHAT_WIDTH = SHELL_CHAT_WIDTH_MIN;
+
 interface ShellLayoutState {
 	chatRailCollapsed: boolean;
 	chatShellCollapsed: boolean;
