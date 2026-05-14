@@ -19,6 +19,12 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/main/components/ui/popover";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/main/components/ui/tooltip";
 import { Button } from "@/main/components/ui/button";
 import { Separator } from "@/main/components/ui/separator";
 import { Badge } from "@/main/components/ui/badge";
@@ -138,7 +144,17 @@ const ProcessItem: React.FC<ProcessItemProps> = ({
 
 // formatRelativeTime will be created inside component to access translations
 
-export const ProcessMonitor: React.FC = () => {
+export const ProcessMonitor: React.FC<{
+	tooltipSide?: "top" | "right" | "bottom" | "left";
+	popoverAlign?: "start" | "center" | "end";
+	popoverSide?: "top" | "right" | "bottom" | "left";
+	triggerClassName?: string;
+}> = ({
+	tooltipSide = "bottom",
+	popoverAlign = "end",
+	popoverSide,
+	triggerClassName,
+}) => {
 	const { t } = useTranslation("common");
 
 	// Create formatRelativeTime with translations
@@ -312,22 +328,38 @@ export const ProcessMonitor: React.FC = () => {
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
-				<Button
-					variant="ghost"
-					size="icon"
-					className="relative h-8 w-8"
-					title={t("processMonitor.viewProcesses")}
-				>
-					<Bell className="h-4 w-4" />
-					{hasActiveProcesses && (
-						<span className="absolute top-0 right-0 flex h-2 w-2">
-							<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-							<span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-						</span>
-					)}
-				</Button>
+				<span>
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className={cn("relative h-8 w-8", triggerClassName)}
+									aria-label={t("processMonitor.viewProcesses")}
+									title={t("processMonitor.viewProcesses")}
+								>
+									<Bell className="h-4 w-4" />
+									{hasActiveProcesses && (
+										<span className="absolute right-0 top-0 flex h-2 w-2">
+											<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+											<span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+										</span>
+									)}
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent side={tooltipSide}>
+								<p>{t("processMonitor.title")}</p>
+							</TooltipContent>
+						</Tooltip>
+					</TooltipProvider>
+				</span>
 			</PopoverTrigger>
-			<PopoverContent className="w-[400px] p-0" align="end">
+			<PopoverContent
+				className="w-[400px] p-0"
+				align={popoverAlign}
+				side={popoverSide}
+			>
 				<div className="flex items-center justify-between px-4 py-3 border-b">
 					<div className="flex items-center gap-2">
 						<Activity className="h-4 w-4" />
