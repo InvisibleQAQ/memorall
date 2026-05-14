@@ -15,6 +15,8 @@ import {
 import { Progress } from "@/main/components/ui/progress";
 import { X, ChevronRight, ChevronLeft, SkipForward } from "lucide-react";
 import { motion } from "motion/react";
+import { AgentIcon } from "@/components/AgentIcon";
+import { useShellLayoutStore } from "@/main/stores/shell-layout";
 
 interface CopilotTooltipProps {
 	step: CopilotStep;
@@ -24,7 +26,7 @@ interface CopilotTooltipProps {
 interface TooltipPosition {
 	x: number;
 	y: number;
-	arrowPosition: "top" | "bottom" | "left" | "right";
+	arrowPosition: "top" | "bottom" | "left" | "right" | "none";
 	arrowOffset: number;
 }
 
@@ -35,9 +37,12 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 	const navigate = useNavigate();
 	const { state, nextStep, prevStep, skipTour, endTour } = useCopilot();
 	const { t } = useTranslation("copilot");
+	const setRightPanelCollapsed = useShellLayoutStore(
+		(state) => state.setRightPanelCollapsed,
+	);
 
 	const tooltipPosition = useMemo((): TooltipPosition => {
-		const tooltipWidth = 320;
+		const tooltipWidth = 360;
 		const tooltipHeight = Math.max(
 			250,
 			step.content.split("\n").length * 30 + 200,
@@ -50,13 +55,32 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 
 		let x: number;
 		let y: number;
-		let arrowPosition: "top" | "bottom" | "left" | "right";
+		let arrowPosition: "top" | "bottom" | "left" | "right" | "none";
 		let arrowOffset: number;
 
 		// Try the preferred placement first
 		const placement = step.placement || "bottom";
 
 		switch (placement) {
+			case "center":
+				x = targetRect.left + targetRect.width / 2 - tooltipWidth / 2;
+				y = targetRect.top + targetRect.height / 2 - tooltipHeight / 2;
+				arrowPosition = "none";
+				arrowOffset = 0;
+
+				if (x < margin) {
+					x = margin;
+				} else if (x + tooltipWidth > viewportWidth - margin) {
+					x = viewportWidth - tooltipWidth - margin;
+				}
+
+				if (y < margin) {
+					y = margin;
+				} else if (y + tooltipHeight > viewportHeight - margin) {
+					y = viewportHeight - tooltipHeight - margin;
+				}
+				break;
+
 			case "bottom":
 				x = targetRect.left + targetRect.width / 2 - tooltipWidth / 2;
 				y = targetRect.bottom + margin;
@@ -172,11 +196,11 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 
 			// Handle navigation if specified
 			if (currentStep.action === "navigate" && currentStep.navigationPath) {
+				if (currentStep.navigationPath === "/") {
+					setRightPanelCollapsed(true);
+				}
 				navigate(currentStep.navigationPath);
-				// Small delay to let navigation complete before moving to next step
-				setTimeout(() => {
-					nextStep();
-				}, 100);
+				nextStep();
 			} else {
 				nextStep();
 			}
@@ -206,7 +230,7 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 			transition={{ duration: 0.3, ease: "easeOut" }}
 			className="absolute pointer-events-auto"
 			style={{
-				left: Math.max(8, Math.min(tooltipPosition.x, window.innerWidth - 328)), // Clamp to viewport
+				left: Math.max(8, Math.min(tooltipPosition.x, window.innerWidth - 368)), // Clamp to viewport
 				top: Math.max(
 					8,
 					Math.min(
@@ -216,53 +240,70 @@ export const CopilotTooltip: React.FC<CopilotTooltipProps> = ({
 							16,
 					),
 				), // Dynamic clamping
-				zIndex: 2147483647, // Maximum z-index
+				zIndex: 9500,
 			}}
 		>
 			<Card
-				className="w-80 shadow-xl border-2 border-blue-200 bg-background relative pointer-events-auto"
-				style={{ zIndex: 2147483647 }}
+				className="w-[22.5rem] max-w-[calc(100vw-1rem)] shadow-2xl border border-blue-400/40 bg-background/95 relative pointer-events-auto backdrop-blur-xl"
+				style={{ zIndex: 9500 }}
 			>
 				{/* Arrow */}
-				<div
-					className={`absolute w-0 h-0 border-8 ${
-						tooltipPosition.arrowPosition === "top"
-							? "-top-4"
-							: tooltipPosition.arrowPosition === "bottom"
-								? "-bottom-4"
-								: tooltipPosition.arrowPosition === "left"
-									? "-left-4"
-									: "-right-4"
-					}`}
-					style={{
-						borderTopColor:
-							tooltipPosition.arrowPosition === "bottom"
-								? "var(--glass-border)"
-								: "transparent",
-						borderBottomColor:
+				{tooltipPosition.arrowPosition !== "none" ? (
+					<div
+						className={`absolute w-0 h-0 border-8 ${
 							tooltipPosition.arrowPosition === "top"
-								? "var(--glass-border)"
-								: "transparent",
-						borderLeftColor:
-							tooltipPosition.arrowPosition === "right"
-								? "var(--glass-border)"
-								: "transparent",
-						borderRightColor:
-							tooltipPosition.arrowPosition === "left"
-								? "var(--glass-border)"
-								: "transparent",
-						[tooltipPosition.arrowPosition === "top" ||
-						tooltipPosition.arrowPosition === "bottom"
-							? "left"
-							: "top"]: tooltipPosition.arrowOffset - 8,
-					}}
-				/>
+								? "-top-4"
+								: tooltipPosition.arrowPosition === "bottom"
+									? "-bottom-4"
+									: tooltipPosition.arrowPosition === "left"
+										? "-left-4"
+										: "-right-4"
+						}`}
+						style={{
+							borderTopColor:
+								tooltipPosition.arrowPosition === "bottom"
+									? "var(--glass-border)"
+									: "transparent",
+							borderBottomColor:
+								tooltipPosition.arrowPosition === "top"
+									? "var(--glass-border)"
+									: "transparent",
+							borderLeftColor:
+								tooltipPosition.arrowPosition === "right"
+									? "var(--glass-border)"
+									: "transparent",
+							borderRightColor:
+								tooltipPosition.arrowPosition === "left"
+									? "var(--glass-border)"
+									: "transparent",
+							[tooltipPosition.arrowPosition === "top" ||
+							tooltipPosition.arrowPosition === "bottom"
+								? "left"
+								: "top"]: tooltipPosition.arrowOffset - 8,
+						}}
+					/>
+				) : null}
 
 				<CardHeader className="pb-3">
-					<div className="flex items-center justify-between">
-						<CardTitle className="text-lg font-semibold text-foreground">
-							{step.title}
-						</CardTitle>
+					<div className="flex items-start justify-between gap-3">
+						<div className="flex min-w-0 items-start gap-3">
+							<div className="shrink-0 rounded-xl border border-blue-400/30 bg-blue-500/10 p-1.5 shadow-sm">
+								<AgentIcon
+									size="sm"
+									screenContent={{
+										kind: "text",
+										value: "AI",
+										color: "#17e7e7",
+										scale: 0.72,
+									}}
+								/>
+							</div>
+							<div className="min-w-0">
+								<CardTitle className="text-base font-semibold leading-tight text-foreground">
+									{step.title}
+								</CardTitle>
+							</div>
+						</div>
 						<Button
 							variant="ghost"
 							size="sm"

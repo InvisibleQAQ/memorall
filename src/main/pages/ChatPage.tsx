@@ -621,7 +621,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 	}
 
 	return (
-		<div className="flex h-full bg-background text-foreground [background-image:linear-gradient(180deg,hsl(var(--muted)/0.28)_0%,transparent_190px)]">
+		<div
+			className="flex h-full bg-background text-foreground [background-image:linear-gradient(180deg,hsl(var(--muted)/0.28)_0%,transparent_190px)]"
+			data-copilot="chat-center"
+			data-agent-cursor-point="copilot-chat-center"
+		>
 			{isWideChatSidePanelVisible ? (
 				<ChatSidePanel
 					showCollapsedToggle={!hideWideSidePanelCollapsedToggle}

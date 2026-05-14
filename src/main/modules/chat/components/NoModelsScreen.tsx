@@ -280,7 +280,11 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 	// Wait for auth to initialize
 	if (!isInitialized || isLoading) {
 		return (
-			<div className="flex flex-col h-full bg-background">
+			<div
+				className="flex flex-col h-full bg-background"
+				data-copilot="no-models-screen chat-center"
+				data-agent-cursor-point="copilot-no-models-screen copilot-chat-center"
+			>
 				<div className="flex-1 flex items-center justify-center">
 					<div className="text-center">
 						<img
@@ -297,7 +301,11 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 
 	// Show no-models screen with 3 setup options
 	return (
-		<div className="flex flex-col h-full bg-background">
+		<div
+			className="flex flex-col h-full bg-background"
+			data-copilot="no-models-screen chat-center"
+			data-agent-cursor-point="copilot-no-models-screen copilot-chat-center"
+		>
 			<div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
 				<div className="w-full max-w-6xl mx-auto space-y-8 py-8 max-h-full">
 					{/* App Branding */}
@@ -317,9 +325,17 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 
 					{/* 3 Setup Cards - Responsive Grid */}
 					{!selectedOption && (
-						<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+						<div
+							className="grid gap-6 max-w-5xl mx-auto"
+							style={{
+								gridTemplateColumns:
+									"repeat(auto-fit, minmax(min(20rem, 100%), 1fr))",
+							}}
+						>
 							{/* Card 1: Login/Signup */}
 							<Card
+								data-copilot="setup-managed"
+								data-agent-cursor-point="copilot-setup-managed"
 								className={cn(
 									"group transition-all duration-300 border-2 relative",
 									!MANAGED_SERVICE_ENABLED
@@ -397,7 +413,11 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 							</Card>
 
 							{/* Card 2: Local LLM */}
-							<Card className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2 relative">
+							<Card
+								data-copilot="setup-local"
+								data-agent-cursor-point="copilot-setup-local"
+								className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2 relative"
+							>
 								<Popover>
 									<PopoverTrigger asChild>
 										<div className="absolute top-3 right-3 cursor-help z-10">
@@ -504,7 +524,11 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 							</Card>
 
 							{/* Card 3: Own Keys */}
-							<Card className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2 relative">
+							<Card
+								data-copilot="setup-keys"
+								data-agent-cursor-point="copilot-setup-keys"
+								className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2 relative"
+							>
 								<Popover>
 									<PopoverTrigger asChild>
 										<div className="absolute top-3 right-3 cursor-help z-10">
