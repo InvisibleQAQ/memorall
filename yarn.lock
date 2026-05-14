@@ -5821,12 +5821,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wllama/wllama@npm:^3.1.0":
-  version: 3.1.0
-  resolution: "@wllama/wllama@npm:3.1.0"
+"@wllama/wllama@npm:^3.1.1":
+  version: 3.1.1
+  resolution: "@wllama/wllama@npm:3.1.1"
   dependencies:
     "@huggingface/jinja": "npm:^0.5.8"
-  checksum: 10c0/c69e9be3f413eaef2b91c5a6f45f98295e4b78ae498399cf4b68c832edc597200ac95e313cf3d60002f2bd475528772320d38faec19ce501147a9cc0b0fab974
+  checksum: 10c0/f4fb80c9c5c6e9c586975259cdce2237a027ce18fa3356a1c99f1d151a74035fb55617c88f6449db0249f64115439a21920d798ecc4eed7c36142a805c8bf1f0
   languageName: node
   linkType: hard
 
@@ -11495,7 +11495,7 @@ __metadata:
     "@univerjs/sheets-numfmt-ui": "npm:^0.10.11"
     "@univerjs/sheets-ui": "npm:^0.10.11"
     "@univerjs/ui": "npm:^0.10.11"
-    "@wllama/wllama": "npm:^3.1.0"
+    "@wllama/wllama": "npm:^3.1.1"
     "@xyflow/react": "npm:^12.10.0"
     "@zenfs/core": "npm:^2.4.4"
     "@zenfs/dom": "npm:^1.2.7"

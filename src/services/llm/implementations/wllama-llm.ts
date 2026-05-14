@@ -84,6 +84,7 @@ interface ErrorResponse {
 interface DetectedCapabilities {
 	supportsNativeTools: boolean;
 	supportsVision: boolean;
+	usesGPU: boolean;
 }
 
 type PendingRequest = {
