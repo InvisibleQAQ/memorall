@@ -16,23 +16,46 @@ export type GeneratedImage = {
 
 // ==================== COMPLEX CONTENT ====================
 
-/** Text part of a complex (multipart) message */
+import type {
+	ChatCompletionContentPart,
+	ChatCompletionMessageParam,
+} from "./openai";
+
+/** Text part of an OpenAI-compatible multipart message */
 export interface ComplexContentPartText {
 	type: "text";
 	text: string;
 }
 
-/** Image part of a complex (multipart) message — stores path in document-fs, not raw bytes */
-export interface ComplexContentPartImage {
-	type: "image";
-	/** Path in document filesystem (e.g. /home/images/<uuid>.png) */
-	path: string;
-	mimeType: string;
+/** Image part of an OpenAI-compatible multipart message */
+export interface ComplexContentPartImageUrl {
+	type: "image_url";
+	image_url: {
+		url: string;
+		detail?: "auto" | "low" | "high";
+		mimeType?: string;
+	};
+}
+
+export type ComplexContentPart =
+	| ComplexContentPartText
+	| ComplexContentPartImageUrl;
+
+/** Stored in messages.complexContent (jsonb) when the message has multipart OpenAI-compatible content */
+export type ComplexContent = ChatCompletionContentPart[];
+
+/** Stored in messages.parts (jsonb) as canonical role-based records for one DB row */
+export type MessageParts = ChatCompletionMessageParam[];
+
+export interface ConversationContext {
+	id: string;
+	inProgressMessage: { id: string };
+	agentFlowName?: string;
 }
 
 export type AssistantToolPartState = "running" | "complete" | "error";
 
-/** Tool/action part of an assistant message, stored in order with text parts. */
+/** Legacy UI-only tool/action part. Do not persist in messages.complexContent. */
 export interface ComplexContentPartTool {
 	type: "tool";
 	id: string;
@@ -42,7 +65,7 @@ export interface ComplexContentPartTool {
 	state: AssistantToolPartState;
 }
 
-/** Transient execution part used while an assistant response is streaming. */
+/** Legacy UI-only execution part. Do not persist in messages.complexContent. */
 export interface ComplexContentPartExecution {
 	type: "execution";
 	id: string;
@@ -51,14 +74,7 @@ export interface ComplexContentPartExecution {
 	state: "running" | "complete";
 }
 
-export type ComplexContentPart =
-	| ComplexContentPartText
-	| ComplexContentPartImage
-	| ComplexContentPartTool
-	| ComplexContentPartExecution;
-
-/** Stored in messages.complexContent (jsonb) when the message has multipart content */
-export type ComplexContent = ComplexContentPart[];
+export type AssistantExecutionPart = ComplexContentPartExecution;
 
 /** A skill selected from the mention popup — content is injected directly into the message */
 export interface AttachedSkillRef {

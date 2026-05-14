@@ -131,9 +131,15 @@ export const createOutputMessageChunks = (
 	const chunks: ChatCompletionChunk[] = [];
 
 	for (const message of messages) {
-		if (message.role !== "assistant") continue;
+		if (message.role !== "assistant" && message.role !== "tool") continue;
 		const content = messageContentToText(message.content);
-		if (!content) continue;
+		if (
+			message.role === "assistant" &&
+			!content &&
+			!message.tool_calls?.length
+		) {
+			continue;
+		}
 		chunks.push({
 			id: `chunk-${Date.now()}-${crypto.randomUUID()}`,
 			object: "chat.completion.chunk",
@@ -143,8 +149,19 @@ export const createOutputMessageChunks = (
 				{
 					index: 0,
 					delta: {
-						role: "assistant" as const,
+						role: message.role,
 						content,
+						...(message.role === "assistant" && message.tool_calls?.length
+							? { tool_calls: message.tool_calls.map((toolCall, index) => ({
+									index,
+									id: toolCall.id,
+									type: toolCall.type,
+									function: { ...toolCall.function },
+								})) }
+							: {}),
+						...(message.role === "tool"
+							? { tool_call_id: message.tool_call_id }
+							: {}),
 					},
 					finish_reason: null,
 				},

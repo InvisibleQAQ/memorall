@@ -17,7 +17,8 @@ import {
 export const AssistantToolTimelinePart: React.FC<{
 	part: ComplexContentPartTool;
 	isLast: boolean;
-}> = ({ part, isLast }) => {
+	connectsToPrevious?: boolean;
+}> = ({ part, isLast, connectsToPrevious = false }) => {
 	const { t } = useTranslation("chat");
 	const [isOpen, setIsOpen] = useState(false);
 	const actionName = part.name;
@@ -34,11 +35,12 @@ export const AssistantToolTimelinePart: React.FC<{
 	return (
 		<div className="grid min-w-[34rem] max-w-full grid-cols-[1rem_minmax(0,1fr)] gap-2.5">
 			<div className="relative flex h-11 justify-center">
+				{connectsToPrevious ? (
+					<div className="absolute left-1/2 top-0 h-[1.25rem] w-px -translate-x-1/2 bg-border/70" />
+				) : null}
 				{!isLast ? (
 					<div className="absolute left-1/2 top-[1.375rem] h-[calc(100%+0.75rem)] w-px -translate-x-1/2 bg-border/70" />
-				) : (
-					<div className="absolute left-1/2 top-[1.375rem] h-8 w-px -translate-x-1/2 bg-gradient-to-b from-border/70 to-transparent" />
-				)}
+				) : null}
 				<span
 					className={cn(
 						"absolute top-[1.125rem] z-10 h-2 w-2 rounded-full border bg-background",

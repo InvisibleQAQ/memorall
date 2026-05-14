@@ -1,21 +1,24 @@
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type {
 	ChatResult,
-	ConversationContext,
 	ChatStreamConfig,
 } from "@/services/background-jobs/handlers/process-chat";
 import type { JobErrorMetadata } from "@/services/background-jobs/handlers/error-metadata";
 import {
-	appendTextPart,
-	cloneContentParts,
-	completeRunningExecutionParts,
-	stripTransientExecutionParts,
-	upsertExecutionPart,
-	upsertToolParts,
-} from "@/services/chat/content-parts";
-import type { ComplexContent } from "@/types/chat";
+	cloneMessageParts,
+	MessagePartsAccumulator,
+} from "@/services/chat/message-parts";
+import {
+	accumulateChunkToolCalls,
+	createToolCallAccumulator,
+	getAccumulatedToolCalls,
+} from "@/services/chat/tool-call-accumulator";
 import type {
-	ChatCompletionChunkToolCall,
+	ComplexContent,
+	ConversationContext,
+	MessageParts,
+} from "@/types/chat";
+import type {
 	ChatCompletionMessageToolCall,
 	ChatCompletionTool,
 	ChatCompletionToolChoiceOption,
@@ -49,6 +52,7 @@ export interface ChatAction {
 export interface ChatStreamCallbacks {
 	onContent?: (content: string) => void;
 	onContentParts?: (parts: ComplexContent) => void;
+	onParts?: (parts: MessageParts) => void;
 	onAction?: (actions: ChatAction[]) => void;
 	onExecuteStart?: (event: {
 		node: string;
@@ -60,6 +64,7 @@ export interface ChatStreamCallbacks {
 export interface ChatStreamResult {
 	content: string;
 	contentParts: ComplexContent;
+	parts?: MessageParts;
 	actions: ChatAction[];
 	toolCalls?: ChatCompletionMessageToolCall[];
 	failed: boolean;
@@ -72,56 +77,6 @@ export interface ChatStreamResult {
 		total_tokens: number;
 	};
 }
-
-type ToolCallAccumulator = Map<
-	number,
-	{
-		id: string;
-		type: "function";
-		function: {
-			name: string;
-			arguments: string;
-		};
-	}
->;
-
-const accumulateChunkToolCalls = (
-	accumulator: ToolCallAccumulator,
-	toolCalls: ChatCompletionChunkToolCall[] | undefined,
-): void => {
-	if (!toolCalls?.length) {
-		return;
-	}
-
-	for (const toolCall of toolCalls) {
-		const existing = accumulator.get(toolCall.index);
-		if (existing) {
-			if (toolCall.id) {
-				existing.id = toolCall.id;
-			}
-			if (toolCall.function?.name) {
-				existing.function.name = toolCall.function.name;
-			}
-			if (toolCall.function?.arguments) {
-				existing.function.arguments += toolCall.function.arguments;
-			}
-			continue;
-		}
-
-		accumulator.set(toolCall.index, {
-			id: toolCall.id || `call_${toolCall.index}_${Date.now()}`,
-			type: "function",
-			function: {
-				name: toolCall.function?.name || "",
-				arguments: toolCall.function?.arguments || "",
-			},
-		});
-	}
-};
-
-const getAccumulatedToolCalls = (
-	accumulator: ToolCallAccumulator,
-): ChatCompletionMessageToolCall[] => Array.from(accumulator.values());
 
 const mergeActions = (
 	current: ChatAction[],
@@ -179,16 +134,6 @@ const getProgressErrorMetadata = (
 		message: typeof error === "string" ? error : fallbackMessage,
 		rawMessage: fallbackMessage,
 	};
-};
-
-const stripContentPartsMetadata = (
-	metadata: Extract<ChatResult, { type: "final" }>["metadata"],
-): Record<string, unknown> | undefined => {
-	if (!metadata) {
-		return undefined;
-	}
-	const { contentParts: _contentParts, ...rest } = metadata;
-	return rest;
 };
 
 export class ChatService {
@@ -269,11 +214,13 @@ export class ChatService {
 			let streamError = "";
 			let streamErrorMetadata: JobErrorMetadata | undefined;
 			let finalMetadata: Record<string, unknown> | undefined;
+			let parts: MessageParts | undefined;
 			let usage: ChatStreamResult["usage"];
-			const toolCallAccumulator: ToolCallAccumulator = new Map();
-			let contentParts: ComplexContent = [];
-			const emitContentParts = () => {
-				callbacks?.onContentParts?.(cloneContentParts(contentParts));
+			const toolCallAccumulator = createToolCallAccumulator();
+			const messagePartsAccumulator = new MessagePartsAccumulator();
+			const emitParts = () => {
+				const nextParts = cloneMessageParts(parts);
+				if (nextParts) callbacks?.onParts?.(nextParts);
 			};
 
 			if (!("stream" in result)) {
@@ -310,17 +257,17 @@ export class ChatService {
 					if (chatResult.type === "final") {
 						// Use the final content from the job result
 						currentContent = chatResult.content;
-						finalMetadata = stripContentPartsMetadata(chatResult.metadata);
+						finalMetadata = chatResult.metadata;
 						if (chatResult.metadata?.actions) {
 							actions.splice(
 								0,
 								actions.length,
 								...mergeActions(actions, chatResult.metadata.actions),
 							);
-							contentParts = upsertToolParts(contentParts, actions);
 						}
-						if (chatResult.metadata?.contentParts) {
-							contentParts = chatResult.metadata.contentParts as ComplexContent;
+						if (chatResult.parts) {
+							parts = chatResult.parts;
+							emitParts();
 						}
 						if (chatResult.metadata?.tool_calls?.length) {
 							for (const [
@@ -333,7 +280,6 @@ export class ChatService {
 						if (chatResult.metadata?.usage) {
 							usage = chatResult.metadata.usage;
 						}
-						emitContentParts();
 					}
 				}
 
@@ -345,20 +291,21 @@ export class ChatService {
 					const chatResult = progress.result as ChatResult;
 
 					if (chatResult.type === "chunk" && chatResult.chunk) {
+						messagePartsAccumulator.addChunk(chatResult.chunk);
+						parts = messagePartsAccumulator.toParts();
+						emitParts();
 						accumulateChunkToolCalls(
 							toolCallAccumulator,
 							chatResult.chunk.choices[0]?.delta?.tool_calls,
 						);
 						// Handle streaming content chunks
-						const content = chatResult.chunk.choices[0]?.delta?.content;
+						const delta = chatResult.chunk.choices[0]?.delta;
+						const isToolResultChunk =
+							delta?.role === "tool" || !!delta?.tool_call_id;
+						const content = isToolResultChunk ? "" : delta?.content;
 						if (content) {
 							currentContent += content;
-							contentParts = appendTextPart(
-								completeRunningExecutionParts(contentParts),
-								content,
-							);
 							callbacks?.onContent?.(currentContent);
-							emitContentParts();
 						}
 					} else if (chatResult.type === "action" && chatResult.actions) {
 						// Handle action updates
@@ -367,33 +314,29 @@ export class ChatService {
 							actions.length,
 							...mergeActions(actions, chatResult.actions),
 						);
-						contentParts = upsertToolParts(contentParts, chatResult.actions);
 						callbacks?.onAction?.([...actions]);
-						emitContentParts();
 					} else if (chatResult.type === "execute-start") {
 						const event = {
 							node: chatResult.node,
 							metadata: chatResult.metadata,
 						};
-						contentParts = upsertExecutionPart(contentParts, event);
 						callbacks?.onExecuteStart?.(event);
-						emitContentParts();
 					} else if (chatResult.type === "final") {
 						// Handle final content update (e.g., after citation step)
 						// This replaces the accumulated content with the final version
 						currentContent = chatResult.content;
-						finalMetadata = stripContentPartsMetadata(chatResult.metadata);
-						contentParts = completeRunningExecutionParts(contentParts);
+						finalMetadata = chatResult.metadata;
 						if (chatResult.metadata?.actions) {
 							actions.splice(
 								0,
 								actions.length,
 								...mergeActions(actions, chatResult.metadata.actions),
 							);
-							contentParts = upsertToolParts(contentParts, actions);
 						}
-						if (chatResult.metadata?.contentParts) {
-							contentParts = chatResult.metadata.contentParts as ComplexContent;
+						if (chatResult.parts) {
+							parts = chatResult.parts;
+						} else {
+							parts = messagePartsAccumulator.toParts();
 						}
 						if (chatResult.metadata?.tool_calls?.length) {
 							for (const [
@@ -406,22 +349,16 @@ export class ChatService {
 						// Notify with the final cited content
 						callbacks?.onContent?.(currentContent);
 						callbacks?.onAction?.([...actions]);
-						emitContentParts();
+						emitParts();
 					}
 				}
-			}
-
-			if (
-				currentContent &&
-				!contentParts.some((part) => part.type === "text")
-			) {
-				contentParts = appendTextPart(contentParts, currentContent);
 			}
 
 			// Return result
 			return {
 				content: currentContent,
-				contentParts: stripTransientExecutionParts(contentParts),
+				contentParts: [],
+				parts: parts ?? messagePartsAccumulator.toParts(),
 				actions,
 				toolCalls: getAccumulatedToolCalls(toolCallAccumulator),
 				failed: streamFailed,

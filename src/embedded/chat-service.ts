@@ -3,22 +3,13 @@ import type { ChatMessage } from "./types";
 import type {
 	ChatResult,
 	ChatPayload,
-	ConversationContext,
 } from "@/services/background-jobs/handlers/process-chat";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import type {
 	ChatCompletionChunkToolCall,
 	ChatCompletionMessageToolCall,
 } from "@/types/openai";
-import {
-	appendTextPart,
-	cloneContentParts,
-	completeRunningExecutionParts,
-	stripTransientExecutionParts,
-	upsertExecutionPart,
-	upsertToolParts,
-} from "@/services/chat/content-parts";
-import type { ComplexContent } from "@/types/chat";
+import type { ComplexContent, ConversationContext } from "@/types/chat";
 
 export interface ChatServiceOptions {
 	messages: ChatMessage[];
@@ -198,7 +189,6 @@ export class EmbeddedChatService {
 			systemMessages,
 			conversation,
 			onProgress,
-			onContentParts,
 			onAction,
 			onToolCalls,
 			onExecuteStart,
@@ -266,10 +256,6 @@ export class EmbeddedChatService {
 			const toolCallAccumulator: ToolCallAccumulator = new Map();
 			let finalToolCalls: ChatCompletionMessageToolCall[] = [];
 			let finalUsage: EmbeddedChatStreamResult["usage"];
-			let contentParts: ComplexContent = [];
-			const emitContentParts = () => {
-				onContentParts?.(cloneContentParts(contentParts));
-			};
 
 			if (!("stream" in result)) {
 				throw new Error("WRONG OUPUT");
@@ -296,11 +282,7 @@ export class EmbeddedChatService {
 								finalActions,
 								chatResult.metadata.actions,
 							);
-							contentParts = upsertToolParts(contentParts, finalActions);
 							onAction?.([...finalActions]);
-						}
-						if (chatResult.metadata?.contentParts) {
-							contentParts = chatResult.metadata.contentParts as ComplexContent;
 						}
 						if (chatResult.metadata?.tool_calls) {
 							finalToolCalls = chatResult.metadata.tool_calls;
@@ -310,7 +292,6 @@ export class EmbeddedChatService {
 							finalUsage = chatResult.metadata.usage;
 						}
 						onProgress?.(finalContent, true);
-						emitContentParts();
 					}
 					continue;
 				}
@@ -335,41 +316,29 @@ export class EmbeddedChatService {
 						onToolCalls?.(finalToolCalls);
 					}
 
-					const content = delta?.content;
+					const isToolResultChunk =
+						delta?.role === "tool" || !!delta?.tool_call_id;
+					const content = isToolResultChunk ? "" : delta?.content;
 					if (content) {
 						finalContent += content;
-						contentParts = appendTextPart(
-							completeRunningExecutionParts(contentParts),
-							content,
-						);
 						onProgress?.(finalContent, false);
-						emitContentParts();
 					}
 				} else if (chatResult.type === "execute-start") {
 					const event = {
 						node: chatResult.node,
 						metadata: chatResult.metadata,
 					};
-					contentParts = upsertExecutionPart(contentParts, event);
 					onExecuteStart?.(event);
-					emitContentParts();
 				} else if (chatResult.type === "action" && chatResult.actions) {
 					finalActions = mergeActions(finalActions, chatResult.actions);
-					contentParts = upsertToolParts(contentParts, chatResult.actions);
 					onAction?.([...finalActions]);
-					emitContentParts();
 				} else if (chatResult.type === "final") {
 					finalContent = chatResult.content || finalContent;
-					contentParts = completeRunningExecutionParts(contentParts);
 					if (chatResult.metadata?.actions) {
 						finalActions = mergeActions(
 							finalActions,
 							chatResult.metadata.actions,
 						);
-						contentParts = upsertToolParts(contentParts, finalActions);
-					}
-					if (chatResult.metadata?.contentParts) {
-						contentParts = chatResult.metadata.contentParts as ComplexContent;
 					}
 					if (chatResult.metadata?.tool_calls) {
 						finalToolCalls = chatResult.metadata.tool_calls;
@@ -380,17 +349,12 @@ export class EmbeddedChatService {
 					}
 					onProgress?.(finalContent, false);
 					onAction?.([...finalActions]);
-					emitContentParts();
 				}
 			}
 
 			// Final progress update
 			if (finalContent) {
 				onProgress?.(finalContent, true);
-			}
-
-			if (finalContent && !contentParts.some((part) => part.type === "text")) {
-				contentParts = appendTextPart(contentParts, finalContent);
 			}
 
 			// Store actions for later retrieval
@@ -401,7 +365,7 @@ export class EmbeddedChatService {
 
 			return {
 				content: finalContent,
-				contentParts: stripTransientExecutionParts(contentParts),
+				contentParts: [],
 				actions: finalActions,
 				toolCalls:
 					finalToolCalls.length > 0

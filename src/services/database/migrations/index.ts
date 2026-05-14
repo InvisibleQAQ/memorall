@@ -45,6 +45,10 @@ import {
 	up as renameKnowledgeRagToFoundationUp,
 	down as renameKnowledgeRagToFoundationDown,
 } from "./012_rename_knowledge_rag_to_foundation";
+import {
+	up as addMessagePartsUp,
+	down as addMessagePartsDown,
+} from "./013_add_message_parts";
 // import { up as futureExampleUp, down as futureExampleDown } from './001_example_future_migration';
 
 export interface Migration {
@@ -147,6 +151,13 @@ export const migrations: Migration[] = [
 		description: "Rename predefined knowledge RAG flow records to foundation",
 		up: renameKnowledgeRagToFoundationUp,
 		down: renameKnowledgeRagToFoundationDown,
+	},
+	{
+		id: "add_message_parts",
+		version: 13,
+		description: "Add message parts column for canonical role-based message records",
+		up: addMessagePartsUp,
+		down: addMessagePartsDown,
 	},
 	// Example of how to add future migrations:
 	// {

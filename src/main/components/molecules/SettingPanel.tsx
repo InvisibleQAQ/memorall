@@ -61,7 +61,8 @@ export const SettingPanel: React.FC<{
 			progress: number;
 		}>
 	>;
-}> = ({ setIsReloadingModel, setReloadProgress }) => {
+	tooltipSide?: "top" | "right" | "bottom" | "left";
+}> = ({ setIsReloadingModel, setReloadProgress, tooltipSide = "bottom" }) => {
 	const navigate = useNavigate();
 	const { theme, setTheme } = useTheme();
 	const embeddingSize = useCurrentEmbeddingSize();
@@ -192,7 +193,7 @@ export const SettingPanel: React.FC<{
 							</button>
 						</DropdownMenuTrigger>
 					</TooltipTrigger>
-					<TooltipContent side="bottom">
+					<TooltipContent side={tooltipSide}>
 						<p>{t("common.settings")}</p>
 					</TooltipContent>
 				</Tooltip>

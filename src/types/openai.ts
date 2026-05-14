@@ -88,6 +88,7 @@ export interface ChatCompletionContentPartImage {
 	image_url: {
 		url: string;
 		detail?: "auto" | "low" | "high";
+		mimeType?: string;
 	};
 }
 
@@ -200,9 +201,10 @@ export interface ChatCompletionResponse {
 
 /** Streaming delta */
 export interface ChatCompletionChunkDelta {
-	role?: "assistant";
+	role?: "assistant" | "tool";
 	content?: string | null;
 	tool_calls?: ChatCompletionChunkToolCall[];
+	tool_call_id?: string;
 }
 
 /** Streaming choice */
