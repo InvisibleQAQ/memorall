@@ -18,6 +18,11 @@ import {
 } from "./web-tool-utils";
 
 const TOOL_NAME = "web_read" as const;
+const SMART_READ_MAX_RETRIES = 2;
+const SMART_READ_RETRY_DELAY_MS = 750;
+const SMART_READ_MAX_TIMEOUT_MS = 5_000;
+const SMART_READ_MIN_USEFUL_TEXT_CHARS = 80;
+const SMART_READ_SHORT_TEXT_CHARS = 40;
 const CONTENT_MODE_VALUES = [
 	"text",
 	"structure_text",
@@ -26,6 +31,27 @@ const CONTENT_MODE_VALUES = [
 ] as const;
 type ContentMode = (typeof CONTENT_MODE_VALUES)[number];
 type NormalizedContentMode = "text" | "html" | "clean_html";
+type SmartRetryReason =
+	| "empty_content"
+	| "short_app_shell_content"
+	| "selector_no_matches"
+	| "selector_empty_content";
+
+interface ReadSnapshot {
+	session: WebSession;
+	contentMode: NormalizedContentMode;
+	content: string;
+	readableText: string;
+	selector?: string;
+	matchCount?: number;
+}
+
+interface SmartRetryMetadata {
+	smartRetry?: true;
+	smartRetryAttempts?: number;
+	smartRetryReason?: SmartRetryReason;
+	smartRetryExhausted?: boolean;
+}
 
 const schema = z.object({
 	sessionId: z.string().optional().describe("Active web session to read."),
@@ -83,6 +109,12 @@ const normalizeContentMode = (
 ): NormalizedContentMode =>
 	contentMode === "structure_text" ? "text" : contentMode;
 
+const waitFixedDelay = async (delayMs: number): Promise<void> =>
+	new Promise((resolve) => setTimeout(resolve, delayMs));
+
+const normalizeWhitespace = (value: string): string =>
+	value.replace(/\s+/g, " ").trim();
+
 const extractSelectorHtml = (
 	html: string,
 	selector: string,
@@ -108,6 +140,62 @@ const extractTextFromHtml = (html: string): string => {
 		document.documentElement?.textContent ??
 		""
 	).trim();
+};
+
+const hasAppShellMarkers = (html: string): boolean => {
+	if (!html.trim()) {
+		return false;
+	}
+	const document = parseHtml(html);
+	const scriptCount = document.querySelectorAll("script").length;
+	const hasRootContainer = Boolean(
+		document.querySelector(
+			"#root, #app, #__next, #__nuxt, [data-reactroot], [data-nextjs-root]",
+		),
+	);
+	const hasBundledScript = Array.from(document.querySelectorAll("script")).some(
+		(script) => {
+			const src = script.getAttribute("src") ?? "";
+			return /\/(assets|static|chunks?)\/|bundle|webpack|vite|next/i.test(src);
+		},
+	);
+	return hasRootContainer || hasBundledScript || scriptCount >= 3;
+};
+
+const detectSmartRetryReason = (
+	snapshot: ReadSnapshot,
+): SmartRetryReason | null => {
+	const readableText = normalizeWhitespace(snapshot.readableText);
+	const content = normalizeWhitespace(snapshot.content);
+	const hasHtml = Boolean(snapshot.session.html.trim());
+
+	if (snapshot.selector && snapshot.matchCount === 0) {
+		return "selector_no_matches";
+	}
+	if (snapshot.selector && !content) {
+		return "selector_empty_content";
+	}
+	if (!content && !readableText) {
+		return "empty_content";
+	}
+	if (
+		hasHtml &&
+		readableText.length < SMART_READ_SHORT_TEXT_CHARS &&
+		hasAppShellMarkers(snapshot.session.html)
+	) {
+		return "short_app_shell_content";
+	}
+	if (
+		hasHtml &&
+		readableText.length < SMART_READ_MIN_USEFUL_TEXT_CHARS &&
+		hasAppShellMarkers(snapshot.session.html) &&
+		/^(loading|please wait|enable javascript|just a moment)\.?\s*$/i.test(
+			readableText,
+		)
+	) {
+		return "short_app_shell_content";
+	}
+	return null;
 };
 
 const buildReadContent = ({
@@ -148,31 +236,164 @@ const buildReadContent = ({
 	};
 };
 
-const readBySelector = async (
+const buildSelectorReadSnapshot = (
 	session: WebSession,
 	selector: string,
 	contentMode: ContentMode,
 	maxChars: number,
-): Promise<ReturnType<typeof createWebResult>> => {
+): ReadSnapshot => {
 	const selectorHtml = extractSelectorHtml(session.html, selector, 10);
+	const readableText = extractTextFromHtml(selectorHtml.html);
 	const transformedContent = buildReadContent({
 		rawHtml: selectorHtml.html,
-		rawText: extractTextFromHtml(selectorHtml.html),
+		rawText: readableText,
 		contentMode,
 		maxChars,
 	});
-	return createWebResult({
-		actionType: "web_read",
-		success: true,
-		sessionId: session.id,
-		url: session.currentUrl,
-		title: session.title,
-		domAccessible: session.domAccessible,
-		browserMode: session.mode,
+	return {
+		session,
 		selector,
 		matchCount: selectorHtml.matchCount,
 		contentMode: transformedContent.contentMode,
 		content: transformedContent.content,
+		readableText,
+	};
+};
+
+const buildSessionReadSnapshot = (
+	session: WebSession,
+	contentMode: ContentMode,
+	maxChars: number,
+): ReadSnapshot => {
+	const readableText = session.html
+		? extractTextFromHtml(session.html)
+		: session.text;
+	const transformedContent = buildReadContent({
+		rawHtml: session.html,
+		rawText: session.text,
+		contentMode,
+		maxChars,
+	});
+	return {
+		session,
+		contentMode: transformedContent.contentMode,
+		content: transformedContent.content,
+		readableText,
+	};
+};
+
+const createReadResult = (
+	snapshot: ReadSnapshot,
+	metadata: SmartRetryMetadata = {},
+): ReturnType<typeof createWebResult> => {
+	return createWebResult({
+		actionType: "web_read",
+		success: true,
+		sessionId: snapshot.session.id,
+		url: snapshot.session.currentUrl,
+		title: snapshot.session.title,
+		domAccessible: snapshot.session.domAccessible,
+		browserMode: snapshot.session.mode,
+		selector: snapshot.selector,
+		matchCount: snapshot.matchCount,
+		contentMode: snapshot.contentMode,
+		content: snapshot.content,
+		...metadata,
+	});
+};
+
+const buildReadSnapshot = (
+	session: WebSession,
+	contentMode: ContentMode,
+	maxChars: number,
+	selector?: string,
+): ReadSnapshot =>
+	selector
+		? buildSelectorReadSnapshot(session, selector, contentMode, maxChars)
+		: buildSessionReadSnapshot(session, contentMode, maxChars);
+
+const readWithSmartRetry = async ({
+	webBrowser,
+	session,
+	contentMode,
+	maxChars,
+	timeoutMs,
+	selector,
+}: {
+	webBrowser: ReturnType<typeof requireWebBrowserService>;
+	session: WebSession;
+	contentMode: ContentMode;
+	maxChars: number;
+	timeoutMs: number;
+	selector?: string;
+}): Promise<ReturnType<typeof createWebResult>> => {
+	let latestSession = session;
+	let snapshot = buildReadSnapshot(
+		latestSession,
+		contentMode,
+		maxChars,
+		selector,
+	);
+	const initialRetryReason = detectSmartRetryReason(snapshot);
+	if (!initialRetryReason) {
+		return createReadResult(snapshot);
+	}
+
+	const startedAt = Date.now();
+	let attempts = 0;
+	let exhausted = true;
+	while (
+		attempts < SMART_READ_MAX_RETRIES &&
+		Date.now() - startedAt < SMART_READ_MAX_TIMEOUT_MS
+	) {
+		attempts += 1;
+		await waitFixedDelay(SMART_READ_RETRY_DELAY_MS);
+		const remainingTimeoutMs = Math.max(
+			500,
+			Math.min(timeoutMs, SMART_READ_MAX_TIMEOUT_MS - (Date.now() - startedAt)),
+		);
+
+		try {
+			const renderResult = await webBrowser.waitForPageRender({
+				sessionId: latestSession.id,
+				timeoutMs: remainingTimeoutMs,
+				intervalMs: Math.min(250, SMART_READ_RETRY_DELAY_MS),
+				stabilityMs: Math.min(1_000, remainingTimeoutMs),
+				maxHtmlChars: maxChars,
+			});
+			latestSession = await webBrowser.refreshSession({
+				sessionId: latestSession.id,
+				maxHtmlChars: maxChars,
+				timeoutMs: remainingTimeoutMs,
+			});
+			if (!latestSession.html && renderResult.html) {
+				latestSession = {
+					...latestSession,
+					html: renderResult.html,
+					text: renderResult.lastText,
+				};
+			}
+		} catch {
+			break;
+		}
+
+		snapshot = buildReadSnapshot(
+			latestSession,
+			contentMode,
+			maxChars,
+			selector,
+		);
+		if (!detectSmartRetryReason(snapshot)) {
+			exhausted = false;
+			break;
+		}
+	}
+
+	return createReadResult(snapshot, {
+		smartRetry: true,
+		smartRetryAttempts: attempts,
+		smartRetryReason: initialRetryReason,
+		smartRetryExhausted: exhausted,
 	});
 };
 
@@ -201,9 +422,6 @@ export const createWebReadTool: ToolFactory<Input, WebToolServices> = (
 			disposableSession = sessionResult.disposable;
 			sessionId = sessionResult.session.id;
 			const session = sessionResult.session;
-			if (input.selector) {
-				return readBySelector(session, input.selector, contentMode, maxChars);
-			}
 
 			if (session.mode === "iframe" && !session.domAccessible) {
 				const fallback = await webBrowser.fetchRenderedFallback({
@@ -231,23 +449,13 @@ export const createWebReadTool: ToolFactory<Input, WebToolServices> = (
 				});
 			}
 
-			const transformedContent = buildReadContent({
-				rawHtml: session.html,
-				rawText: session.text,
+			return readWithSmartRetry({
+				webBrowser,
+				session,
 				contentMode,
 				maxChars,
-			});
-
-			return createWebResult({
-				actionType: "web_read",
-				success: true,
-				sessionId: session.id,
-				url: session.currentUrl,
-				title: session.title,
-				domAccessible: session.domAccessible,
-				browserMode: session.mode,
-				contentMode: transformedContent.contentMode,
-				content: transformedContent.content,
+				timeoutMs,
+				selector: input.selector,
 			});
 		} catch (error) {
 			return createDefaultWebErrorResult(error);

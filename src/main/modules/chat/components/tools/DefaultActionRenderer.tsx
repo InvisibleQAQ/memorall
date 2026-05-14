@@ -21,15 +21,15 @@ const MCPToolInfo: React.FC<{
 	serverName: string;
 	originalToolName?: string;
 }> = ({ serverName, originalToolName }) => (
-	<div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
-		<div className="mb-2 flex items-center gap-2">
+	<div className="min-w-0 rounded-lg border border-sky-500/20 bg-sky-500/5 p-3">
+		<div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
 			<Badge
 				variant="outline"
 				className="border-sky-500/30 bg-sky-500/10 text-[10px] text-sky-700"
 			>
 				MCP
 			</Badge>
-			<span className="text-xs font-medium text-muted-foreground">
+			<span className="min-w-0 text-xs font-medium text-muted-foreground">
 				Model Context Protocol tool
 			</span>
 		</div>

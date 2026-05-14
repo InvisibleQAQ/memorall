@@ -3,7 +3,9 @@ import { create } from "zustand";
 export type RightWorkspaceTab = "page" | "agent";
 
 export const SHELL_CHAT_WIDTH_MIN = 24;
+export const SHELL_CHAT_WIDTH_DEFAULT = 28;
 export const SHELL_CHAT_WIDTH_MAX = 60;
+export const SHELL_RIGHT_PANEL_WIDTH_DEFAULT = 100 - SHELL_CHAT_WIDTH_DEFAULT;
 export const COPILOT_WORKSPACE_FOCUS_CHAT_WIDTH = SHELL_CHAT_WIDTH_MIN;
 
 interface ShellLayoutState {
@@ -28,7 +30,7 @@ interface ShellLayoutState {
 export const useShellLayoutStore = create<ShellLayoutState>((set) => ({
 	chatRailCollapsed: true,
 	chatShellCollapsed: false,
-	chatShellWidth: 42,
+	chatShellWidth: SHELL_CHAT_WIDTH_DEFAULT,
 	rightPanelCollapsed: true,
 	mobileChatListOpen: false,
 	rightWorkspaceTab: "page",

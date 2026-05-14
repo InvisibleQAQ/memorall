@@ -2,6 +2,7 @@ import { jumpTo, jumTo, moveTo } from "@/components/AgentCursor";
 
 const AGENT_WIZARD_CURSOR_FLOW_STEP_MS = 900;
 let nextQueuedCursorMoveAt = 0;
+const queuedCursorMoveTimers = new Set<number>();
 
 export const AGENT_WIZARD_CURSOR_KEYS = {
 	name: "agent-wizard:name",
@@ -45,12 +46,14 @@ export const queueAgentWizardCursorMoveTo = (
 	const scheduledAt = Math.max(now, nextQueuedCursorMoveAt);
 	nextQueuedCursorMoveAt = scheduledAt + AGENT_WIZARD_CURSOR_FLOW_STEP_MS;
 
-	window.setTimeout(
+	const timer = window.setTimeout(
 		() => {
+			queuedCursorMoveTimers.delete(timer);
 			moveAgentWizardCursorTo(targetKey, message, mode);
 		},
 		Math.max(0, scheduledAt - now),
 	);
+	queuedCursorMoveTimers.add(timer);
 };
 
 export const jumpAgentWizardCursorTo = (
@@ -65,4 +68,14 @@ export const jumAgentWizardCursorTo = (
 	message: string,
 ): void => {
 	jumTo(targetKey, message);
+};
+
+export const clearQueuedAgentWizardCursorMoves = (): void => {
+	if (typeof window === "undefined") return;
+
+	for (const timer of queuedCursorMoveTimers) {
+		window.clearTimeout(timer);
+	}
+	queuedCursorMoveTimers.clear();
+	nextQueuedCursorMoveAt = window.performance.now();
 };

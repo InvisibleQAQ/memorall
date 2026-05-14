@@ -6,8 +6,11 @@ import {
 } from "@/main/stores/agent-config";
 import { Separator } from "@/main/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { CursorPoint } from "@/components/AgentCursor";
-import { AGENT_WIZARD_CURSOR_KEYS } from "@/main/modules/agent-wizard";
+import { CursorPoint, hideAgentCursor } from "@/components/AgentCursor";
+import {
+	AGENT_WIZARD_CURSOR_KEYS,
+	clearQueuedAgentWizardCursorMoves,
+} from "@/main/modules/agent-wizard";
 import { FeaturesGrid } from "./FeaturesGrid";
 import { SystemPromptEditor } from "./SystemPromptEditor";
 import {
@@ -43,6 +46,13 @@ export const AgentConfigForm: React.FC<AgentConfigFormProps> = ({
 	} = useAgentConfigStore();
 
 	const [showBaseGraph, setShowBaseGraph] = React.useState(false);
+
+	React.useEffect(() => {
+		return () => {
+			clearQueuedAgentWizardCursorMoves();
+			hideAgentCursor();
+		};
+	}, []);
 
 	const currentGraphMeta = GRAPH_REGISTRY.find(
 		(graph) => graph.id === currentGraphType,

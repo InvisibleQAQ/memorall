@@ -233,7 +233,7 @@ export const AssistantWorkflowSummary: React.FC<{
 				/>
 			</button>
 			{isOpen ? (
-				<div className="mt-2 space-y-2 pl-3">
+				<div className="mt-2 min-w-0 space-y-2 pl-1 sm:pl-3">
 					{parts.map((part, index) => (
 						<div
 							key={`${part.id}-${index}`}
@@ -286,7 +286,7 @@ export const AssistantWorkflowSummary: React.FC<{
 									/>
 								</button>
 								{isEvidenceOpen ? (
-									<div className="mt-2 pl-5">
+									<div className="mt-2 min-w-0 pl-2 sm:pl-5">
 										<EvidenceDetails part={part} />
 									</div>
 								) : null}

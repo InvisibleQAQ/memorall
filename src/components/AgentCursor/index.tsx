@@ -1,6 +1,7 @@
 export {
 	AgentCursorOverlay,
 	CursorPoint,
+	hideAgentCursor,
 	jumpTo,
 	jumTo,
 	moveTo,

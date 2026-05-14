@@ -30,6 +30,7 @@ export interface RuntimeArtifact {
 	content: string;
 	identifier?: string;
 	title?: string;
+	source: "content" | "tool";
 	messageId: string;
 	messageContent: string;
 	messageIndex: number;
@@ -46,6 +47,8 @@ interface ArtifactMessageLike {
 	id: string;
 	role: string;
 	content: string;
+	parts?: unknown;
+	metadata?: unknown;
 	createdAt?: Date | string | null;
 }
 
@@ -174,6 +177,182 @@ export const getArtifactSegments = (content: string) =>
 		(segment) => segment.kind === "artifact",
 	);
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null;
+
+const parseJsonRecord = (value: unknown): Record<string, unknown> | null => {
+	if (isRecord(value)) return value;
+	if (typeof value !== "string") return null;
+
+	try {
+		const parsed = JSON.parse(value);
+		return isRecord(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+};
+
+const getToolCallArguments = (
+	toolCall: Record<string, unknown>,
+): Record<string, unknown> | null => {
+	const fn = toolCall.function;
+	if (!isRecord(fn)) return null;
+	return parseJsonRecord(fn.arguments);
+};
+
+const getString = (
+	value: Record<string, unknown>,
+	key: string,
+): string | undefined =>
+	typeof value[key] === "string" ? value[key] : undefined;
+
+const isRenderArtifactToolCall = (
+	toolCall: Record<string, unknown>,
+): boolean => {
+	const fn = toolCall.function;
+	return isRecord(fn) && fn.name === "render_memorall_artifact";
+};
+
+const toToolArtifact = ({
+	args,
+	id,
+	message,
+	messageIndex,
+	blockIndex,
+}: {
+	args: Record<string, unknown>;
+	id: string;
+	message: ArtifactMessageLike;
+	messageIndex: number;
+	blockIndex: number;
+}): RuntimeArtifact | null => {
+	const content = getString(args, "content");
+	if (!content) return null;
+
+	return {
+		id,
+		type: normalizeArtifactType(getString(args, "type")),
+		content,
+		identifier: getString(args, "identifier"),
+		title: getString(args, "title"),
+		source: "tool",
+		messageId: message.id,
+		messageContent: message.content,
+		messageIndex,
+		blockIndex,
+		start: -1,
+		openEnd: -1,
+		contentStart: -1,
+		contentEnd: -1,
+		end: -1,
+		createdAt: message.createdAt,
+	};
+};
+
+const getToolArtifactsFromParts = (
+	message: ArtifactMessageLike,
+	messageIndex: number,
+	blockIndexStart: number,
+): RuntimeArtifact[] => {
+	if (!Array.isArray(message.parts)) return [];
+
+	const artifacts: RuntimeArtifact[] = [];
+	let blockIndex = blockIndexStart;
+	for (const part of message.parts) {
+		if (!isRecord(part)) continue;
+
+		if (part.role === "assistant" && Array.isArray(part.tool_calls)) {
+			for (const toolCall of part.tool_calls) {
+				if (!isRecord(toolCall) || !isRenderArtifactToolCall(toolCall)) {
+					continue;
+				}
+
+				const args = getToolCallArguments(toolCall);
+				if (!args) continue;
+
+				const artifact = toToolArtifact({
+					args,
+					id: `${message.id}:tool:${String(toolCall.id ?? blockIndex)}`,
+					message,
+					messageIndex,
+					blockIndex,
+				});
+				if (artifact) {
+					artifacts.push(artifact);
+					blockIndex += 1;
+				}
+			}
+		}
+
+		if (part.role === "assistant" && typeof part.content === "string") {
+			for (const segment of getArtifactSegments(part.content)) {
+				artifacts.push({
+					id: `${message.id}:part:${blockIndex}`,
+					type: segment.type,
+					content: segment.content,
+					identifier: segment.identifier,
+					title: segment.title,
+					source: "tool",
+					messageId: message.id,
+					messageContent: message.content,
+					messageIndex,
+					blockIndex,
+					start: -1,
+					openEnd: -1,
+					contentStart: -1,
+					contentEnd: -1,
+					end: -1,
+					createdAt: message.createdAt,
+				});
+				blockIndex += 1;
+			}
+		}
+	}
+
+	return artifacts;
+};
+
+const getToolArtifactsFromActions = (
+	message: ArtifactMessageLike,
+	messageIndex: number,
+	blockIndexStart: number,
+): RuntimeArtifact[] => {
+	if (!isRecord(message.metadata) || !Array.isArray(message.metadata.actions)) {
+		return [];
+	}
+
+	const artifacts: RuntimeArtifact[] = [];
+	let blockIndex = blockIndexStart;
+	for (const action of message.metadata.actions) {
+		if (!isRecord(action) || action.name !== "render_memorall_artifact") {
+			continue;
+		}
+
+		const metadata = action.metadata;
+		if (!isRecord(metadata)) continue;
+
+		const toolCall = metadata.tool_call;
+		const args = isRecord(toolCall)
+			? getToolCallArguments(toolCall)
+			: parseJsonRecord(metadata.input) || parseJsonRecord(metadata.args);
+		if (!args) continue;
+
+		const artifact = toToolArtifact({
+			args,
+			id: `${message.id}:action:${String(action.id ?? blockIndex)}`,
+			message,
+			messageIndex,
+			blockIndex,
+		});
+		if (artifact) {
+			artifacts.push(artifact);
+			blockIndex += 1;
+		}
+	}
+
+	return artifacts;
+};
+
 export const collectRuntimeArtifacts = (
 	messages: ArtifactMessageLike[],
 ): RuntimeArtifact[] =>
@@ -182,23 +361,47 @@ export const collectRuntimeArtifacts = (
 			return [];
 		}
 
-		return getArtifactSegments(message.content).map((segment) => ({
-			id: `${message.id}:${segment.blockIndex}`,
-			type: segment.type,
-			content: segment.content,
-			identifier: segment.identifier,
-			title: segment.title,
-			messageId: message.id,
-			messageContent: message.content,
+		const contentArtifacts = getArtifactSegments(message.content).map(
+			(segment) => ({
+				id: `${message.id}:${segment.blockIndex}`,
+				type: segment.type,
+				content: segment.content,
+				identifier: segment.identifier,
+				title: segment.title,
+				source: "content" as const,
+				messageId: message.id,
+				messageContent: message.content,
+				messageIndex,
+				blockIndex: segment.blockIndex,
+				start: segment.start,
+				openEnd: segment.openEnd,
+				contentStart: segment.contentStart,
+				contentEnd: segment.contentEnd,
+				end: segment.end,
+				createdAt: message.createdAt,
+			}),
+		);
+
+		const nextBlockIndex = contentArtifacts.length;
+		const partArtifacts = getToolArtifactsFromParts(
+			message,
 			messageIndex,
-			blockIndex: segment.blockIndex,
-			start: segment.start,
-			openEnd: segment.openEnd,
-			contentStart: segment.contentStart,
-			contentEnd: segment.contentEnd,
-			end: segment.end,
-			createdAt: message.createdAt,
-		}));
+			nextBlockIndex,
+		);
+		const actionArtifacts = getToolArtifactsFromActions(
+			message,
+			messageIndex,
+			nextBlockIndex + partArtifacts.length,
+		);
+		const toolArtifacts = [...partArtifacts, ...actionArtifacts];
+
+		const seen = new Set<string>();
+		return [...contentArtifacts, ...toolArtifacts].filter((artifact) => {
+			const key = `${artifact.type}:${artifact.identifier ?? ""}:${artifact.title ?? ""}:${artifact.content}`;
+			if (seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		});
 	});
 
 export const replaceArtifactContent = (
