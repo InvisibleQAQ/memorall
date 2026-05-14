@@ -96,7 +96,13 @@ const RightPanelVerticalRail: React.FC<RightPanelVerticalRailProps> = ({
 					})}
 				</TooltipProvider>
 			</div>
-			<div className="mt-auto flex flex-col items-center pb-1">
+			<div className="mt-auto flex flex-col items-center gap-1 pb-1">
+				<ProcessMonitor
+					tooltipSide="left"
+					popoverSide="left"
+					popoverAlign="end"
+					triggerClassName="h-9 w-9 text-muted-foreground hover:text-foreground"
+				/>
 				<SettingPanel
 					setIsReloadingModel={setIsReloadingModel}
 					setReloadProgress={setReloadProgress}
