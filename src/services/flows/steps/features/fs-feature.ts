@@ -210,6 +210,7 @@ featureCatalogRegistry.register({
 		customizable: false,
 		recommended: true,
 		icon: { name: "HardDrive", type: "lucide" },
+		accentColor: "#06b6d4",
 	} satisfies FeatureCatalogMetadata,
 });
 

@@ -309,11 +309,11 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 			<div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
 				<div className="w-full max-w-6xl mx-auto space-y-8 py-8 max-h-full">
 					{/* App Branding */}
-					<div className="text-center space-y-4">
+					<div className="text-center space-y-4 animate-in fade-in-0 slide-in-from-top-3 duration-500 ease-out">
 						<img
 							src="/logo.png"
 							alt="Memorall Logo"
-							className="w-16 h-16 mx-auto object-contain"
+							className="w-16 h-16 mx-auto object-contain transition-transform duration-300 ease-out hover:scale-110 hover:rotate-3"
 						/>
 						<div className="space-y-2">
 							<h1 className="text-3xl font-bold">{t("noModels.appName")}</h1>
@@ -337,10 +337,10 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 								data-copilot="setup-managed"
 								data-agent-cursor-point="copilot-setup-managed"
 								className={cn(
-									"group transition-all duration-300 border-2 relative",
+									"group relative border-2 transition-[transform,box-shadow,border-color,background-color] duration-300 ease-out animate-in fade-in-0 slide-in-from-bottom-4",
 									!MANAGED_SERVICE_ENABLED
 										? "cursor-not-allowed opacity-60"
-										: "hover:shadow-lg hover:border-primary cursor-pointer",
+										: "cursor-pointer hover:-translate-y-1 hover:scale-[1.01] hover:border-primary hover:shadow-xl hover:shadow-primary/10",
 								)}
 							>
 								<Popover>
@@ -372,8 +372,8 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 									</PopoverContent>
 								</Popover>
 								<CardHeader className="text-center pb-4">
-									<div className="mx-auto mb-4 p-4 rounded-full bg-primary/10 w-fit transition-colors">
-										<Sparkles className="w-8 h-8 text-primary" />
+									<div className="mx-auto mb-4 p-4 rounded-full bg-primary/10 w-fit transition-[background-color,transform] duration-300 ease-out group-hover:scale-110 group-hover:bg-primary/20">
+										<Sparkles className="w-8 h-8 text-primary transition-transform duration-300 ease-out group-hover:rotate-6" />
 									</div>
 									<CardTitle className="text-xl">
 										{tLlm("noModelsScreen.managedService.title")}
@@ -403,7 +403,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 									</div>
 									<Button
 										disabled={!MANAGED_SERVICE_ENABLED}
-										className="w-full bg-primary hover:bg-primary/90"
+										className="w-full bg-primary transition-all duration-200 ease-out hover:bg-primary/90 hover:shadow-md hover:shadow-primary/20 active:scale-[0.98]"
 										size="lg"
 									>
 										<LogIn className="w-4 h-4 mr-2" />
@@ -416,7 +416,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 							<Card
 								data-copilot="setup-local"
 								data-agent-cursor-point="copilot-setup-local"
-								className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2 relative"
+								className="group relative cursor-pointer border-2 transition-[transform,box-shadow,border-color,background-color] duration-300 ease-out animate-in fade-in-0 slide-in-from-bottom-4 delay-100 hover:-translate-y-1 hover:scale-[1.01] hover:border-primary hover:shadow-xl hover:shadow-emerald-500/10"
 							>
 								<Popover>
 									<PopoverTrigger asChild>
@@ -444,8 +444,8 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 									</PopoverContent>
 								</Popover>
 								<CardHeader className="text-center pb-4">
-									<div className="mx-auto mb-4 p-4 rounded-full bg-emerald-500/10 w-fit group-hover:bg-emerald-500/20 transition-colors">
-										<Cpu className="w-8 h-8 text-emerald-600 dark:text-emerald-500" />
+									<div className="mx-auto mb-4 p-4 rounded-full bg-emerald-500/10 w-fit transition-[background-color,transform] duration-300 ease-out group-hover:scale-110 group-hover:bg-emerald-500/20">
+										<Cpu className="w-8 h-8 text-emerald-600 transition-transform duration-300 ease-out group-hover:rotate-6 dark:text-emerald-500" />
 									</div>
 									<CardTitle className="text-xl">
 										{tLlm("noModelsScreen.localModels.title")}
@@ -483,7 +483,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 															setSelectedOption("local");
 															setLocalSetupMode("magic");
 														}}
-														className="flex-1 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700"
+														className="flex-1 bg-emerald-600 transition-all duration-200 ease-out hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-500/20 active:scale-[0.98] dark:bg-emerald-600 dark:hover:bg-emerald-700"
 														size="lg"
 													>
 														<Wand2 className="w-4 h-4 mr-2" />
@@ -507,7 +507,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 														}}
 														variant="outline"
 														size="lg"
-														className="px-3"
+														className="px-3 transition-all duration-200 ease-out hover:scale-105 active:scale-95"
 													>
 														<Settings className="w-4 h-4" />
 													</Button>
@@ -527,7 +527,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 							<Card
 								data-copilot="setup-keys"
 								data-agent-cursor-point="copilot-setup-keys"
-								className="group hover:shadow-lg transition-all duration-300 hover:border-primary cursor-pointer border-2 relative"
+								className="group relative cursor-pointer border-2 transition-[transform,box-shadow,border-color,background-color] duration-300 ease-out animate-in fade-in-0 slide-in-from-bottom-4 delay-200 hover:-translate-y-1 hover:scale-[1.01] hover:border-primary hover:shadow-xl hover:shadow-amber-500/10"
 							>
 								<Popover>
 									<PopoverTrigger asChild>
@@ -555,8 +555,8 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 									</PopoverContent>
 								</Popover>
 								<CardHeader className="text-center pb-4">
-									<div className="mx-auto mb-4 p-4 rounded-full bg-amber-500/10 w-fit group-hover:bg-amber-500/20 transition-colors">
-										<KeyRound className="w-8 h-8 text-amber-600 dark:text-amber-500" />
+									<div className="mx-auto mb-4 p-4 rounded-full bg-amber-500/10 w-fit transition-[background-color,transform] duration-300 ease-out group-hover:scale-110 group-hover:bg-amber-500/20">
+										<KeyRound className="w-8 h-8 text-amber-600 transition-transform duration-300 ease-out group-hover:rotate-6 dark:text-amber-500" />
 									</div>
 									<CardTitle className="text-xl">
 										{tLlm("noModelsScreen.ownKeys.title")}
@@ -586,7 +586,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 									</div>
 									<Button
 										onClick={() => setSelectedOption("keys")}
-										className="w-full bg-amber-600 hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-700"
+										className="w-full bg-amber-600 transition-all duration-200 ease-out hover:bg-amber-700 hover:shadow-md hover:shadow-amber-500/20 active:scale-[0.98] dark:bg-amber-600 dark:hover:bg-amber-700"
 										size="lg"
 									>
 										<Settings className="w-4 h-4 mr-2" />
@@ -599,7 +599,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 
 					{/* Local Models Setup */}
 					{selectedOption === "local" && (
-						<div className="max-w-4xl mx-auto space-y-6">
+						<div className="max-w-4xl mx-auto space-y-6 animate-in fade-in-0 slide-in-from-bottom-3 duration-300 ease-out">
 							<div className="flex items-center justify-between">
 								<div>
 									<h2 className="text-2xl font-semibold">
@@ -650,7 +650,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 
 					{/* Login/Signup Setup */}
 					{selectedOption === "login" && (
-						<div className="max-w-md mx-auto space-y-4">
+						<div className="max-w-md mx-auto space-y-4 animate-in fade-in-0 slide-in-from-bottom-3 duration-300 ease-out">
 							<div className="flex items-center justify-between">
 								<div>
 									<h2 className="text-2xl font-semibold">
@@ -828,7 +828,7 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 
 					{/* API Keys Setup */}
 					{selectedOption === "keys" && (
-						<div className="max-w-4xl mx-auto space-y-4">
+						<div className="max-w-4xl mx-auto space-y-4 animate-in fade-in-0 slide-in-from-bottom-3 duration-300 ease-out">
 							<div className="flex items-center justify-between">
 								<div>
 									<h2 className="text-2xl font-semibold">

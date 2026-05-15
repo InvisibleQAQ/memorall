@@ -188,6 +188,7 @@ featureCatalogRegistry.register({
 		systemPrompt: PLANNER_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "ListChecks", type: "lucide" },
+		accentColor: "#14b8a6",
 	} satisfies FeatureCatalogMetadata,
 });
 

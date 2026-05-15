@@ -204,6 +204,7 @@ featureCatalogRegistry.register({
 		customizable: false,
 		recommended: true,
 		icon: { name: "FolderOpen", type: "lucide" },
+		accentColor: "#3b82f6",
 	} satisfies FeatureCatalogMetadata,
 });
 

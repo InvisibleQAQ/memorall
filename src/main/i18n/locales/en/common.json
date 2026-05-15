@@ -324,6 +324,10 @@
 			"financeTrackerFeature": {
 				"name": "Finance Tracker",
 				"description": "Deep stock and company research with Mermaid diagrams and ASCII charts covering financials, valuation, analyst opinions, and news. Saves reports to /documents/finance/."
+			},
+			"activeMemoryFeature": {
+				"name": "Active Memory",
+				"description": "Remember, retrieve, update, remove, and explain durable memories in the currently selected topic graph."
 			}
 		}
 	},

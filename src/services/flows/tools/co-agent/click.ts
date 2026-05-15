@@ -5,13 +5,31 @@ import { CO_AGENT_CONTENT_COMMAND_SOURCE } from "@/services/co-agent";
 import {
 	createDefaultErrorResult,
 	createResult,
+	createToolInputErrorResult,
+	normalizeIndex,
+	optionalTrimmedString,
 	sendCoAgentCommand,
 } from "./shared";
 
 const clickSchema = z.object({
-	selector: z.string().min(1),
-	index: z.number().int().optional(),
-	message: z.string().optional(),
+	selector: z
+		.string()
+		.optional()
+		.describe(
+			"Stable CSS selector for the element to click. Use co_agent_observe or co_agent_query first to get this value.",
+		),
+	index: z
+		.number()
+		.optional()
+		.describe(
+			"Zero-based element index when selector matches multiple elements.",
+		),
+	message: z
+		.string()
+		.optional()
+		.describe(
+			"Short user-facing reason for the click, shown when confirmation is needed.",
+		),
 });
 
 type ClickInput = z.infer<typeof clickSchema>;
@@ -23,16 +41,25 @@ const createClickTool: ToolFactory<ClickInput> = (): Tool<ClickInput> => ({
 	schema: clickSchema,
 	execute: async (input) => {
 		try {
+			const selector = optionalTrimmedString(input.selector);
+			if (!selector) {
+				return createToolInputErrorResult(
+					"co_agent_click",
+					"No selector was provided for co_agent_click. Use co_agent_observe or co_agent_query first to get a stable selector.",
+				);
+			}
+			const index = normalizeIndex(input.index);
+			const message = optionalTrimmedString(input.message);
 			const response = await sendCoAgentCommand({
 				source: CO_AGENT_CONTENT_COMMAND_SOURCE,
 				type: "co-agent:click",
-				selector: input.selector,
-				index: input.index,
-				message: input.message,
+				selector,
+				index,
+				message,
 			});
 			return createResult({
 				actionType: "co_agent_click",
-				selector: input.selector,
+				selector,
 				...response,
 			});
 		} catch (error) {

@@ -1,7 +1,7 @@
 import React from "react";
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { useTranslation } from "react-i18next";
-import { Sparkles, Wrench } from "lucide-react";
+import { Search, Sparkles, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
 import { TOOL_DISPLAY_INFO } from "@/main/modules/chat/utils/tool-display-info";
@@ -15,6 +15,7 @@ import {
 } from "@/main/components/ui/dialog";
 import { Badge } from "@/main/components/ui/badge";
 import { Button } from "@/main/components/ui/button";
+import { Input } from "@/main/components/ui/input";
 import { Label } from "@/main/components/ui/label";
 import { Switch } from "@/main/components/ui/switch";
 import { Textarea } from "@/main/components/ui/textarea";
@@ -56,6 +57,35 @@ const mergeToolSelection = (
 	return availableTools.filter((toolName) => nextSelection.has(toolName));
 };
 
+const prettifyToolName = (toolName: string) =>
+	toolName
+		.split("_")
+		.filter(Boolean)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
+
+const getToolFallbackDescription = (toolName: string) => {
+	if (toolName.startsWith("container_")) {
+		return "Run or inspect sandbox container operations.";
+	}
+	if (toolName.startsWith("web_")) {
+		return "Open, read, inspect, or interact with browser pages.";
+	}
+	if (toolName.startsWith("fs_")) {
+		return "Read, search, edit, or manage workspace files.";
+	}
+	if (toolName.startsWith("doc_")) {
+		return "Read, search, edit, or manage document files.";
+	}
+	if (toolName.startsWith("memory_")) {
+		return "Manage durable memory in the selected topic graph.";
+	}
+	if (toolName.startsWith("co_agent_")) {
+		return "Observe or interact with the current page through Co-agent.";
+	}
+	return "Tool available to this agent during response generation.";
+};
+
 export const AgentFeatureDetailModal =
 	NiceModal.create<AgentFeatureDetailModalProps>(({ featureName }) => {
 		const modal = useModal();
@@ -77,6 +107,7 @@ export const AgentFeatureDetailModal =
 		const feature = featureDefinitions.find(
 			(definition) => definition.name === featureName,
 		);
+		const [toolSearch, setToolSearch] = React.useState("");
 
 		const claimedToolSet = React.useMemo(() => {
 			const set = new Set<string>();
@@ -127,6 +158,18 @@ export const AgentFeatureDetailModal =
 					feature.toolScope === "all"
 						? availableTools
 						: availableTools.filter((tool) => !claimedToolSet.has(tool));
+				const normalizedSearch = toolSearch.trim().toLowerCase();
+				const visibleTools = normalizedSearch
+					? toolsToShow.filter((toolName) => {
+							const info = TOOL_DISPLAY_INFO[toolName];
+							const label = info?.name ?? prettifyToolName(toolName);
+							const description = info?.description ?? "";
+							return [toolName, label, description]
+								.join(" ")
+								.toLowerCase()
+								.includes(normalizedSearch);
+						})
+					: toolsToShow;
 
 				const enabledCount = draftConfig.tools.filter((tool) =>
 					toolsToShow.includes(tool),
@@ -157,7 +200,7 @@ export const AgentFeatureDetailModal =
 											"tools",
 											mergeToolSelection(
 												draftConfig.tools,
-												toolsToShow,
+												visibleTools,
 												availableTools,
 												"enable",
 											),
@@ -177,7 +220,7 @@ export const AgentFeatureDetailModal =
 											"tools",
 											mergeToolSelection(
 												draftConfig.tools,
-												toolsToShow,
+												visibleTools,
 												availableTools,
 												"disable",
 											),
@@ -188,16 +231,29 @@ export const AgentFeatureDetailModal =
 								</Button>
 							</div>
 						</div>
+						<div className="relative">
+							<Search
+								size={13}
+								className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+							/>
+							<Input
+								value={toolSearch}
+								onChange={(event) => setToolSearch(event.target.value)}
+								placeholder="Filter tools by name or description"
+								className="h-8 rounded-lg pl-8 text-xs"
+							/>
+						</div>
 						<div className="grid grid-cols-1 gap-1.5 min-[520px]:grid-cols-2">
-							{toolsToShow.map((toolName) => {
+							{visibleTools.map((toolName) => {
 								const info = TOOL_DISPLAY_INFO[toolName];
 								const isEnabled = draftConfig.tools.includes(toolName);
+								const toolLabel = info?.name ?? prettifyToolName(toolName);
 								const toolDescription = info?.descriptionKey
 									? t(info.descriptionKey, {
 											ns: "chat",
 											defaultValue: info.description,
 										})
-									: info?.description;
+									: (info?.description ?? getToolFallbackDescription(toolName));
 								return (
 									<div
 										key={toolName}
@@ -212,17 +268,18 @@ export const AgentFeatureDetailModal =
 										<div className="min-w-0 flex-1">
 											<p
 												className={cn(
-													"truncate font-mono text-[11px] font-medium leading-tight",
+													"truncate text-[11px] font-semibold leading-tight",
 													isEnabled ? "text-foreground" : "text-foreground/70",
 												)}
 											>
+												{toolLabel}
+											</p>
+											<p className="mt-0.5 truncate font-mono text-[10px] leading-tight text-muted-foreground/80">
 												{toolName}
 											</p>
-											{toolDescription ? (
-												<p className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground">
-													{toolDescription}
-												</p>
-											) : null}
+											<p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-muted-foreground">
+												{toolDescription}
+											</p>
 										</div>
 										<Switch
 											checked={isEnabled}

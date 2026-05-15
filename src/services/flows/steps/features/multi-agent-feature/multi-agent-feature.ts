@@ -234,6 +234,7 @@ featureCatalogRegistry.register({
 		systemPrompt: MULTI_AGENT_FEATURE_SYSTEM_PROMPT,
 		customizable: true,
 		icon: { name: "GitFork", type: "lucide" },
+		accentColor: "#818cf8",
 	} satisfies FeatureCatalogMetadata,
 });
 

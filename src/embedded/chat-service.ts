@@ -9,7 +9,12 @@ import type {
 	ChatCompletionChunkToolCall,
 	ChatCompletionMessageToolCall,
 } from "@/types/openai";
-import type { ComplexContent, ConversationContext } from "@/types/chat";
+import type {
+	ComplexContent,
+	ConversationContext,
+	MessageParts,
+} from "@/types/chat";
+import { MessagePartsAccumulator } from "@/services/chat/message-parts";
 
 export interface ChatServiceOptions {
 	messages: ChatMessage[];
@@ -18,6 +23,7 @@ export interface ChatServiceOptions {
 	topicId?: string;
 	agentFlowId?: string;
 	flowConfig?: UnifiedFlowConfig;
+	flowConfigPrefix?: UnifiedFlowConfig;
 	systemMessages?: string[];
 	conversation?: ConversationContext;
 }
@@ -40,6 +46,7 @@ export interface ChatResponse {
 
 export interface ChatStreamOptions extends ChatServiceOptions {
 	onProgress?: (content: string, isComplete: boolean) => void;
+	onParts?: (parts: MessageParts) => void;
 	onContentParts?: (parts: ComplexContent) => void;
 	onAction?: (actions: ChatAction[]) => void;
 	onToolCalls?: (toolCalls: ChatCompletionMessageToolCall[]) => void;
@@ -54,6 +61,7 @@ export interface ChatStreamOptions extends ChatServiceOptions {
 export interface EmbeddedChatStreamResult {
 	content: string;
 	contentParts: ComplexContent;
+	parts?: MessageParts;
 	actions: ChatAction[];
 	toolCalls?: ChatCompletionMessageToolCall[];
 	usage?: {
@@ -186,9 +194,11 @@ export class EmbeddedChatService {
 			topicId,
 			agentFlowId,
 			flowConfig,
+			flowConfigPrefix,
 			systemMessages,
 			conversation,
 			onProgress,
+			onParts,
 			onAction,
 			onToolCalls,
 			onExecuteStart,
@@ -198,15 +208,20 @@ export class EmbeddedChatService {
 
 		// Convert embedded ChatMessage to OpenAI-compatible format
 		// Note: Embedded messages only have user/assistant roles
-		const jobMessages: ChatPayload["messages"] = messages.map((msg) => {
+		const jobMessages: ChatPayload["messages"] = messages.flatMap((msg) => {
 			if (msg.role === "user") {
-				return { role: "user" as const, content: msg.content };
+				return [{ role: "user" as const, content: msg.content }];
+			}
+			if (msg.parts?.length) {
+				return msg.parts;
 			}
 			// Assistant messages
-			return {
-				role: "assistant" as const,
-				content: typeof msg.content === "string" ? msg.content : null,
-			};
+			return [
+				{
+					role: "assistant" as const,
+					content: typeof msg.content === "string" ? msg.content : null,
+				},
+			];
 		});
 		const requestMessages: ChatPayload["messages"] = [
 			...(systemMessages ?? [])
@@ -239,6 +254,7 @@ export class EmbeddedChatService {
 				topicId,
 				agentFlowId,
 				flowConfig,
+				flowConfigPrefix,
 				conversation,
 				streamConfig: {
 					minWordsToStream: 5,
@@ -254,8 +270,10 @@ export class EmbeddedChatService {
 			let finalContent = "";
 			let finalActions: ChatAction[] = [];
 			const toolCallAccumulator: ToolCallAccumulator = new Map();
+			const messagePartsAccumulator = new MessagePartsAccumulator();
 			let finalToolCalls: ChatCompletionMessageToolCall[] = [];
 			let finalUsage: EmbeddedChatStreamResult["usage"];
+			let finalParts: MessageParts | undefined;
 
 			if (!("stream" in result)) {
 				throw new Error("WRONG OUPUT");
@@ -275,7 +293,11 @@ export class EmbeddedChatService {
 				if (progress.status === "completed" && progress.result) {
 					const chatResult = extractChatResult(progress.result);
 					if (chatResult?.type === "final") {
+						finalParts = chatResult.parts ?? finalParts;
 						finalContent = chatResult.content || finalContent;
+						if (finalParts) {
+							onParts?.(finalParts);
+						}
 
 						if (chatResult.metadata?.actions) {
 							finalActions = mergeActions(
@@ -309,6 +331,10 @@ export class EmbeddedChatService {
 				}
 
 				if (chatResult.type === "chunk" && chatResult.chunk) {
+					messagePartsAccumulator.addChunk(chatResult.chunk);
+					finalParts = messagePartsAccumulator.toParts();
+					onParts?.(finalParts);
+
 					const delta = chatResult.chunk.choices[0]?.delta;
 					if (delta?.tool_calls?.length) {
 						accumulateChunkToolCalls(toolCallAccumulator, delta.tool_calls);
@@ -333,7 +359,11 @@ export class EmbeddedChatService {
 					finalActions = mergeActions(finalActions, chatResult.actions);
 					onAction?.([...finalActions]);
 				} else if (chatResult.type === "final") {
+					finalParts = chatResult.parts ?? finalParts;
 					finalContent = chatResult.content || finalContent;
+					if (finalParts) {
+						onParts?.(finalParts);
+					}
 					if (chatResult.metadata?.actions) {
 						finalActions = mergeActions(
 							finalActions,
@@ -366,6 +396,7 @@ export class EmbeddedChatService {
 			return {
 				content: finalContent,
 				contentParts: [],
+				parts: finalParts ?? messagePartsAccumulator.toParts(),
 				actions: finalActions,
 				toolCalls:
 					finalToolCalls.length > 0

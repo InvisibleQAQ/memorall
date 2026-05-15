@@ -279,6 +279,7 @@ featureCatalogRegistry.register({
 		systemPrompt: NEWS_COLLECTION_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "Newspaper", type: "lucide" },
+		accentColor: "#eab308",
 	} satisfies FeatureCatalogMetadata,
 });
 

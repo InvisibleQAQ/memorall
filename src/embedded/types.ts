@@ -1,4 +1,5 @@
 import type { ChatAction } from "@/main/modules/chat/services/chat-service";
+import type { MessageParts } from "@/types/chat";
 
 export type { ChatAction };
 
@@ -19,6 +20,7 @@ export interface ChatMessage {
 	topicId?: string | null;
 	reasoning?: string;
 	sources?: Array<{ title: string; url: string }>;
+	parts?: MessageParts | null;
 	isStreaming?: boolean;
 	metadata?: {
 		actions?: ChatAction[];

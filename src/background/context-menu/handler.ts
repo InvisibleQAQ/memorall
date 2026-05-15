@@ -48,6 +48,7 @@ async function handleRecall(
 			url: tab.url,
 			selectedText: info.selectionText ?? "",
 			mode: "general",
+			displayMode: "popup",
 		});
 		logInfo("📨 Content script response to SHOW_CHAT_MODAL:", response);
 	} catch (error) {

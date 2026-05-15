@@ -17,6 +17,7 @@ import {
 	extractToolResult,
 	parseToolInput,
 } from "@/services/flows/interfaces/tool";
+import { getFlowRuntimeVars } from "@/services/flows/runtime/runtime-context";
 import type { ChatCompletionChunk } from "@/types/openai";
 import { logError, logInfo } from "@/utils/logger";
 import { flowRegistry, FEATURE_SLOT } from "@/services/flows/flow-registry";
@@ -271,6 +272,7 @@ export class AgentGraph extends GraphBase<
 				const validatedArgs = parseToolInput(combined.executor.schema, args);
 				const rawResult = await combined.executor.execute(validatedArgs, {
 					state: toolState,
+					runtime: getFlowRuntimeVars(runConfig),
 				});
 				const { content, contentText } = extractToolResult(rawResult);
 

@@ -17,6 +17,10 @@ import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import { customStyles } from "@/embedded/styles/customStyles";
 import type { ChatModalProps } from "@/embedded/types";
 import { createShadowPage } from "@/embedded/utils/create-shadow-page";
+import { backgroundJob } from "@/services/background-jobs/background-job";
+
+export const EMBEDDED_CHAT_MODAL_STATE_EVENT =
+	"memorall:embedded-chat-modal-state";
 
 const getPageHost = (pageUrl: string): string => {
 	try {
@@ -48,6 +52,7 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 	const [inputValue, setInputValue] = useState("");
 	const [showConfirmClose, setShowConfirmClose] = useState(false);
 	const [coAgentEnabled, setCoAgentEnabled] = useState(initialCoAgentEnabled);
+	const [isMinimized, setIsMinimized] = useState(false);
 
 	const { currentDisplayMode, toggleDisplayMode } =
 		useEmbeddedChatDisplayMode(displayMode);
@@ -58,6 +63,7 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 		needsPasskey,
 		noModelConfig,
 		encryptedProviders,
+		refreshModelStatus,
 	} = useEmbeddedModelStatus();
 	const {
 		topics,
@@ -144,6 +150,24 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 		setCoAgentEnabled(initialCoAgentEnabled);
 	}, [initialCoAgentEnabled]);
 
+	useEffect(() => {
+		window.dispatchEvent(
+			new CustomEvent(EMBEDDED_CHAT_MODAL_STATE_EVENT, {
+				detail: { mounted: true, minimized: isMinimized },
+			}),
+		);
+	}, [isMinimized]);
+
+	useEffect(() => {
+		return () => {
+			window.dispatchEvent(
+				new CustomEvent(EMBEDDED_CHAT_MODAL_STATE_EVENT, {
+					detail: { mounted: false, minimized: false },
+				}),
+			);
+		};
+	}, []);
+
 	const hasUnsavedContent = useCallback(
 		() =>
 			messages.length > 0 ||
@@ -174,6 +198,25 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 		onClose();
 	}, [onClose]);
 
+	const handlePasskeySubmit = useCallback(
+		async (passkey: string) => {
+			const result = await backgroundJob.execute(
+				"unlock-and-restore-all-providers",
+				{ passkey },
+				{ stream: false },
+			);
+			if (!("promise" in result)) {
+				throw new Error("Passkey unlock did not start");
+			}
+			const response = await result.promise;
+			if (response.status !== "completed") {
+				throw new Error(response.error || "Failed to unlock providers");
+			}
+			await refreshModelStatus();
+		},
+		[refreshModelStatus],
+	);
+
 	const toggleCoAgent = useCallback(() => {
 		setCoAgentEnabled((current) => {
 			const next = !current;
@@ -184,122 +227,145 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 
 	return (
 		<div
-			className="memorall-embedded-root"
+			className={`memorall-embedded-root ${
+				isMinimized ? "memorall-embedded-root--minimized" : ""
+			}`}
 			onClick={closeWithConfirmation}
 			onKeyDown={(event) => event.stopPropagation()}
 			onKeyUp={(event) => event.stopPropagation()}
 			onKeyPress={(event) => event.stopPropagation()}
 		>
-			<div
-				className={`memorall-chat-shell memorall-chat-shell--${currentDisplayMode} ${
-					isSmartSelectMode ? "memorall-chat-shell--smart" : ""
-				}`}
-				onClick={(event) => event.stopPropagation()}
-				onKeyDown={(event) => event.stopPropagation()}
-				onKeyUp={(event) => event.stopPropagation()}
-				onKeyPress={(event) => event.stopPropagation()}
-			>
-				<ChatHeader
-					mode={mode}
-					displayMode={currentDisplayMode}
-					onToggleDisplayMode={toggleDisplayMode}
-					onNewChat={newChat}
-					onOpenFullVersion={openFullPage}
-					onClose={closeWithConfirmation}
-					coAgentEnabled={coAgentEnabled}
-					onToggleCoAgent={toggleCoAgent}
-					modelId={selectedModel}
-					provider={selectedProvider}
-					modelAvailable={modelAvailable}
-				/>
-
-				{isSmartSelectMode ? (
-					<EmbeddedSmartSelectNotice />
-				) : (
-					<EmbeddedChatConversation
-						conversationRef={conversationRef}
-						onScroll={handleScroll}
-						onWheel={handleWheel}
-						needsPasskey={needsPasskey}
-						noModelConfig={noModelConfig}
-						encryptedProviders={encryptedProviders}
-						selectedProvider={selectedProvider}
-						messages={messages}
-						selectedTopic={selectedTopic}
-						pageHost={pageHost}
-						suggestedPrompts={suggestedPrompts}
-						primaryPageContext={primaryPageContext}
-						onAttachContext={attachContext}
-						onSelectPrompt={setInputValue}
-						onOpenMainApp={handleOpenFullPageAndClose}
+			{isMinimized ? (
+				<button
+					type="button"
+					className="memorall-chat-minimized-button"
+					aria-label={tChat("restoreChat")}
+					title={tChat("restoreChat")}
+					onClick={(event) => {
+						event.stopPropagation();
+						setIsMinimized(false);
+					}}
+				>
+					<img
+						src={chrome.runtime.getURL("logo.png")}
+						alt=""
+						className="memorall-chat-minimized-logo"
 					/>
-				)}
+				</button>
+			) : (
+				<div
+					className={`memorall-chat-shell memorall-chat-shell--${currentDisplayMode} ${
+						isSmartSelectMode ? "memorall-chat-shell--smart" : ""
+					}`}
+					onClick={(event) => event.stopPropagation()}
+					onKeyDown={(event) => event.stopPropagation()}
+					onKeyUp={(event) => event.stopPropagation()}
+					onKeyPress={(event) => event.stopPropagation()}
+				>
+					<ChatHeader
+						mode={mode}
+						displayMode={currentDisplayMode}
+						onToggleDisplayMode={toggleDisplayMode}
+						onNewChat={newChat}
+						onMinimize={() => setIsMinimized(true)}
+						onOpenFullVersion={openFullPage}
+						onClose={closeWithConfirmation}
+						coAgentEnabled={coAgentEnabled}
+						onToggleCoAgent={toggleCoAgent}
+						modelId={selectedModel}
+						provider={selectedProvider}
+						modelAvailable={modelAvailable}
+					/>
 
-				{!isSmartSelectMode &&
-					!showContextSection &&
-					attachedContexts.length === 0 && (
-						<EmbeddedContextRevealButton
-							label={tChat("context")}
-							smartSelectLabel={tContext("smartSelect")}
-							onClick={toggleContextSection}
-							onSmartSelect={startSmartSelect}
+					{isSmartSelectMode ? (
+						<EmbeddedSmartSelectNotice />
+					) : (
+						<EmbeddedChatConversation
+							conversationRef={conversationRef}
+							onScroll={handleScroll}
+							onWheel={handleWheel}
+							needsPasskey={needsPasskey}
+							noModelConfig={noModelConfig}
+							encryptedProviders={encryptedProviders}
+							selectedProvider={selectedProvider}
+							messages={messages}
+							selectedTopic={selectedTopic}
+							pageHost={pageHost}
+							suggestedPrompts={suggestedPrompts}
+							primaryPageContext={primaryPageContext}
+							onAttachContext={attachContext}
+							onSelectPrompt={setInputValue}
+							onOpenMainApp={handleOpenFullPageAndClose}
+							onPasskeySubmit={handlePasskeySubmit}
 						/>
 					)}
 
-				{!isSmartSelectMode && (
-					<div
-						className="overflow-hidden transition-all duration-300 ease-in-out"
-						style={{
-							maxHeight:
-								showContextSection || attachedContexts.length > 0
-									? "500px"
-									: "0px",
-							opacity:
-								showContextSection || attachedContexts.length > 0 ? 1 : 0,
-						}}
-					>
-						<EmbeddedContextSections
-							availableContexts={availableContexts}
-							attachedContexts={attachedContexts}
-							onAttachContext={attachContext}
-							onRemoveAttachedContext={removeAttachedContext}
-							onClearAttachedContexts={clearAttachedContexts}
-							onStartSmartSelect={startSmartSelect}
-							showContextSection={showContextSection}
-							onToggleContextSection={toggleContextSection}
+					{!isSmartSelectMode &&
+						!showContextSection &&
+						attachedContexts.length === 0 && (
+							<EmbeddedContextRevealButton
+								label={tChat("context")}
+								smartSelectLabel={tContext("smartSelect")}
+								onClick={toggleContextSection}
+								onSmartSelect={startSmartSelect}
+							/>
+						)}
+
+					{!isSmartSelectMode && (
+						<div
+							className="overflow-hidden transition-all duration-300 ease-in-out"
+							style={{
+								maxHeight:
+									showContextSection || attachedContexts.length > 0
+										? "500px"
+										: "0px",
+								opacity:
+									showContextSection || attachedContexts.length > 0 ? 1 : 0,
+							}}
+						>
+							<EmbeddedContextSections
+								availableContexts={availableContexts}
+								attachedContexts={attachedContexts}
+								onAttachContext={attachContext}
+								onRemoveAttachedContext={removeAttachedContext}
+								onClearAttachedContexts={clearAttachedContexts}
+								onStartSmartSelect={startSmartSelect}
+								showContextSection={showContextSection}
+								onToggleContextSection={toggleContextSection}
+							/>
+						</div>
+					)}
+
+					{!isSmartSelectMode && (
+						<EmbeddedChatInput
+							inputValue={inputValue}
+							setInputValue={setInputValue}
+							onSubmit={submit}
+							isTyping={isTyping}
+							modelAvailable={modelAvailable}
+							selectedAgentFlowId={selectedAgentFlowId}
+							setSelectedAgentFlowId={setSelectedAgentFlowId}
+							agentFlows={agentFlows}
+							selectedTopic={selectedTopic}
+							setSelectedTopic={setSelectedTopic}
+							topics={topics}
+							topicsLoading={topicsLoading}
+							hasTopics={hasTopics}
+							messages={messages}
+							onDeleteChat={deleteChat}
+							onStop={stop}
+							onOpenSettings={handleOpenFullPageAndClose}
 						/>
-					</div>
-				)}
+					)}
 
-				{!isSmartSelectMode && (
-					<EmbeddedChatInput
-						inputValue={inputValue}
-						setInputValue={setInputValue}
-						onSubmit={submit}
-						isTyping={isTyping}
-						modelAvailable={modelAvailable}
-						selectedAgentFlowId={selectedAgentFlowId}
-						setSelectedAgentFlowId={setSelectedAgentFlowId}
-						agentFlows={agentFlows}
-						selectedTopic={selectedTopic}
-						setSelectedTopic={setSelectedTopic}
-						topics={topics}
-						topicsLoading={topicsLoading}
-						hasTopics={hasTopics}
-						messages={messages}
-						onDeleteChat={deleteChat}
-						onStop={stop}
-						onOpenSettings={handleOpenFullPageAndClose}
-					/>
-				)}
-
-				{showConfirmClose && (
-					<EmbeddedCloseConfirmation
-						onCancel={handleCancelClose}
-						onConfirm={handleConfirmedClose}
-					/>
-				)}
-			</div>
+					{showConfirmClose && (
+						<EmbeddedCloseConfirmation
+							onCancel={handleCancelClose}
+							onConfirm={handleConfirmedClose}
+						/>
+					)}
+				</div>
+			)}
 		</div>
 	);
 };

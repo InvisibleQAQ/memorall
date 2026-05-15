@@ -141,6 +141,7 @@ featureCatalogRegistry.register({
 		legacy: true,
 		recommended: false,
 		icon: { name: "FileText", type: "lucide" },
+		accentColor: "#94a3b8",
 	} satisfies FeatureCatalogMetadata,
 });
 

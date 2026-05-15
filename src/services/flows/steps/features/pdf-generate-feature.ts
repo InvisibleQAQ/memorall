@@ -155,6 +155,7 @@ featureCatalogRegistry.register({
 		customizable: false,
 		recommended: false,
 		icon: { name: "FilePlus", type: "lucide" },
+		accentColor: "#ef4444",
 	} satisfies FeatureCatalogMetadata,
 });
 

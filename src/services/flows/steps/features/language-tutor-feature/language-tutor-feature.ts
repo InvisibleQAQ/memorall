@@ -267,6 +267,7 @@ featureCatalogRegistry.register({
 		systemPrompt: LANGUAGE_TUTOR_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "Languages", type: "lucide" },
+		accentColor: "#10b981",
 	} satisfies FeatureCatalogMetadata,
 });
 

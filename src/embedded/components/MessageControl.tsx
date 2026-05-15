@@ -3,6 +3,7 @@ import {
 	Bot,
 	Loader,
 	MessageCircle,
+	Minus,
 	PanelRight,
 	SquarePen,
 } from "lucide-react";
@@ -304,6 +305,7 @@ interface ChatHeaderProps {
 	displayMode: EmbeddedChatDisplayMode;
 	onToggleDisplayMode: () => void;
 	onNewChat: () => void;
+	onMinimize: () => void;
 	onOpenFullVersion: () => void;
 	onClose: () => void;
 	coAgentEnabled?: boolean;
@@ -317,6 +319,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 	displayMode,
 	onToggleDisplayMode,
 	onNewChat,
+	onMinimize,
 	onOpenFullVersion,
 	onClose,
 	coAgentEnabled,
@@ -393,6 +396,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 						) : (
 							<PanelRight size={16} />
 						)}
+					</button>
+					<button
+						onClick={onMinimize}
+						className="memorall-icon-button"
+						aria-label={t("minimize")}
+						title={t("minimize")}
+						onKeyDown={(e) => e.stopPropagation()}
+						onKeyUp={(e) => e.stopPropagation()}
+						onKeyPress={(e) => e.stopPropagation()}
+					>
+						<Minus size={16} />
 					</button>
 					<button
 						onClick={onOpenFullVersion}

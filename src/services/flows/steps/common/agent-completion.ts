@@ -76,6 +76,7 @@ const definition = defineStep<
 				maxIterations: input.maxIterations,
 			},
 			{
+				configurable: runConfig?.configurable,
 				streamMode: ["custom", "values"],
 			},
 		);

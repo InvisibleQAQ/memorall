@@ -19,6 +19,20 @@ export const enEmbeddedLocale = {
 		authRequiredDescription:
 			"Your model requires authentication. Please open the main app to enter your passkey.",
 		openMainApp: "Open Main App",
+		passkeyInlineDescription:
+			"Enter your master passkey to unlock encrypted provider configurations ({{providers}}).",
+		passkeyWillUnlock: "Will unlock",
+		passkeyLabel: "Master passkey",
+		passkeyPlaceholder: "Enter master passkey",
+		showPasskey: "Show",
+		hidePasskey: "Hide",
+		passkeyLengthError: "Passkey must be at least 6 characters.",
+		passkeyLengthHint: "Enter at least 6 characters ({{current}}/6).",
+		passkeyUnlock: "Unlock providers",
+		passkeyUnlocking: "Unlocking...",
+		passkeyUnlockError: "Failed to unlock provider configurations.",
+		passkeyHelpText:
+			"This passkey was set when you first configured an API provider.",
 		noModelConfig: "No Model Configured",
 		noModelConfigDescription:
 			"No AI model is configured. Please open the main app to set up a model.",
@@ -29,6 +43,7 @@ export const enEmbeddedLocale = {
 		suggestSummary: "Summarize this page",
 		suggestFindFacts: "Find important facts",
 		suggestRecallLinks: "What have I saved about this?",
+		restoreChat: "Restore chat",
 	},
 	topicSelector: {
 		loading: "Loading...",
@@ -95,6 +110,7 @@ export const enEmbeddedLocale = {
 		newChat: "New chat",
 		switchToPanel: "Switch to right panel",
 		switchToPopup: "Switch to bottom-right popup",
+		minimize: "Minimize",
 		enableCoAgent: "Enable co-agent",
 		disableCoAgent: "Disable co-agent",
 		close: "Close",
@@ -164,6 +180,7 @@ export const enEmbeddedLocale = {
 		},
 		running: "Running",
 		done: "Done",
+		errorLabel: "Error",
 		toolCall: "Tool call",
 		toolLabel: "Tool {index}",
 		thinking: "Thinking...",
@@ -181,6 +198,7 @@ export const enEmbeddedLocale = {
 		saveToRemembered: "Save to remembered content",
 		saved: "Saved!",
 		remember: "Remember",
+		conversationSaveLabel: "Conversation",
 		directContentSave: "Direct content save",
 		webTitle: "Web Title",
 		webUrl: "Web URL",
