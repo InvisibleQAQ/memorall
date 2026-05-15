@@ -18,6 +18,7 @@ import {
 	restoreAllProviders,
 	getEncryptedProviders,
 } from "@/utils/auth-provider-restore";
+import { unlockAndRestoreProvidersWithPasskey } from "@/utils/provider-passkey-unlock";
 import { detectSystemSpecs } from "@/main/modules/llm/utils/system-detection";
 
 const JOB_NAMES = {
@@ -33,6 +34,7 @@ const JOB_NAMES = {
 	chatCompletion: "chat-completion",
 	restoreAuthProvider: "restore-auth-provider",
 	restoreAllProviders: "restore-all-providers",
+	unlockAndRestoreAllProviders: "unlock-and-restore-all-providers",
 	removeAuthProvider: "remove-auth-provider",
 	detectSystemSpecs: "detect-system-specs",
 	checkProviderNeedsRestore: "check-provider-needs-restore",
@@ -104,6 +106,10 @@ export interface RestoreAllProvidersPayload {
 	masterStrongPassword: string;
 }
 
+export interface UnlockAndRestoreAllProvidersPayload {
+	passkey: string;
+}
+
 export interface GetCurrentModelResult extends Record<string, unknown> {
 	modelInfo: unknown;
 }
@@ -170,6 +176,12 @@ export interface RestoreAllProvidersResult extends Record<string, unknown> {
 	providers: string[];
 }
 
+export interface UnlockAndRestoreAllProvidersResult
+	extends Record<string, unknown> {
+	restored: boolean;
+	providers: string[];
+}
+
 export interface DetectSystemSpecsPayload {
 	// No payload needed
 }
@@ -202,6 +214,7 @@ export type LLMModelsJob = BaseJob & {
 		| ChatCompletionPayload
 		| RestoreAuthProviderPayload
 		| RestoreAllProvidersPayload
+		| UnlockAndRestoreAllProvidersPayload
 		| RemoveAuthProviderPayload
 		| GetMaxResponseTokensPayload
 		| DetectSystemSpecsPayload
@@ -237,6 +250,12 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 				return await this.handleRestoreAuthProvider(jobId, job, dependencies);
 			case JOB_NAMES.restoreAllProviders:
 				return await this.handleRestoreAllProviders(jobId, job, dependencies);
+			case JOB_NAMES.unlockAndRestoreAllProviders:
+				return await this.handleUnlockAndRestoreAllProviders(
+					jobId,
+					job,
+					dependencies,
+				);
 			case JOB_NAMES.removeAuthProvider:
 				return await this.handleRemoveAuthProvider(jobId, job, dependencies);
 			case JOB_NAMES.getMaxResponseTokens:
@@ -912,6 +931,48 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 		};
 	}
 
+	private async handleUnlockAndRestoreAllProviders(
+		jobId: string,
+		job: BaseJob,
+		dependencies: ProcessDependencies,
+	): Promise<ItemHandlerResult> {
+		const { logger, updateJobProgress } = dependencies;
+		const payload = job.payload as UnlockAndRestoreAllProvidersPayload;
+
+		await logger.info("Starting unlock-and-restore-all-providers job", {
+			jobId,
+		});
+
+		await updateJobProgress(jobId, {
+			stage: "Unlocking provider configurations",
+			progress: 20,
+		});
+
+		const { providers } = await unlockAndRestoreProvidersWithPasskey(
+			payload.passkey,
+		);
+
+		await updateJobProgress(jobId, {
+			stage: `Restored ${providers.length} provider authentications`,
+			progress: 50,
+		});
+
+		await updateJobProgress(jobId, {
+			stage: "All providers restored",
+			progress: 90,
+		});
+
+		await logger.info("Unlock-and-restore-all-providers job completed", {
+			jobId,
+			providers,
+		});
+
+		return {
+			restored: true,
+			providers,
+		} satisfies UnlockAndRestoreAllProvidersResult;
+	}
+
 	private async handleRemoveAuthProvider(
 		jobId: string,
 		job: BaseJob,
@@ -1046,6 +1107,7 @@ declare global {
 		"chat-completion": ChatCompletionPayload;
 		"restore-auth-provider": RestoreAuthProviderPayload;
 		"restore-all-providers": RestoreAllProvidersPayload;
+		"unlock-and-restore-all-providers": UnlockAndRestoreAllProvidersPayload;
 		"remove-auth-provider": RemoveAuthProviderPayload;
 		"get-max-response-tokens": GetMaxResponseTokensPayload;
 		"detect-system-specs": DetectSystemSpecsPayload;
@@ -1064,6 +1126,7 @@ declare global {
 		"chat-completion": ChatCompletionResult;
 		"restore-auth-provider": RestoreAuthProviderResult;
 		"restore-all-providers": RestoreAllProvidersResult;
+		"unlock-and-restore-all-providers": UnlockAndRestoreAllProvidersResult;
 		"remove-auth-provider": RemoveAuthProviderResult;
 		"get-max-response-tokens": GetMaxResponseTokensResult;
 		"detect-system-specs": DetectSystemSpecsResult;

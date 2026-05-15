@@ -463,6 +463,7 @@ featureCatalogRegistry.register({
 		systemPrompt: FINANCE_TRACKER_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "TrendingUp", type: "lucide" },
+		accentColor: "#22c55e",
 	} satisfies FeatureCatalogMetadata,
 });
 

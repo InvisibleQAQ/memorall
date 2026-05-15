@@ -321,6 +321,7 @@ featureCatalogRegistry.register({
 		systemPrompt: NODEJS_SANDBOX_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "Terminal", type: "lucide" },
+		accentColor: "#f97316",
 	} satisfies FeatureCatalogMetadata,
 });
 

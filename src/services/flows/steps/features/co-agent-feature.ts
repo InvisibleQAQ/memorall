@@ -137,6 +137,7 @@ featureCatalogRegistry.register({
 		systemPrompt: CO_AGENT_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "Bot", type: "lucide" },
+		accentColor: "#10b981",
 	} satisfies FeatureCatalogMetadata,
 });
 

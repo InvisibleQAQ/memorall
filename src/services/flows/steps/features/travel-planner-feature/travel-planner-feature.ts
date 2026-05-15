@@ -406,6 +406,7 @@ featureCatalogRegistry.register({
 		systemPrompt: TRAVEL_PLANNER_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "✈️", type: "emoji" },
+		accentColor: "#6366f1",
 	} satisfies FeatureCatalogMetadata,
 });
 

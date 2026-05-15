@@ -4,10 +4,9 @@ import type {
 	EmbeddedChatStreamResult,
 } from "@/embedded/chat-service";
 import type { ChatMessage } from "@/embedded/types";
-import { buildDefaultFlowConfig } from "@/services/flows/build-flow-config";
-import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
-import { CO_AGENT_FEATURE_STEP_NAME } from "@/services/flows/steps/features/co-agent-feature";
 import type { CoAgentContextAnchor } from "@/embedded/utils/co-agent/context-anchor";
+
+const CO_AGENT_FEATURE_STEP_NAME = "co-agent-feature";
 
 export interface CoAgentPageContext {
 	url: string;
@@ -73,17 +72,16 @@ const createUserMessage = (prompt: string): ChatMessage => ({
 	timestamp: new Date(),
 });
 
-export const createCoAgentEnabledFlowConfig = (): UnifiedFlowConfig => {
-	const config = buildDefaultFlowConfig("foundation");
-	return {
-		...config,
-		steps: config.steps.map((step) =>
-			step.name === CO_AGENT_FEATURE_STEP_NAME
-				? { ...step, enabled: true }
-				: step,
-		),
-	};
-};
+export const createCoAgentFlowPrefixConfig = () => ({
+	graphType: "foundation",
+	steps: [
+		{
+			id: "runtime__co_agent_feature__1",
+			name: CO_AGENT_FEATURE_STEP_NAME,
+			enabled: true,
+		},
+	],
+});
 
 export const coAgentChatService = {
 	chatStream: (
@@ -93,7 +91,7 @@ export const coAgentChatService = {
 			messages: [createUserMessage(options.prompt)],
 			model: options.model,
 			mode: "custom",
-			flowConfig: createCoAgentEnabledFlowConfig(),
+			flowConfigPrefix: createCoAgentFlowPrefixConfig(),
 			systemMessages: [
 				renderCoAgentPageContextPrompt(options.pageContext),
 				renderAnchorContextPrompt(options.anchorContext),

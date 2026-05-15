@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
 	AppWindow,
 	Bot,
+	Brain,
 	Briefcase,
 	ChevronRight,
 	Database,
@@ -41,6 +42,7 @@ const LUCIDE_MAP: Record<
 > = {
 	AppWindow,
 	Bot,
+	Brain,
 	Briefcase,
 	Database,
 	FileOutput,
@@ -60,34 +62,10 @@ const LUCIDE_MAP: Record<
 	Wrench,
 };
 
-const FEATURE_ICON_ACCENTS: Record<string, string> = {
-	"rag-knowledge": "#22c55e",
-	"knowledge-retrieval": "#22c55e",
-	citations: "#a855f7",
-	"agent-node": "#f59e0b",
-	"fs-feature": "#06b6d4",
-	"documents-fs-feature": "#3b82f6",
-	"documents-feature": "#94a3b8",
-	"nodejs-sandbox-feature": "#f97316",
-	"web-feature": "#0ea5e9",
-	"news-collection-feature": "#eab308",
-	"travel-planner-feature": "#6366f1",
-	"meal-planner-feature": "#ec4899",
-	"daily-briefing-feature": "#facc15",
-	"planner-feature": "#14b8a6",
-	"job-application-feature": "#8b5cf6",
-	"language-tutor-feature": "#10b981",
-	"shopping-assistant-feature": "#f43f5e",
-	"multi-agent-feature": "#818cf8",
-	"finance-tracker-feature": "#22c55e",
-	"artifact-feature": "#6366f1",
-	"document-convert-feature": "#f59e0b",
-	"pdf-generate-feature": "#ef4444",
-	"co-agent-feature": "#10b981",
-};
-
 const getFeatureAccent = (feature: AgentFeatureDefinition): string =>
-	FEATURE_ICON_ACCENTS[feature.name] ?? "#64748b";
+	"accentColor" in feature && typeof feature.accentColor === "string"
+		? feature.accentColor
+		: "#64748b";
 
 // ---------------------------------------------------------------------------
 // FeatureIcon renderer

@@ -323,6 +323,7 @@ featureCatalogRegistry.register({
 		systemPrompt: JOB_APPLICATION_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "Briefcase", type: "lucide" },
+		accentColor: "#8b5cf6",
 	} satisfies FeatureCatalogMetadata,
 });
 

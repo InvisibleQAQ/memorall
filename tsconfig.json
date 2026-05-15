@@ -17,10 +17,9 @@
     "useDefineForClassFields": true,
     "skipLibCheck": true,
     "types": ["node", "chrome"],
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@/main/*": ["src/main/*"],
+      "@/main/*": ["./src/main/*"],
       "@/lib/*": ["./src/lib/*"],
       "@/utils/*": ["./src/utils/*"],
       "@/ui/*": ["./src/components/ui/*"],

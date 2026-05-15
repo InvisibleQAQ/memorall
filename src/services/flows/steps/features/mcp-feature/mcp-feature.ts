@@ -172,6 +172,7 @@ featureCatalogRegistry.register({
 		systemPrompt: "",
 		customizable: true,
 		icon: { name: "Plug", type: "lucide" },
+		accentColor: "#64748b",
 	} satisfies FeatureCatalogMetadata,
 });
 

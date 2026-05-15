@@ -219,6 +219,7 @@ featureCatalogRegistry.register({
 		systemPrompt: WEB_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "Globe", type: "lucide" },
+		accentColor: "#0ea5e9",
 	} satisfies FeatureCatalogMetadata,
 });
 

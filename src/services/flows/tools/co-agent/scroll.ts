@@ -5,18 +5,46 @@ import { CO_AGENT_CONTENT_COMMAND_SOURCE } from "@/services/co-agent";
 import {
 	createDefaultErrorResult,
 	createResult,
+	normalizeIndex,
+	optionalNumber,
+	optionalOneOf,
+	optionalTrimmedString,
 	sendCoAgentCommand,
 } from "./shared";
 
 const scrollSchema = z.object({
-	selector: z.string().min(1).optional(),
-	index: z.number().int().optional(),
-	deltaX: z.number().optional(),
-	deltaY: z.number().optional(),
-	top: z.number().optional(),
-	left: z.number().optional(),
-	behavior: z.enum(["auto", "smooth"]).optional(),
-	message: z.string().optional(),
+	selector: z
+		.string()
+		.optional()
+		.describe(
+			"Stable CSS selector for a scrollable element. Leave empty to scroll the page window.",
+		),
+	index: z
+		.number()
+		.optional()
+		.describe(
+			"Zero-based element index when selector matches multiple elements.",
+		),
+	deltaX: z.number().optional().describe("Horizontal scroll delta in pixels."),
+	deltaY: z.number().optional().describe("Vertical scroll delta in pixels."),
+	top: z
+		.number()
+		.optional()
+		.describe("Absolute vertical scroll position in pixels."),
+	left: z
+		.number()
+		.optional()
+		.describe("Absolute horizontal scroll position in pixels."),
+	behavior: z
+		.string()
+		.optional()
+		.describe(
+			"Scroll behavior: auto or smooth. Defaults to page handler behavior.",
+		),
+	message: z
+		.string()
+		.optional()
+		.describe("Short label or explanation for the scroll action."),
 });
 
 type ScrollInput = z.infer<typeof scrollSchema>;
@@ -31,14 +59,14 @@ const createScrollTool: ToolFactory<ScrollInput> = (): Tool<ScrollInput> => ({
 			const response = await sendCoAgentCommand({
 				source: CO_AGENT_CONTENT_COMMAND_SOURCE,
 				type: "co-agent:scroll",
-				selector: input.selector,
-				index: input.index,
-				deltaX: input.deltaX,
-				deltaY: input.deltaY,
-				top: input.top,
-				left: input.left,
-				behavior: input.behavior,
-				message: input.message,
+				selector: optionalTrimmedString(input.selector),
+				index: normalizeIndex(input.index),
+				deltaX: optionalNumber(input.deltaX),
+				deltaY: optionalNumber(input.deltaY),
+				top: optionalNumber(input.top),
+				left: optionalNumber(input.left),
+				behavior: optionalOneOf(input.behavior, ["auto", "smooth"] as const),
+				message: optionalTrimmedString(input.message),
 			});
 			return createResult({ actionType: "co_agent_scroll", ...response });
 		} catch (error) {

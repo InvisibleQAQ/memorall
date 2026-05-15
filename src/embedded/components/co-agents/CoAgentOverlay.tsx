@@ -5,7 +5,10 @@ import { useEmbeddedModelStatus } from "@/embedded/hooks/use-embedded-model-stat
 import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import { embeddedChatHistoryService } from "@/embedded/chat-history-service";
 import { createEmbeddedContextItem } from "@/embedded/context-items";
-import { createEmbeddedChatModal } from "@/embedded/pages/EmbeddedChat";
+import {
+	EMBEDDED_CHAT_MODAL_STATE_EVENT,
+	createEmbeddedChatModal,
+} from "@/embedded/pages/EmbeddedChat";
 import { coAgentChatService } from "@/embedded/pages/CoAgent/co-agent-chat";
 import { CO_AGENT_STATUS_EVENT } from "@/embedded/pages/CoAgent/constants";
 import { getPageDescription } from "@/embedded/utils/co-agent/dom-utils";
@@ -33,6 +36,9 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [anchorPromptOpen, setAnchorPromptOpen] = useState(false);
 	const [chatPopupOpen, setChatPopupOpen] = useState(false);
+	const [externalChatModalOpen, setExternalChatModalOpen] = useState(() =>
+		Boolean(document.getElementById("memorall-embedded-chat-modal")),
+	);
 	const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
 	const { needsPasskey, modelAvailable, selectedModel } =
 		useEmbeddedModelStatus();
@@ -88,6 +94,25 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 			setBubbleDismissed(false);
 		}
 	}, [speechMessage]);
+
+	useEffect(() => {
+		const handleEmbeddedChatState = (event: Event) => {
+			const detail = (
+				event as CustomEvent<{ mounted?: boolean; minimized?: boolean }>
+			).detail;
+			setExternalChatModalOpen(Boolean(detail?.mounted));
+		};
+
+		window.addEventListener(
+			EMBEDDED_CHAT_MODAL_STATE_EVENT,
+			handleEmbeddedChatState,
+		);
+		return () =>
+			window.removeEventListener(
+				EMBEDDED_CHAT_MODAL_STATE_EVENT,
+				handleEmbeddedChatState,
+			);
+	}, []);
 
 	useEffect(() => {
 		const bubbleContent = portalRoot.querySelector<HTMLElement>(
@@ -283,7 +308,7 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 					onOpen={() => openPrompt(freshAnchor)}
 				/>
 			) : null}
-			{!chatPopupOpen ? (
+			{!chatPopupOpen && !externalChatModalOpen ? (
 				<CoAgentDock
 					collapsed={collapsed}
 					showAuthAction={showAuthAction}

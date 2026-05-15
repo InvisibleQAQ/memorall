@@ -1,18 +1,27 @@
-import React, { useState } from "react";
-import type { ChatMessage } from "@/embedded/types";
+import React, { useEffect, useRef, useState } from "react";
+import type { ChatMessage, EmbeddedContextItem } from "@/embedded/types";
 import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
-import { backgroundJob } from "@/services/background-jobs/background-job";
 import { logWarn } from "@/utils/logger";
+import { createFolderPickerOverlay } from "@/embedded/components/FolderPickerOverlay";
 
 export const MessageActions: React.FC<{
 	message: ChatMessage;
 	allMessages: ChatMessage[];
 	selectedTopic?: string;
-}> = ({ message, allMessages, selectedTopic }) => {
+}> = ({ message, allMessages }) => {
 	const t = useEmbeddedTranslation("messageRenderer");
 	const [copied, setCopied] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [saved, setSaved] = useState(false);
+	const folderPickerCleanupRef = useRef<(() => void) | null>(null);
+
+	useEffect(
+		() => () => {
+			folderPickerCleanupRef.current?.();
+			folderPickerCleanupRef.current = null;
+		},
+		[],
+	);
 
 	const handleCopy = async () => {
 		try {
@@ -56,26 +65,28 @@ export const MessageActions: React.FC<{
 			}\n${t("webUrl")}: ${window.location.href}\n\n`;
 			const fullContent = sourceInfo + conversationText;
 
-			const result = await backgroundJob.execute(
-				"knowledge-graph",
-				{
-					filePath: conversationId,
-					content: fullContent,
-					isSpecificTextConversion: true,
-					topicId: selectedTopic || undefined,
+			const item: EmbeddedContextItem = {
+				id: conversationId,
+				kind: "smart_text",
+				label: t("conversationSaveLabel"),
+				content: fullContent,
+			};
+
+			folderPickerCleanupRef.current = createFolderPickerOverlay(
+				item,
+				() => {
+					folderPickerCleanupRef.current = null;
+					setSaving(false);
+					setSaved(true);
+					setTimeout(() => setSaved(false), 3000);
 				},
-				{ stream: false },
+				() => {
+					folderPickerCleanupRef.current = null;
+					setSaving(false);
+				},
 			);
-
-			if ("promise" in result) {
-				await result.promise;
-			}
-
-			setSaved(true);
-			setTimeout(() => setSaved(false), 3000);
 		} catch (error) {
 			logWarn("Failed to save to remembered content:", error);
-		} finally {
 			setSaving(false);
 		}
 	};

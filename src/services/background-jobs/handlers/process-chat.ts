@@ -36,6 +36,10 @@ import { chatFlowRegistry } from "@/services/flows/chat-flow-registry";
 import type { UnifiedFlowConfig } from "@/services/flows/interfaces/flow-config";
 import { buildDefaultFlowConfig } from "@/services/flows/build-flow-config";
 import { mergeWithDefaultConfig } from "@/services/flows/build-flow-config";
+import {
+	createFlowRuntimeVars,
+	withFlowRuntimeVars,
+} from "@/services/flows/runtime/runtime-context";
 import { eq, sql } from "drizzle-orm";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import {
@@ -65,6 +69,7 @@ export interface ChatPayload {
 	topicId?: string; // For topic filtering in custom mode
 	agentFlowId?: string;
 	flowConfig?: UnifiedFlowConfig;
+	flowConfigPrefix?: UnifiedFlowConfig;
 	streamConfig?: ChatStreamConfig;
 	tools?: ChatCompletionTool[];
 	tool_choice?: ChatCompletionToolChoiceOption;
@@ -206,6 +211,23 @@ function applyTopicRecallType(
 				? { ...step, enabled: step.name === selectedStepName }
 				: step,
 		),
+	};
+}
+
+function applyFlowConfigPrefix(
+	base: UnifiedFlowConfig,
+	prefix: UnifiedFlowConfig | undefined,
+): UnifiedFlowConfig {
+	const prefixSteps = prefix?.steps?.filter((step) => step.enabled) ?? [];
+	if (prefixSteps.length === 0) return base;
+
+	const prefixStepIds = new Set(prefixSteps.map((step) => step.id));
+	return {
+		...base,
+		steps: [
+			...prefixSteps,
+			...base.steps.filter((step) => !prefixStepIds.has(step.id)),
+		],
 	};
 }
 
@@ -807,16 +829,24 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				const resolvedConfig = flowConfig
 					? mergeWithDefaultConfig(flowConfig, flowConfig.graphType)
 					: buildDefaultFlowConfig("agent");
-				const { graph, getInitialState } = chatFlowRegistry.create(
-					resolvedConfig.graphType ?? "agent",
-					ChatHandler.getFlowServices(),
+				const resolvedConfigWithPrefix = applyFlowConfigPrefix(
 					resolvedConfig,
+					job.payload.flowConfigPrefix,
 				);
+				const { graph, getInitialState } = chatFlowRegistry.create(
+					resolvedConfigWithPrefix.graphType ?? "agent",
+					ChatHandler.getFlowServices(),
+					resolvedConfigWithPrefix,
+				);
+				const runtimeVars = createFlowRuntimeVars();
 				const stream = await graph.stream(
 					getInitialState({ messages, topicId, contextQueries: [] }),
-					{
-						streamMode: ["custom", "values"],
-					},
+					withFlowRuntimeVars(
+						{
+							streamMode: ["custom", "values"] as ["custom", "values"],
+						},
+						runtimeVars,
+					),
 				);
 
 				const finalState = await ChatHandler.runFlowStream({
@@ -875,6 +905,10 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 				let resolvedConfig = flowConfig
 					? mergeWithDefaultConfig(flowConfig, flowConfig.graphType)
 					: buildDefaultFlowConfig("foundation");
+				resolvedConfig = applyFlowConfigPrefix(
+					resolvedConfig,
+					job.payload.flowConfigPrefix,
+				);
 
 				await dependencies.updateJobProgress(jobId, {
 					stage: "Running Custom Flow...",
@@ -935,12 +969,20 @@ export class ChatHandler extends BaseProcessHandler<ChatJob> {
 					ChatHandler.getFlowServices(),
 					resolvedConfig,
 				);
+				const runtimeVars = createFlowRuntimeVars();
 
 				const stream = await graph.stream(
 					getInitialState({ messages, topicId, contextQueries }),
-					{
-						streamMode: ["custom", "updates", "values"],
-					},
+					withFlowRuntimeVars(
+						{
+							streamMode: ["custom", "updates", "values"] as [
+								"custom",
+								"updates",
+								"values",
+							],
+						},
+						runtimeVars,
+					),
 				);
 
 				const finalState = (await ChatHandler.runFlowStream({

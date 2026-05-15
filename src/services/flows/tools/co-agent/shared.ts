@@ -7,6 +7,52 @@ import {
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
+export const optionalTrimmedString = (value: unknown): string | undefined => {
+	if (typeof value !== "string") return undefined;
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : undefined;
+};
+
+export const optionalNumber = (value: unknown): number | undefined => {
+	if (typeof value === "number" && Number.isFinite(value)) return value;
+	if (typeof value !== "string" || !value.trim()) return undefined;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+export const optionalBoolean = (value: unknown): boolean | undefined => {
+	if (typeof value === "boolean") return value;
+	if (typeof value !== "string") return undefined;
+	const normalized = value.trim().toLowerCase();
+	if (["true", "1", "yes"].includes(normalized)) return true;
+	if (["false", "0", "no"].includes(normalized)) return false;
+	return undefined;
+};
+
+export const optionalOneOf = <T extends string>(
+	value: unknown,
+	allowed: readonly T[],
+): T | undefined => {
+	const text = optionalTrimmedString(value);
+	if (!text) return undefined;
+	return allowed.includes(text as T) ? (text as T) : undefined;
+};
+
+export const normalizeIndex = (value: unknown): number | undefined => {
+	const number = optionalNumber(value);
+	if (number === undefined) return undefined;
+	return Math.max(0, Math.floor(number));
+};
+
+export const normalizePositiveInteger = (
+	value: unknown,
+	fallback?: number,
+): number | undefined => {
+	const number = optionalNumber(value);
+	if (number === undefined) return fallback;
+	return Math.max(1, Math.floor(number));
+};
+
 export const createDefaultErrorResult = (error: unknown): string =>
 	JSON.stringify(
 		{
@@ -20,6 +66,18 @@ export const createDefaultErrorResult = (error: unknown): string =>
 
 export const createResult = (payload: Record<string, unknown>): string =>
 	JSON.stringify(payload, null, 2);
+
+export const createToolInputErrorResult = (
+	actionType: string,
+	error: string,
+	extra?: Record<string, unknown>,
+): string =>
+	createResult({
+		actionType,
+		success: false,
+		error,
+		...extra,
+	});
 
 export const sendCoAgentCommand = async (
 	request: CoAgentContentCommandRequest,

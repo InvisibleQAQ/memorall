@@ -68,6 +68,7 @@ export const handleCoAgentContentCommand = async (
 							scope === "viewport" || scope === "page" ? true : undefined,
 						maxTextChars: request.maxTextChars,
 						maxVisibleTextChars: request.maxVisibleTextChars,
+						textStart: request.textStart,
 						maxDomElements: request.maxDomElements ?? DEFAULT_DOM_SUMMARY_MAX,
 					}),
 					element: elementInfo,

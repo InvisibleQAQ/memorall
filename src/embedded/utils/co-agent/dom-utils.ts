@@ -18,6 +18,21 @@ export const truncate = (value: string, maxChars: number): string => {
 	return `${value.slice(0, maxChars)}\n...truncated`;
 };
 
+const normalizeTextRange = (
+	total: number,
+	options: { textStart?: number; maxChars: number },
+) => {
+	const from = Math.max(0, Math.floor(options.textStart ?? 0));
+	const cappedTo = Math.min(total, from + options.maxChars);
+	return {
+		from,
+		to: cappedTo,
+		total,
+		truncated: cappedTo < total,
+		maxChars: options.maxChars,
+	};
+};
+
 export const getViewport = (): CoAgentViewport => ({
 	width: window.innerWidth,
 	height: window.innerHeight,
@@ -277,6 +292,7 @@ export const buildSnapshot = (
 		includeDomSummary?: boolean;
 		maxTextChars?: number;
 		maxVisibleTextChars?: number;
+		textStart?: number;
 		maxDomElements?: number;
 	} = {},
 ): CoAgentPageSnapshot => {
@@ -291,10 +307,15 @@ export const buildSnapshot = (
 		);
 	}
 	if (options.includePageText) {
-		snapshot.text = truncate(
-			document.body?.innerText || document.documentElement?.textContent || "",
-			options.maxTextChars ?? DEFAULT_TEXT_MAX_CHARS,
-		);
+		const fullText =
+			document.body?.innerText || document.documentElement?.textContent || "";
+		const maxChars = options.maxTextChars ?? DEFAULT_TEXT_MAX_CHARS;
+		const range = normalizeTextRange(fullText.length, {
+			textStart: options.textStart,
+			maxChars,
+		});
+		snapshot.text = fullText.slice(range.from, range.to);
+		snapshot.textRange = range;
 	}
 	if (
 		options.includeDomSummary &&

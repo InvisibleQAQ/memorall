@@ -6,6 +6,7 @@ import type { ISandboxContainerService } from "@/services/sandbox-container";
 import type { IWebBrowserService } from "@/services/web-browser";
 import type { DocumentFileSystem } from "@/services/filesystem/document-filesystem";
 import type { ChatCompletionToolMessageParam } from "@/types/openai";
+import type { FlowRuntimeVars } from "@/services/flows/runtime/runtime-context";
 
 // All available services
 export interface AllServices {
@@ -35,6 +36,7 @@ export type ToolResultValue = ChatCompletionToolMessageParam["content"];
 
 export interface ToolExecutionContext<TState = unknown> {
 	state: TState;
+	runtime?: FlowRuntimeVars;
 }
 
 export const toolMessageContentToText = (

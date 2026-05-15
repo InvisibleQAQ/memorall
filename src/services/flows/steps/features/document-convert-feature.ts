@@ -197,6 +197,7 @@ featureCatalogRegistry.register({
 		customizable: false,
 		recommended: false,
 		icon: { name: "FileOutput", type: "lucide" },
+		accentColor: "#f59e0b",
 	} satisfies FeatureCatalogMetadata,
 });
 

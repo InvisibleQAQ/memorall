@@ -304,6 +304,7 @@ featureCatalogRegistry.register({
 		systemPrompt: MEAL_PLANNER_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "🍽️", type: "emoji" },
+		accentColor: "#ec4899",
 	} satisfies FeatureCatalogMetadata,
 });
 

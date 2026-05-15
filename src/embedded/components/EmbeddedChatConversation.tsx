@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
 	Conversation,
 	ConversationContent,
@@ -32,27 +32,51 @@ interface EmbeddedChatConversationProps {
 	onAttachContext: (contextItem: EmbeddedContextItem) => void;
 	onSelectPrompt: (prompt: string) => void;
 	onOpenMainApp: () => void;
+	onPasskeySubmit: (passkey: string) => Promise<void>;
 }
+
+const formatProviderLabel = (provider: string): string =>
+	provider === "openai"
+		? "OpenAI"
+		: provider === "openrouter"
+			? "OpenRouter"
+			: provider;
 
 const AuthRequiredState = ({
 	encryptedProviders,
 	selectedProvider,
-	onOpenMainApp,
+	onPasskeySubmit,
 }: Pick<
 	EmbeddedChatConversationProps,
-	"encryptedProviders" | "selectedProvider" | "onOpenMainApp"
+	"encryptedProviders" | "selectedProvider" | "onPasskeySubmit"
 >) => {
 	const t = useEmbeddedTranslation("chat");
-	const authDescription =
-		encryptedProviders.length > 0
-			? t("authRequiredDescription").replace(
-					"Your model",
-					`Your ${encryptedProviders.join(", ")} provider`,
-				)
-			: t("authRequiredDescription").replace(
-					"Your model",
-					`Your ${selectedProvider} model`,
-				);
+	const [passkey, setPasskey] = useState("");
+	const [showPasskey, setShowPasskey] = useState(false);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState("");
+	const providers =
+		encryptedProviders.length > 0 ? encryptedProviders : [selectedProvider];
+	const providerText = providers
+		.filter(Boolean)
+		.map(formatProviderLabel)
+		.join(", ");
+
+	const handleSubmit = async () => {
+		if (passkey.length < 6) {
+			setError(t("passkeyLengthError"));
+			return;
+		}
+		setIsLoading(true);
+		setError("");
+		try {
+			await onPasskeySubmit(passkey);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : t("passkeyUnlockError"));
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
 	return (
 		<div className="flex flex-col items-center justify-center h-full text-center py-8 px-4">
@@ -72,15 +96,69 @@ const AuthRequiredState = ({
 				</svg>
 			</div>
 			<h3 className="font-medium mb-2 text-foreground">{t("authRequired")}</h3>
-			<p className="text-muted-foreground text-xs leading-relaxed mb-4">
-				{authDescription}
+			<p className="text-muted-foreground text-xs leading-relaxed mb-4 max-w-sm">
+				{t("passkeyInlineDescription").replace("{{providers}}", providerText)}
 			</p>
-			<button
-				onClick={onOpenMainApp}
-				className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-			>
-				{t("openMainApp")}
-			</button>
+			<div className="w-full max-w-sm space-y-3 text-left">
+				{providerText && (
+					<div className="rounded-md border border-border bg-muted/20 px-3 py-2">
+						<div className="text-xs text-muted-foreground">
+							{t("passkeyWillUnlock")}
+						</div>
+						<div className="mt-1 text-sm font-medium text-foreground">
+							{providerText}
+						</div>
+					</div>
+				)}
+				<label className="block text-xs text-muted-foreground">
+					{t("passkeyLabel")}
+				</label>
+				<div className="relative">
+					<input
+						type={showPasskey ? "text" : "password"}
+						value={passkey}
+						onChange={(event) => setPasskey(event.target.value)}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" && passkey.length >= 6 && !isLoading) {
+								void handleSubmit();
+							}
+						}}
+						disabled={isLoading}
+						autoFocus
+						placeholder={t("passkeyPlaceholder")}
+						className="w-full rounded-md border border-border bg-background px-3 py-2 pr-12 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+					/>
+					<button
+						type="button"
+						onClick={() => setShowPasskey((value) => !value)}
+						disabled={isLoading}
+						className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-60"
+					>
+						{showPasskey ? t("hidePasskey") : t("showPasskey")}
+					</button>
+				</div>
+				{passkey.length > 0 && passkey.length < 6 && (
+					<div className="rounded border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
+						{t("passkeyLengthHint").replace("{{current}}", `${passkey.length}`)}
+					</div>
+				)}
+				{error && (
+					<div className="rounded border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+						{error}
+					</div>
+				)}
+				<button
+					type="button"
+					onClick={() => void handleSubmit()}
+					disabled={isLoading || passkey.length < 6}
+					className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+				>
+					{isLoading ? t("passkeyUnlocking") : t("passkeyUnlock")}
+				</button>
+				<p className="text-center text-xs text-muted-foreground">
+					{t("passkeyHelpText")}
+				</p>
+			</div>
 		</div>
 	);
 };
@@ -245,6 +323,7 @@ export const EmbeddedChatConversation = ({
 	onAttachContext,
 	onSelectPrompt,
 	onOpenMainApp,
+	onPasskeySubmit,
 }: EmbeddedChatConversationProps) => (
 	<Conversation
 		ref={conversationRef}
@@ -257,7 +336,7 @@ export const EmbeddedChatConversation = ({
 				<AuthRequiredState
 					encryptedProviders={encryptedProviders}
 					selectedProvider={selectedProvider}
-					onOpenMainApp={onOpenMainApp}
+					onPasskeySubmit={onPasskeySubmit}
 				/>
 			) : noModelConfig ? (
 				<NoModelConfigState onOpenMainApp={onOpenMainApp} />

@@ -6,12 +6,13 @@ import {
 	type FormEventHandler,
 	type SetStateAction,
 } from "react";
-import { nanoid } from "nanoid";
 import { logError } from "@/utils/logger";
+import { v4 } from "@/utils/uuid";
+import { BACKGROUND_EVENTS } from "@/constants/events";
 import { embeddedChatService } from "@/embedded/chat-service";
 import { embeddedChatHistoryService } from "@/embedded/chat-history-service";
 import { buildEmbeddedContextMessageContent } from "@/embedded/context-items";
-import { createCoAgentEnabledFlowConfig } from "@/embedded/pages/CoAgent/co-agent-chat";
+import { createCoAgentFlowPrefixConfig } from "@/embedded/pages/CoAgent/co-agent-chat";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import type {
 	ChatAction,
@@ -21,6 +22,7 @@ import type {
 } from "@/embedded/types";
 import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import type { Message } from "@/services/database/types";
+import type { MessageParts } from "@/types/chat";
 
 interface UseEmbeddedChatSessionOptions {
 	context?: string;
@@ -43,6 +45,9 @@ interface UseEmbeddedChatSessionOptions {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null;
 
+const parseStoredMessageParts = (value: unknown): MessageParts | null =>
+	Array.isArray(value) ? (value as MessageParts) : null;
+
 const mapStoredMessage = (message: Message): ChatMessage | null => {
 	if (message.role !== "user" && message.role !== "assistant") {
 		return null;
@@ -54,6 +59,7 @@ const mapStoredMessage = (message: Message): ChatMessage | null => {
 		role: message.role,
 		timestamp: new Date(message.createdAt),
 		topicId: message.topicId,
+		parts: parseStoredMessageParts(message.parts),
 		metadata: isRecord(message.metadata) ? message.metadata : undefined,
 	};
 };
@@ -73,6 +79,61 @@ const getContentText = (content: ChatMessage["content"]): string => {
 		.filter((part) => part.type === "text")
 		.map((part) => part.text)
 		.join("\n");
+};
+
+const EMBEDDED_CHAT_FEATURE_STEP_NAME = "embedded-chat-feature";
+
+const createEmbeddedChatFlowPrefixConfig = () => ({
+	graphType: "foundation",
+	steps: [
+		{
+			id: "runtime__embedded_chat_feature__1",
+			name: EMBEDDED_CHAT_FEATURE_STEP_NAME,
+			enabled: true,
+		},
+	],
+});
+
+const getPageDescription = (): string => {
+	const selectors = [
+		'meta[name="description"]',
+		'meta[property="og:description"]',
+		'meta[name="twitter:description"]',
+	];
+	for (const selector of selectors) {
+		const content = document
+			.querySelector<HTMLMetaElement>(selector)
+			?.content?.trim();
+		if (content) return content;
+	}
+	return "";
+};
+
+const renderEmbeddedPageContextSystemMessage = ({
+	pageTitle,
+	pageUrl,
+}: {
+	pageTitle: string;
+	pageUrl: string;
+}): string =>
+	`
+Current browser page for EmbeddedChat:
+- URL: ${pageUrl || "Unknown"}
+- Title: ${pageTitle || document.title || "Unknown"}
+- Description: ${getPageDescription() || "Not available"}
+
+Use this as lightweight page orientation. Prefer the user's attached context when present, and use current-page tools only when more live page evidence is needed.
+`.trim();
+
+const ensureEmbeddedChatToolTarget = async (): Promise<void> => {
+	try {
+		await chrome.runtime.sendMessage({
+			type: BACKGROUND_EVENTS.CO_AGENT_SET_ACTIVE,
+			url: window.location.href,
+		});
+	} catch (error) {
+		logError("[EMBEDDED_CHAT] Failed to set active tool target:", error);
+	}
 };
 
 export const useEmbeddedChatSession = ({
@@ -200,11 +261,12 @@ export const useEmbeddedChatSession = ({
 			const controller = new AbortController();
 			setAbortController(controller);
 
-			const userMessageId = nanoid();
-			let assistantMessageId = nanoid();
+			const userMessageId = v4();
+			let assistantMessageId = v4();
 			let currentContent = "";
 			let latestActions: ChatAction[] = [];
 			let latestToolCalls: unknown[] = [];
+			let latestParts: MessageParts | undefined;
 
 			try {
 				const topicId =
@@ -262,11 +324,8 @@ export const useEmbeddedChatSession = ({
 						timestamp: userMessage.timestamp,
 					},
 				];
-				const serviceMode = coAgentEnabled
-					? "custom"
-					: selectedAgentFlowId === "chat"
-						? "normal"
-						: "custom";
+				const serviceMode = "custom";
+				await ensureEmbeddedChatToolTarget();
 
 				const result = await embeddedChatService.chatStream({
 					messages: messagesForAPI,
@@ -274,12 +333,13 @@ export const useEmbeddedChatSession = ({
 					mode: serviceMode,
 					topicId,
 					agentFlowId:
-						coAgentEnabled || selectedAgentFlowId === "chat"
-							? undefined
-							: selectedAgentFlowId,
-					flowConfig: coAgentEnabled
-						? createCoAgentEnabledFlowConfig()
-						: undefined,
+						selectedAgentFlowId === "chat" ? undefined : selectedAgentFlowId,
+					flowConfigPrefix: coAgentEnabled
+						? createCoAgentFlowPrefixConfig()
+						: createEmbeddedChatFlowPrefixConfig(),
+					systemMessages: [
+						renderEmbeddedPageContextSystemMessage({ pageTitle, pageUrl }),
+					],
 					conversation: {
 						id: storedAssistantMessage.conversationId ?? "embedded",
 						inProgressMessage: { id: assistantMessageId },
@@ -298,6 +358,19 @@ export const useEmbeddedChatSession = ({
 								}
 								return message;
 							}),
+						);
+					},
+					onParts: (parts) => {
+						latestParts = parts;
+						setMessages((prev) =>
+							prev.map((message) =>
+								message.id === assistantMessageId
+									? {
+											...message,
+											parts,
+										}
+									: message,
+							),
 						);
 					},
 					onAction: (actions: ChatAction[]) => {
@@ -370,6 +443,7 @@ export const useEmbeddedChatSession = ({
 				});
 
 				currentContent = result.content || currentContent;
+				latestParts = result.parts || latestParts;
 				latestActions = cloneActions(result.actions || latestActions);
 				latestToolCalls = result.toolCalls || latestToolCalls;
 				setMessages((prev) =>
@@ -378,6 +452,7 @@ export const useEmbeddedChatSession = ({
 							? {
 									...message,
 									content: currentContent,
+									parts: latestParts,
 									isStreaming: false,
 									metadata: {
 										...message.metadata,
@@ -398,6 +473,7 @@ export const useEmbeddedChatSession = ({
 							return {
 								...message,
 								content: errorContent,
+								parts: latestParts,
 								isStreaming: false,
 								metadata: {
 									...message.metadata,

@@ -760,6 +760,48 @@ export const customStyles = `
     border-radius: 8px !important;
   }
 
+  .memorall-chat-container .memorall-embedded-root--minimized {
+    pointer-events: none !important;
+  }
+
+  .memorall-chat-container .memorall-chat-minimized-button {
+    position: fixed !important;
+    right: 18px !important;
+    bottom: 18px !important;
+    width: 54px !important;
+    height: 54px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 999px !important;
+    background: hsl(var(--background) / 0.96) !important;
+    color: hsl(var(--foreground)) !important;
+    box-shadow:
+      0 16px 40px rgba(0, 0, 0, 0.22),
+      0 2px 8px rgba(0, 0, 0, 0.12) !important;
+    backdrop-filter: blur(12px) !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    animation: slideInFromRight 180ms ease-out both !important;
+  }
+
+  .memorall-chat-container .memorall-chat-minimized-button:hover {
+    transform: translateY(-1px) !important;
+    background: hsl(var(--muted)) !important;
+  }
+
+  .memorall-chat-container .memorall-chat-minimized-button:focus-visible {
+    outline: 2px solid hsl(var(--ring)) !important;
+    outline-offset: 2px !important;
+  }
+
+  .memorall-chat-container .memorall-chat-minimized-logo {
+    width: 30px !important;
+    height: 30px !important;
+    object-fit: contain !important;
+  }
+
   .memorall-chat-container .memorall-chat-shell--smart {
     top: 12px !important;
     right: 12px !important;

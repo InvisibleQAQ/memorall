@@ -283,6 +283,7 @@ featureCatalogRegistry.register({
 		systemPrompt: DAILY_BRIEFING_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "☀️", type: "emoji" },
+		accentColor: "#facc15",
 	} satisfies FeatureCatalogMetadata,
 });
 

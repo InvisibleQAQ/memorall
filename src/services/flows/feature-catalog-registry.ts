@@ -25,6 +25,8 @@ export interface FeatureCatalogMetadata extends Record<string, unknown> {
 	customizable: boolean;
 	/** Icon shown in the feature card. */
 	icon?: FeatureIcon;
+	/** Accent color shown in the feature card. */
+	accentColor?: string;
 	/** Mark this feature as the recommended choice. */
 	recommended?: boolean;
 	/** Mark this feature as legacy — prefer a newer alternative. */

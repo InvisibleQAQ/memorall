@@ -135,6 +135,7 @@ featureCatalogRegistry.register({
 		systemPrompt: ARTIFACT_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "AppWindow", type: "lucide" },
+		accentColor: "#6366f1",
 	} satisfies FeatureCatalogMetadata,
 });
 

@@ -46,6 +46,7 @@ export interface ConfigFeatureDefinition {
 	descKey: string;
 	configKey: "enableContextRetrieval" | "enableCitations" | "tools";
 	icon?: FeatureIcon;
+	accentColor?: string;
 	promptField?: {
 		field: "contextPrompt";
 		labelKey: string;
@@ -69,6 +70,7 @@ export interface CatalogFeatureDefinition {
 	/** i18n key for the description. */
 	descriptionKey?: string;
 	icon?: FeatureIcon;
+	accentColor?: string;
 	tools: string[];
 	systemPrompt: string;
 	customizable: boolean;
@@ -164,6 +166,7 @@ const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
 				descKey: "agentSettings.contextRetrievalDesc",
 				configKey: "enableContextRetrieval",
 				icon: { name: "Database", type: "lucide" },
+				accentColor: "#22c55e",
 				promptField: {
 					field: "contextPrompt",
 					labelKey: "agentSettings.contextPrompt",
@@ -180,17 +183,19 @@ const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
 				descKey: "agentSettings.citationsDesc",
 				configKey: "enableCitations",
 				icon: { name: "Quote", type: "lucide" },
+				accentColor: "#a855f7",
 				tools: [],
 				systemPrompt: "",
 			},
 			{
 				type: "config",
 				name: "agent-node",
-				nameKey: "agentSettings.agentNode",
-				descKey: "agentSettings.agentNodeDesc",
+				nameKey: "agentSettings.agentTools",
+				descKey: "agentSettings.agentToolsDesc",
 				configKey: "tools",
 				icon: { name: "Wrench", type: "lucide" },
-				toolScope: "unclaimed",
+				accentColor: "#f59e0b",
+				toolScope: "all",
 				tools: [],
 				systemPrompt: "",
 			},
@@ -201,10 +206,11 @@ const GRAPH_BUILTIN_CONFIGS: Record<string, GraphBuiltinConfig> = {
 			{
 				type: "config",
 				name: "agent-node",
-				nameKey: "agentSettings.agentNode",
-				descKey: "agentSettings.agentNodeDesc",
+				nameKey: "agentSettings.agentTools",
+				descKey: "agentSettings.agentToolsDesc",
 				configKey: "tools",
 				icon: { name: "Wrench", type: "lucide" },
+				accentColor: "#f59e0b",
 				toolScope: "all",
 				tools: [],
 				systemPrompt: "",
@@ -264,6 +270,8 @@ function buildFeatureDefinitions(graphType: string): AgentFeatureDefinition[] {
 					"type" in meta.icon
 						? (meta.icon as FeatureIcon)
 						: undefined,
+				accentColor:
+					typeof meta.accentColor === "string" ? meta.accentColor : undefined,
 			};
 		});
 

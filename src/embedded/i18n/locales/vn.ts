@@ -21,6 +21,20 @@ export const vnEmbeddedLocale = {
 		authRequiredDescription:
 			"Mô hình của bạn yêu cầu xác thực. Vui lòng mở ứng dụng chính để nhập mật khẩu.",
 		openMainApp: "Mở ứng dụng chính",
+		passkeyInlineDescription:
+			"Nhập mật khẩu chính để mở khóa cấu hình nhà cung cấp đã mã hóa ({{providers}}).",
+		passkeyWillUnlock: "Sẽ mở khóa",
+		passkeyLabel: "Mật khẩu chính",
+		passkeyPlaceholder: "Nhập mật khẩu chính",
+		showPasskey: "Hiện",
+		hidePasskey: "Ẩn",
+		passkeyLengthError: "Mật khẩu phải có ít nhất 6 ký tự.",
+		passkeyLengthHint: "Nhập ít nhất 6 ký tự ({{current}}/6).",
+		passkeyUnlock: "Mở khóa nhà cung cấp",
+		passkeyUnlocking: "Đang mở khóa...",
+		passkeyUnlockError: "Không thể mở khóa cấu hình nhà cung cấp.",
+		passkeyHelpText:
+			"Mật khẩu này được đặt khi bạn cấu hình nhà cung cấp API lần đầu.",
 		noModelConfig: "Chưa cấu hình mô hình",
 		noModelConfigDescription:
 			"Chưa có mô hình AI nào được cấu hình. Vui lòng mở ứng dụng chính để thiết lập mô hình.",
@@ -31,6 +45,7 @@ export const vnEmbeddedLocale = {
 		suggestSummary: "Tóm tắt trang này",
 		suggestFindFacts: "Tìm các ý quan trọng",
 		suggestRecallLinks: "Tôi đã lưu gì về nội dung này?",
+		restoreChat: "Mở lại chat",
 	},
 	topicSelector: {
 		loading: "Đang tải...",
@@ -97,6 +112,7 @@ export const vnEmbeddedLocale = {
 		newChat: "Cuộc trò chuyện mới",
 		switchToPanel: "Chuyển sang bảng bên phải",
 		switchToPopup: "Chuyển sang popup góc dưới phải",
+		minimize: "Thu nhỏ",
 		enableCoAgent: "Bật co-agent",
 		disableCoAgent: "Tắt co-agent",
 		close: "Đóng",
@@ -167,6 +183,7 @@ export const vnEmbeddedLocale = {
 		},
 		running: "Đang chạy",
 		done: "Hoàn tất",
+		errorLabel: "Lỗi",
 		toolCall: "Lệnh công cụ",
 		toolLabel: "Công cụ {index}",
 		thinking: "Đang suy nghĩ...",
@@ -184,6 +201,7 @@ export const vnEmbeddedLocale = {
 		saveToRemembered: "Lưu vào nội dung đã ghi nhớ",
 		saved: "Đã lưu!",
 		remember: "Ghi nhớ",
+		conversationSaveLabel: "Cuộc trò chuyện",
 		directContentSave: "Lưu nội dung trực tiếp",
 		webTitle: "Tiêu đề web",
 		webUrl: "URL web",

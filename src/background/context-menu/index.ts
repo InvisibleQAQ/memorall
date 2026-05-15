@@ -20,7 +20,7 @@ const TEXTS: Record<Language, MenuTexts> = {
 	en: {
 		savePage: "💾 Save page",
 		convertToKnowledge: "✨ Convert to knowledge",
-		recall: "🧠 Recall",
+		recall: "💬 Ask about this page",
 		coAgent: "🤖 Co-agent",
 		smartSelector: "🎯 Smart Selector",
 		openPlatform: "🚀 Open platform",
@@ -29,7 +29,7 @@ const TEXTS: Record<Language, MenuTexts> = {
 	vn: {
 		savePage: "💾 Lưu trang",
 		convertToKnowledge: "✨ Chuyển thành kiến thức",
-		recall: "🧠 Gợi nhớ",
+		recall: "💬 Hỏi về trang này",
 		coAgent: "🤖 Co-agent",
 		smartSelector: "🎯 Chọn thông minh",
 		openPlatform: "🚀 Mở nền tảng",

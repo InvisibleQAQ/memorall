@@ -323,6 +323,10 @@
 			"financeTrackerFeature": {
 				"name": "Theo dõi tài chính",
 				"description": "Nghiên cứu cổ phiếu và công ty chuyên sâu với biểu đồ Mermaid và ASCII bao gồm tài chính, định giá, ý kiến chuyên gia và tin tức. Lưu báo cáo vào /documents/finance/."
+			},
+			"activeMemoryFeature": {
+				"name": "Bộ nhớ chủ động",
+				"description": "Ghi nhớ, truy xuất, cập nhật, xóa và giải thích các bộ nhớ lâu dài trong đồ thị chủ đề đang chọn."
 			}
 		}
 	},

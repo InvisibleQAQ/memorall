@@ -61,6 +61,13 @@ export interface CoAgentPageSnapshot {
 	viewport: CoAgentViewport;
 	visibleText?: string;
 	text?: string;
+	textRange?: {
+		from: number;
+		to: number;
+		total: number;
+		truncated: boolean;
+		maxChars: number;
+	};
 	domSummary?: CoAgentElementInfo[];
 }
 
@@ -89,6 +96,7 @@ export type CoAgentContentCommandRequest =
 			index?: number;
 			maxTextChars?: number;
 			maxVisibleTextChars?: number;
+			textStart?: number;
 			maxDomElements?: number;
 	  }
 	| {
@@ -224,6 +232,8 @@ export const isCoAgentContentCommandRequest = (
 					value.scope === "viewport" ||
 					value.scope === "page") &&
 				(value.selector === undefined || typeof value.selector === "string") &&
+				(value.textStart === undefined ||
+					typeof value.textStart === "number") &&
 				(value.scope !== "selector" || typeof value.selector === "string")
 			);
 		case "co-agent:query":

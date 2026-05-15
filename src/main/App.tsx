@@ -26,10 +26,10 @@ import {
 } from "@/utils/auth-provider-restore";
 import {
 	detectEncryptionFormat,
-	unlockMasterKey,
 	isMasterKeyUnlocked,
 	getMasterStrongPassword,
 } from "@/utils/master-key";
+import { unlockAndRestoreProvidersWithPasskey } from "@/utils/provider-passkey-unlock";
 import { serviceManager } from "@/services";
 import { backgroundJob } from "@/services/background-jobs/background-job";
 import { sharedStorageService } from "@/services/shared-storage/shared-storage-service";
@@ -198,11 +198,8 @@ const App: React.FC = () => {
 	// Handle master passkey submission
 	const handlePasskeySubmit = async (passkey: string) => {
 		try {
-			// Unlock master key
-			const masterStrongPassword = await unlockMasterKey(passkey);
-
-			// Restore all providers in UI thread
-			await restoreAllProviders(masterStrongPassword);
+			const { masterStrongPassword } =
+				await unlockAndRestoreProvidersWithPasskey(passkey);
 
 			// Also restore in offscreen thread via background job
 			await backgroundJob.execute(

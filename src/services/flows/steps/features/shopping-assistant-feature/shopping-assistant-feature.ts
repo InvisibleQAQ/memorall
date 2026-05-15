@@ -367,6 +367,7 @@ featureCatalogRegistry.register({
 		systemPrompt: SHOPPING_ASSISTANT_FEATURE_SYSTEM_PROMPT,
 		customizable: false,
 		icon: { name: "🛒", type: "emoji" },
+		accentColor: "#f43f5e",
 	} satisfies FeatureCatalogMetadata,
 });
 
