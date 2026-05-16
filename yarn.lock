@@ -5977,6 +5977,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"agent-base@npm:6":
+  version: 6.0.2
+  resolution: "agent-base@npm:6.0.2"
+  dependencies:
+    debug: "npm:4"
+  checksum: 10c0/dc4f757e40b5f3e3d674bc9beb4f1048f4ee83af189bae39be99f57bf1f48dde166a8b0a5342a84b5944ee8e6ed1e5a9d801858f4ad44764e84957122fe46261
+  languageName: node
+  linkType: hard
+
 "ai@npm:6.0.116, ai@npm:^6.0.85":
   version: 6.0.116
   resolution: "ai@npm:6.0.116"
@@ -6250,14 +6259,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axios@npm:^1.15.0":
-  version: 1.16.0
-  resolution: "axios@npm:1.16.0"
+"axios@npm:^1.15.2":
+  version: 1.16.1
+  resolution: "axios@npm:1.16.1"
   dependencies:
     follow-redirects: "npm:^1.16.0"
     form-data: "npm:^4.0.5"
+    https-proxy-agent: "npm:^5.0.1"
     proxy-from-env: "npm:^2.1.0"
-  checksum: 10c0/1c91a5221b77b76072026b4cc95ecdf38f7c3e33e63423abec09a85e6e9a12279637dcc9ac2ba1fc333e0c447fb3b0f46d7965acb5d7cea02d188e9c6d425c0b
+  checksum: 10c0/2f77e37e6552bbff8a772d058fb09500198e9188c6b20dc799d82dbe12a8cb506f6eed4e4e62a9ba612a35cbab496faa26d68f9bff14a53af6d15c3e136391a7
   languageName: node
   linkType: hard
 
@@ -7742,7 +7752,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"debug@npm:^4.0.0, debug@npm:^4.1.1, debug@npm:^4.3.6, debug@npm:^4.4.0, debug@npm:^4.4.3":
+"debug@npm:4, debug@npm:^4.0.0, debug@npm:^4.1.1, debug@npm:^4.3.6, debug@npm:^4.4.0, debug@npm:^4.4.3":
   version: 4.4.3
   resolution: "debug@npm:4.4.3"
   dependencies:
@@ -8818,22 +8828,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"extension-create@npm:3.15.0":
-  version: 3.15.0
-  resolution: "extension-create@npm:3.15.0"
+"extension-create@npm:3.16.1":
+  version: 3.16.1
+  resolution: "extension-create@npm:3.16.1"
   dependencies:
     adm-zip: "npm:^0.5.16"
-    axios: "npm:^1.15.0"
+    axios: "npm:^1.15.2"
     cross-spawn: "npm:^7.0.6"
     go-git-it: "npm:^5.1.5"
     pintor: "npm:0.3.0"
-  checksum: 10c0/8c4904b7163abd38200f13ca20b1cfaba6552dbf22964e3fe201854e05301daaf198ee0afc7c60fb3e0324d7c125b6f3f46f74643a998f5de95fb54a1cd9f181
+  checksum: 10c0/b7c868ee27ee4cedee44676226ec6103e605e58a30afb7c7384e10b49005ea94fe7751dd2c78b2505a1f2f0cb3497f3be6152ca86fe48bdf7af72defd766a1ab
   languageName: node
   linkType: hard
 
-"extension-develop@npm:3.15.0":
-  version: 3.15.0
-  resolution: "extension-develop@npm:3.15.0"
+"extension-develop@npm:3.16.1":
+  version: 3.16.1
+  resolution: "extension-develop@npm:3.16.1"
   dependencies:
     "@prefresh/core": "npm:1.5.9"
     "@prefresh/utils": "npm:1.2.1"
@@ -8876,7 +8886,7 @@ __metadata:
     webextension-polyfill: "npm:^0.12.0"
     webpack-merge: "npm:^6.0.1"
     webpack-target-webextension: "npm:^2.1.3"
-  checksum: 10c0/0d5d3db57a692234ac682cad6c4003bf0d2891f784194feed08ade28f6349f30a1455eb1555885237d96256cf67d51eec4e69e0941920090327b23359b4c23fa
+  checksum: 10c0/a8a24ce65adc823463a6a3e2bf8859f7de5ac6c2dcc8a3a8c47f66781d26f1fd9500d1ff68bb03de0496f727cb7eeb5cfea2c565e4f5bdf4c14eb97ec072f162
   languageName: node
   linkType: hard
 
@@ -8891,19 +8901,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"extension-install@npm:3.15.0":
-  version: 3.15.0
-  resolution: "extension-install@npm:3.15.0"
+"extension-install@npm:3.16.1":
+  version: 3.16.1
+  resolution: "extension-install@npm:3.16.1"
   dependencies:
     cross-spawn: "npm:^7.0.6"
     pintor: "npm:0.3.0"
-  checksum: 10c0/f338a3ad7df62a444fcd7deae35408140360c0add71d647b28777b232318cecdd37c6e493bfb1b3c2a211eeb99b553357df1e1201d32bc4aed0d62b4031f9935
+  checksum: 10c0/a2bc9459226fe9812e31b202e04115f39f8feb7f8a3b0d9b70d632c6ccf0b089e67a4cc726036ebdb0fb2b3486a28ae12bd24d6c1093b3e291f6cafc81553667
   languageName: node
   linkType: hard
 
-"extension@npm:3.15.0":
-  version: 3.15.0
-  resolution: "extension@npm:3.15.0"
+"extension@npm:3.16.1":
+  version: 3.16.1
+  resolution: "extension@npm:3.16.1"
   dependencies:
     "@types/chrome": "npm:^0.1.33"
     "@types/node": "npm:^25.2.0"
@@ -8913,9 +8923,9 @@ __metadata:
     commander: "npm:^14.0.3"
     cross-spawn: "npm:^7.0.6"
     edge-location: "npm:2.2.0"
-    extension-create: "npm:3.15.0"
-    extension-develop: "npm:3.15.0"
-    extension-install: "npm:3.15.0"
+    extension-create: "npm:3.16.1"
+    extension-develop: "npm:3.16.1"
+    extension-install: "npm:3.16.1"
     firefox-location2: "npm:3.0.0"
     pintor: "npm:0.3.0"
     semver: "npm:^7.7.3"
@@ -8924,7 +8934,7 @@ __metadata:
     ws: "npm:^8.19.0"
   bin:
     extension: bin/extension.cjs
-  checksum: 10c0/346bae2e13b58431b0fd908376b83c23460dd81f93f11729e9c2e7621f61f687857bd4f67e00900b941b3ecf1f52fa9aa88d184513c4439dfc5539c17b33b406
+  checksum: 10c0/1d0537d2c85d112c9b39a1eb93dbaa607551ebd477aba542ca3bcebb86d4a50ecfb32359144ffd0385f833cea8807baf75d94c4ecbeececf0e5d3e0a1b55b04f
   languageName: node
   linkType: hard
 
@@ -10080,6 +10090,16 @@ __metadata:
   version: 1.0.0
   resolution: "https-browserify@npm:1.0.0"
   checksum: 10c0/e17b6943bc24ea9b9a7da5714645d808670af75a425f29baffc3284962626efdc1eb3aa9bbffaa6e64028a6ad98af5b09fabcb454a8f918fb686abfdc9e9b8ae
+  languageName: node
+  linkType: hard
+
+"https-proxy-agent@npm:^5.0.1":
+  version: 5.0.1
+  resolution: "https-proxy-agent@npm:5.0.1"
+  dependencies:
+    agent-base: "npm:6"
+    debug: "npm:4"
+  checksum: 10c0/6dd639f03434003577c62b27cafdb864784ef19b2de430d8ae2a1d45e31c4fd60719e5637b44db1a88a046934307da7089e03d6089ec3ddacc1189d8de8897d1
   languageName: node
   linkType: hard
 
@@ -11520,7 +11540,7 @@ __metadata:
     embla-carousel-react: "npm:^8.6.0"
     esbuild-wasm: "npm:^0.20.0"
     events: "npm:^3.3.0"
-    extension: "npm:3.15.0"
+    extension: "npm:3.16.1"
     gh-pages: "npm:^6.1.1"
     gsap: "npm:^3.13.0"
     harden-react-markdown: "npm:^1.0.5"

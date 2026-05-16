@@ -5,11 +5,12 @@
 ### 1. Prepare Production Build
 ```bash
 # Build for production with GitHub Pages runner URL
-npm run build:prod
+yarn run build:prod
 ```
 
 This will create production builds in:
-- `dist/chromium/` - Chrome Web Store & Microsoft Edge Add-ons
+- `dist/chrome/` - Chrome Web Store
+- `dist/edge/` - Microsoft Edge Add-ons
 
 ### 2. Required Assets & Documentation
 
@@ -44,7 +45,7 @@ This will create production builds in:
 
 1. **Create New Item**
    - Click "New Item" in Chrome Web Store Developer Dashboard
-   - Upload the ZIP file from `dist/chromium/` folder
+   - Upload the ZIP file from `publish/memorall-chrome.zip`
 
 2. **Store Listing**
    - Fill in:
@@ -79,7 +80,7 @@ This will create production builds in:
 
 ### Important Notes for Chrome
 - CSP policy includes localhost - **MUST REMOVE for production**
-- Test with `npm run preview` before submitting
+- Test with `yarn run preview` before submitting
 
 ---
 
@@ -96,8 +97,7 @@ This will create production builds in:
 1. **Create New Extension**
    - Navigate to "Extensions" in Partner Center
    - Click "New extension"
-   - Upload the ZIP file from `dist/chromium/` folder
-     - Edge accepts Chrome Manifest V3 extensions
+     - Upload the ZIP file from `publish/memorall-edge.zip`
 
 2. **Store Listing**
    - Fill in:
@@ -137,7 +137,7 @@ This will create production builds in:
 ### Submission Steps
 1. Build Firefox version:
    ```bash
-   extension build --target=firefox-mv3
+   extension build --browser=firefox
    ```
 
 2. Upload to: https://addons.mozilla.org/developers/addon/submit/
@@ -239,13 +239,13 @@ Add these scripts to `package.json`:
 
 ```json
 "scripts": {
-  "build:chrome": "extension build --target=chrome-mv3",
-  "build:edge": "extension build --target=edge-mv3",
-  "build:firefox": "extension build --target=firefox-mv3",
-  "build:all": "npm run build:chrome && npm run build:edge && npm run build:firefox",
-  "package:chrome": "cd dist/chromium && zip -r ../../memorall-chrome.zip .",
-  "package:edge": "cd dist/chromium && zip -r ../../memorall-edge.zip .",
-  "package:all": "npm run build:all && npm run package:chrome && npm run package:edge"
+  "build:chrome": "extension build --browser=chrome",
+  "build:edge": "extension build --browser=edge",
+  "build:firefox": "extension build --browser=firefox",
+  "build:all": "yarn run build:chrome && yarn run build:edge",
+  "package:chrome": "cd dist/chrome && zip -r ../../memorall-chrome.zip .",
+  "package:edge": "cd dist/edge && zip -r ../../memorall-edge.zip .",
+  "package:all": "yarn run build:prod && yarn run package:chrome && yarn run package:edge"
 }
 ```
 

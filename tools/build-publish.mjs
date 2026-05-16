@@ -54,6 +54,88 @@ function sanitizeJavaScriptEncoding(rootDir) {
   return sanitizedCount;
 }
 
+function prepareProductionDist(distDir) {
+  const manifestPath = join(distDir, 'manifest.json');
+
+  if (!existsSync(manifestPath)) {
+    console.error(`❌ Error: manifest.json not found in ${distDir}/`);
+    process.exit(1);
+  }
+
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+
+    // Remove localhost from CSP
+    if (manifest.content_security_policy?.extension_pages) {
+      const originalCSP = manifest.content_security_policy.extension_pages;
+      manifest.content_security_policy.extension_pages = originalCSP
+        .replace(/http:\/\/localhost:\*/g, '')
+        .replace(/http:\/\/127\.0\.0\.1:\*/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    // Clean up web_accessible_resources - remove non-existent files
+    if (manifest.web_accessible_resources) {
+      for (const resource of manifest.web_accessible_resources) {
+        if (resource.resources) {
+          resource.resources = resource.resources.filter(res => {
+            // Keep wildcards
+            if (res.includes('*')) return true;
+
+            // Check if specific file exists
+            const filePath = join(distDir, res);
+            const exists = existsSync(filePath);
+
+            if (!exists) {
+              console.log(`  ⚠ Removing non-existent from ${distDir}: ${res}`);
+            }
+
+            return exists;
+          });
+        }
+      }
+    }
+
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    console.log(`✅ Production manifest updated: ${distDir}`);
+  } catch (error) {
+    console.error(`❌ Error preparing ${distDir}:`, error.message);
+    process.exit(1);
+  }
+
+  console.log(`🔤 Sanitizing JavaScript encoding in ${distDir}...`);
+  const sanitizedCount = sanitizeJavaScriptEncoding(distDir);
+  console.log(`✅ JavaScript encoding sanitized (${sanitizedCount} file${sanitizedCount === 1 ? '' : 's'} updated)\n`);
+
+  // Fix content_scripts filenames to match manifest references.
+  // Some Extension.js versions write hashed manifest refs while outputting unhashed files.
+  console.log(`🔧 Fixing content_scripts filenames in ${distDir}...`);
+  const fixedManifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  if (fixedManifest.content_scripts) {
+    for (const entry of fixedManifest.content_scripts) {
+      if (!entry.js) continue;
+      for (const ref of entry.js) {
+        const refPath = join(distDir, ref);
+        if (!existsSync(refPath)) {
+          // Find the unhashed version: content-0.HASH.js -> content-0.js
+          const refBase = basename(ref);
+          const refDir = dirname(ref);
+          const unhashed = refBase.replace(/\.[a-f0-9]{8}(?=\.js$)/, '');
+          const unhashedPath = join(distDir, refDir, unhashed);
+          if (existsSync(unhashedPath)) {
+            renameSync(unhashedPath, refPath);
+            console.log(`  ✅ Renamed ${unhashed} → ${refBase}`);
+          } else {
+            console.warn(`  ⚠ Missing content script: ${ref} (no unhashed fallback found)`);
+          }
+        }
+      }
+    }
+  }
+  console.log(`✅ Content scripts ready: ${distDir}\n`);
+}
+
 console.log('🚀 Building Memorall for store submission...\n');
 
 // Step 1: Clean publish directory
@@ -68,108 +150,30 @@ console.log('✅ Publish directory ready\n');
 console.log('🔨 Building production extension...');
 try {
   execSync('node tools/copy-bundled-assets.mjs', { stdio: 'inherit' });
-  execSync('cross-env NODE_ENV=production extension build', { stdio: 'inherit' });
+  execSync('cross-env NODE_ENV=production extension build --browser=chrome,edge', { stdio: 'inherit' });
   console.log('✅ Production build complete\n');
 } catch (error) {
   console.error('❌ Build failed:', error.message);
   process.exit(1);
 }
 
-// Step 3: Prepare production manifest
-console.log('📝 Preparing production manifest...');
-const distDir = existsSync(join('dist', 'chromium', 'manifest.json'))
-  ? join('dist', 'chromium')
-  : join('dist', 'chrome');
-const manifestPath = join(distDir, 'manifest.json');
-
-if (!existsSync(manifestPath)) {
-  console.error(`❌ Error: manifest.json not found in ${distDir}/`);
-  process.exit(1);
-}
-
-try {
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-
-  // Remove localhost from CSP
-  if (manifest.content_security_policy?.extension_pages) {
-    const originalCSP = manifest.content_security_policy.extension_pages;
-    manifest.content_security_policy.extension_pages = originalCSP
-      .replace(/http:\/\/localhost:\*/g, '')
-      .replace(/http:\/\/127\.0\.0\.1:\*/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  // Clean up web_accessible_resources - remove non-existent files
-  if (manifest.web_accessible_resources) {
-    for (const resource of manifest.web_accessible_resources) {
-      if (resource.resources) {
-        resource.resources = resource.resources.filter(res => {
-          // Keep wildcards
-          if (res.includes('*')) return true;
-
-          // Check if specific file exists
-          const filePath = join(distDir, res);
-          const exists = existsSync(filePath);
-
-          if (!exists) {
-            console.log(`  ⚠ Removing non-existent: ${res}`);
-          }
-
-          return exists;
-        });
-      }
-    }
-  }
-
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-  console.log('✅ Production manifest updated\n');
-} catch (error) {
-  console.error('❌ Error preparing manifest:', error.message);
-  process.exit(1);
-}
-
-console.log('🔤 Sanitizing JavaScript encoding...');
-const sanitizedCount = sanitizeJavaScriptEncoding(distDir);
-console.log(`✅ JavaScript encoding sanitized (${sanitizedCount} file${sanitizedCount === 1 ? '' : 's'} updated)\n`);
-
-// Fix content_scripts filenames to match manifest references
-// The extension build tool writes hashed names in the manifest but outputs unhashed filenames on disk
-console.log('🔧 Fixing content_scripts filenames to match manifest...');
-const fixedManifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-if (fixedManifest.content_scripts) {
-  for (const entry of fixedManifest.content_scripts) {
-    if (!entry.js) continue;
-    for (const ref of entry.js) {
-      const refPath = join(distDir, ref);
-      if (!existsSync(refPath)) {
-        // Find the unhashed version: content-0.HASH.js -> content-0.js
-        const refBase = basename(ref);
-        const refDir = dirname(ref);
-        const unhashed = refBase.replace(/\.[a-f0-9]{8}(?=\.js$)/, '');
-        const unhashedPath = join(distDir, refDir, unhashed);
-        if (existsSync(unhashedPath)) {
-          renameSync(unhashedPath, refPath);
-          console.log(`  ✅ Renamed ${unhashed} → ${refBase}`);
-        } else {
-          console.warn(`  ⚠ Missing content script: ${ref} (no unhashed fallback found)`);
-        }
-      }
-    }
-  }
-}
-console.log('✅ Content scripts ready\n');
+// Step 3: Prepare production manifests
+console.log('📝 Preparing production manifests...');
+const chromeDistDir = join('dist', 'chrome');
+const edgeDistDir = join('dist', 'edge');
+prepareProductionDist(chromeDistDir);
+prepareProductionDist(edgeDistDir);
 
 // Step 4: Copy Chrome build
 console.log('📦 Packaging Chrome extension...');
 const chromeDir = join(publishDir, 'chrome');
-cpSync(distDir, chromeDir, { recursive: true });
+cpSync(chromeDistDir, chromeDir, { recursive: true });
 console.log('✅ Chrome package ready\n');
 
-// Step 5: Copy for Edge (uses same as Chrome)
+// Step 5: Copy Edge build
 console.log('📦 Packaging Edge extension...');
 const edgeDir = join(publishDir, 'edge');
-cpSync(distDir, edgeDir, { recursive: true });
+cpSync(edgeDistDir, edgeDir, { recursive: true });
 console.log('✅ Edge package ready\n');
 
 // Step 6: Create ZIP files
