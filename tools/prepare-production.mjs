@@ -8,50 +8,58 @@ import { join } from 'path';
  * - Ensures production-ready settings
  */
 
-const distDir = existsSync(join('dist/chromium', 'manifest.json'))
-  ? 'dist/chromium'
-  : 'dist/chrome';
-const manifestPath = join(distDir, 'manifest.json');
+const distDirs = ['dist/chrome', 'dist/edge'].filter((distDir) =>
+  existsSync(join(distDir, 'manifest.json')),
+);
 
-if (!existsSync(manifestPath)) {
-  console.error('❌ Error: manifest.json not found in dist/chromium/ or dist/chrome/');
-  console.error('   Run "npm run build" first');
+if (distDirs.length === 0) {
+  console.error('❌ Error: manifest.json not found in dist/chrome/ or dist/edge/');
+  console.error('   Run "yarn run build:prod" first');
   process.exit(1);
 }
 
 console.log('📦 Preparing production build...');
 
-try {
-  // Read manifest
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+for (const distDir of distDirs) {
+  const manifestPath = join(distDir, 'manifest.json');
 
-  // Update CSP to remove localhost
-  if (manifest.content_security_policy?.extension_pages) {
-    const originalCSP = manifest.content_security_policy.extension_pages;
+  try {
+    console.log(`📝 Updating ${manifestPath}...`);
 
-    // Remove localhost references
-    manifest.content_security_policy.extension_pages = originalCSP
-      .replace(/http:\/\/localhost:\*/g, '')
-      .replace(/http:\/\/127\.0\.0\.1:\*/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    // Read manifest
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
-    console.log('✅ Removed localhost from CSP');
+    // Update CSP to remove localhost
+    if (manifest.content_security_policy?.extension_pages) {
+      const originalCSP = manifest.content_security_policy.extension_pages;
+
+      // Remove localhost references
+      manifest.content_security_policy.extension_pages = originalCSP
+        .replace(/http:\/\/localhost:\*/g, '')
+        .replace(/http:\/\/127\.0\.0\.1:\*/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      console.log('✅ Removed localhost from CSP');
+    }
+
+    // Write updated manifest
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    console.log(`✅ Production manifest updated: ${distDir}`);
+  } catch (error) {
+    console.error(`❌ Error preparing ${distDir}:`, error.message);
+    process.exit(1);
   }
-
-  // Write updated manifest
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-  console.log('✅ Production manifest updated');
-  console.log('');
-  console.log('🎉 Production build ready!');
-  console.log(`📁 Location: ${distDir}/`);
-  console.log('');
-  console.log('Next steps:');
-  console.log(`  1. Test: Load ${distDir}/ as unpacked extension`);
-  console.log('  2. Package: npm run package:chrome');
-  console.log('  3. Submit to Chrome Web Store');
-  console.log('');
-} catch (error) {
-  console.error('❌ Error preparing production build:', error.message);
-  process.exit(1);
 }
+
+console.log('');
+console.log('🎉 Production builds ready!');
+console.log(`📁 Locations: ${distDirs.join(', ')}`);
+console.log('');
+console.log('Next steps:');
+for (const distDir of distDirs) {
+  console.log(`  - Test: Load ${distDir}/ as unpacked extension`);
+}
+console.log('  - Package: yarn run package:all');
+console.log('  - Submit to Chrome Web Store and Microsoft Edge Add-ons');
+console.log('');

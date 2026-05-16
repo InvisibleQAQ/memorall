@@ -237,20 +237,20 @@ Notes about stale docs from older README versions:
 ```bash
 git clone https://github.com/zrg-team/memorall.git
 cd memorall
-pnpm install
+yarn install
 ```
 
 Then:
 
 1. Create `.env` from `.env.example`.
-2. Set `CHROME_PATH` if you want to use `pnpm run dev`.
+2. Set `CHROME_PATH` if you want to use `yarn run dev`.
 3. Optionally add Supabase keys, or configure Supabase later through the app.
 4. Build or run the extension.
 
 Recommended Chrome build flow:
 
 ```bash
-pnpm run build:chrome
+yarn run build:chrome
 ```
 
 Load the unpacked extension from `dist/chrome`.
@@ -267,10 +267,10 @@ yarn run dev
 | --- | --- |
 | `yarn run dev` | Hot-reload development build for Chromium (`CHROME_PATH` required). |
 | `yarn run build` | Default production build. |
-| `yarn run build:chrome` | Build Chrome MV3 output in `dist/chrome`. |
-| `yarn run build:edge` | Build Edge MV3 output. |
+| `yarn run build:chrome` | Build Chrome output in `dist/chrome`. |
+| `yarn run build:edge` | Build Edge output in `dist/edge`. |
 | `yarn run build:firefox` | Build Firefox MV3 output. |
-| `yarn run build:all` | Build Chrome, Edge, and Firefox outputs. |
+| `yarn run build:all` | Build Chrome and Edge outputs. |
 | `yarn run type-check` | Run TypeScript without emitting files. |
 | `yarn run lint` | Run the Extension.js lint step. |
 | `yarn run format` | Format `src` and `scripts` with Biome. |
