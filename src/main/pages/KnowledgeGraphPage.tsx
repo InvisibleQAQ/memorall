@@ -9,6 +9,8 @@ import {
 	Trash2,
 	Tags,
 	Loader2,
+	PanelLeftClose,
+	PanelLeftOpen,
 } from "lucide-react";
 import { eq, sql, or } from "drizzle-orm";
 import { useTranslation } from "react-i18next";
@@ -32,6 +34,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/main/components/ui/dropdown-menu";
 import { PageHeader } from "@/main/components/ui/page-header";
+import { useResponsiveWorkspacePanels } from "@/main/hooks/use-responsive-workspace-panels";
 
 import { D3KnowledgeGraph } from "@/main/modules/knowledge/components/D3KnowledgeGraph";
 import {
@@ -52,42 +55,6 @@ type TopicWithCount = Topic & { fileCount: number };
 
 const DEFAULT_TOPIC_ID = "default" as const;
 const PANEL_STORAGE_KEY = "memorall.knowledge.workspace-panels.v2";
-const DEFAULT_PANEL_SIZES = [22, 78] as const;
-const MIN_PANEL_SIZES = [16, 36] as const;
-const DESKTOP_BREAKPOINT = 1180;
-const DESKTOP_SEPARATOR_TRACK = 2;
-
-const clampPair = (
-	nextPrimary: number,
-	total: number,
-	minPrimary: number,
-	minSecondary: number,
-): [number, number] => {
-	const clampedPrimary = Math.min(
-		total - minSecondary,
-		Math.max(minPrimary, nextPrimary),
-	);
-	return [clampedPrimary, total - clampedPrimary];
-};
-
-const readStoredPanelSizes = (): [number, number] => {
-	if (typeof window === "undefined") return [...DEFAULT_PANEL_SIZES];
-	try {
-		const raw = window.localStorage.getItem(PANEL_STORAGE_KEY);
-		if (!raw) return [...DEFAULT_PANEL_SIZES];
-		const parsed = JSON.parse(raw);
-		if (
-			Array.isArray(parsed) &&
-			parsed.length === 2 &&
-			parsed.every((value) => typeof value === "number")
-		) {
-			return [parsed[0], parsed[1]];
-		}
-	} catch {
-		// Fall back to defaults when localStorage is unavailable or corrupt.
-	}
-	return [...DEFAULT_PANEL_SIZES];
-};
 
 const GROW_LABELS: Record<GrowType, string> = {
 	"knowledge-graph": "Graph",
@@ -236,66 +203,21 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 	const [selectedTopicId, setSelectedTopicId] =
 		useState<string>(DEFAULT_TOPIC_ID);
 	const [deletingTopicId, setDeletingTopicId] = useState<string | null>(null);
-	const [panelSizes, setPanelSizes] =
-		useState<[number, number]>(readStoredPanelSizes);
-	const [isDesktop, setIsDesktop] = useState(false);
-	const containerRef = React.useRef<HTMLDivElement | null>(null);
-
-	const handleResizeStart = React.useCallback(
-		(event: React.MouseEvent<HTMLDivElement>) => {
-			if (!isDesktop || !containerRef.current) return;
-			event.preventDefault();
-			const startX = event.clientX;
-			const startSizes = panelSizes;
-			const containerWidth = containerRef.current.getBoundingClientRect().width;
-			document.body.style.cursor = "col-resize";
-			document.body.style.userSelect = "none";
-			const handlePointerMove = (pointerEvent: MouseEvent) => {
-				const deltaInFr =
-					((pointerEvent.clientX - startX) / containerWidth) *
-					(startSizes[0] + startSizes[1]);
-				setPanelSizes(() => {
-					const [left, right] = clampPair(
-						startSizes[0] + deltaInFr,
-						startSizes[0] + startSizes[1],
-						MIN_PANEL_SIZES[0],
-						MIN_PANEL_SIZES[1],
-					);
-					return [left, right];
-				});
-			};
-			const handlePointerUp = () => {
-				document.body.style.cursor = "";
-				document.body.style.userSelect = "";
-				window.removeEventListener("mousemove", handlePointerMove);
-				window.removeEventListener("mouseup", handlePointerUp);
-			};
-			window.addEventListener("mousemove", handlePointerMove);
-			window.addEventListener("mouseup", handlePointerUp);
-		},
-		[isDesktop, panelSizes],
-	);
+	const {
+		collapseSidebar,
+		containerRef,
+		expandSidebar,
+		gridTemplateColumns,
+		handleResizeStart,
+		isCompactSplitLayout,
+		isSidebarCollapsed,
+		isSplitLayout: isDesktop,
+		sidebarOverlayWidth,
+	} = useResponsiveWorkspacePanels({ storageKey: PANEL_STORAGE_KEY });
 
 	useEffect(() => {
 		loadTopics();
 	}, []);
-
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-		const handleViewportChange = () => {
-			const isPopupSurface =
-				document.documentElement.dataset.uiSurface === "popup";
-			setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT && !isPopupSurface);
-		};
-		handleViewportChange();
-		window.addEventListener("resize", handleViewportChange);
-		return () => window.removeEventListener("resize", handleViewportChange);
-	}, []);
-
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-		window.localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(panelSizes));
-	}, [panelSizes]);
 
 	useEffect(() => {
 		const topicId = searchParams.get("topicId");
@@ -448,13 +370,13 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 			ref={containerRef}
 			className={
 				isDesktop
-					? "grid h-full overflow-hidden bg-background"
+					? "relative grid h-full overflow-hidden bg-background"
 					: "flex h-full flex-col overflow-hidden bg-background"
 			}
 			style={
 				isDesktop
 					? {
-							gridTemplateColumns: `${panelSizes[0]}fr ${DESKTOP_SEPARATOR_TRACK}px ${panelSizes[1]}fr`,
+							gridTemplateColumns,
 						}
 					: undefined
 			}
@@ -465,131 +387,189 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 			<div
 				className={
 					isDesktop
-						? "flex min-h-0 flex-col overflow-hidden bg-background"
+						? `relative z-20 flex min-h-0 flex-col border-r bg-background ${
+								isCompactSplitLayout && !isSidebarCollapsed
+									? "overflow-visible"
+									: "overflow-hidden"
+							}`
 						: "hidden"
 				}
 			>
-				<PageHeader
-					icon={<Network size={20} />}
-					title={t("title")}
-					description={t("description")}
-					actions={
+				{isSidebarCollapsed ? (
+					<div className="flex h-full flex-col items-center gap-2 py-3">
 						<Button
 							type="button"
-							size="sm"
-							onClick={handleCreateTopic}
-							className="h-8 shrink-0 px-3 text-xs"
+							variant="outline"
+							size="icon"
+							className="h-9 w-9"
+							onClick={() => {
+								expandSidebar();
+							}}
+							aria-label="Show knowledge graph sidebar"
+							title="Show sidebar"
 						>
-							<Plus size={13} className="mr-1" />
-							{tTopics("manage.newTopic")}
+							<PanelLeftOpen className="h-4 w-4" />
 						</Button>
-					}
-				/>
-
-				{/* Topics Panel */}
-				<div className="flex-shrink-0 border-b border-border">
-					{/* Header */}
-					<div className="flex items-center gap-1.5 px-3 py-2">
-						<div className="flex items-center gap-1.5">
-							<Tags className="h-3.5 w-3.5 text-muted-foreground" />
-							<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-								{t("topics.title")}
-							</span>
+						<div className="mt-2 flex flex-col gap-2 text-muted-foreground">
+							<Network className="h-5 w-5" />
+							<Tags className="h-5 w-5" />
+							<Search className="h-5 w-5" />
 						</div>
 					</div>
-
-					{/* Topic list – scrollable up to ~6 rows */}
-					<div className="overflow-y-auto max-h-48 py-1">
-						<TopicRow
-							name={t("topic.defaultNoTopic")}
-							isSelected={selectedTopicId === DEFAULT_TOPIC_ID}
-							isDefault
-							onSelect={() => handleTopicSelect(DEFAULT_TOPIC_ID)}
-						/>
-						{topics.map((topic) => (
-							<TopicRow
-								key={topic.id}
-								name={topic.name}
-								fileCount={topic.fileCount}
-								growType={topic.growType}
-								recallType={topic.recallType}
-								isSelected={selectedTopicId === topic.id}
-								isDeleting={deletingTopicId === topic.id}
-								onSelect={() => handleTopicSelect(topic.id)}
-								onEdit={() => handleEditTopic(topic)}
-								onDelete={() => handleDeleteTopic(topic)}
-							/>
-						))}
-						{topics.length === 0 && (
-							<p className="px-3 py-2 text-xs text-muted-foreground">
-								{t("topics.noTopics")}
-							</p>
-						)}
-					</div>
-				</div>
-
-				{/* Knowledge Nodes Panel */}
-				<div className="flex-1 flex flex-col min-h-0">
-					<div className="p-3 border-b border-border flex-shrink-0">
+				) : (
+					<div
+						className={
+							isCompactSplitLayout
+								? "absolute left-0 top-0 flex h-full min-h-0 flex-col overflow-hidden border-r bg-background shadow-2xl"
+								: "contents"
+						}
+						style={
+							isCompactSplitLayout ? { width: sidebarOverlayWidth } : undefined
+						}
+					>
 						<div className="relative">
-							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-							<Input
-								placeholder={t("search.placeholder")}
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-								className="pl-10"
+							<PageHeader
+								icon={<Network size={20} />}
+								title={t("title")}
+								description={t("description")}
+								actions={
+									<div className="flex items-center gap-1.5">
+										<Button
+											type="button"
+											size="sm"
+											onClick={handleCreateTopic}
+											className="h-8 shrink-0 px-3 text-xs"
+										>
+											<Plus size={13} className="mr-1" />
+											{tTopics("manage.newTopic")}
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8 shrink-0"
+											onClick={() => {
+												collapseSidebar();
+											}}
+											aria-label="Hide knowledge graph sidebar"
+											title="Hide sidebar"
+										>
+											<PanelLeftClose className="h-4 w-4" />
+										</Button>
+									</div>
+								}
 							/>
 						</div>
-						<div className="text-xs text-muted-foreground mt-2">
-							{t("search.nodeCount", {
-								filtered: filteredNodes.length,
-								total: nodes.length,
-							})}
+
+						{/* Topics Panel */}
+						<div className="flex-shrink-0 border-b border-border">
+							{/* Header */}
+							<div className="flex items-center gap-1.5 px-3 py-2">
+								<div className="flex items-center gap-1.5">
+									<Tags className="h-3.5 w-3.5 text-muted-foreground" />
+									<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+										{t("topics.title")}
+									</span>
+								</div>
+							</div>
+
+							{/* Topic list – scrollable up to ~6 rows */}
+							<div className="overflow-y-auto max-h-48 py-1">
+								<TopicRow
+									name={t("topic.defaultNoTopic")}
+									isSelected={selectedTopicId === DEFAULT_TOPIC_ID}
+									isDefault
+									onSelect={() => handleTopicSelect(DEFAULT_TOPIC_ID)}
+								/>
+								{topics.map((topic) => (
+									<TopicRow
+										key={topic.id}
+										name={topic.name}
+										fileCount={topic.fileCount}
+										growType={topic.growType}
+										recallType={topic.recallType}
+										isSelected={selectedTopicId === topic.id}
+										isDeleting={deletingTopicId === topic.id}
+										onSelect={() => handleTopicSelect(topic.id)}
+										onEdit={() => handleEditTopic(topic)}
+										onDelete={() => handleDeleteTopic(topic)}
+									/>
+								))}
+								{topics.length === 0 && (
+									<p className="px-3 py-2 text-xs text-muted-foreground">
+										{t("topics.noTopics")}
+									</p>
+								)}
+							</div>
+						</div>
+
+						{/* Knowledge Nodes Panel */}
+						<div className="flex-1 flex flex-col min-h-0">
+							<div className="p-3 border-b border-border flex-shrink-0">
+								<div className="relative">
+									<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+									<Input
+										placeholder={t("search.placeholder")}
+										value={searchQuery}
+										onChange={(e) => setSearchQuery(e.target.value)}
+										className="pl-10"
+									/>
+								</div>
+								<div className="text-xs text-muted-foreground mt-2">
+									{t("search.nodeCount", {
+										filtered: filteredNodes.length,
+										total: nodes.length,
+									})}
+								</div>
+							</div>
+
+							<ScrollArea className="flex-1">
+								{loading ? (
+									<div className="p-3 text-center text-muted-foreground text-sm">
+										{t("status.loading")}
+									</div>
+								) : filteredNodes.length === 0 ? (
+									<div className="p-3 text-center text-muted-foreground text-sm">
+										{searchQuery ? t("search.noMatches") : t("search.noNodes")}
+									</div>
+								) : (
+									<div className="divide-y divide-border">
+										{filteredNodes.map((node) => (
+											<div
+												key={node.id}
+												className={`p-2 cursor-pointer hover:bg-muted/50 ${
+													selectedNodeId === node.id
+														? "bg-accent border-r-2 border-primary"
+														: ""
+												}`}
+												onClick={() => setSelectedNodeId(node.id)}
+											>
+												<div className="flex items-center justify-between gap-2">
+													<span className="font-medium text-sm line-clamp-1 text-foreground flex-1">
+														{node.name}
+													</span>
+													<Badge
+														variant="secondary"
+														className="text-xs shrink-0"
+													>
+														{node.nodeType}
+													</Badge>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</ScrollArea>
 						</div>
 					</div>
-
-					<ScrollArea className="flex-1">
-						{loading ? (
-							<div className="p-3 text-center text-muted-foreground text-sm">
-								{t("status.loading")}
-							</div>
-						) : filteredNodes.length === 0 ? (
-							<div className="p-3 text-center text-muted-foreground text-sm">
-								{searchQuery ? t("search.noMatches") : t("search.noNodes")}
-							</div>
-						) : (
-							<div className="divide-y divide-border">
-								{filteredNodes.map((node) => (
-									<div
-										key={node.id}
-										className={`p-2 cursor-pointer hover:bg-muted/50 ${
-											selectedNodeId === node.id
-												? "bg-accent border-r-2 border-primary"
-												: ""
-										}`}
-										onClick={() => setSelectedNodeId(node.id)}
-									>
-										<div className="flex items-center justify-between gap-2">
-											<span className="font-medium text-sm line-clamp-1 text-foreground flex-1">
-												{node.name}
-											</span>
-											<Badge variant="secondary" className="text-xs shrink-0">
-												{node.nodeType}
-											</Badge>
-										</div>
-									</div>
-								))}
-							</div>
-						)}
-					</ScrollArea>
-				</div>
+				)}
 			</div>
 
 			<div
 				role="separator"
 				aria-orientation="vertical"
 				className={
-					isDesktop
+					isDesktop && !isSidebarCollapsed && !isCompactSplitLayout
 						? "group relative z-10 -mx-[5px] flex w-3 cursor-col-resize items-center justify-center bg-transparent"
 						: "hidden"
 				}
@@ -601,7 +581,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 			{/* ----------------------------------------------------------------
 			    Main graph area
 			    ---------------------------------------------------------------- */}
-			<div className="flex-1 flex flex-col overflow-hidden">
+			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 				<PageHeader
 					icon={<Network size={20} />}
 					title={t("title")}

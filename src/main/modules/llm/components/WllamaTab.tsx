@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/main/components/ui/button";
 import { Input } from "@/main/components/ui/input";
-import { Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Zap } from "lucide-react";
 import { RECOMMENDATION_WALLAMA_LLMS } from "@/constants/wllama";
 import {
 	Select,
@@ -29,7 +29,11 @@ interface WllamaTabProps {
 	useCustomRepo: boolean;
 	setUseCustomRepo: (use: boolean) => void;
 	loading: boolean;
+	ready: boolean;
 	onFetchRepoFiles: (repoInfo: string) => Promise<void>;
+	onLoadModel: () => Promise<void>;
+	onUnloadModel: () => Promise<void>;
+	quickDownloads: React.ReactNode;
 }
 
 export const WllamaTab: React.FC<WllamaTabProps> = ({
@@ -44,11 +48,45 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 	useCustomRepo,
 	setUseCustomRepo,
 	loading,
+	ready,
 	onFetchRepoFiles,
+	onLoadModel,
+	onUnloadModel,
+	quickDownloads,
 }) => {
 	const { t } = useTranslation("llm");
+	const [showAdvantages, setShowAdvantages] = React.useState(false);
 	return (
 		<div className="space-y-4">
+			<section className="rounded-lg border bg-muted/20">
+				<button
+					type="button"
+					className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium"
+					onClick={() => setShowAdvantages((value) => !value)}
+				>
+					{showAdvantages ? (
+						<ChevronDown className="h-4 w-4" />
+					) : (
+						<ChevronRight className="h-4 w-4" />
+					)}
+					<Zap className="h-4 w-4 text-primary" />
+					Wllama advantages
+				</button>
+				{showAdvantages && (
+					<ul className="space-y-1 px-4 pb-3 text-xs text-muted-foreground">
+						<li>Runs GGUF models in browser via WASM - no GPU required</li>
+						<li>Works on CPU only - broadest hardware compatibility</li>
+						<li>Supports HuggingFace repos directly</li>
+						<li>Models persist in browser cache after first download</li>
+					</ul>
+				)}
+			</section>
+
+			<section className="space-y-3">
+				<div className="text-sm font-semibold">Quick download</div>
+				{quickDownloads}
+			</section>
+
 			{/* Repository Selection Mode */}
 			<div className="flex items-center gap-4 p-3 border rounded-lg bg-muted/20">
 				<label className="flex items-center gap-2 text-sm">
@@ -192,6 +230,22 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 					)}
 				</div>
 			)}
+
+			<div className="flex gap-2">
+				<Button
+					onClick={onLoadModel}
+					disabled={loading || ready || !repo || !filePath}
+				>
+					{t("advanced.loadModel")}
+				</Button>
+				<Button
+					onClick={onUnloadModel}
+					variant="outline"
+					disabled={loading || !ready}
+				>
+					{t("advanced.unload")}
+				</Button>
+			</div>
 		</div>
 	);
 };

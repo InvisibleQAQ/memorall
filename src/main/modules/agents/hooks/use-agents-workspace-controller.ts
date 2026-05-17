@@ -77,8 +77,17 @@ export const useAgentsWorkspaceController = () => {
 		resetToDefaults,
 		close,
 	} = useAgentConfigStore();
-	const { containerRef, handleResizeStart, isDesktop, panelSizes } =
-		useAgentsWorkspacePanels();
+	const {
+		collapseSidebar,
+		containerRef,
+		expandSidebar,
+		gridTemplateColumns,
+		handleResizeStart,
+		isCompactSplitLayout,
+		isDesktop,
+		isSidebarCollapsed,
+		sidebarOverlayWidth,
+	} = useAgentsWorkspacePanels();
 	const { memoryTopic, setMemoryTopic } = useAgentMemoryTopic(selectedPresetId);
 	const agentCronJobs = useAgentCronJobs(selectedPresetId);
 
@@ -586,10 +595,13 @@ export const useAgentsWorkspaceController = () => {
 			onRemove: agentCronJobs.removeDraft,
 		},
 		containerRef,
+		collapseSidebar,
 		draftMemoryOptions,
 		error,
+		expandSidebar,
 		filteredPresets,
 		formActions,
+		gridTemplateColumns,
 		handleCreatePreset,
 		handleOpenAgentWizard,
 		handlePresetSelection,
@@ -597,16 +609,17 @@ export const useAgentsWorkspaceController = () => {
 		handleSavePage,
 		handleSelectWizardTemplate,
 		isAgentWizardMode,
+		isCompactSplitLayout,
 		isCreateDialogOpen,
 		isCreating,
 		isDesktop,
+		isSidebarCollapsed,
 		isMemoryTypeDialogOpen,
 		isPresetListLoading,
 		isSavingPage,
 		isWizardTemplateChooserOpen,
 		memoryTopic,
 		metadataDraft,
-		panelSizes,
 		searchQuery,
 		selectedPreset,
 		selectedPresetId,
@@ -615,6 +628,7 @@ export const useAgentsWorkspaceController = () => {
 		setIsCreateDialogOpen,
 		setIsMemoryTypeDialogOpen,
 		setSearchQuery,
+		sidebarOverlayWidth,
 		updateMetadataField,
 	};
 };

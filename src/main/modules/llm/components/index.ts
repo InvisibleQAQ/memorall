@@ -1,4 +1,5 @@
 export { AdvancedSection } from "./AdvancedSection";
+export { ProviderPanel } from "./ProviderPanel";
 export { ProgressSection } from "./ProgressSection";
 export { ProviderTabs } from "./ProviderTabs";
 export { WllamaTab } from "./WllamaTab";

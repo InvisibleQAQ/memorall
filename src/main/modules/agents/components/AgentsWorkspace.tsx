@@ -36,9 +36,12 @@ export const AgentsWorkspace: React.FC = () => {
 		updateMetadataField,
 		configSummary,
 		cronJobs,
+		collapseSidebar,
 		containerRef,
 		draftMemoryOptions,
+		expandSidebar,
 		formActions,
+		gridTemplateColumns,
 		handleCreatePreset,
 		handleOpenAgentWizard,
 		handlePresetSelection,
@@ -46,17 +49,19 @@ export const AgentsWorkspace: React.FC = () => {
 		handleSavePage,
 		handleSelectWizardTemplate,
 		isAgentWizardMode,
+		isCompactSplitLayout,
 		isCreateDialogOpen,
 		isDesktop,
+		isSidebarCollapsed,
 		isMemoryTypeDialogOpen,
 		isSavingPage,
 		isWizardTemplateChooserOpen,
 		memoryTopic,
-		panelSizes,
 		setActiveCompactTab,
 		setDraftMemoryOptions,
 		setIsCreateDialogOpen,
 		setIsMemoryTypeDialogOpen,
+		sidebarOverlayWidth,
 	} = useAgentsWorkspaceController();
 
 	// ── Panel sections ────────────────────────────────────────────────────────
@@ -170,11 +175,16 @@ export const AgentsWorkspace: React.FC = () => {
 			activeCompactTab={activeCompactTab}
 			configSection={configSection}
 			containerRef={containerRef}
+			gridTemplateColumns={gridTemplateColumns}
+			isCompactSplitLayout={isCompactSplitLayout}
+			isSidebarCollapsed={isSidebarCollapsed}
 			isDesktop={isDesktop}
 			listSection={listSection}
-			panelSizes={panelSizes}
+			onCollapseSidebar={collapseSidebar}
 			onCompactTabChange={setActiveCompactTab}
+			onExpandSidebar={expandSidebar}
 			onResizeStart={handleResizeStart}
+			sidebarOverlayWidth={sidebarOverlayWidth}
 		>
 			<CreateFlowDialog<CreateAgentTopicOptions>
 				open={isCreateDialogOpen}
