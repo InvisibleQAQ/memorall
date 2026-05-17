@@ -25,3 +25,4 @@ import "./multi-agent-feature";
 import "./mcp-feature";
 import "./auto-compact";
 import "./active-memory-feature";
+import "./visualize-response";

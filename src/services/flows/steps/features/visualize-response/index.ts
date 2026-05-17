@@ -1,0 +1,126 @@
+import { defineStep, bindStep } from "@/services/flows/interfaces/step";
+import type {
+	StepFactoryFromSpec,
+	StepSpecFromDefinition,
+} from "@/services/flows/interfaces/step";
+import { stepRegistry } from "@/services/flows/step-registry";
+import {
+	FEATURE_DEFAULT_INPUTS,
+	FEATURE_DEFAULT_OUTPUTS,
+	featureCatalogRegistry,
+	type FeatureCatalogMetadata,
+} from "@/services/flows/feature-catalog-registry";
+import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
+import type { ChatCompletionMessageParam } from "@/types/openai";
+import { getFlowRuntimeVars } from "@/services/flows/runtime/runtime-context";
+import { OPENUI_KNOWLEDGE_TOOLS } from "@/services/flows/tools/openui-knowledge";
+import { OPENUI_SYSTEM_PROMPT } from "./prompt";
+import { logError } from "@/utils/logger";
+
+const STEP_NAME = "visualize-response" as const;
+export const VISUALIZE_RESPONSE_FEATURE_NAME = STEP_NAME;
+
+const OPENUI_KNOWLEDGE_GRAPH_TOOLS: GraphTool[] = [...OPENUI_KNOWLEDGE_TOOLS];
+
+export interface VisualizeResponseInput {
+	messages: ChatCompletionMessageParam[];
+	tools: GraphTool[];
+	graphId?: string;
+}
+
+export interface VisualizeResponseOutput {
+	messages?: ChatCompletionMessageParam[];
+	tools?: GraphTool[];
+	errors?: string[];
+}
+
+type VisualizeResponseServices = Record<string, never>;
+type VisualizeResponseConfig = Record<string, never>;
+
+export const VISUALIZE_RESPONSE_FEATURE_DESCRIPTION =
+	"Enables OpenUI Lang responses with interactive components and knowledge graph data tools.";
+
+const definition = defineStep<
+	VisualizeResponseInput,
+	VisualizeResponseOutput,
+	VisualizeResponseServices,
+	VisualizeResponseConfig
+>({
+	name: STEP_NAME,
+	execute: async ({ input, runConfig }) => {
+		try {
+			const graphId = input.graphId?.trim();
+			if (graphId) {
+				const runtimeVars = getFlowRuntimeVars(runConfig);
+				runtimeVars?.set("graph.id", graphId);
+			}
+
+			const tools = GraphBase.chat.addTool(
+				input.tools ?? [],
+				...OPENUI_KNOWLEDGE_GRAPH_TOOLS,
+			);
+			const messages = GraphBase.chat.systemMessage(
+				input.messages ?? [],
+				OPENUI_SYSTEM_PROMPT,
+			);
+
+			return { output: { messages, tools } };
+		} catch (error) {
+			logError("[VISUALIZE_RESPONSE] Failed:", error);
+			return {
+				output: {
+					messages: input.messages,
+					tools: input.tools,
+					errors: [
+						error instanceof Error
+							? error.message
+							: "Visualize response feature step failed",
+					],
+				},
+			};
+		}
+	},
+});
+
+type VisualizeResponseSpec = StepSpecFromDefinition<typeof definition>;
+
+export const createVisualizeResponseStep: StepFactoryFromSpec<
+	VisualizeResponseSpec
+> = (services: VisualizeResponseServices, config?: VisualizeResponseConfig) =>
+	bindStep(definition, services, config);
+
+stepRegistry.register(STEP_NAME, createVisualizeResponseStep, {
+	description: VISUALIZE_RESPONSE_FEATURE_DESCRIPTION,
+	defaultStateMapping: {
+		messages: "messages",
+		tools: "tools",
+		graphId: "graphId",
+	},
+	enabledByDefault: false,
+});
+
+featureCatalogRegistry.register({
+	id: "step-visualize-response",
+	name: VISUALIZE_RESPONSE_FEATURE_NAME,
+	type: "feature",
+	graphTypes: ["foundation", "agent"],
+	inputs: FEATURE_DEFAULT_INPUTS,
+	outputs: FEATURE_DEFAULT_OUTPUTS,
+	metadata: {
+		description: VISUALIZE_RESPONSE_FEATURE_DESCRIPTION,
+		descriptionKey: "flowBuilder.features.visualizeResponse.description",
+		displayName: "Visualize Response",
+		nameKey: "flowBuilder.features.visualizeResponse.name",
+		tools: [...OPENUI_KNOWLEDGE_TOOLS],
+		systemPrompt: OPENUI_SYSTEM_PROMPT,
+		customizable: false,
+		icon: { name: "PanelsTopLeft", type: "lucide" },
+		accentColor: "#0ea5e9",
+	} satisfies FeatureCatalogMetadata,
+});
+
+declare global {
+	interface StepTypeRegistry {
+		[STEP_NAME]: VisualizeResponseSpec;
+	}
+}

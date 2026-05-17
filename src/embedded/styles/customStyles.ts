@@ -1174,6 +1174,62 @@ export const customStyles = `
     width: 100% !important;
   }
 
+  .memorall-chat-container .memorall-openui-notice {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--muted) / 0.32) !important;
+    padding: 10px !important;
+  }
+
+  .memorall-chat-container .memorall-openui-notice__icon {
+    display: inline-flex !important;
+    width: 24px !important;
+    height: 24px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 6px !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+  }
+
+  .memorall-chat-container .memorall-openui-notice__text {
+    min-width: 0 !important;
+    color: hsl(var(--foreground)) !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+    line-height: 1.35 !important;
+  }
+
+  .memorall-chat-container .memorall-openui-notice__button {
+    display: inline-flex !important;
+    height: 32px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    cursor: pointer !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    padding: 0 10px !important;
+    white-space: nowrap !important;
+  }
+
+  .memorall-chat-container .memorall-openui-notice__button:hover {
+    background: hsl(var(--muted)) !important;
+  }
+
   .memorall-chat-container .memorall-markdown {
     color: hsl(var(--foreground)) !important;
     font-size: 14px !important;

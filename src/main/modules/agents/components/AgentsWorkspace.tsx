@@ -69,7 +69,7 @@ export const AgentsWorkspace: React.FC = () => {
 		<section
 			className={cn(
 				"min-h-0",
-				isDesktop ? "overflow-hidden bg-background" : "",
+				isDesktop ? "h-full overflow-hidden bg-background" : "",
 			)}
 		>
 			{isAgentWizardMode ? (
@@ -103,7 +103,7 @@ export const AgentsWorkspace: React.FC = () => {
 		<section
 			className={cn(
 				"min-h-0",
-				isDesktop ? "overflow-hidden bg-background" : "",
+				isDesktop ? "h-full overflow-hidden bg-background" : "",
 			)}
 		>
 			<div className={cn("flex flex-col", isDesktop ? "h-full min-h-0" : "")}>

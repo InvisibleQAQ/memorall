@@ -145,7 +145,9 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 						>
 							<div className="h-full w-px bg-border/80 transition-all group-hover:w-[2px] group-hover:bg-foreground/20" />
 						</div>
-						<div className="min-w-0 overflow-hidden">{configSection}</div>
+						<div className="h-full min-h-0 min-w-0 overflow-hidden">
+							{configSection}
+						</div>
 					</div>
 				) : (
 					<Tabs
