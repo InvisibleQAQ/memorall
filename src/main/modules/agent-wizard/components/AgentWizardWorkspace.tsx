@@ -32,7 +32,7 @@ export const AgentWizardWorkspace: React.FC<AgentWizardWorkspaceProps> = ({
 
 	return (
 		<div className="grid h-full min-h-0 grid-cols-[minmax(320px,0.78fr)_minmax(520px,1.22fr)] bg-background">
-			<div className="relative min-h-0">
+			<div className="relative h-full min-h-0 overflow-hidden">
 				<Button
 					type="button"
 					variant="ghost"
