@@ -170,6 +170,10 @@ export const enEmbeddedLocale = {
 		instruction: "Drag to select a region of the image • Press ESC to cancel",
 		cancel: "Cancel",
 	},
+	messageContent: {
+		openUINotice: "This response contains an interactive visualization",
+		openFullView: "Open full view",
+	},
 	messageRenderer: {
 		actions: {
 			search_knowledge: "Search Knowledge",

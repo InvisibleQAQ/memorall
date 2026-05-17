@@ -116,7 +116,7 @@ featureCatalogRegistry.register({
 	metadata: {
 		description:
 			"Enable current-page browser observation and safe page interaction for EmbeddedChat.",
-		displayName: "Embedded chat page tools",
+		displayName: "Embedded Chat",
 		tools: [...CO_AGENT_TOOLS],
 		systemPrompt: EMBEDDED_CHAT_SYSTEM_PROMPT,
 		customizable: false,

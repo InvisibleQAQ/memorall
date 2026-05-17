@@ -2,6 +2,8 @@ import React, { lazy, useMemo } from "react";
 import { ArtifactRenderer } from "../artifacts/ArtifactRenderer";
 import { parseArtifactSegments } from "../artifacts/artifact-protocol";
 import { CompactArtifactReference } from "./CompactArtifactReference";
+import { OpenUIRenderer } from "@/main/modules/openui/OpenUIRenderer";
+import { isOpenUILang } from "@/utils/openui";
 
 const USE_STREAMDOWN = false;
 const Streamdown = lazy(() => import("../MessageStreamDown"));
@@ -14,6 +16,10 @@ export const MessageContentWithArtifacts: React.FC<{
 	suppressArtifactPreviews?: boolean;
 }> = ({ content, isStreaming, suppressArtifactPreviews = false }) => {
 	const segments = useMemo(() => parseArtifactSegments(content), [content]);
+
+	if (isOpenUILang(content)) {
+		return <OpenUIRenderer content={content} streaming={isStreaming} />;
+	}
 
 	return (
 		<>

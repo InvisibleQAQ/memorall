@@ -17,6 +17,7 @@ import {
 	Languages,
 	ListChecks,
 	Newspaper,
+	PanelsTopLeft,
 	Plug,
 	Quote,
 	Shapes,
@@ -55,6 +56,7 @@ const LUCIDE_MAP: Record<
 	Languages,
 	ListChecks,
 	Newspaper,
+	PanelsTopLeft,
 	Plug,
 	Quote,
 	Terminal,
@@ -141,7 +143,7 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
 				} as React.CSSProperties
 			}
 			className={cn(
-				"group relative flex flex-col gap-3 overflow-hidden rounded-2xl border bg-card p-4 transition-colors hover:border-[color:var(--feature-accent)]/50",
+				"group relative h-full flex flex-col justify-between gap-3 overflow-hidden rounded-2xl border bg-card p-4 transition-colors hover:border-[color:var(--feature-accent)]/50 pb-3",
 				enabled
 					? "bg-[linear-gradient(135deg,color-mix(in_srgb,var(--feature-accent)_10%,transparent),transparent_55%)]"
 					: "border-border/30 bg-card/50",

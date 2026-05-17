@@ -173,6 +173,10 @@ export const vnEmbeddedLocale = {
 		instruction: "Kéo để chọn một vùng của hình ảnh • Nhấn ESC để hủy",
 		cancel: "Hủy",
 	},
+	messageContent: {
+		openUINotice: "Phản hồi này chứa một hình ảnh trực quan tương tác",
+		openFullView: "Mở chế độ xem đầy đủ",
+	},
 	messageRenderer: {
 		actions: {
 			search_knowledge: "Tìm kiếm kiến thức",

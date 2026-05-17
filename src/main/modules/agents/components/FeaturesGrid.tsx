@@ -35,6 +35,7 @@ const CORE_FEATURE_ORDER = [
 	"agent-node",
 	"artifact-feature",
 	"citations",
+	"visualize-response",
 ] as const;
 const CORE_FEATURE_NAMES = new Set<string>(CORE_FEATURE_ORDER);
 const CORE_FEATURE_RANK = new Map<string, number>(
@@ -269,7 +270,7 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ summary }) => {
 					<p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
 						{ta("featuresSection.core")}
 					</p>
-					<div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
+					<div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 auto-rows-[136px]">
 						{coreFeatures.map(renderFeatureCard)}
 					</div>
 				</div>
@@ -280,7 +281,7 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ summary }) => {
 					<p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
 						{ta("featuresSection.other")}
 					</p>
-					<div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
+					<div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 auto-rows-[136px]">
 						{visibleOtherFeatures.map(renderFeatureCard)}
 					</div>
 				</div>

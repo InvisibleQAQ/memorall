@@ -67,7 +67,11 @@
 		"settings": "Cài đặt",
 		"search": "Tìm kiếm",
 		"noResults": "Không tìm thấy kết quả",
-		"total": "Tổng"
+		"total": "Tổng",
+		"summary": "Tóm tắt",
+		"entities": "Thực thể",
+		"facts": "Sự kiện",
+		"confidence": "Độ tin cậy"
 	},
 	"rightPanel": {
 		"expandWorkspacePanel": "Mở rộng bảng workspace",
@@ -327,6 +331,10 @@
 			"activeMemoryFeature": {
 				"name": "Bộ nhớ chủ động",
 				"description": "Ghi nhớ, truy xuất, cập nhật, xóa và giải thích các bộ nhớ lâu dài trong đồ thị chủ đề đang chọn."
+			},
+			"visualizeResponse": {
+				"name": "Trực quan hóa phản hồi",
+				"description": "Tạo trực quan OpenUI tương tác dựa trên công cụ dữ liệu đồ thị tri thức."
 			}
 		}
 	},

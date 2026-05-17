@@ -68,7 +68,11 @@
 		"search": "Search",
 		"noResults": "No results found",
 		"total": "Total",
-		"version": "Version {{version}}"
+		"version": "Version {{version}}",
+		"summary": "Summary",
+		"entities": "Entities",
+		"facts": "Facts",
+		"confidence": "Confidence"
 	},
 	"rightPanel": {
 		"expandWorkspacePanel": "Expand workspace panel",
@@ -328,6 +332,10 @@
 			"activeMemoryFeature": {
 				"name": "Active Memory",
 				"description": "Remember, retrieve, update, remove, and explain durable memories in the currently selected topic graph."
+			},
+			"visualizeResponse": {
+				"name": "Visualize Response",
+				"description": "Generate interactive OpenUI visualizations backed by knowledge graph data tools."
 			}
 		}
 	},
