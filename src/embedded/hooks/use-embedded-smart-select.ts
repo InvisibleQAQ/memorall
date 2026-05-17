@@ -38,8 +38,15 @@ export const useEmbeddedSmartSelect = ({
 		);
 	}, [onAttachContext, onSelected]);
 
+	const cancelSmartSelect = useCallback(() => {
+		smartSelectCleanupRef.current?.();
+		smartSelectCleanupRef.current = null;
+		setIsSmartSelectMode(false);
+	}, []);
+
 	return {
 		isSmartSelectMode,
 		startSmartSelect,
+		cancelSmartSelect,
 	};
 };

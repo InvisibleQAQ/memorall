@@ -806,12 +806,79 @@ export const customStyles = `
     top: 12px !important;
     right: 12px !important;
     bottom: auto !important;
-    width: min(340px, calc(100vw - 24px)) !important;
+    width: min(420px, calc(100vw - 24px)) !important;
     height: auto !important;
     border: 1px solid hsl(var(--border)) !important;
     border-radius: 8px !important;
     background: hsl(var(--background) / 0.96) !important;
     backdrop-filter: blur(12px) !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--smart .memorall-chat-header-inner {
+    min-height: 48px !important;
+    padding: 8px 14px !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--smart .memorall-chat-title {
+    max-width: 100% !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--smart .memorall-header-actions {
+    display: none !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--smart .memorall-chat-brand {
+    display: none !important;
+  }
+
+  .memorall-chat-container .memorall-chat-shell--smart .memorall-model-chip {
+    max-width: none !important;
+    flex: 1 1 auto !important;
+  }
+
+  .memorall-chat-container .memorall-smart-select-notice {
+    padding: 14px !important;
+  }
+
+  .memorall-chat-container .memorall-smart-select-notice-card {
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 8px !important;
+    background: hsl(var(--muted) / 0.22) !important;
+    padding: 16px !important;
+  }
+
+  .memorall-chat-container .memorall-smart-select-notice-title {
+    color: hsl(var(--foreground)) !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+  }
+
+  .memorall-chat-container .memorall-smart-select-notice-text {
+    margin: 8px 0 0 !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+  }
+
+  .memorall-chat-container .memorall-smart-select-cancel-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 36px !important;
+    margin-top: 14px !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: hsl(0 84% 60%) !important;
+    color: white !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+  }
+
+  .memorall-chat-container .memorall-smart-select-cancel-button:hover {
+    background: hsl(0 72% 51%) !important;
   }
 
   .memorall-chat-container .memorall-chat-header {
@@ -835,7 +902,7 @@ export const customStyles = `
     min-width: 0 !important;
     flex: 1 1 auto !important;
     align-items: center !important;
-    gap: 8px !important;
+    gap: 10px !important;
   }
 
   .memorall-chat-container .memorall-chat-logo,
@@ -857,7 +924,8 @@ export const customStyles = `
   .memorall-chat-container .memorall-model-chip {
     display: inline-flex !important;
     min-width: 0 !important;
-    max-width: 52% !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
     align-items: center !important;
     gap: 6px !important;
     border: 1px solid hsl(var(--border)) !important;

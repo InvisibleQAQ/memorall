@@ -866,7 +866,10 @@ export const NoModelsScreen: React.FC<NoModelsScreenProps> = ({
 
 							{/* Show models list after configuration */}
 							{externalProviderConfigured && (
-								<YourModels onModelLoaded={onModelLoaded} />
+								<YourModels
+									onModelLoaded={onModelLoaded}
+									showQuickDownload={false}
+								/>
 							)}
 						</div>
 					)}

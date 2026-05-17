@@ -339,19 +339,19 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 		<div className="memorall-chat-header">
 			<div className="memorall-chat-header-inner">
 				<div className="memorall-chat-title">
-					<img
-						src={chrome.runtime.getURL("logo.png")}
-						alt="Memorall"
-						className="memorall-chat-logo"
-					/>
-					<span className="memorall-chat-brand">{t("recall")}</span>
 					{modelAvailable && modelId && provider ? (
-						<div className="memorall-model-chip memorall-model-chip--ready">
+						<div
+							className="memorall-model-chip memorall-model-chip--ready"
+							title={`${provider}: ${modelId}`}
+						>
 							<div className="memorall-model-dot" />
 							<span className="memorall-model-name">{modelId}</span>
 						</div>
 					) : (
-						<div className="memorall-model-chip memorall-model-chip--empty">
+						<div
+							className="memorall-model-chip memorall-model-chip--empty"
+							title={t("noModel")}
+						>
 							<div className="memorall-model-dot" />
 							<span>{t("noModel")}</span>
 						</div>
