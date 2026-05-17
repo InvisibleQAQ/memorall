@@ -1,16 +1,29 @@
 import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 
-export const EmbeddedSmartSelectNotice = () => {
+interface EmbeddedSmartSelectNoticeProps {
+	onCancel: () => void;
+}
+
+export const EmbeddedSmartSelectNotice = ({
+	onCancel,
+}: EmbeddedSmartSelectNoticeProps) => {
 	const t = useEmbeddedTranslation("contextSection");
 	return (
-		<div className="px-3 py-3">
-			<div className="rounded-xl border bg-background/90 px-3 py-3 shadow-sm">
-				<div className="text-base font-semibold text-foreground">
+		<div className="memorall-smart-select-notice">
+			<div className="memorall-smart-select-notice-card">
+				<div className="memorall-smart-select-notice-title">
 					{t("smartSelect")}
 				</div>
-				<p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+				<p className="memorall-smart-select-notice-text">
 					{t("smartSelectInstruction")}
 				</p>
+				<button
+					type="button"
+					className="memorall-smart-select-cancel-button"
+					onClick={onCancel}
+				>
+					{t("smartSelectCancel")}
+				</button>
 			</div>
 		</div>
 	);

@@ -179,7 +179,9 @@ export const EmbeddedChatInput: React.FC<EmbeddedChatInputProps> = ({
 								</button>
 							)}
 							<PromptInputSubmit
-								disabled={!inputValue.trim() || isTyping || !modelAvailable}
+								disabled={
+									isTyping ? false : !inputValue.trim() || !modelAvailable
+								}
 								status={isTyping ? "streaming" : "ready"}
 								onStop={onStop}
 							/>

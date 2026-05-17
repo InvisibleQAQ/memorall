@@ -247,6 +247,13 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 		[onAction, pendingItem],
 	);
 
+	const handleCancelSelection = useCallback(() => {
+		setSelectedElement(null);
+		setPendingItem(null);
+		setChooserPoint(null);
+		updateHighlight(null);
+	}, [updateHighlight]);
+
 	return (
 		<div
 			id="memorall-smart-select-overlay"
@@ -279,51 +286,55 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 				/>
 			)}
 
-			<div
-				style={{
-					position: "fixed",
-					top: 16,
-					left: "50%",
-					transform: "translateX(-50%)",
-					backgroundColor: "rgba(15, 23, 42, 0.96)",
-					color: "#fff",
-					padding: "10px 14px",
-					borderRadius: "10px",
-					boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
-					fontSize: "13px",
-					maxWidth: "min(420px, calc(100vw - 32px))",
-					pointerEvents: "auto",
-				}}
-			>
-				<div style={{ fontWeight: 600, marginBottom: 4 }}>
-					{t("smartSelect")}
+			{mode === "standalone" && (
+				<div
+					style={{
+						position: "fixed",
+						top: 16,
+						left: "50%",
+						transform: "translateX(-50%)",
+						backgroundColor: "rgba(15, 23, 42, 0.96)",
+						color: "#fff",
+						padding: "10px 14px",
+						borderRadius: "10px",
+						boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+						fontSize: "13px",
+						maxWidth: "min(420px, calc(100vw - 32px))",
+						pointerEvents: "auto",
+					}}
+				>
+					<div style={{ fontWeight: 600, marginBottom: 4 }}>
+						{t("smartSelect")}
+					</div>
+					<div style={{ lineHeight: 1.4, color: "rgba(255,255,255,0.85)" }}>
+						{t("smartSelectInstruction")}
+					</div>
 				</div>
-				<div style={{ lineHeight: 1.4, color: "rgba(255,255,255,0.85)" }}>
-					{t("smartSelectInstruction")}
-				</div>
-			</div>
+			)}
 
-			<button
-				type="button"
-				onClick={onCancel}
-				style={{
-					position: "fixed",
-					top: 18,
-					right: 18,
-					border: "none",
-					borderRadius: "999px",
-					backgroundColor: "rgba(220, 38, 38, 0.96)",
-					color: "#fff",
-					padding: "8px 14px",
-					fontSize: "13px",
-					fontWeight: 600,
-					boxShadow: "0 10px 24px rgba(0, 0, 0, 0.28)",
-					cursor: "pointer",
-					pointerEvents: "auto",
-				}}
-			>
-				{t("smartSelectCancel")}
-			</button>
+			{mode === "standalone" && (
+				<button
+					type="button"
+					onClick={onCancel}
+					style={{
+						position: "fixed",
+						top: 18,
+						right: 18,
+						border: "none",
+						borderRadius: "999px",
+						backgroundColor: "rgba(220, 38, 38, 0.96)",
+						color: "#fff",
+						padding: "8px 14px",
+						fontSize: "13px",
+						fontWeight: 600,
+						boxShadow: "0 10px 24px rgba(0, 0, 0, 0.28)",
+						cursor: "pointer",
+						pointerEvents: "auto",
+					}}
+				>
+					{t("smartSelectCancel")}
+				</button>
+			)}
 
 			{selectedElement && chooserStyle && (
 				<div
@@ -390,7 +401,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 								</button>
 								<button
 									type="button"
-									onClick={onCancel}
+									onClick={handleCancelSelection}
 									style={{
 										...choiceButtonStyle,
 										backgroundColor: "#fee2e2",
@@ -458,7 +469,7 @@ const SmartSelectOverlay: React.FC<SmartSelectOverlayProps> = ({
 								</button>
 								<button
 									type="button"
-									onClick={onCancel}
+									onClick={handleCancelSelection}
 									style={{
 										...choiceButtonStyle,
 										backgroundColor: "#fee2e2",

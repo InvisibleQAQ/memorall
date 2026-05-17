@@ -135,10 +135,11 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 			scrollToBottom,
 			setShouldAutoScroll,
 		});
-	const { isSmartSelectMode, startSmartSelect } = useEmbeddedSmartSelect({
-		onAttachContext: attachSmartContext,
-		onSelected: () => setShowContextSection(false),
-	});
+	const { isSmartSelectMode, startSmartSelect, cancelSmartSelect } =
+		useEmbeddedSmartSelect({
+			onAttachContext: attachSmartContext,
+			onSelected: () => setShowContextSection(false),
+		});
 
 	useEffect(() => {
 		if (shouldAutoScroll) {
@@ -278,7 +279,7 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 					/>
 
 					{isSmartSelectMode ? (
-						<EmbeddedSmartSelectNotice />
+						<EmbeddedSmartSelectNotice onCancel={cancelSmartSelect} />
 					) : (
 						<EmbeddedChatConversation
 							conversationRef={conversationRef}
