@@ -43,10 +43,7 @@ export const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({
 			className: "text-indigo-200/90",
 		},
 	];
-	const agentBuilderPrompt = t(
-		"agentBuilderCallout.agentPrompt",
-		"Create an agent for the work you want to solve?",
-	);
+	const agentBuilderPrompt = t("agentBuilderCallout.agentPrompt");
 
 	return (
 		<div
@@ -63,7 +60,7 @@ export const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({
 				ambientScreenContent={screenContent}
 				autoGreeting={!showAgentBuilderCallout}
 				speechBubble={
-					showAgentBuilderCallout && !compact
+					showAgentBuilderCallout
 						? {
 								message: agentBuilderPrompt,
 								tone: "thinking",

@@ -51,7 +51,8 @@
 	},
 	"agentBuilderCallout": {
 		"title": "Tạo tác nhân cho đúng công việc của bạn",
-		"description": "Tạo tác nhân tập trung với bộ nhớ, công cụ và hành vi phù hợp để giải quyết yêu cầu của bạn."
+		"description": "Tạo tác nhân tập trung với bộ nhớ, công cụ và hành vi phù hợp để giải quyết yêu cầu của bạn.",
+		"agentPrompt": "Tạo tác nhân cho công việc bạn muốn giải quyết?"
 	},
 	"history": {
 		"scrollUp": "Cuộn lên để xem lịch sử",

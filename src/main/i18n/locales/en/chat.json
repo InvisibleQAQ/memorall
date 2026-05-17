@@ -51,7 +51,8 @@
 	},
 	"agentBuilderCallout": {
 		"title": "Build an agent for your exact work",
-		"description": "Create a focused agent with the right memory, tools, and behavior to solve your requirements."
+		"description": "Create a focused agent with the right memory, tools, and behavior to solve your requirements.",
+		"agentPrompt": "Create an agent for the work you want to solve?"
 	},
 	"history": {
 		"scrollUp": "Scroll up to view history",
