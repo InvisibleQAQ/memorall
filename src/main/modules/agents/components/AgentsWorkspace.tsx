@@ -69,7 +69,7 @@ export const AgentsWorkspace: React.FC = () => {
 		<section
 			className={cn(
 				"min-h-0",
-				isDesktop ? "h-full overflow-hidden bg-background" : "",
+				isDesktop ? "h-full max-h-full overflow-hidden bg-background" : "",
 			)}
 		>
 			{isAgentWizardMode ? (
@@ -90,6 +90,7 @@ export const AgentsWorkspace: React.FC = () => {
 					searchQuery={searchQuery}
 					isLoading={isPresetListLoading}
 					isCreating={isCreating}
+					compactHeaderActions={!isDesktop}
 					scrollMode={isDesktop ? "contained" : "page"}
 					onSearchChange={setSearchQuery}
 					onSelectPreset={handlePresetSelection}
@@ -103,7 +104,7 @@ export const AgentsWorkspace: React.FC = () => {
 		<section
 			className={cn(
 				"min-h-0",
-				isDesktop ? "h-full overflow-hidden bg-background" : "",
+				isDesktop ? "h-full max-h-full overflow-hidden bg-background" : "",
 			)}
 		>
 			<div className={cn("flex flex-col", isDesktop ? "h-full min-h-0" : "")}>

@@ -41,7 +41,6 @@ export const AgentWizardWorkspace: React.FC<AgentWizardWorkspaceProps> = ({
 					onClick={wizard.requestClose}
 				>
 					<ArrowLeft size={13} />
-					{t("wizard.chatPanel.presets", { ns: "agents" })}
 				</Button>
 				<AgentWizardChatPanel
 					messages={wizard.messages}

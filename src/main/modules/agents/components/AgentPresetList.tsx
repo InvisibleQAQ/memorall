@@ -15,6 +15,7 @@ interface AgentPresetListProps {
 	searchQuery: string;
 	isLoading: boolean;
 	isCreating: boolean;
+	compactHeaderActions?: boolean;
 	scrollMode?: "contained" | "page";
 	onSearchChange: (value: string) => void;
 	onSelectPreset: (presetId: string) => void;
@@ -34,6 +35,7 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 	searchQuery,
 	isLoading,
 	isCreating,
+	compactHeaderActions = false,
 	scrollMode = "contained",
 	onSearchChange,
 	onSelectPreset,
@@ -65,13 +67,17 @@ export const AgentPresetList: React.FC<AgentPresetListProps> = ({
 				icon={<Bot size={20} />}
 				title={t("list.title")}
 				description={t("list.subtitle")}
+				actionsPlacement={compactHeaderActions ? "title" : "bottom"}
 				actions={
 					<Button
 						type="button"
 						size="sm"
 						onClick={onCreatePreset}
 						disabled={isCreating}
-						className="h-8 shrink-0 px-3 text-xs"
+						className={cn(
+							"shrink-0 text-xs",
+							compactHeaderActions ? "h-7 px-2.5" : "h-8 px-3",
+						)}
 					>
 						<Plus size={13} className="mr-1" />
 						{t("actions.create")}

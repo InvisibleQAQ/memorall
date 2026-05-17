@@ -49,22 +49,26 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 		<div
 			className={cn(
 				"flex flex-col bg-background",
-				isDesktop ? "h-full min-h-0" : "min-h-full",
+				isDesktop
+					? "h-full max-h-full min-h-0 overflow-hidden"
+					: "h-full min-h-0 overflow-hidden",
 			)}
 		>
 			<div
-				className={cn(isDesktop ? "flex-1 min-h-0 overflow-hidden" : "pb-4")}
+				className={cn(
+					isDesktop ? "min-h-0 flex-1 overflow-hidden" : "min-h-0 flex-1",
+				)}
 			>
 				{isDesktop ? (
 					<div
 						ref={containerRef}
-						className="relative grid h-full min-h-0 bg-background"
+						className="relative grid h-full max-h-full min-h-0 bg-background"
 						style={{
 							gridTemplateColumns,
 						}}
 					>
 						{isSidebarCollapsed ? (
-							<aside className="flex min-h-0 flex-col items-center gap-2 overflow-hidden border-r bg-background py-3">
+							<aside className="flex h-full max-h-full min-h-0 flex-col items-center gap-2 overflow-hidden border-r bg-background py-3">
 								<Button
 									type="button"
 									variant="outline"
@@ -84,13 +88,13 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 						) : (
 							<div
 								className={cn(
-									"relative z-20 min-h-0 border-r bg-background",
+									"relative z-20 h-full max-h-full min-h-0 border-r bg-background",
 									isCompactSplitLayout ? "overflow-visible" : "overflow-hidden",
 								)}
 							>
 								<div
 									className={cn(
-										"min-h-0 overflow-hidden bg-background",
+										"flex h-full max-h-full min-h-0 flex-col overflow-hidden bg-background",
 										isCompactSplitLayout
 											? "absolute left-0 top-0 flex h-full flex-col border-r shadow-2xl"
 											: "h-full",
@@ -128,7 +132,7 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 											<PanelLeftClose className="h-4 w-4" />
 										</Button>
 									)}
-									<div className="min-h-0 flex-1 overflow-hidden">
+									<div className="h-full max-h-full min-h-0 flex-1 overflow-hidden">
 										{listSection}
 									</div>
 								</div>
@@ -153,10 +157,10 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 					<Tabs
 						value={activeCompactTab}
 						onValueChange={onCompactTabChange}
-						className="flex flex-col"
+						className="flex h-full min-h-0 flex-col"
 					>
 						<div className="border-b bg-background/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-							<TabsList className="grid h-11 w-full grid-cols-2 rounded-xl bg-muted/60 p-1">
+							<TabsList className="grid h-11 w-full grid-cols-2 rounded-lg bg-muted/60 p-1">
 								<TabsTrigger
 									value="list"
 									className="h-full rounded-lg text-xs sm:text-sm"
@@ -171,10 +175,16 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 								</TabsTrigger>
 							</TabsList>
 						</div>
-						<TabsContent value="list" className="mt-0">
+						<TabsContent
+							value="list"
+							className="mt-0 min-h-0 flex-1 overflow-y-auto"
+						>
 							{listSection}
 						</TabsContent>
-						<TabsContent value="config" className="mt-0">
+						<TabsContent
+							value="config"
+							className="mt-0 min-h-0 flex-1 overflow-y-auto"
+						>
 							{configSection}
 						</TabsContent>
 					</Tabs>

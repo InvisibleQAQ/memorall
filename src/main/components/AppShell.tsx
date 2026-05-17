@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, ExternalLink } from "lucide-react";
 import { RightApplicationLayout } from "@/main/components/RightApplicationLayout";
 import { ChatPage } from "@/main/pages/ChatPage";
 import {
@@ -20,6 +20,8 @@ import {
 	ModelDownloadingScreen,
 	useDownloadProgress,
 } from "@/main/modules/llm/components";
+import { isPopupSurface } from "@/utils/dom";
+import { openStandalonePage } from "@/utils/open-standalone";
 
 interface AppShellProps {
 	children: React.ReactNode;
@@ -71,6 +73,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	const startWidthRef = React.useRef(0);
 	const [isResizing, setIsResizing] = React.useState(false);
 	const isNarrow = useMediaQuery(MOBILE_WORKSPACE_QUERY);
+	const isPopup = isPopupSurface();
 	const runtimeCount = useRuntimeSessionsStore((state) =>
 		state.getRuntimeCount(),
 	);
@@ -175,6 +178,21 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 							const Icon = item.icon;
 							const isRuntime = item.path === "/runtime";
 							const copilotId = getCopilotNavigationId(item.path);
+							if (isPopup && isRuntime) {
+								return (
+									<button
+										key="open-full-mode"
+										type="button"
+										onClick={() => void openStandalonePage()}
+										className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+										aria-label="Open full mode"
+										title="Open full mode"
+									>
+										<ExternalLink size={15} />
+									</button>
+								);
+							}
+
 							return (
 								<Link
 									key={item.path}
@@ -210,6 +228,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 					<ChatPage
 						hideWideSidePanelCollapsedToggle={effectiveChatShellCollapsed}
 						onOpenAgentWorkspace={() => setRightWorkspaceTab("agent")}
+						useIconOnlyHistoryButton={isNarrow && !isMobileWorkspaceOpen}
 					/>
 				</div>
 				<div

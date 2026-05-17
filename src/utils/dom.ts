@@ -1,7 +1,10 @@
 export const RUNTIME_PANEL_BREAKPOINT = 700;
 
 export function isPopupSurface(): boolean {
-	return window.location.href.includes("popup.html");
+	return (
+		document.documentElement.dataset.uiSurface === "popup" ||
+		window.location.href.includes("popup.html")
+	);
 }
 
 export async function waitForDOMReady(): Promise<void> {

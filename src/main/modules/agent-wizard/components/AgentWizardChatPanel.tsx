@@ -62,7 +62,7 @@ export const AgentWizardChatPanel: React.FC<AgentWizardChatPanelProps> = ({
 	const canSubmit = Boolean(inputValue.trim()) && !isStreaming && isModelReady;
 
 	return (
-		<section className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+		<section className="flex h-full max-h-full min-h-0 flex-col overflow-hidden bg-background">
 			<div className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
 				{onBack ? (
 					<Button
@@ -73,12 +73,8 @@ export const AgentWizardChatPanel: React.FC<AgentWizardChatPanelProps> = ({
 						onClick={onBack}
 					>
 						<ArrowLeft size={13} />
-						{tc("presets")}
 					</Button>
 				) : null}
-				<div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-					<Bot size={16} />
-				</div>
 				<div className="min-w-0">
 					<h2 className="text-sm font-semibold">{tc("title")}</h2>
 					<p className="truncate text-xs text-muted-foreground">
@@ -87,28 +83,26 @@ export const AgentWizardChatPanel: React.FC<AgentWizardChatPanelProps> = ({
 				</div>
 			</div>
 
-			<div className="min-h-0 flex-1 overflow-hidden">
-				<Conversation className="h-full min-h-0 overscroll-contain">
-					<ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-5 px-4 py-4">
-						{dbMessages.map((message, index) => (
-							<MessageRenderer
-								key={message.id}
-								message={message}
-								index={index}
-								isLastMessage={index === dbMessages.length - 1}
-								isStreaming={
-									isStreaming &&
-									index === dbMessages.length - 1 &&
-									message.role === "assistant"
-								}
-								groupMessages={dbMessages}
-								showMessageControls={false}
-							/>
-						))}
-					</ConversationContent>
-					<ConversationScrollButton />
-				</Conversation>
-			</div>
+			<Conversation className="min-h-0 flex-1 overscroll-contain">
+				<ConversationContent className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-5 px-4 py-4">
+					{dbMessages.map((message, index) => (
+						<MessageRenderer
+							key={message.id}
+							message={message}
+							index={index}
+							isLastMessage={index === dbMessages.length - 1}
+							isStreaming={
+								isStreaming &&
+								index === dbMessages.length - 1 &&
+								message.role === "assistant"
+							}
+							groupMessages={dbMessages}
+							showMessageControls={false}
+						/>
+					))}
+				</ConversationContent>
+				<ConversationScrollButton />
+			</Conversation>
 
 			<div className="shrink-0 border-t p-3">
 				<PromptInput

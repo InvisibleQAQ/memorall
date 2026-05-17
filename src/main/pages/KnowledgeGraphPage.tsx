@@ -428,35 +428,34 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 						}
 					>
 						<div className="relative">
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="absolute right-2 top-3 z-20 h-8 w-8"
+								onClick={() => {
+									collapseSidebar();
+								}}
+								aria-label={t("sidebar.hide")}
+								title={t("sidebar.hide")}
+							>
+								<PanelLeftClose className="h-4 w-4" />
+							</Button>
 							<PageHeader
 								icon={<Network size={20} />}
 								title={t("title")}
 								description={t("description")}
+								actionsPlacement="bottom"
 								actions={
-									<div className="flex items-center gap-1.5">
-										<Button
-											type="button"
-											size="sm"
-											onClick={handleCreateTopic}
-											className="h-8 shrink-0 px-3 text-xs"
-										>
-											<Plus size={13} className="mr-1" />
-											{tTopics("manage.newTopic")}
-										</Button>
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon"
-											className="h-8 w-8 shrink-0"
-											onClick={() => {
-												collapseSidebar();
-											}}
-											aria-label={t("sidebar.hide")}
-											title={t("sidebar.hide")}
-										>
-											<PanelLeftClose className="h-4 w-4" />
-										</Button>
-									</div>
+									<Button
+										type="button"
+										size="sm"
+										onClick={handleCreateTopic}
+										className="h-8 shrink-0 px-3 text-xs"
+									>
+										<Plus size={13} className="mr-1" />
+										{tTopics("manage.newTopic")}
+									</Button>
 								}
 							/>
 						</div>
@@ -586,12 +585,13 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 					icon={<Network size={20} />}
 					title={t("title")}
 					description={t("description")}
+					actionsPlacement="title"
 					actions={
 						<Button
 							type="button"
 							size="sm"
 							onClick={handleCreateTopic}
-							className="h-8 shrink-0 px-3 text-xs"
+							className="h-7 shrink-0 px-2.5 text-xs"
 						>
 							<Plus size={13} className="mr-1" />
 							{tTopics("manage.newTopic")}

@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, MessagesSquare, X } from "lucide-react";
+import { ArrowUp, History, MessagesSquare, X } from "lucide-react";
 import {
 	Conversation,
 	ConversationContent,
@@ -27,6 +27,12 @@ import type {
 	AgentScreenContent,
 } from "@/components/AgentIcon";
 import { Button } from "@/main/components/ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/main/components/ui/tooltip";
 import { topicService } from "@/main/modules/topics/services/topic-service";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
 import type { Flow, Topic } from "@/services/database/types";
@@ -57,11 +63,13 @@ const RETRIEVAL_STEP_NAMES = new Set([
 interface ChatPageProps {
 	onOpenAgentWorkspace?: () => void;
 	hideWideSidePanelCollapsedToggle?: boolean;
+	useIconOnlyHistoryButton?: boolean;
 }
 
 export const ChatPage: React.FC<ChatPageProps> = ({
 	onOpenAgentWorkspace,
 	hideWideSidePanelCollapsedToggle = false,
+	useIconOnlyHistoryButton = false,
 }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -555,8 +563,12 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 		navigate("/llm");
 	};
 
-	const isWideChatSidePanelVisible = isWideViewport && !isPopupSurface();
+	const isPopup = isPopupSurface();
+	const isCompactChatSurface = isPopup || useIconOnlyHistoryButton;
+	const isWideChatSidePanelVisible = isWideViewport && !isCompactChatSurface;
 	const isCompactSidePanelAvailable = !isWideChatSidePanelVisible;
+	const isCompactEmptyLanding =
+		isCompactChatSurface && latestGroupIsEmpty && !showPreviousGroups;
 	const selectedAgent = useMemo(
 		() => agentFlows.find((flow) => flow.id === selectedAgentFlowId),
 		[agentFlows, selectedAgentFlowId],
@@ -651,24 +663,52 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 
 					{completedGroups.length > 0 ? (
 						<div className="pointer-events-none absolute left-0 right-0 top-4 z-20 flex justify-center">
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								className="pointer-events-auto h-9 rounded-full border border-border/70 bg-background/90 px-4 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-xl hover:bg-accent/70 hover:text-foreground"
-								onClick={handlePreviousGroupsClick}
-							>
-								{showPreviousGroups ? (
-									<>
-										<ArrowUp size={13} />
-										<span>{t("history.scrollUp")}</span>
-									</>
-								) : (
-									t("history.showPrevious", {
-										count: completedGroups.length,
-									})
-								)}
-							</Button>
+							<TooltipProvider>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											type="button"
+											variant="ghost"
+											size={useIconOnlyHistoryButton ? "icon" : "sm"}
+											className={`pointer-events-auto h-9 rounded-full border border-border/70 bg-background/90 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-xl hover:bg-accent/70 hover:text-foreground ${
+												useIconOnlyHistoryButton ? "w-9 px-0" : "px-4"
+											}`}
+											onClick={handlePreviousGroupsClick}
+											aria-label={
+												showPreviousGroups
+													? t("history.scrollUp")
+													: t("history.showPrevious", {
+															count: completedGroups.length,
+														})
+											}
+										>
+											{useIconOnlyHistoryButton ? (
+												showPreviousGroups ? (
+													<ArrowUp size={14} />
+												) : (
+													<History size={14} />
+												)
+											) : showPreviousGroups ? (
+												<>
+													<ArrowUp size={13} />
+													<span>{t("history.scrollUp")}</span>
+												</>
+											) : (
+												t("history.showPrevious", {
+													count: completedGroups.length,
+												})
+											)}
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="bottom">
+										{showPreviousGroups
+											? t("history.scrollUp")
+											: t("history.showPrevious", {
+													count: completedGroups.length,
+												})}
+									</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
 							{showPreviousGroups ? (
 								<Button
 									type="button"
@@ -683,7 +723,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 							) : null}
 						</div>
 					) : null}
-					<ConversationContent className="mx-auto flex min-h-full w-full max-w-4xl flex-col space-y-8 px-4 pb-8 pt-16 sm:px-6 lg:px-8">
+					<ConversationContent
+						className={`mx-auto flex w-full max-w-4xl flex-col ${
+							isCompactEmptyLanding
+								? "h-full min-h-0 space-y-3 px-3 pb-2 pt-12 sm:px-4"
+								: "min-h-full space-y-8 px-4 pb-8 pt-16 sm:px-6 lg:px-8"
+						}`}
+					>
 						{showPreviousGroups ? (
 							<div className="space-y-8">{completedMessageGroups}</div>
 						) : null}
@@ -694,6 +740,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 								greetingContext={agentGreetingContext}
 								showAgentBuilderCallout={shouldShowAgentBuilderCallout}
 								onOpenAgentWizard={handleOpenAgentWizard}
+								compact={isCompactChatSurface}
 							/>
 						) : latestGroup ? (
 							<MessageGroup
