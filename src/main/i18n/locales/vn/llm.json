@@ -1,5 +1,9 @@
 {
 	"title": "Mô hình ngôn ngữ",
+	"sidebar": {
+		"show": "Hiển thị thanh bên mô hình",
+		"hide": "Ẩn thanh bên mô hình"
+	},
 	"currentModel": {
 		"title": "Mô hình hiện tại",
 		"description": "Mô hình đang hoạt động cho các tác vụ AI",
@@ -35,7 +39,26 @@
 		"openai": "OpenAI",
 		"openrouter": "OpenRouter",
 		"lmstudio": "LM Studio",
-		"ollama": "Ollama"
+		"ollama": "Ollama",
+		"compact": {
+			"transformer": "Transformer",
+			"wllama": "Wllama",
+			"webllm": "WebLLM",
+			"openai": "OpenAI",
+			"openrouter": "Router",
+			"lmstudio": "Studio",
+			"ollama": "Ollama"
+		}
+	},
+	"providerTabs": {
+		"status": {
+			"active": "Nhà cung cấp đang hoạt động",
+			"configured": "Nhà cung cấp đã cấu hình"
+		}
+	},
+	"providerPanel": {
+		"status": "Trạng thái: {{status}}",
+		"testInference": "Kiểm tra suy luận"
 	},
 	"yourModels": {
 		"title": "Mô hình của tôi",
@@ -119,7 +142,16 @@
 	},
 	"webllm": {
 		"model": "Mô hình WebLLM",
-		"selectModel": "Chọn một mô hình WebLLM..."
+		"selectModel": "Chọn một mô hình WebLLM...",
+		"advantagesTitle": "Ưu điểm WebLLM",
+		"allModels": "Nâng cao - Tất cả mô hình",
+		"filterModels": "Lọc mô hình...",
+		"advantages": {
+			"webgpu": "Gia tốc WebGPU - suy luận trong trình duyệt nhanh nhất",
+			"browser": "Không cần cài đặt hay máy chủ - chạy hoàn toàn trong tab trình duyệt",
+			"quantized": "Hỗ trợ mô hình lượng tử hóa, gồm bản dựng 4-bit và 8-bit",
+			"offscreen": "Thực thi cô lập trong iframe offscreen"
+		}
 	},
 	"transformer": {
 		"webgpuInfo": "Mô hình Transformer WebGPU",
@@ -128,6 +160,19 @@
 		"selectModelPlaceholder": "Chọn một mô hình WebGPU",
 		"selectedModel": "Mô hình đã chọn",
 		"features": "Tính năng",
+		"advantagesTitle": "Ưu điểm Transformer",
+		"recommendedModels": "Mô hình được đề xuất",
+		"huggingFaceSearch": "Tìm kiếm HuggingFace",
+		"searchPlaceholder": "Tìm mô hình ONNX trên HuggingFace...",
+		"huggingFaceError": "Không thể kết nối HuggingFace",
+		"retry": "Thử lại",
+		"downloads": "{{count}} lượt tải",
+		"advantages": {
+			"onnx": "Định dạng ONNX - tối ưu cho suy luận nhanh",
+			"webgpuWasm": "Tự động chạy bằng WebGPU hoặc dự phòng WASM",
+			"memory": "Dấu chân bộ nhớ nhỏ nhất trong các trình chạy cục bộ",
+			"namespace": "Mô hình từ namespace onnx-community trên HuggingFace"
+		},
 		"feature": {
 			"webgpu": "Gia tốc WebGPU cho suy luận nhanh",
 			"onnx": "ONNX Runtime cho hiệu suất tối ưu",
@@ -186,6 +231,13 @@
 	"wllama": {
 		"recommendedModels": "Mô hình được đề xuất",
 		"customRepository": "Kho tùy chỉnh",
+		"advantagesTitle": "Ưu điểm Wllama",
+		"advantages": {
+			"wasm": "Chạy mô hình GGUF trong trình duyệt bằng WASM - không cần GPU",
+			"cpu": "Hoạt động chỉ với CPU - tương thích phần cứng rộng nhất",
+			"huggingFace": "Hỗ trợ trực tiếp kho HuggingFace",
+			"cache": "Mô hình được giữ trong cache trình duyệt sau lần tải đầu"
+		},
 		"modelRepository": "Kho mô hình",
 		"selectRepository": "Chọn một kho mô hình...",
 		"ggufFilename": "Tên tệp GGUF (trong kho)",

@@ -79,9 +79,10 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 	return (
 		<div className="space-y-4">
 			<section className="rounded-lg border bg-muted/20">
-				<button
+				<Button
 					type="button"
-					className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium"
+					variant="ghost"
+					className="h-auto w-full justify-start gap-2 rounded-none p-3 text-left text-sm font-medium"
 					onClick={() => setShowAdvantages((value) => !value)}
 				>
 					{showAdvantages ? (
@@ -90,25 +91,29 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 						<ChevronRight className="h-4 w-4" />
 					)}
 					<Zap className="h-4 w-4 text-primary" />
-					Transformer advantages
-				</button>
+					{t("transformer.advantagesTitle")}
+				</Button>
 				{showAdvantages && (
 					<ul className="space-y-1 px-4 pb-3 text-xs text-muted-foreground">
-						<li>ONNX format - optimized for fast inference</li>
-						<li>Runs on WebGPU or WASM fallback automatically</li>
-						<li>Smallest memory footprint of local runners</li>
-						<li>Models from HuggingFace onnx-community namespace</li>
+						<li>{t("transformer.advantages.onnx")}</li>
+						<li>{t("transformer.advantages.webgpuWasm")}</li>
+						<li>{t("transformer.advantages.memory")}</li>
+						<li>{t("transformer.advantages.namespace")}</li>
 					</ul>
 				)}
 			</section>
 
 			<section className="space-y-3">
-				<div className="text-sm font-semibold">Quick download</div>
+				<div className="text-sm font-semibold">
+					{t("yourModels.quickDownload")}
+				</div>
 				{quickDownloads}
 			</section>
 
 			<section className="space-y-3">
-				<div className="text-sm font-semibold">Recommended models</div>
+				<div className="text-sm font-semibold">
+					{t("transformer.recommendedModels")}
+				</div>
 				<div className="grid gap-2">
 					{RECOMMENDATION_TRANSFORMER_MODELS.map((modelId) => (
 						<div
@@ -132,7 +137,7 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 								onClick={() => setModel(modelId)}
 								disabled={loading}
 							>
-								Load
+								{t("model.load")}
 							</Button>
 						</div>
 					))}
@@ -140,12 +145,14 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 			</section>
 
 			<section className="space-y-3 rounded-lg border p-3">
-				<div className="text-sm font-semibold">HuggingFace search</div>
+				<div className="text-sm font-semibold">
+					{t("transformer.huggingFaceSearch")}
+				</div>
 				<div className="flex gap-2">
 					<Input
 						value={searchQuery}
 						onChange={(event) => setSearchQuery(event.target.value)}
-						placeholder="Search HuggingFace ONNX models..."
+						placeholder={t("transformer.searchPlaceholder")}
 						disabled={searchState === "loading"}
 					/>
 					<Button
@@ -159,19 +166,19 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 						) : (
 							<Search className="h-4 w-4" />
 						)}
-						Search
+						{t("wllama.search")}
 					</Button>
 				</div>
 				{searchState === "error" && (
 					<div className="flex items-center justify-between rounded border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-						<span>Could not reach HuggingFace</span>
+						<span>{t("transformer.huggingFaceError")}</span>
 						<Button
 							type="button"
 							size="sm"
 							variant="outline"
 							onClick={searchHuggingFace}
 						>
-							Retry
+							{t("transformer.retry")}
 						</Button>
 					</div>
 				)}
@@ -187,7 +194,9 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 										{result.id}
 									</div>
 									<div className="text-xs text-muted-foreground">
-										{(result.downloads ?? 0).toLocaleString()} downloads
+										{t("transformer.downloads", {
+											count: (result.downloads ?? 0).toLocaleString(),
+										})}
 									</div>
 								</div>
 								<Button
@@ -196,7 +205,7 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 									variant="outline"
 									onClick={() => setModel(result.id)}
 								>
-									Load
+									{t("model.load")}
 								</Button>
 							</div>
 						))}

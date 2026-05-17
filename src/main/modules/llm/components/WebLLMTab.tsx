@@ -42,9 +42,10 @@ export const WebLLMTab: React.FC<WebLLMTabProps> = ({
 	return (
 		<div className="space-y-4">
 			<section className="rounded-lg border bg-muted/20">
-				<button
+				<Button
 					type="button"
-					className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium"
+					variant="ghost"
+					className="h-auto w-full justify-start gap-2 rounded-none p-3 text-left text-sm font-medium"
 					onClick={() => setShowAdvantages((value) => !value)}
 				>
 					{showAdvantages ? (
@@ -53,27 +54,30 @@ export const WebLLMTab: React.FC<WebLLMTabProps> = ({
 						<ChevronRight className="h-4 w-4" />
 					)}
 					<Zap className="h-4 w-4 text-primary" />
-					WebLLM advantages
-				</button>
+					{t("webllm.advantagesTitle")}
+				</Button>
 				{showAdvantages && (
 					<ul className="space-y-1 px-4 pb-3 text-xs text-muted-foreground">
-						<li>WebGPU hardware acceleration - fastest in-browser inference</li>
-						<li>No installation, no server - runs fully in the browser tab</li>
-						<li>Supports quantized models, including 4-bit and 8-bit builds</li>
-						<li>Isolated execution in offscreen iframe</li>
+						<li>{t("webllm.advantages.webgpu")}</li>
+						<li>{t("webllm.advantages.browser")}</li>
+						<li>{t("webllm.advantages.quantized")}</li>
+						<li>{t("webllm.advantages.offscreen")}</li>
 					</ul>
 				)}
 			</section>
 
 			<section className="space-y-3">
-				<div className="text-sm font-semibold">Quick download</div>
+				<div className="text-sm font-semibold">
+					{t("yourModels.quickDownload")}
+				</div>
 				{quickDownloads}
 			</section>
 
 			<section className="rounded-lg border">
-				<button
+				<Button
 					type="button"
-					className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium"
+					variant="ghost"
+					className="h-auto w-full justify-start gap-2 rounded-none p-3 text-left text-sm font-medium"
 					onClick={() => setShowAllModels((value) => !value)}
 				>
 					{showAllModels ? (
@@ -81,14 +85,14 @@ export const WebLLMTab: React.FC<WebLLMTabProps> = ({
 					) : (
 						<ChevronRight className="h-4 w-4" />
 					)}
-					Advanced - All Models
-				</button>
+					{t("webllm.allModels")}
+				</Button>
 				{showAllModels && (
 					<div className="space-y-3 border-t p-3">
 						<Input
 							value={filter}
 							onChange={(event) => setFilter(event.target.value)}
-							placeholder="Filter models..."
+							placeholder={t("webllm.filterModels")}
 							disabled={loading}
 						/>
 						<div className="grid max-h-80 gap-2 overflow-y-auto">
@@ -107,7 +111,7 @@ export const WebLLMTab: React.FC<WebLLMTabProps> = ({
 										onClick={() => setModel(modelId)}
 										disabled={loading}
 									>
-										Load
+										{t("model.load")}
 									</Button>
 								</div>
 							))}

@@ -1,6 +1,10 @@
 {
 	"title": "Đồ thị tri thức",
 	"description": "Khám phá bộ nhớ đã lưu dưới dạng chủ đề, thực thể và mối quan hệ được kết nối.",
+	"sidebar": {
+		"show": "Hiển thị thanh bên đồ thị tri thức",
+		"hide": "Ẩn thanh bên đồ thị tri thức"
+	},
 	"topic": {
 		"label": "Bộ nhớ",
 		"selectPlaceholder": "Chọn bộ nhớ",
