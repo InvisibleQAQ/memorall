@@ -1,7 +1,9 @@
 import React from "react";
 import { Settings } from "lucide-react";
 import { eq } from "drizzle-orm";
+import { useTranslation } from "react-i18next";
 
+import { Button } from "@/main/components/ui/button";
 import { ChatSection } from "./ChatSection";
 import { LogsSection } from "./LogsSection";
 import { LocalOpenAITab } from "./LocalOpenAITab";
@@ -116,6 +118,7 @@ export const ProviderPanel: React.FC<ProviderPanelProps> = ({
 	onOpenAITabSelect,
 	onModelLoaded,
 }) => {
+	const { t } = useTranslation("llm");
 	const { current, setCurrent } = useCurrentModel();
 	const [showTestInference, setShowTestInference] = React.useState(false);
 	const [providerStatuses, setProviderStatuses] = React.useState<
@@ -368,18 +371,21 @@ export const ProviderPanel: React.FC<ProviderPanelProps> = ({
 				/>
 			)}
 
-			<div className="text-sm text-muted-foreground">Status: {status}</div>
+			<div className="text-sm text-muted-foreground">
+				{t("providerPanel.status", { status })}
+			</div>
 
 			<section className="rounded-lg border">
-				<button
+				<Button
 					type="button"
-					className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium disabled:text-muted-foreground"
+					variant="ghost"
+					className="h-auto w-full justify-start gap-2 rounded-none p-3 text-left text-sm font-medium disabled:text-muted-foreground"
 					onClick={() => setShowTestInference((value) => !value)}
 					disabled={!ready}
 				>
 					<Settings className="h-4 w-4" />
-					Test inference
-				</button>
+					{t("providerPanel.testInference")}
+				</Button>
 				{showTestInference && ready && (
 					<div className="space-y-4 border-t p-3">
 						<ChatSection

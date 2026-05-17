@@ -59,9 +59,10 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 	return (
 		<div className="space-y-4">
 			<section className="rounded-lg border bg-muted/20">
-				<button
+				<Button
 					type="button"
-					className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium"
+					variant="ghost"
+					className="h-auto w-full justify-start gap-2 rounded-none p-3 text-left text-sm font-medium"
 					onClick={() => setShowAdvantages((value) => !value)}
 				>
 					{showAdvantages ? (
@@ -70,20 +71,22 @@ export const WllamaTab: React.FC<WllamaTabProps> = ({
 						<ChevronRight className="h-4 w-4" />
 					)}
 					<Zap className="h-4 w-4 text-primary" />
-					Wllama advantages
-				</button>
+					{t("wllama.advantagesTitle")}
+				</Button>
 				{showAdvantages && (
 					<ul className="space-y-1 px-4 pb-3 text-xs text-muted-foreground">
-						<li>Runs GGUF models in browser via WASM - no GPU required</li>
-						<li>Works on CPU only - broadest hardware compatibility</li>
-						<li>Supports HuggingFace repos directly</li>
-						<li>Models persist in browser cache after first download</li>
+						<li>{t("wllama.advantages.wasm")}</li>
+						<li>{t("wllama.advantages.cpu")}</li>
+						<li>{t("wllama.advantages.huggingFace")}</li>
+						<li>{t("wllama.advantages.cache")}</li>
 					</ul>
 				)}
 			</section>
 
 			<section className="space-y-3">
-				<div className="text-sm font-semibold">Quick download</div>
+				<div className="text-sm font-semibold">
+					{t("yourModels.quickDownload")}
+				</div>
 				{quickDownloads}
 			</section>
 

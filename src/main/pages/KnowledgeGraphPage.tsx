@@ -405,8 +405,8 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 							onClick={() => {
 								expandSidebar();
 							}}
-							aria-label="Show knowledge graph sidebar"
-							title="Show sidebar"
+							aria-label={t("sidebar.show")}
+							title={t("sidebar.show")}
 						>
 							<PanelLeftOpen className="h-4 w-4" />
 						</Button>
@@ -451,8 +451,8 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = () => {
 											onClick={() => {
 												collapseSidebar();
 											}}
-											aria-label="Hide knowledge graph sidebar"
-											title="Hide sidebar"
+											aria-label={t("sidebar.hide")}
+											title={t("sidebar.hide")}
 										>
 											<PanelLeftClose className="h-4 w-4" />
 										</Button>

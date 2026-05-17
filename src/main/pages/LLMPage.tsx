@@ -135,8 +135,8 @@ export const LLMPage: React.FC = () => {
 								onClick={() => {
 									expandSidebar();
 								}}
-								aria-label="Show model sidebar"
-								title="Show sidebar"
+								aria-label={t("sidebar.show")}
+								title={t("sidebar.show")}
 							>
 								<PanelLeftOpen className="h-4 w-4" />
 							</Button>
@@ -174,8 +174,8 @@ export const LLMPage: React.FC = () => {
 												onClick={() => {
 													collapseSidebar();
 												}}
-												aria-label="Hide model sidebar"
-												title="Hide sidebar"
+												aria-label={t("sidebar.hide")}
+												title={t("sidebar.hide")}
 											>
 												<PanelLeftClose className="h-4 w-4" />
 											</Button>

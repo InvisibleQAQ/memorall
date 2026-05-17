@@ -71,8 +71,8 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 									size="icon"
 									className="h-9 w-9"
 									onClick={onExpandSidebar}
-									aria-label="Show agents sidebar"
-									title="Show sidebar"
+									aria-label={t("workspace.sidebar.show")}
+									title={t("workspace.sidebar.show")}
 								>
 									<PanelLeftOpen className="h-4 w-4" />
 								</Button>
@@ -109,8 +109,8 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 												size="icon"
 												className="h-8 w-8"
 												onClick={onCollapseSidebar}
-												aria-label="Hide agents sidebar"
-												title="Hide sidebar"
+												aria-label={t("workspace.sidebar.hide")}
+												title={t("workspace.sidebar.hide")}
 											>
 												<PanelLeftClose className="h-4 w-4" />
 											</Button>
@@ -122,8 +122,8 @@ export const AgentsWorkspaceLayout: React.FC<AgentsWorkspaceLayoutProps> = ({
 											size="icon"
 											className="absolute right-2 top-3 z-20 h-8 w-8"
 											onClick={onCollapseSidebar}
-											aria-label="Hide agents sidebar"
-											title="Hide sidebar"
+											aria-label={t("workspace.sidebar.hide")}
+											title={t("workspace.sidebar.hide")}
 										>
 											<PanelLeftClose className="h-4 w-4" />
 										</Button>

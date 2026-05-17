@@ -17,7 +17,11 @@
 		"saved": "Mọi thay đổi đã được lưu",
 		"unsaved": "Có thay đổi chưa lưu",
 		"configSaved": "Cấu hình đã lưu",
-		"configUnsaved": "Bản nháp cấu hình"
+		"configUnsaved": "Bản nháp cấu hình",
+		"sidebar": {
+			"show": "Hiển thị thanh bên tác nhân",
+			"hide": "Ẩn thanh bên tác nhân"
+		}
 	},
 	"state": {
 		"loading": "Đang tải preset tác nhân..."

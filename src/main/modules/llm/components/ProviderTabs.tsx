@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/main/components/ui/button";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 
 export type ProviderStatus = "active" | "configured" | "idle";
@@ -60,18 +61,19 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 	};
 
 	const compactLabels: Record<ServiceProvider, string> = {
-		transformer: "Transformer",
-		wllama: "Wllama",
-		webllm: "WebLLM",
-		openai: "OpenAI",
-		openrouter: "Router",
-		lmstudio: "Studio",
-		ollama: "Ollama",
+		transformer: t("providers.compact.transformer"),
+		wllama: t("providers.compact.wllama"),
+		webllm: t("providers.compact.webllm"),
+		openai: t("providers.compact.openai"),
+		openrouter: t("providers.compact.openrouter"),
+		lmstudio: t("providers.compact.lmstudio"),
+		ollama: t("providers.compact.ollama"),
 	};
 
 	const renderStatus = (provider: ServiceProvider) => {
 		const status = providerStatuses?.[provider] ?? "idle";
 		if (status === "idle") return null;
+		const statusLabel = t(`providerTabs.status.${status}`);
 		return (
 			<span
 				className={
@@ -79,8 +81,8 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 						? "h-1.5 w-1.5 rounded-full bg-green-600 dark:bg-green-400"
 						: "h-1.5 w-1.5 rotate-45 bg-blue-600 dark:bg-yellow-400"
 				}
-				aria-label={status}
-				title={status}
+				aria-label={statusLabel}
+				title={statusLabel}
 			/>
 		);
 	};
@@ -91,11 +93,12 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 				{PROVIDER_ORDER.map((provider) => {
 					const isActive = advancedProvider === provider;
 					return (
-						<button
+						<Button
 							key={provider}
 							type="button"
+							variant="ghost"
 							onClick={() => handleSelect(provider)}
-							className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
+							className={`min-h-9 shrink-0 gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
 								isActive
 									? "bg-background text-foreground shadow-sm ring-1 ring-border"
 									: "text-muted-foreground hover:bg-background/60 hover:text-foreground"
@@ -105,7 +108,7 @@ export const ProviderTabs: React.FC<ProviderTabsProps> = ({
 							<span className="sm:hidden">{compactLabels[provider]}</span>
 							<span className="hidden sm:inline">{labels[provider]}</span>
 							{renderStatus(provider)}
-						</button>
+						</Button>
 					);
 				})}
 			</div>

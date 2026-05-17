@@ -1,5 +1,9 @@
 {
 	"title": "Language Models",
+	"sidebar": {
+		"show": "Show model sidebar",
+		"hide": "Hide model sidebar"
+	},
 	"currentModel": {
 		"title": "Current Model",
 		"description": "Currently active model for AI operations",
@@ -35,7 +39,26 @@
 		"openai": "OpenAI",
 		"openrouter": "OpenRouter",
 		"lmstudio": "LM Studio",
-		"ollama": "Ollama"
+		"ollama": "Ollama",
+		"compact": {
+			"transformer": "Transformer",
+			"wllama": "Wllama",
+			"webllm": "WebLLM",
+			"openai": "OpenAI",
+			"openrouter": "Router",
+			"lmstudio": "Studio",
+			"ollama": "Ollama"
+		}
+	},
+	"providerTabs": {
+		"status": {
+			"active": "Active provider",
+			"configured": "Configured provider"
+		}
+	},
+	"providerPanel": {
+		"status": "Status: {{status}}",
+		"testInference": "Test inference"
 	},
 	"yourModels": {
 		"title": "My Models",
@@ -121,7 +144,16 @@
 	},
 	"webllm": {
 		"model": "WebLLM Model",
-		"selectModel": "Select a WebLLM model..."
+		"selectModel": "Select a WebLLM model...",
+		"advantagesTitle": "WebLLM advantages",
+		"allModels": "Advanced - All Models",
+		"filterModels": "Filter models...",
+		"advantages": {
+			"webgpu": "WebGPU hardware acceleration - fastest in-browser inference",
+			"browser": "No installation, no server - runs fully in the browser tab",
+			"quantized": "Supports quantized models, including 4-bit and 8-bit builds",
+			"offscreen": "Isolated execution in offscreen iframe"
+		}
 	},
 	"transformer": {
 		"webgpuInfo": "WebGPU Transformer Models",
@@ -130,6 +162,19 @@
 		"selectModelPlaceholder": "Choose a WebGPU model",
 		"selectedModel": "Selected Model",
 		"features": "Features",
+		"advantagesTitle": "Transformer advantages",
+		"recommendedModels": "Recommended models",
+		"huggingFaceSearch": "HuggingFace search",
+		"searchPlaceholder": "Search HuggingFace ONNX models...",
+		"huggingFaceError": "Could not reach HuggingFace",
+		"retry": "Retry",
+		"downloads": "{{count}} downloads",
+		"advantages": {
+			"onnx": "ONNX format - optimized for fast inference",
+			"webgpuWasm": "Runs on WebGPU or WASM fallback automatically",
+			"memory": "Smallest memory footprint of local runners",
+			"namespace": "Models from HuggingFace onnx-community namespace"
+		},
 		"feature": {
 			"webgpu": "WebGPU acceleration for fast inference",
 			"onnx": "ONNX Runtime for optimal performance",
@@ -188,6 +233,13 @@
 	"wllama": {
 		"recommendedModels": "Recommended Models",
 		"customRepository": "Custom Repository",
+		"advantagesTitle": "Wllama advantages",
+		"advantages": {
+			"wasm": "Runs GGUF models in browser via WASM - no GPU required",
+			"cpu": "Works on CPU only - broadest hardware compatibility",
+			"huggingFace": "Supports HuggingFace repos directly",
+			"cache": "Models persist in browser cache after first download"
+		},
 		"modelRepository": "Model repository",
 		"selectRepository": "Select a model repository...",
 		"ggufFilename": "GGUF filename (inside repo)",

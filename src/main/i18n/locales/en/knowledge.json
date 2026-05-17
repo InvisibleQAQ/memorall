@@ -1,6 +1,10 @@
 {
 	"title": "Knowledge Graph",
 	"description": "Explore saved memory as connected topics, entities, and relationships.",
+	"sidebar": {
+		"show": "Show knowledge graph sidebar",
+		"hide": "Hide knowledge graph sidebar"
+	},
 	"topic": {
 		"label": "Memory",
 		"selectPlaceholder": "Select memory",

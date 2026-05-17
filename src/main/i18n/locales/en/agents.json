@@ -17,7 +17,11 @@
 		"saved": "All changes saved",
 		"unsaved": "Unsaved changes",
 		"configSaved": "Config saved",
-		"configUnsaved": "Config draft"
+		"configUnsaved": "Config draft",
+		"sidebar": {
+			"show": "Show agents sidebar",
+			"hide": "Hide agents sidebar"
+		}
 	},
 	"state": {
 		"loading": "Loading agent presets..."
