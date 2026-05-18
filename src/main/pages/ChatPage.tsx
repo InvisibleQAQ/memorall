@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, History, MessagesSquare, X } from "lucide-react";
+import { ArrowUp, History, MessageSquare, X } from "lucide-react";
 import {
 	Conversation,
 	ConversationContent,
@@ -46,10 +46,16 @@ import { ChatSidePanel } from "@/main/components/molecules/ChatSidePanel";
 import { useRuntimeSessionsStore } from "@/main/stores/runtime-sessions";
 import { useShellLayoutStore } from "@/main/stores/shell-layout";
 import { isPopupSurface } from "@/utils/dom";
-import { useIsWideViewport } from "@/main/hooks/use-viewport";
 import { getAgentIconScreenFromMetadata } from "@/main/modules/agents/types";
 import type { FeatureCatalogMetadata } from "@/services/flows/feature-catalog-registry";
-import { collectRuntimeArtifacts } from "@/main/modules/chat/components/artifacts/artifact-protocol";
+import {
+	formatOpenUIFormStateContext,
+	isAllowedOpenUIRoute,
+	MEMORALL_OPENUI_ACTION_EVENT,
+	normalizeOpenUIDocumentPath,
+	resolveOpenUITemplate,
+	type MemorallOpenUIActionDetail,
+} from "@/main/modules/openui/actions";
 
 type AgentFlowOption = Pick<Flow, "id" | "name" | "metadata">;
 
@@ -63,12 +69,16 @@ const RETRIEVAL_STEP_NAMES = new Set([
 interface ChatPageProps {
 	onOpenAgentWorkspace?: () => void;
 	hideWideSidePanelCollapsedToggle?: boolean;
+	isNarrowChatPanel?: boolean;
+	onCompactChatListOpenChange?: (open: boolean) => void;
 	useIconOnlyHistoryButton?: boolean;
 }
 
 export const ChatPage: React.FC<ChatPageProps> = ({
 	onOpenAgentWorkspace,
 	hideWideSidePanelCollapsedToggle = false,
+	isNarrowChatPanel = false,
+	onCompactChatListOpenChange,
 	useIconOnlyHistoryButton = false,
 }) => {
 	const navigate = useNavigate();
@@ -101,7 +111,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 	const setRightWorkspaceTab = useShellLayoutStore(
 		(state) => state.setRightWorkspaceTab,
 	);
-	const isWideViewport = useIsWideViewport();
 	const [attachedImages, setAttachedImages] = React.useState<File[]>([]);
 	const [attachedDocumentRefs, setAttachedDocumentRefs] = React.useState<
 		AttachedDocumentRef[]
@@ -139,7 +148,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 		insertSeparator,
 		loadMessageGroup,
 		deleteMessages,
-		messages,
+		submitMessage,
 	} = useChat(model);
 
 	const handleChatSubmit = (
@@ -156,6 +165,86 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 		setAttachedDocumentRefs([]);
 	};
 
+	useEffect(() => {
+		onCompactChatListOpenChange?.(isCompactSidePanelOpen);
+	}, [isCompactSidePanelOpen, onCompactChatListOpenChange]);
+
+	useEffect(() => {
+		if (!isNarrowChatPanel && isCompactSidePanelOpen) {
+			setIsCompactSidePanelOpen(false);
+		}
+	}, [isCompactSidePanelOpen, isNarrowChatPanel]);
+
+	useEffect(() => {
+		const handleOpenUIAction = (event: Event) => {
+			const detail = (event as CustomEvent<MemorallOpenUIActionDetail>).detail;
+			if (!detail?.action) return;
+
+			const action = detail.action;
+			if (action.type === "send_message") {
+				const message = resolveOpenUITemplate(
+					action.message,
+					detail.formState,
+					detail.formName,
+				);
+				const shouldIncludeFormState =
+					action.includeFormState ?? Boolean(detail.formName);
+				const formContext = shouldIncludeFormState
+					? formatOpenUIFormStateContext(detail.formState, detail.formName)
+					: undefined;
+				submitMessage({
+					inputText: message,
+					contextPrefix: formContext,
+					clearComposer: false,
+				});
+				return;
+			}
+
+			if (action.type === "add_message_to_input") {
+				const text = resolveOpenUITemplate(
+					action.text,
+					detail.formState,
+					detail.formName,
+				);
+				if (action.mode === "replace") {
+					setInputValue(text);
+					return;
+				}
+				setInputValue(inputValue.trim() ? `${inputValue}\n${text}` : text);
+				return;
+			}
+
+			if (action.type === "open_document") {
+				const path = normalizeOpenUIDocumentPath(
+					resolveOpenUITemplate(action.path, detail.formState, detail.formName),
+				);
+				if (!path) return;
+				navigate("/documents", {
+					state: { openDocumentPath: path },
+				});
+				return;
+			}
+
+			if (action.type === "open_route") {
+				const route = resolveOpenUITemplate(
+					action.route,
+					detail.formState,
+					detail.formName,
+				).trim();
+				if (isAllowedOpenUIRoute(route)) {
+					navigate(route);
+				}
+			}
+		};
+
+		window.addEventListener(MEMORALL_OPENUI_ACTION_EVENT, handleOpenUIAction);
+		return () =>
+			window.removeEventListener(
+				MEMORALL_OPENUI_ACTION_EVENT,
+				handleOpenUIAction,
+			);
+	}, [inputValue, navigate, setInputValue, submitMessage]);
+
 	// Refresh after each assistant response finishes
 	const wasInProgressRef = useRef(false);
 	useEffect(() => {
@@ -163,9 +252,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 		if (!isNow && wasInProgressRef.current) {
 			void (async () => {
 				await refreshRuntimeSessions();
-				const hasRuntime = useRuntimeSessionsStore.getState().hasRuntime();
-				const hasArtifacts = collectRuntimeArtifacts(messages).length > 0;
-				if (hasRuntime || hasArtifacts) {
+				const hasSandboxServer =
+					useRuntimeSessionsStore.getState().servers.length > 0;
+				if (hasSandboxServer) {
 					setRightPanelCollapsed(false);
 					setRightWorkspaceTab("page");
 					navigate("/runtime");
@@ -175,7 +264,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 		wasInProgressRef.current = isNow;
 	}, [
 		inProgressMessage,
-		messages,
 		navigate,
 		refreshRuntimeSessions,
 		setRightPanelCollapsed,
@@ -564,11 +652,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 	};
 
 	const isPopup = isPopupSurface();
-	const isCompactChatSurface = isPopup || useIconOnlyHistoryButton;
-	const isWideChatSidePanelVisible = isWideViewport && !isCompactChatSurface;
+	const isCompactChatSurface =
+		isPopup || useIconOnlyHistoryButton || isNarrowChatPanel;
+	const isWideChatSidePanelVisible = !isCompactChatSurface;
 	const isCompactSidePanelAvailable = !isWideChatSidePanelVisible;
 	const isCompactEmptyLanding =
 		isCompactChatSurface && latestGroupIsEmpty && !showPreviousGroups;
+
 	const selectedAgent = useMemo(
 		() => agentFlows.find((flow) => flow.id === selectedAgentFlowId),
 		[agentFlows, selectedAgentFlowId],
@@ -644,19 +734,41 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 					onShowConversationGroup={handleConversationGroupSelect}
 				/>
 			) : null}
-			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+			<div className="chat-panel-container relative flex min-w-0 flex-1 flex-col overflow-hidden">
+				<AnimatePresence>
+					{isCompactSidePanelAvailable && isCompactSidePanelOpen ? (
+						<motion.div
+							initial={{ opacity: 0, x: -18 }}
+							animate={{ opacity: 1, x: 0 }}
+							exit={{ opacity: 0, x: -18 }}
+							transition={{ duration: 0.18, ease: "easeOut" }}
+							className="absolute inset-y-0 left-0 z-40 w-full max-w-full bg-background/95 shadow-xl backdrop-blur-xl"
+						>
+							<ChatSidePanel
+								defaultCollapsed={false}
+								allowCollapse={false}
+								allowResize={false}
+								onClose={() => setIsCompactSidePanelOpen(false)}
+								onShowConversationGroup={(groupId) => {
+									handleConversationGroupSelect(groupId);
+									setIsCompactSidePanelOpen(false);
+								}}
+							/>
+						</motion.div>
+					) : null}
+				</AnimatePresence>
 				<Conversation className="min-h-0 flex-1 bg-transparent">
 					{isCompactSidePanelAvailable ? (
-						<div className="absolute left-3 top-3 z-30">
+						<div className="absolute left-2 top-2 z-30">
 							<Button
 								type="button"
 								variant="ghost"
 								size="icon"
-								className="h-9 w-9 text-muted-foreground hover:bg-transparent hover:text-foreground"
+								className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground"
 								aria-label="Open chat side panel"
 								onClick={() => setIsCompactSidePanelOpen(true)}
 							>
-								<MessagesSquare size={19} />
+								<MessageSquare size={16} />
 							</Button>
 						</div>
 					) : null}
@@ -726,8 +838,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 					<ConversationContent
 						className={`mx-auto flex w-full max-w-4xl flex-col ${
 							isCompactEmptyLanding
-								? "h-full min-h-0 space-y-3 px-3 pb-2 pt-12 sm:px-4"
-								: "min-h-full space-y-8 px-4 pb-8 pt-16 sm:px-6 lg:px-8"
+								? "chat-conversation-content h-full min-h-0 space-y-3 pb-2 pt-12"
+								: isCompactChatSurface
+									? "chat-conversation-content min-h-full space-y-8 pb-8 pt-16"
+									: "chat-conversation-content min-h-full space-y-8 pb-8 pt-16 sm:px-6 lg:px-8"
 						}`}
 					>
 						{showPreviousGroups ? (
@@ -800,6 +914,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 					attachedDocumentRefs={attachedDocumentRefs}
 					onAttachedDocumentRefsChange={setAttachedDocumentRefs}
 					isModelReady={isChatInputModelReady}
+					compactControls={isNarrowChatPanel}
 					onOpenAgentSettings={() => {
 						open(selectedAgentFlowId);
 						setRightPanelCollapsed(false);
@@ -811,39 +926,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 					}}
 				/>
 			</div>
-
-			<AnimatePresence>
-				{isCompactSidePanelAvailable && isCompactSidePanelOpen ? (
-					<>
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-							transition={{ duration: 0.18, ease: "easeOut" }}
-							className="fixed inset-0 z-40 bg-black/50"
-							onClick={() => setIsCompactSidePanelOpen(false)}
-						/>
-						<motion.div
-							initial={{ opacity: 0, x: -24 }}
-							animate={{ opacity: 1, x: 0 }}
-							exit={{ opacity: 0, x: -24 }}
-							transition={{ duration: 0.2, ease: "easeOut" }}
-							className="fixed bottom-0 left-0 right-0 top-0 z-50 bg-background shadow-xl"
-						>
-							<ChatSidePanel
-								defaultCollapsed={false}
-								allowCollapse={false}
-								allowResize={false}
-								onClose={() => setIsCompactSidePanelOpen(false)}
-								onShowConversationGroup={(groupId) => {
-									handleConversationGroupSelect(groupId);
-									setIsCompactSidePanelOpen(false);
-								}}
-							/>
-						</motion.div>
-					</>
-				) : null}
-			</AnimatePresence>
 		</div>
 	);
 };

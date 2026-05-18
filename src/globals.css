@@ -246,6 +246,22 @@
 	field-sizing: content;
 }
 
+.chat-panel-container {
+	container: chat-panel / inline-size;
+}
+
+.chat-conversation-content {
+	padding-left: 1rem;
+	padding-right: 1rem;
+}
+
+@container chat-panel (max-width: 639px) {
+	.chat-conversation-content {
+		padding-left: 0.5rem !important;
+		padding-right: 0.5rem !important;
+	}
+}
+
 @supports not (field-sizing: content) {
 	.field-sizing-content {
 		/* Fallback: use line height based approach */

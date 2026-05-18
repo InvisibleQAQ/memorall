@@ -1,13 +1,15 @@
-import React, { useMemo } from "react";
-import {
-	BuiltinActionType,
-	Renderer,
-	type ActionEvent,
-} from "@openuidev/react-lang";
+import React, { useCallback, useMemo, useState } from "react";
+import { Renderer, type ActionEvent } from "@openuidev/react-lang";
 import { createComponentLibrary } from "./index";
 import { MarkdownMessage } from "@/main/modules/chat/components/MarkdownMessage";
 import { logError, logWarn } from "@/utils/logger";
 import type { OpenUITheme } from "@/services/flows/steps/features/visualize-response";
+import {
+	dispatchMemorallOpenUIAction,
+	isSafeOpenUIUrl,
+	parseMemorallOpenUIAction,
+	resolveOpenUITemplate,
+} from "./actions";
 
 // Theme is the 4th positional arg in: CardBlock("title", "desc", [...], "theme")
 const THEME_PATTERN = /\bCardBlock\s*\([\s\S]*?\]\s*,\s*"([^"]+)"\s*\)/;
@@ -50,23 +52,16 @@ class OpenUIErrorBoundary extends React.Component<
 	}
 }
 
-const handleOpenUIAction = (event: ActionEvent) => {
-	if (event.type === BuiltinActionType.OpenUrl) {
-		const url = event.params.url;
-		if (typeof url === "string" && url.trim()) {
-			window.open(url, "_blank", "noopener,noreferrer");
-		}
-		return;
-	}
-
-	if (event.type === BuiltinActionType.ContinueConversation) {
-		window.dispatchEvent(
-			new CustomEvent("memorall:openui-action", { detail: event }),
-		);
-		return;
-	}
-
-	logWarn("[OpenUIRenderer] Unhandled action:", event);
+const showOpenUINotice = (message: string) => {
+	const existing = document.querySelector("[data-openui-notice]");
+	existing?.remove();
+	const el = document.createElement("div");
+	el.dataset.openuiNotice = "true";
+	el.textContent = message;
+	el.className =
+		"fixed bottom-5 left-1/2 z-[9999] -translate-x-1/2 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-lg";
+	document.body.appendChild(el);
+	window.setTimeout(() => el.remove(), 2200);
 };
 
 export function OpenUIRenderer({
@@ -78,10 +73,93 @@ export function OpenUIRenderer({
 }) {
 	const theme = useMemo(() => detectTheme(content), [content]);
 	const library = useMemo(() => createComponentLibrary(theme), [theme]);
+	const [resetKey, setResetKey] = useState(0);
+
+	const handleOpenUIAction = useCallback((event: ActionEvent) => {
+		const detail = parseMemorallOpenUIAction(event);
+		if (!detail) {
+			logWarn("[OpenUIRenderer] Unhandled action:", event);
+			return;
+		}
+
+		const action = detail.action;
+
+		if (action.type === "open_link") {
+			const url = resolveOpenUITemplate(
+				action.url,
+				detail.formState,
+				detail.formName,
+			).trim();
+			if (isSafeOpenUIUrl(url)) {
+				window.open(url, "_blank", "noopener,noreferrer");
+			} else {
+				logWarn("[OpenUIRenderer] Blocked unsafe URL:", url);
+			}
+			return;
+		}
+
+		if (action.type === "copy_to_clipboard") {
+			const text = resolveOpenUITemplate(
+				action.text,
+				detail.formState,
+				detail.formName,
+			);
+			void navigator.clipboard?.writeText(text).then(
+				() => showOpenUINotice("Copied"),
+				(error) => logWarn("[OpenUIRenderer] Clipboard copy failed:", error),
+			);
+			return;
+		}
+
+		if (action.type === "download_text") {
+			const filename =
+				resolveOpenUITemplate(
+					action.filename,
+					detail.formState,
+					detail.formName,
+				).trim() || "download.txt";
+			const blob = new Blob(
+				[
+					resolveOpenUITemplate(
+						action.content,
+						detail.formState,
+						detail.formName,
+					),
+				],
+				{ type: "text/plain;charset=utf-8" },
+			);
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = filename;
+			link.click();
+			URL.revokeObjectURL(url);
+			return;
+		}
+
+		if (action.type === "reset_form") {
+			setResetKey((value) => value + 1);
+			return;
+		}
+
+		if (action.type === "show_toast") {
+			showOpenUINotice(
+				resolveOpenUITemplate(
+					action.message,
+					detail.formState,
+					detail.formName,
+				),
+			);
+			return;
+		}
+
+		dispatchMemorallOpenUIAction(detail);
+	}, []);
 
 	return (
 		<OpenUIErrorBoundary content={content}>
 			<Renderer
+				key={resetKey}
 				response={content}
 				library={library}
 				isStreaming={streaming}

@@ -195,7 +195,7 @@ export const TransformerTab: React.FC<TransformerTabProps> = ({
 									</div>
 									<div className="text-xs text-muted-foreground">
 										{t("transformer.downloads", {
-											count: (result.downloads ?? 0).toLocaleString(),
+											count: result.downloads ?? 0,
 										})}
 									</div>
 								</div>

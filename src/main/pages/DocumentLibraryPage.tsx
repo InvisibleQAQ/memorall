@@ -1,4 +1,5 @@
 import React, { useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Loader2, PanelLeftOpen } from "lucide-react";
 import { useDocumentLibrary } from "@/main/modules/documents/hooks/use-document-library";
@@ -59,6 +60,8 @@ const readStoredPanelSizes = (): [number, number] => {
 
 export const DocumentLibraryPage: React.FC = () => {
 	const { t } = useTranslation("documents");
+	const location = useLocation();
+	const navigate = useNavigate();
 	const lib = useDocumentLibrary();
 	const [panelSizes, setPanelSizes] =
 		React.useState<[number, number]>(readStoredPanelSizes);
@@ -92,6 +95,25 @@ export const DocumentLibraryPage: React.FC = () => {
 			onSelect: lib.handleSelectWorkspaceSection,
 		},
 	];
+
+	React.useEffect(() => {
+		const documentPath = (
+			location.state as { openDocumentPath?: string } | null
+		)?.openDocumentPath;
+		if (!documentPath || lib.loading) return;
+		lib.handleOpenDocumentByPath(documentPath);
+		navigate(`${location.pathname}${location.search}`, {
+			replace: true,
+			state: null,
+		});
+	}, [
+		lib.loading,
+		lib.handleOpenDocumentByPath,
+		location.pathname,
+		location.search,
+		location.state,
+		navigate,
+	]);
 
 	const handleResizeStart = React.useCallback(
 		(event: React.MouseEvent<HTMLDivElement>) => {

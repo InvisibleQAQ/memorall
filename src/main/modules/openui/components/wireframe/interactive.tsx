@@ -1,10 +1,14 @@
 import React, { useState } from "react";
 import {
-	BuiltinActionType,
 	defineComponent,
+	useFormName,
 	useTriggerAction,
 } from "@openuidev/react-lang";
 import { z } from "zod";
+import {
+	buildButtonActionPlan,
+	buttonActionPropSchema,
+} from "@/main/modules/openui/actions";
 
 const childrenSchema = z.array(z.any()).default([]);
 const buttonVariantSchema = z
@@ -14,24 +18,24 @@ const buttonVariantSchema = z
 export const ButtonBlock = defineComponent({
 	name: "ButtonBlock",
 	description:
-		"Single button. Use prompt to continue the conversation when clicked.",
+		"Single button. Use a prompt string or a safe Memorall action object when clicked.",
 	props: z.object({
 		label: z.string(),
-		prompt: z.string().optional(),
+		prompt: buttonActionPropSchema.optional(),
 		variant: buttonVariantSchema,
 	}),
 	component: ({ props }) => {
 		const triggerAction = useTriggerAction();
+		const formName = useFormName();
+		const { userMessage, action } = buildButtonActionPlan(
+			props.prompt,
+			props.label,
+		);
 		return (
 			<button
 				type="button"
 				className="border border-foreground/60 px-4 py-1 font-mono text-sm transition-colors hover:bg-foreground/10 active:bg-foreground/20"
-				onClick={() =>
-					triggerAction(props.prompt ?? props.label, undefined, {
-						type: BuiltinActionType.ContinueConversation,
-						params: {},
-					})
-				}
+				onClick={() => triggerAction(userMessage, formName, action)}
 			>
 				[ {props.label} ]
 			</button>

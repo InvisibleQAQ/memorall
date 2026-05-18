@@ -44,6 +44,7 @@ export interface ChatInputProps {
 	onCreateAgentFlow?: () => void;
 	onDeleteChat: () => void;
 	onOpenAgentSettings?: () => void;
+	compactControls?: boolean;
 	attachedImages: File[];
 	onAttachedImagesChange: (images: File[]) => void;
 	attachedDocumentRefs: AttachedDocumentRef[];
@@ -71,6 +72,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 	setSelectedAgentFlowId,
 	onCreateAgentFlow,
 	onOpenAgentSettings,
+	compactControls = false,
 	attachedImages,
 	onAttachedImagesChange,
 	attachedDocumentRefs,
@@ -391,6 +393,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 							onCreateAgentFlow={onCreateAgentFlow}
 							onDeleteChat={onDeleteChat}
 							onOpenAgentSettings={onOpenAgentSettings}
+							compactControls={compactControls}
 							isCustomMode={isCustomMode}
 							onAttachFileClick={handleAttachClick}
 							onAttachDocumentClick={handleOpenDocumentPicker}

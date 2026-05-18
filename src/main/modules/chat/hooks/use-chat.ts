@@ -227,20 +227,32 @@ export const useChat = (model: string) => {
 		}
 	};
 
-	const handleSubmit = async (
-		e: React.FormEvent,
-		attachedImages: File[] = [],
-		attachedDocumentRefs: AttachedDocumentRef[] = [],
-		contextPrefix?: string,
-	) => {
-		e.preventDefault();
-		if (!inputValue.trim() || isLoading || !model) return;
+	const submitMessage = async ({
+		e,
+		inputText,
+		attachedImages = [],
+		attachedDocumentRefs = [],
+		contextPrefix,
+		clearComposer,
+	}: {
+		e?: React.FormEvent;
+		inputText: string;
+		attachedImages?: File[];
+		attachedDocumentRefs?: AttachedDocumentRef[];
+		contextPrefix?: string;
+		clearComposer: boolean;
+	}) => {
+		e?.preventDefault();
+		if (!inputText.trim() || isLoading || !model) return;
 
-		const rawInput = inputValue.trim();
-		const userMessageContent = contextPrefix
+		const rawInput = inputText.trim();
+		const userMessageContent = rawInput;
+		const effectiveUserMessageContent = contextPrefix
 			? `${contextPrefix}\n\n---\n\n${rawInput}`
 			: rawInput;
-		setInputValue("");
+		if (clearComposer) {
+			setInputValue("");
+		}
 		setStatus("submitted");
 		setLoading(true);
 
@@ -261,7 +273,7 @@ export const useChat = (model: string) => {
 			const docRefs = attachedDocumentRefs.filter((r) => r.docType !== "image");
 
 			// Extract text from non-image document refs and prepend as formatted blocks
-			let effectiveMessageContent = userMessageContent;
+			let effectiveMessageContent = effectiveUserMessageContent;
 			if (docRefs.length > 0) {
 				const blocks = await Promise.all(
 					docRefs.map(async (ref) => {
@@ -614,6 +626,22 @@ export const useChat = (model: string) => {
 		}
 	};
 
+	const handleSubmit = async (
+		e: React.FormEvent,
+		attachedImages: File[] = [],
+		attachedDocumentRefs: AttachedDocumentRef[] = [],
+		contextPrefix?: string,
+	) => {
+		await submitMessage({
+			e,
+			inputText: inputValue,
+			attachedImages,
+			attachedDocumentRefs,
+			contextPrefix,
+			clearComposer: true,
+		});
+	};
+
 	return {
 		inputValue,
 		setInputValue,
@@ -629,6 +657,7 @@ export const useChat = (model: string) => {
 		isLoading,
 		abortController,
 		inProgressMessage,
+		submitMessage,
 		handleSubmit,
 		handleStop,
 		insertSeparator,

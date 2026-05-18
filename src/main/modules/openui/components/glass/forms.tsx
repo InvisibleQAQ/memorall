@@ -175,6 +175,115 @@ export const SwitchBlock = defineComponent({
 	},
 });
 
+export const CheckboxBlock = defineComponent({
+	name: "CheckboxBlock",
+	description: "Checkbox with label.",
+	props: z.object({
+		name: z.string(),
+		label: z.string(),
+		defaultChecked: z.boolean().default(false),
+	}),
+	component: ({ props }) => {
+		const formName = useFormName();
+		const isStreaming = useIsStreaming();
+		const getFieldValue = useGetFieldValue();
+		const setFieldValue = useSetFieldValue();
+		const existingValue = getFieldValue(formName, props.name);
+		const checked =
+			typeof existingValue === "boolean" ? existingValue : props.defaultChecked;
+		useSetDefaultValue({
+			formName,
+			componentType: "CheckboxBlock",
+			name: props.name,
+			existingValue,
+			defaultValue: props.defaultChecked,
+		});
+		return (
+			<label className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm backdrop-blur-sm">
+				<input
+					type="checkbox"
+					checked={checked}
+					disabled={isStreaming}
+					className="h-4 w-4 rounded accent-white disabled:opacity-50"
+					onChange={(e) =>
+						setFieldValue(
+							formName,
+							"CheckboxBlock",
+							props.name,
+							e.target.checked,
+						)
+					}
+				/>
+				<span>{props.label}</span>
+			</label>
+		);
+	},
+});
+
+export const RadioItemBlock = defineComponent({
+	name: "RadioItemBlock",
+	description: "Radio option.",
+	props: z.object({ label: z.string(), value: z.string() }),
+	component: () => null,
+});
+
+export const RadioGroupBlock = defineComponent({
+	name: "RadioGroupBlock",
+	description: "Radio group with label.",
+	props: z.object({
+		name: z.string(),
+		label: z.string(),
+		defaultValue: z.string().optional(),
+		items: z.array(RadioItemBlock.ref),
+	}),
+	component: ({ props }) => {
+		const formName = useFormName();
+		const isStreaming = useIsStreaming();
+		const getFieldValue = useGetFieldValue();
+		const setFieldValue = useSetFieldValue();
+		const value =
+			getFieldValue(formName, props.name) ?? props.defaultValue ?? "";
+		useSetDefaultValue({
+			formName,
+			componentType: "RadioGroupBlock",
+			name: props.name,
+			existingValue: getFieldValue(formName, props.name),
+			defaultValue: props.defaultValue,
+		});
+		return (
+			<div className="space-y-1.5">
+				<label className="text-sm font-medium">{props.label}</label>
+				<div className="space-y-1.5">
+					{props.items.map((item) => (
+						<label
+							key={item.props.value}
+							className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm backdrop-blur-sm"
+						>
+							<input
+								type="radio"
+								name={fieldId(formName, props.name)}
+								value={item.props.value}
+								checked={value === item.props.value}
+								disabled={isStreaming}
+								className="h-4 w-4 accent-white disabled:opacity-50"
+								onChange={() =>
+									setFieldValue(
+										formName,
+										"RadioGroupBlock",
+										props.name,
+										item.props.value,
+									)
+								}
+							/>
+							<span>{item.props.label}</span>
+						</label>
+					))}
+				</div>
+			</div>
+		);
+	},
+});
+
 export const TextareaBlock = defineComponent({
 	name: "TextareaBlock",
 	description: "Multi-line text input with label.",
@@ -228,5 +337,8 @@ export const formComponents = [
 	SelectBlock,
 	SelectItemBlock,
 	SwitchBlock,
+	CheckboxBlock,
+	RadioItemBlock,
+	RadioGroupBlock,
 	TextareaBlock,
 ];

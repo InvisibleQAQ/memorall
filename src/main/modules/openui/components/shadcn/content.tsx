@@ -41,7 +41,7 @@ export const CardBlock = defineComponent({
 	component: ({ props, renderNode }) => (
 		<Card className="w-full rounded-lg border bg-card/95 shadow-sm">
 			{props.title || props.description ? (
-				<CardHeader className="space-y-1.5 p-4 pb-2">
+				<CardHeader className="space-y-1.5 p-4 pb-2 max-[640px]:px-3">
 					{props.title ? (
 						<CardTitle className="text-base leading-6 tracking-normal">
 							{props.title}
@@ -52,7 +52,7 @@ export const CardBlock = defineComponent({
 					) : null}
 				</CardHeader>
 			) : null}
-			<CardContent className="space-y-3 p-4 pt-2">
+			<CardContent className="space-y-3 p-4 pt-2 max-[640px]:px-3">
 				{renderNode(props.children)}
 			</CardContent>
 		</Card>

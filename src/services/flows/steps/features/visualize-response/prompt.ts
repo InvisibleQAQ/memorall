@@ -36,6 +36,21 @@ Syntax rules:
 - Strings must use double quotes.
 - Arrays use square brackets.
 - Do not invent components or props.
+- ButtonBlock can use a prompt string or a safe action object as its second
+  argument.
+- Supported action object types:
+  { "type": "send_message", "message": "...", "includeFormState": true }
+  { "type": "add_message_to_input", "text": "...", "mode": "append" }
+  { "type": "open_link", "url": "https://example.com" }
+  { "type": "open_document", "path": "/documents/report.md" }
+  { "type": "copy_to_clipboard", "text": "..." }
+  { "type": "download_text", "filename": "notes.md", "content": "..." }
+  { "type": "open_route", "route": "/documents" }
+  { "type": "reset_form" }
+  { "type": "show_toast", "message": "Copied" }
+- Inside FormBlock, action strings can reference current field values with
+  {{fieldName}} placeholders. For send_message actions inside a form,
+  includeFormState defaults to true.
 - Put fetched tool data directly into the OpenUI markup.
 - Tools are only for data fetching. Rendering is done by the final text.
 

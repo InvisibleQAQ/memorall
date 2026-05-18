@@ -56,8 +56,9 @@ export const OPENUI_COMPONENTS: OpenUIComponentMeta[] = [
 	},
 	// Interactive
 	{
-		signature: "ButtonBlock(label, prompt?, variant?)",
-		description: "clickable conversation action.",
+		signature: "ButtonBlock(label, actionOrPrompt?, variant?)",
+		description:
+			'clickable action. actionOrPrompt can be a prompt string or action object: { type: "send_message" | "add_message_to_input" | "open_link" | "open_document" | "copy_to_clipboard" | "download_text" | "open_route" | "reset_form" | "show_toast", ... }.',
 	},
 	{
 		signature: "ButtonsBlock(children)",
@@ -103,6 +104,18 @@ export const OPENUI_COMPONENTS: OpenUIComponentMeta[] = [
 	{
 		signature: "SwitchBlock(name, label, defaultChecked?)",
 		description: "toggle.",
+	},
+	{
+		signature: "CheckboxBlock(name, label, defaultChecked?)",
+		description: "checkbox.",
+	},
+	{
+		signature: "RadioItemBlock(label, value)",
+		description: "radio option.",
+	},
+	{
+		signature: "RadioGroupBlock(name, label, defaultValue?, items)",
+		description: "radio group.",
 	},
 	{
 		signature: "TextareaBlock(name, label, placeholder?, defaultValue?)",
