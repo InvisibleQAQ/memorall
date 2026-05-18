@@ -11,6 +11,9 @@ import { PROVIDER_TO_SERVICE } from "@/services/llm/constants";
 import type { CurrentModel } from "@/main/hooks/use-current-model";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 
+const getModelFilename = (model: ModelInfo) =>
+	(model.filename || model.id.split("/").pop() || "").toLowerCase();
+
 interface UseModelOperationsProps {
 	setCurrent: (current: CurrentModel | null) => void;
 	setLoading: (loading: boolean) => void;
@@ -95,10 +98,9 @@ export function useModelOperations({
 					modelStructure.default
 				)();
 
-				// Set current model FIRST so serveFor can use provider info
 				await serviceManager.llmService.setCurrentModel(
-					currentModelId,
 					provider,
+					currentModelId,
 					serviceName,
 				);
 
@@ -144,10 +146,18 @@ export function useModelOperations({
 
 	// Load a specific downloaded model
 	const loadDownloadedModel = useCallback(
-		async (model: ModelInfo, provider: ServiceProvider) => {
+		async (provider: ServiceProvider, model: ModelInfo) => {
 			setLoading(true);
 			const modelId = model.id;
 			try {
+				if (
+					provider === "wllama" &&
+					getModelFilename(model).startsWith("mmproj-")
+				) {
+					throw new Error(
+						`Cannot load Wllama projector file "${modelId}" as a model`,
+					);
+				}
 				const serviceName = provider
 					? PROVIDER_TO_SERVICE[provider]
 					: undefined;
@@ -176,6 +186,11 @@ export function useModelOperations({
 				}
 
 				if (serviceName) {
+					await serviceManager.llmService.setCurrentModel(
+						provider,
+						modelId,
+						serviceName,
+					);
 					await serviceManager.llmService.serveFor(
 						serviceName,
 						modelId,
@@ -194,6 +209,7 @@ export function useModelOperations({
 						});
 					});
 				}
+				setCurrent({ modelId, provider });
 
 				// Refresh models list to update loaded status after a brief delay
 				setTimeout(async () => {
@@ -227,7 +243,7 @@ export function useModelOperations({
 
 	// Unload a specific model
 	const unloadDownloadedModel = useCallback(
-		async (model: ModelInfo, provider: ServiceProvider) => {
+		async (provider: ServiceProvider, model: ModelInfo) => {
 			setLoading(true);
 			const modelId = model.id;
 			try {
@@ -259,7 +275,7 @@ export function useModelOperations({
 
 	// Delete a specific downloaded model from local cache/storage
 	const deleteDownloadedModel = useCallback(
-		async (model: ModelInfo, provider: ServiceProvider) => {
+		async (provider: ServiceProvider, model: ModelInfo) => {
 			setLoading(true);
 			const modelId = model.id;
 			try {

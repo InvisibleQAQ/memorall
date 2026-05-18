@@ -455,8 +455,7 @@ export const LLMPage: React.FC = () => {
 					<div className="w-full">
 						<ProviderPanel
 							{...state}
-							onLoadModel={actions.loadModel}
-							onLoadAdvancedModel={actions.loadAdvancedModel}
+							onLoadProviderModel={actions.loadProviderModel}
 							onUnloadModel={actions.unloadModel}
 							onGenerate={actions.generate}
 							onFetchRepoFiles={actions.fetchRepoFiles}

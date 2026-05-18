@@ -4,6 +4,9 @@ import { serviceManager } from "@/services";
 import { logError, logInfo } from "@/utils/logger";
 import { DEFAULT_SERVICES } from "@/services/llm/constants";
 
+const getModelFilename = (model: ModelInfo) =>
+	(model.filename || model.id.split("/").pop() || "").toLowerCase();
+
 export function useDownloadedModels() {
 	const [downloadedModels, setDownloadedModels] = useState<ModelInfo[]>([]);
 	const [modelsLoading, setModelsLoading] = useState(false);
@@ -12,6 +15,13 @@ export function useDownloadedModels() {
 	const isDownloadedModel = useCallback((m: ModelInfo) => {
 		const anyModel = m as unknown as { downloaded?: boolean };
 		return anyModel.downloaded === true || m.loaded === true;
+	}, []);
+
+	const isLoadableModel = useCallback((m: ModelInfo) => {
+		if (m.provider === "wllama" && getModelFilename(m).startsWith("mmproj-")) {
+			return false;
+		}
+		return true;
 	}, []);
 
 	// Fetch downloaded models from both services
@@ -78,7 +88,9 @@ export function useDownloadedModels() {
 	}, [fetchDownloadedModels]);
 
 	// Only show actually downloaded models in "Your Models"
-	const downloadedOnly = downloadedModels.filter(isDownloadedModel);
+	const downloadedOnly = downloadedModels.filter(
+		(model) => isDownloadedModel(model) && isLoadableModel(model),
+	);
 
 	return {
 		downloadedModels,
@@ -86,5 +98,6 @@ export function useDownloadedModels() {
 		modelsLoading,
 		fetchDownloadedModels,
 		isDownloadedModel,
+		isLoadableModel,
 	};
 }

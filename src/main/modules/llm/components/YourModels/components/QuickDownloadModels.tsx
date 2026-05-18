@@ -90,13 +90,19 @@ export const QuickDownloadModels: React.FC<QuickDownloadModelsProps> = ({
 						quickProvider === "wllama" && "repo" in model
 							? `${model.repo}/${model.filename}`
 							: modelId;
-					const downloadedEntry = downloadedModels.find(
-						(entry) =>
-							entry.provider === quickProvider &&
-							(entry.id === cacheModelId ||
-								entry.id === modelId ||
-								("repo" in model && entry.id.startsWith(model.repo + "/"))),
-					);
+					const matchesDownloadedModel = (entry: ModelInfo) => {
+						if (entry.provider !== quickProvider) return false;
+						if (entry.id === cacheModelId || entry.id === modelId) return true;
+						if (
+							quickProvider === "wllama" &&
+							"repo" in model &&
+							entry.id.startsWith(model.repo + "/")
+						) {
+							return entry.filename === model.filename;
+						}
+						return false;
+					};
+					const downloadedEntry = downloadedModels.find(matchesDownloadedModel);
 					const isDownloaded =
 						(quickProvider as
 							| "wllama"

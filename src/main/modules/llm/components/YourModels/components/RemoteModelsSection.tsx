@@ -200,8 +200,8 @@ export const RemoteModelsSection: React.FC<RemoteModelsSectionProps> = ({
 															disabled={loading || isLoaded}
 															onClick={async () => {
 																await serviceManager.llmService.setCurrentModel(
-																	model.id,
 																	providerState.provider,
+																	model.id,
 																	PROVIDER_TO_SERVICE[providerState.provider],
 																);
 																logInfo(

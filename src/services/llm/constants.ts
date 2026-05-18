@@ -36,6 +36,13 @@ export const PROVIDER_TO_SERVICE: Record<ServiceProvider, string> = {
 	ollama: DEFAULT_SERVICES.OLLAMA,
 };
 
+export const SERVICE_TO_PROVIDER = Object.fromEntries(
+	Object.entries(PROVIDER_TO_SERVICE).map(([provider, serviceName]) => [
+		serviceName,
+		provider,
+	]),
+) as Partial<Record<string, ServiceProvider>>;
+
 export const CURRENT_MODEL_KEY = "_CURRENT_MODEL_KEY_";
 
 // Global progress event name for all LLM downloads

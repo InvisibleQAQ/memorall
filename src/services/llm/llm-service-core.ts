@@ -65,8 +65,8 @@ export abstract class LLMServiceCore {
 	}
 
 	async setCurrentModel(
-		modelId: string,
 		provider: ServiceProvider,
+		modelId: string,
 		serviceName: string,
 	): Promise<void> {
 		// All data must be provided independently - no detection or derivation

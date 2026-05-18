@@ -13,6 +13,7 @@ import { FIXED_ENCRYPTION_KEY } from "@/config/security";
 import { deriveAesKeyFromString, decryptStringAes } from "@/utils/aes";
 import type { FileInfo, ProgressData } from "./use-llm-state";
 import { DEFAULT_SERVICES } from "@/services/llm/constants";
+import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 
 interface UseLLMActionsProps {
 	// State setters
@@ -36,7 +37,6 @@ interface UseLLMActionsProps {
 	loading: boolean;
 	prompt: string;
 	model: string;
-	advancedProvider: string;
 	openaiApiKey: string;
 	openaiBaseUrl: string;
 	isOpenaiConfigured: boolean;
@@ -60,7 +60,6 @@ export const useLLMActions = ({
 	ready,
 	prompt,
 	model,
-	advancedProvider,
 	openaiBaseUrl,
 	isOpenaiConfigured,
 }: UseLLMActionsProps) => {
@@ -163,133 +162,101 @@ export const useLLMActions = ({
 		[setStatus, setLogs, setAvailableFiles, setFilePath],
 	);
 
-	// Generic load model - works for webllm, transformer, and other future providers
-	const loadAdvancedModel = useCallback(async () => {
-		if (!model) {
-			setStatus(`Please select a ${advancedProvider} model`);
-			return;
-		}
-
-		// Get service name based on provider
-		const serviceMap: Record<string, string> = {
-			webllm: DEFAULT_SERVICES.WEBLLM,
-			transformer: DEFAULT_SERVICES.TRANSFORMER,
-		};
-
-		const serviceName = serviceMap[advancedProvider];
-		if (!serviceName) {
-			setStatus(
-				`Provider ${advancedProvider} not supported for advanced loading`,
-			);
-			return;
-		}
-
-		setLoading(true);
-		setStatus("Initializing...");
-		setLogs((l) => [...l, `[ui] initialize ${advancedProvider} start`]);
-		setDownloadProgress({ loaded: 0, total: 0, percent: 0, text: "" });
-
-		try {
-			await ensureServices();
-			setStatus(`Loading ${advancedProvider} model...`);
-			setLogs((l) => [...l, `[ui] serve ${model}`]);
-
-			await serviceManager.llmService.serveFor(
-				serviceName,
-				model,
-				(progress) => {
-					setDownloadProgress({ text: "", ...progress });
-				},
-			);
-
-			setLogs((l) => [...l, `[ui] ${advancedProvider} model loaded`]);
-			setReady(true);
-			setStatus(`${model} loaded`);
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : "Unknown error";
-			logError(`Error loading ${advancedProvider} model:`, msg);
-			if (
-				msg.includes("already loaded") ||
-				msg.includes("already initialized")
-			) {
-				setReady(true);
-				setStatus(`${model} loaded`);
-				setLogs((l) => [
-					...l,
-					`[ui] ${advancedProvider} model was already loaded`,
-				]);
-			} else {
-				setStatus(`Error: ${msg}`);
-				setLogs((l) => [...l, `[ui] error: ${msg}`]);
+	const loadProviderModel = useCallback(
+		async (provider: ServiceProvider, selectedModelId?: string) => {
+			const serviceMap: Partial<Record<ServiceProvider, string>> = {
+				wllama: DEFAULT_SERVICES.WLLAMA,
+				webllm: DEFAULT_SERVICES.WEBLLM,
+				transformer: DEFAULT_SERVICES.TRANSFORMER,
+			};
+			const serviceName = serviceMap[provider];
+			if (!serviceName) {
+				setStatus(`Provider ${provider} not supported for direct loading`);
+				return;
 			}
-		} finally {
-			setLoading(false);
-		}
-	}, [
-		model,
-		advancedProvider,
-		setStatus,
-		setLoading,
-		setLogs,
-		setDownloadProgress,
-		ensureServices,
-		setReady,
-	]);
 
-	const loadModel = useCallback(async () => {
-		if (!repo || !filePath) {
-			setStatus("Please select a model repo and GGUF file");
-			return;
-		}
-		setLoading(true);
-		setStatus("Initializing...");
-		setLogs((l) => [...l, "[ui] initialize start"]);
-		setDownloadProgress({ loaded: 0, total: 0, percent: 0, text: "" });
-
-		try {
-			// Build 3-part model ID: username/repo/filename
-			const modelId = `${repo}/${filePath}`;
-
-			setStatus("Loading model from Hugging Face...");
-			setLogs((l) => [...l, `[ui] serve ${repo}/${filePath}`]);
-			await serviceManager.llmService.serveFor(
-				DEFAULT_SERVICES.WLLAMA,
-				modelId,
-				(progress) => {
-					setDownloadProgress({ text: "", ...progress });
-					setStatus(`Loading... ${progress.percent}%`);
-					setLogs((l) => [
-						...l,
-						`[progress] ${progress.percent}% (${progress.loaded}/${progress.total})`,
-					]);
-				},
-			);
-
-			setReady(true);
-			setStatus("Model loaded");
-			setLogs((l) => [...l, "[ui] model loaded"]);
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : "Unknown error";
-			if (msg.includes("already initialized")) {
-				setReady(true);
-				setStatus("Model already loaded");
-				setLogs((l) => [...l, "[ui] model was already loaded"]);
-			} else {
-				setStatus(`Error: ${msg}`);
-				setLogs((l) => [...l, `[ui] error: ${msg}`]);
+			const modelId =
+				selectedModelId ??
+				(provider === "wllama"
+					? repo && filePath
+						? `${repo}/${filePath}`
+						: ""
+					: model);
+			if (!modelId) {
+				setStatus(
+					provider === "wllama"
+						? "Please select a model repo and GGUF file"
+						: `Please select a ${provider} model`,
+				);
+				return;
 			}
-		} finally {
-			setLoading(false);
-		}
-	}, [
-		repo,
-		filePath,
-		setStatus,
-		setLoading,
-		setLogs,
-		setDownloadProgress,
-		setReady,
-	]);
+
+			setLoading(true);
+			setStatus("Initializing...");
+			setLogs((l) => [...l, `[ui] initialize ${provider} start`]);
+			setDownloadProgress({ loaded: 0, total: 0, percent: 0, text: "" });
+
+			try {
+				await ensureServices();
+				setStatus(
+					provider === "wllama"
+						? "Loading model from Hugging Face..."
+						: `Loading ${provider} model...`,
+				);
+				setLogs((l) => [...l, `[ui] serve ${modelId}`]);
+				await serviceManager.llmService.setCurrentModel(
+					provider,
+					modelId,
+					serviceName,
+				);
+				await serviceManager.llmService.serveFor(
+					serviceName,
+					modelId,
+					(progress) => {
+						setDownloadProgress({ text: "", ...progress });
+						if (provider === "wllama") {
+							setStatus(`Loading... ${progress.percent}%`);
+							setLogs((l) => [
+								...l,
+								`[progress] ${progress.percent}% (${progress.loaded}/${progress.total})`,
+							]);
+						}
+					},
+				);
+
+				setReady(true);
+				setStatus(`${modelId} loaded`);
+				setLogs((l) => [...l, `[ui] ${provider} model loaded`]);
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : "Unknown error";
+				logError(`Error loading ${provider} model:`, msg);
+				if (
+					msg.includes("already loaded") ||
+					msg.includes("already initialized")
+				) {
+					setReady(true);
+					setStatus(`${modelId} loaded`);
+					setLogs((l) => [...l, `[ui] ${provider} model was already loaded`]);
+				} else {
+					setStatus(`Error: ${msg}`);
+					setLogs((l) => [...l, `[ui] error: ${msg}`]);
+				}
+			} finally {
+				setLoading(false);
+			}
+		},
+		[
+			repo,
+			filePath,
+			model,
+			setStatus,
+			setLoading,
+			setLogs,
+			setDownloadProgress,
+			ensureServices,
+			setReady,
+		],
+	);
 
 	const generate = useCallback(async () => {
 		if (!ready || !prompt.trim()) return;
@@ -547,8 +514,7 @@ export const useLLMActions = ({
 		fetchWebLLMModels,
 		unloadModel,
 		fetchRepoFiles,
-		loadAdvancedModel,
-		loadModel,
+		loadProviderModel,
 		generate,
 		handleProviderChange,
 		handleWebLLMTabSelect,

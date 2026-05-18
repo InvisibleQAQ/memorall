@@ -28,8 +28,10 @@ interface AdvancedSectionProps {
 	output: string;
 	ready: boolean;
 	downloadProgress: ProgressData;
-	onLoadModel: () => Promise<void>;
-	onLoadAdvancedModel: () => Promise<void>;
+	onLoadProviderModel: (
+		provider: ServiceProvider,
+		modelId?: string,
+	) => Promise<void>;
 	onUnloadModel: () => Promise<void>;
 	onGenerate: () => Promise<void>;
 	onFetchRepoFiles: (repoInfo: string) => Promise<void>;

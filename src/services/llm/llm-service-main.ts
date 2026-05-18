@@ -11,7 +11,7 @@ import { TransformerLLM } from "./implementations/transformer-llm";
 import { OpenAILLM } from "./implementations/openai-llm";
 import { LocalOpenAICompatibleLLM } from "./implementations/local-openai-llm";
 import type { ILLMService } from "./interfaces/llm-service.interface";
-import { DEFAULT_SERVICES } from "./constants";
+import { DEFAULT_SERVICES, SERVICE_TO_PROVIDER } from "./constants";
 import type {
 	LLMRegistry,
 	LMStudioConfig,
@@ -194,19 +194,19 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 				logWarn(`Failed to fetch models for ${name}:`, error);
 			}
 
-			// For serveFor, we need to get the provider from the current model or determine it
-			if (!this.currentModel) {
-				throw new Error("Cannot determine provider - no current model set");
+			const provider = SERVICE_TO_PROVIDER[name] ?? this.currentModel?.provider;
+			if (!provider) {
+				throw new Error(`Cannot determine provider for service "${name}"`);
 			}
 
-			await this.setCurrentModel(model, this.currentModel.provider, name);
+			await this.setCurrentModel(provider, model, name);
 			return (
 				existingModel ?? {
 					id: model,
 					name: model,
 					object: "model",
 					created: Math.floor(Date.now() / 1000),
-					owned_by: this.currentModel.provider,
+					owned_by: provider,
 					loaded: true,
 				}
 			);
@@ -214,10 +214,11 @@ export class LLMServiceMain extends LLMServiceCore implements ILLMService {
 
 		try {
 			const result = await llmWithServe.serve(model, onProgress);
-			if (!this.currentModel) {
-				throw new Error("Cannot determine provider - no current model set");
+			const provider = SERVICE_TO_PROVIDER[name] ?? this.currentModel?.provider;
+			if (!provider) {
+				throw new Error(`Cannot determine provider for service "${name}"`);
 			}
-			await this.setCurrentModel(model, this.currentModel.provider, name);
+			await this.setCurrentModel(provider, model, name);
 			return result;
 		} catch (error) {
 			if (

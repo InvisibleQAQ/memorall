@@ -152,8 +152,8 @@ export const LocalOpenAITab: React.FC<LocalOpenAITabProps> = ({
 			const trimmedModelId = existingModelId.trim();
 			if (trimmedModelId) {
 				await serviceManager.llmService.setCurrentModel(
-					trimmedModelId,
 					providerKind,
+					trimmedModelId,
 					providerKind,
 				);
 				onModelLoaded?.(trimmedModelId, providerKind);

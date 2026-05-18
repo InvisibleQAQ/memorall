@@ -51,8 +51,10 @@ interface ProviderPanelProps {
 	output: string;
 	ready: boolean;
 	downloadProgress: ProgressData;
-	onLoadModel: () => Promise<void>;
-	onLoadAdvancedModel: () => Promise<void>;
+	onLoadProviderModel: (
+		provider: ServiceProvider,
+		modelId?: string,
+	) => Promise<void>;
 	onUnloadModel: () => Promise<void>;
 	onGenerate: () => Promise<void>;
 	onFetchRepoFiles: (repoInfo: string) => Promise<void>;
@@ -108,8 +110,7 @@ export const ProviderPanel: React.FC<ProviderPanelProps> = ({
 	output,
 	ready,
 	downloadProgress,
-	onLoadModel,
-	onLoadAdvancedModel,
+	onLoadProviderModel,
 	onUnloadModel,
 	onGenerate,
 	onFetchRepoFiles,
@@ -292,7 +293,7 @@ export const ProviderPanel: React.FC<ProviderPanelProps> = ({
 					loading={loading}
 					ready={ready}
 					onFetchRepoFiles={onFetchRepoFiles}
-					onLoadModel={onLoadModel}
+					onLoadModel={() => onLoadProviderModel("wllama")}
 					onUnloadModel={onUnloadModel}
 					quickDownloads={quickDownloads("wllama")}
 				/>
@@ -305,7 +306,7 @@ export const ProviderPanel: React.FC<ProviderPanelProps> = ({
 					webllmAvailableModels={webllmAvailableModels}
 					loading={loading}
 					ready={ready}
-					onLoadAdvancedModel={onLoadAdvancedModel}
+					onLoadAdvancedModel={() => onLoadProviderModel("webllm")}
 					onUnloadModel={onUnloadModel}
 					quickDownloads={quickDownloads("webllm")}
 				/>
@@ -317,7 +318,7 @@ export const ProviderPanel: React.FC<ProviderPanelProps> = ({
 					setModel={setModel}
 					loading={loading}
 					ready={ready}
-					onLoadAdvancedModel={onLoadAdvancedModel}
+					onLoadAdvancedModel={() => onLoadProviderModel("transformer")}
 					onUnloadModel={onUnloadModel}
 					quickDownloads={quickDownloads("transformer")}
 				/>

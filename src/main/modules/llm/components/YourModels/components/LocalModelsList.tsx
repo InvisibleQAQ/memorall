@@ -108,8 +108,8 @@ export const LocalModelsList: React.FC<LocalModelsListProps> = ({
 												? DEFAULT_SERVICES.OPENAI
 												: quickProvider;
 										await serviceManager.llmService.setCurrentModel(
-											model.id,
 											quickProvider,
+											model.id,
 											serviceName,
 										);
 										logInfo(`${model.name || model.id} set as current model`);

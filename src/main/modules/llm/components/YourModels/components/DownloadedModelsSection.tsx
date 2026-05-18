@@ -24,16 +24,16 @@ interface DownloadedModelsSectionProps {
 	loading: boolean;
 	fetchDownloadedModels: () => Promise<void>;
 	loadDownloadedModel: (
-		model: ModelInfo,
 		provider: ServiceProvider,
+		model: ModelInfo,
 	) => Promise<void>;
 	unloadDownloadedModel: (
-		model: ModelInfo,
 		provider: ServiceProvider,
+		model: ModelInfo,
 	) => Promise<void>;
 	deleteDownloadedModel: (
-		model: ModelInfo,
 		provider: ServiceProvider,
+		model: ModelInfo,
 	) => Promise<void>;
 	showDownloadMoreButton?: boolean;
 	onDownloadMore?: () => void;
@@ -226,7 +226,7 @@ export const DownloadedModelsSection: React.FC<
 																className="h-9 w-9"
 																aria-label={t("model.delete")}
 																onClick={() =>
-																	deleteDownloadedModel(model, provider)
+																	deleteDownloadedModel(provider, model)
 																}
 																disabled={loading}
 															>
@@ -241,7 +241,7 @@ export const DownloadedModelsSection: React.FC<
 																	variant="outline"
 																	size="sm"
 																	onClick={() =>
-																		unloadDownloadedModel(model, provider)
+																		unloadDownloadedModel(provider, model)
 																	}
 																	disabled={loading}
 																>
@@ -256,7 +256,7 @@ export const DownloadedModelsSection: React.FC<
 																<Button
 																	size="sm"
 																	onClick={() =>
-																		loadDownloadedModel(model, provider)
+																		loadDownloadedModel(provider, model)
 																	}
 																	disabled={loading}
 																>
