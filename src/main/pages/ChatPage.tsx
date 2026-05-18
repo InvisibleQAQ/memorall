@@ -50,6 +50,7 @@ import { getAgentIconScreenFromMetadata } from "@/main/modules/agents/types";
 import type { FeatureCatalogMetadata } from "@/services/flows/feature-catalog-registry";
 import {
 	formatOpenUIFormStateContext,
+	getOpenUISendMessageText,
 	isAllowedOpenUIRoute,
 	MEMORALL_OPENUI_ACTION_EVENT,
 	normalizeOpenUIDocumentPath,
@@ -182,10 +183,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 
 			const action = detail.action;
 			if (action.type === "send_message") {
-				const message = resolveOpenUITemplate(
-					action.message,
+				const message = getOpenUISendMessageText(
+					action,
 					detail.formState,
 					detail.formName,
+					detail.humanFriendlyMessage,
 				);
 				const shouldIncludeFormState =
 					action.includeFormState ?? Boolean(detail.formName);

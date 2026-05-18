@@ -17,7 +17,9 @@ export const MEMORALL_OPENUI_ACTION_EVENT = "memorall:openui-action";
 export const openUIActionSchema = z.discriminatedUnion("type", [
 	z.object({
 		type: z.literal("send_message"),
-		message: z.string(),
+		message: z.string().optional(),
+		text: z.string().optional(),
+		valueInput: z.string().optional(),
 		includeFormState: z.boolean().optional(),
 	}),
 	z.object({
@@ -64,7 +66,9 @@ export type MemorallOpenUIAction =
 	| OpenUIButtonAction
 	| {
 			type: "send_message";
-			message: string;
+			message?: string;
+			text?: string;
+			valueInput?: string;
 			includeFormState?: boolean;
 	  };
 
@@ -130,6 +134,52 @@ export function formatOpenUIFormStateContext(
 	)}`;
 }
 
+const PREFERRED_SEND_MESSAGE_FIELDS = [
+	"prompt",
+	"message",
+	"input",
+	"query",
+	"text",
+	"content",
+	"value",
+];
+
+const stringifyOpenUIValue = (value: unknown): string => {
+	if (value === undefined || value === null) return "";
+	if (typeof value === "string") return value;
+	return JSON.stringify(value);
+};
+
+export function getOpenUISendMessageText(
+	action: Extract<MemorallOpenUIAction, { type: "send_message" }>,
+	formState: Record<string, unknown> | undefined,
+	formName: string | undefined,
+	humanFriendlyMessage: string | undefined,
+): string {
+	const explicitTemplate = action.message ?? action.text;
+	if (explicitTemplate !== undefined) {
+		return resolveOpenUITemplate(explicitTemplate, formState, formName).trim();
+	}
+
+	const values = getCurrentFormValues(formState, formName);
+	if (action.valueInput) {
+		const value = stringifyOpenUIValue(values[action.valueInput]).trim();
+		if (value) return value;
+	}
+
+	for (const fieldName of PREFERRED_SEND_MESSAGE_FIELDS) {
+		const value = stringifyOpenUIValue(values[fieldName]).trim();
+		if (value) return value;
+	}
+
+	const formValues = Object.values(values)
+		.map((value) => stringifyOpenUIValue(value).trim())
+		.filter(Boolean);
+	if (formValues.length > 0) return formValues.join("\n").trim();
+
+	return (humanFriendlyMessage ?? "").trim();
+}
+
 export function normalizeOpenUIDocumentPath(path: string): string | null {
 	const normalized = path.trim().replace(/\\/g, "/");
 	if (!normalized) return null;
@@ -175,6 +225,8 @@ export function buildButtonActionPlan(
 	let userMessage: string;
 	switch (action.type) {
 		case "send_message":
+			userMessage = action.message ?? action.text ?? label;
+			break;
 		case "show_toast":
 			userMessage = action.message;
 			break;
