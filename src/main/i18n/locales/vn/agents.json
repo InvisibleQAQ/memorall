@@ -314,6 +314,7 @@
 		"linkedMemoryTitle": "Xóa cả bộ nhớ đã liên kết",
 		"linkedMemoryDescription": "Tác nhân này đang liên kết với topic bộ nhớ \"{{name}}\". Giữ tùy chọn này được chọn để xóa bộ nhớ đó cùng tác nhân.",
 		"linkedMemoryDeleteFailed": "Không thể xóa topic bộ nhớ đã liên kết. Tác nhân chưa bị xóa.",
+		"noLinkedMemory": "Không có bộ nhớ nào được liên kết",
 		"lastPresetHint": "Cần giữ lại ít nhất một preset."
 	},
 	"reset": {

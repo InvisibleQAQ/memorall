@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Label } from "@/main/components/ui/label";
 import {
@@ -9,7 +9,6 @@ import {
 	SelectValue,
 } from "@/main/components/ui/select";
 import { useAgentConfigStore } from "@/main/stores/agent-config";
-import { serviceManager } from "@/services";
 import {
 	VISUALIZE_RESPONSE_FEATURE_NAME,
 	type OpenUITheme,
@@ -23,8 +22,7 @@ const THEMES: { value: OpenUITheme; labelKey: string }[] = [
 
 export const VisualizeResponseFeatureConfig: React.FC = () => {
 	const { t } = useTranslation("chat");
-	const { savedUnifiedConfig, currentFlowId, initialize } =
-		useAgentConfigStore();
+	const { savedUnifiedConfig, patchStepConfig } = useAgentConfigStore();
 
 	const currentTheme: OpenUITheme =
 		(savedUnifiedConfig?.steps.find(
@@ -32,47 +30,17 @@ export const VisualizeResponseFeatureConfig: React.FC = () => {
 		)?.config?.theme as OpenUITheme | undefined) ?? "shadcn";
 
 	const [theme, setTheme] = useState<OpenUITheme>(currentTheme);
-	const [isSaving, setIsSaving] = useState(false);
 
 	useEffect(() => {
 		setTheme(currentTheme);
 	}, [currentTheme]);
 
-	const handleChange = useCallback(
-		async (value: OpenUITheme) => {
-			setTheme(value);
-			setIsSaving(true);
-			try {
-				const flowRef = currentFlowId
-					? { flowId: currentFlowId }
-					: ({ predefinedFlow: "foundation" } as const);
-				const config =
-					await serviceManager.flowBuilderService.getUnifiedFlowConfig(flowRef);
-				const updated = {
-					...config,
-					steps: config.steps.map((step) =>
-						step.name === VISUALIZE_RESPONSE_FEATURE_NAME
-							? {
-									...step,
-									config: {
-										...(step.config ?? {}),
-										theme: value === "shadcn" ? undefined : value,
-									},
-								}
-							: step,
-					),
-				};
-				await serviceManager.flowBuilderService.saveUnifiedFlowConfig(
-					flowRef,
-					updated,
-				);
-				await initialize(currentFlowId);
-			} finally {
-				setIsSaving(false);
-			}
-		},
-		[currentFlowId, initialize],
-	);
+	const handleChange = (value: OpenUITheme) => {
+		setTheme(value);
+		patchStepConfig(VISUALIZE_RESPONSE_FEATURE_NAME, {
+			theme: value === "shadcn" ? undefined : value,
+		});
+	};
 
 	return (
 		<div className="space-y-2">
@@ -81,8 +49,7 @@ export const VisualizeResponseFeatureConfig: React.FC = () => {
 			</Label>
 			<Select
 				value={theme}
-				onValueChange={(v) => void handleChange(v as OpenUITheme)}
-				disabled={isSaving}
+				onValueChange={(v) => handleChange(v as OpenUITheme)}
 			>
 				<SelectTrigger className="h-9">
 					<SelectValue />

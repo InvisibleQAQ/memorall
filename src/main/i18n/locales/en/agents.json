@@ -318,6 +318,7 @@
 		"linkedMemoryTitle": "Also delete linked memory",
 		"linkedMemoryDescription": "This agent is linked to the \"{{name}}\" memory topic. Leave this checked to delete that memory with the agent.",
 		"linkedMemoryDeleteFailed": "Failed to delete the linked memory topic. The agent was not deleted.",
+		"noLinkedMemory": "No memory linked",
 		"lastPresetHint": "At least one preset must remain available."
 	},
 	"reset": {
