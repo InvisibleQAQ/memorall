@@ -14,7 +14,11 @@ import { GraphBase, type GraphTool } from "@/services/flows/graph/graph.base";
 import type { ChatCompletionMessageParam } from "@/types/openai";
 import { getFlowRuntimeVars } from "@/services/flows/runtime/runtime-context";
 import { OPENUI_KNOWLEDGE_TOOLS } from "@/services/flows/tools/openui-knowledge";
-import { OPENUI_SYSTEM_PROMPT } from "./prompt";
+import {
+	OPENUI_SYSTEM_PROMPT,
+	OPENUI_WIREFRAME_THEME_INSTRUCTION,
+	OPENUI_GLASS_THEME_INSTRUCTION,
+} from "./prompt";
 import { logError } from "@/utils/logger";
 
 const STEP_NAME = "visualize-response" as const;
@@ -35,7 +39,12 @@ export interface VisualizeResponseOutput {
 }
 
 type VisualizeResponseServices = Record<string, never>;
-type VisualizeResponseConfig = Record<string, never>;
+
+export type OpenUITheme = "shadcn" | "wireframe" | "glass";
+
+export interface VisualizeResponseConfig {
+	theme?: OpenUITheme;
+}
 
 export const VISUALIZE_RESPONSE_FEATURE_DESCRIPTION =
 	"Enables OpenUI Lang responses with interactive components and knowledge graph data tools.";
@@ -47,13 +56,29 @@ const definition = defineStep<
 	VisualizeResponseConfig
 >({
 	name: STEP_NAME,
-	execute: async ({ input, runConfig }) => {
+	execute: async ({ input, config, runConfig }) => {
 		try {
+			const runtimeVars = getFlowRuntimeVars(runConfig);
+
 			const graphId = input.graphId?.trim();
 			if (graphId) {
-				const runtimeVars = getFlowRuntimeVars(runConfig);
 				runtimeVars?.set("graph.id", graphId);
 			}
+
+			if (config?.theme) {
+				runtimeVars?.set("openui.theme", config.theme);
+			}
+
+			const theme = config?.theme ?? "shadcn";
+			const themeInstruction =
+				theme === "wireframe"
+					? OPENUI_WIREFRAME_THEME_INSTRUCTION
+					: theme === "glass"
+						? OPENUI_GLASS_THEME_INSTRUCTION
+						: null;
+			const systemPrompt = themeInstruction
+				? `${OPENUI_SYSTEM_PROMPT}\n\n${themeInstruction}`
+				: OPENUI_SYSTEM_PROMPT;
 
 			const tools = GraphBase.chat.addTool(
 				input.tools ?? [],
@@ -61,7 +86,7 @@ const definition = defineStep<
 			);
 			const messages = GraphBase.chat.systemMessage(
 				input.messages ?? [],
-				OPENUI_SYSTEM_PROMPT,
+				systemPrompt,
 			);
 
 			return { output: { messages, tools } };

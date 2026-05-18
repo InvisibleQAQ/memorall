@@ -1,4 +1,5 @@
-// Supported components are sourced from src/main/modules/openui — keep this list in sync with that module.
+import { OPENUI_COMPONENTS_TEXT } from "./components";
+
 export const OPENUI_SYSTEM_PROMPT = `
 # OpenUI response format
 
@@ -41,39 +42,8 @@ Available knowledge tools:
 Use the current selected topic by omitting graphId unless the user explicitly
 asks for another topic.
 
-Supported components (sourced from src/main/modules/openui):
-- CardBlock(title?, description?, children) root response container.
-- TextContent(text, size?, muted?) paragraph. size: "sm", "base", "lg".
-- AlertBlock(title?, message, variant?) callout. variant: "default" or "destructive".
-- BadgeBlock(label, variant?) inline label.
-- ProgressBlock(value, label?) progress value 0 to 100.
-- SeparatorBlock() divider.
-- CodeBlockComp(code, language?, filename?) code block.
-- Col(header, align?) table column. align: "left", "right", "center".
-- TableBlock(columns, rows) columns are Col(...), rows are string[][].
-- BarChartBlock(title?, data) data is [{ label, value }].
-- LineChartBlock(title?, data) data is [{ label, value }].
-- PieChartBlock(title?, data) data is [{ label, value }].
-- ButtonBlock(label, prompt?, variant?) clickable conversation action.
-- ButtonsBlock(children) row of ButtonBlock components.
-- TabItem(label, children) tab definition.
-- TabsBlock(items) tabbed content panels.
-- CollapsibleBlock(label, children) expandable section.
-- DialogBlock(triggerLabel, title, children) modal dialog.
-- CarouselBlock(items) horizontally scrollable items.
-- FormBlock(name, children) form container.
-- InputBlock(name, label, placeholder?, defaultValue?) text input.
-- SelectItemBlock(label, value) dropdown item.
-- SelectBlock(name, label, placeholder?, defaultValue?, items) dropdown.
-- SwitchBlock(name, label, defaultChecked?) toggle.
-- TextareaBlock(name, label, placeholder?, defaultValue?) multi-line input.
-- KnowledgeCard(name, entityType, facts, summary?) entity card.
-- FactList(title?, facts) facts are { subject, predicate, object, date? }.
-- Timeline(title?, events) events are { date, title, description? }.
-- EntityList(entities) entities are { name, entityType, summary? }.
-- TopicSummary(title, entityCount, factCount, confidence?, summary?) stats card.
-- FollowUpItem(label, prompt?) suggested next prompt.
-- FollowUpBlock(items) suggested follow-up prompts.
+Supported components:
+${OPENUI_COMPONENTS_TEXT}
 
 Knowledge graph guidance:
 - For "show me everything about X", call get_entity first, then render
@@ -113,4 +83,34 @@ root = CardBlock("Recent knowledge", "Latest saved entities", [
     FollowUpItem("Summarize these items")
   ])
 ])
+`.trim();
+
+export const OPENUI_WIREFRAME_THEME_INSTRUCTION = `
+# Theme
+
+Supported themes: "shadcn" (default), "wireframe".
+
+You are rendering in wireframe theme. You MUST pass "wireframe" as the 4th
+positional argument on the root CardBlock (after the children array). Example:
+
+root = CardBlock("Title", "Description", [...], "wireframe")
+
+If there is no description, pass an empty string:
+
+root = CardBlock("Title", "", [...], "wireframe")
+`.trim();
+
+export const OPENUI_GLASS_THEME_INSTRUCTION = `
+# Theme
+
+Supported themes: "shadcn" (default), "glass".
+
+You are rendering in glass theme. You MUST pass "glass" as the 4th positional
+argument on the root CardBlock (after the children array). Example:
+
+root = CardBlock("Title", "Description", [...], "glass")
+
+If there is no description, pass an empty string:
+
+root = CardBlock("Title", "", [...], "glass")
 `.trim();

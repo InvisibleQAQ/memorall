@@ -28,11 +28,13 @@ import {
 } from "@/main/components/ui/select";
 import { DEFAULT_CONTEXT_SYSTEM_PROMPT } from "@/services/flows/steps/common/context-to-system";
 import { MULTI_AGENT_FEATURE_NAME } from "@/services/flows/steps/features/multi-agent-feature";
+import { VISUALIZE_RESPONSE_FEATURE_NAME } from "@/services/flows/steps/features/visualize-response";
 import {
 	getAgentFeatureDescription,
 	getAgentFeatureDisplayName,
 } from "../utils/feature-display";
 import { KNOWLEDGE_RETRIEVAL_MODES } from "@/main/stores/agent-config";
+import { VisualizeResponseFeatureConfig } from "../components/VisualizeResponseFeatureConfig";
 
 interface AgentFeatureDetailModalProps {
 	featureName: string;
@@ -403,6 +405,9 @@ export const AgentFeatureDetailModal =
 
 				return (
 					<div className="space-y-4">
+						{feature.name === VISUALIZE_RESPONSE_FEATURE_NAME && (
+							<VisualizeResponseFeatureConfig />
+						)}
 						<div className="space-y-2">
 							<p className="text-sm font-semibold">
 								{t("agentSettings.featureTools")}
