@@ -58,7 +58,7 @@ export const OPENUI_COMPONENTS: OpenUIComponentMeta[] = [
 	{
 		signature: "ButtonBlock(label, actionOrPrompt?, variant?)",
 		description:
-			'clickable action. actionOrPrompt can be a prompt string or action object: { type: "send_message" | "add_message_to_input" | "open_link" | "open_document" | "copy_to_clipboard" | "download_text" | "open_route" | "reset_form" | "show_toast", ... }.',
+			'clickable action. actionOrPrompt can be a prompt string or action object. For form submit use { type: "send_message", valueInput: "prompt", includeFormState: true } where prompt is an input field name.',
 	},
 	{
 		signature: "ButtonsBlock(children)",

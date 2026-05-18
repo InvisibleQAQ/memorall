@@ -40,6 +40,8 @@ Syntax rules:
   argument.
 - Supported action object types:
   { "type": "send_message", "message": "...", "includeFormState": true }
+  { "type": "send_message", "message": "{{prompt}}", "includeFormState": true }
+  { "type": "send_message", "valueInput": "prompt", "includeFormState": true }
   { "type": "add_message_to_input", "text": "...", "mode": "append" }
   { "type": "open_link", "url": "https://example.com" }
   { "type": "open_document", "path": "/documents/report.md" }
@@ -50,7 +52,12 @@ Syntax rules:
   { "type": "show_toast", "message": "Copied" }
 - Inside FormBlock, action strings can reference current field values with
   {{fieldName}} placeholders. For send_message actions inside a form,
-  includeFormState defaults to true.
+  use the primary input field as the actual message, for example
+  ButtonBlock("Send", { "type": "send_message", "valueInput": "prompt", "includeFormState": true })
+  when the form has InputBlock("prompt", ...). You can also use
+  message: "{{prompt}}" for templated text. If a form send_message omits both
+  message and valueInput, Memorall sends the first non-empty field named prompt,
+  message, input, query, text, content, or value.
 - Put fetched tool data directly into the OpenUI markup.
 - Tools are only for data fetching. Rendering is done by the final text.
 
