@@ -5,7 +5,6 @@ import {
 	MessageSquare,
 	MessageSquarePlus,
 	RefreshCw,
-	X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useChatStore } from "@/main/stores/chat";
@@ -92,7 +91,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 				allowCollapse && collapsed
 					? { width: 56 }
 					: allowResize
-						? { width }
+						? { width, maxWidth: "100%" }
 						: { width: "100%" }
 			}
 		>
@@ -116,18 +115,20 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 							variant="ghost"
 							size="icon"
 							onClick={() => setCollapsed(false)}
-							className="h-9 w-9 text-muted-foreground hover:text-foreground"
+							className="h-8 w-8 text-muted-foreground hover:bg-muted hover:text-foreground"
 							title={t("sandboxPanel.expand")}
 							aria-label={t("sandboxPanel.expand")}
 						>
 							<ChevronsRight size={16} />
 						</Button>
 					) : allowCollapse && collapsed ? (
-						<div className="h-9 w-9" />
+						<div className="h-8 w-8" />
 					) : (
 						<>
 							<div className="min-w-0 flex items-center gap-2 text-muted-foreground">
-								<MessageSquare size={13} className="shrink-0" />
+								<span className="inline-flex h-8 w-8 shrink-0 items-center justify-center">
+									<MessageSquare size={16} />
+								</span>
 								<span className="truncate text-xs font-semibold text-foreground">
 									Chats
 								</span>
@@ -139,7 +140,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 									onClick={() => void handleRefresh()}
 									className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 								>
-									<RefreshCw size={14} />
+									<RefreshCw size={16} />
 								</button>
 								{allowCollapse ? (
 									<button
@@ -149,7 +150,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 										title={t("sandboxPanel.collapse")}
 										aria-label={t("sandboxPanel.collapse")}
 									>
-										<ChevronLeft size={18} />
+										<ChevronLeft size={16} />
 									</button>
 								) : onClose ? (
 									<button
@@ -159,7 +160,7 @@ export const ChatSidePanel: React.FC<ChatSidePanelProps> = ({
 										title="Close"
 										aria-label="Close chat side panel"
 									>
-										<X size={16} />
+										<ChevronLeft size={16} />
 									</button>
 								) : null}
 							</div>

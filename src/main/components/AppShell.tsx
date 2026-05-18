@@ -72,6 +72,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	const startXRef = React.useRef(0);
 	const startWidthRef = React.useRef(0);
 	const [isResizing, setIsResizing] = React.useState(false);
+	const [isCompactChatListOpen, setIsCompactChatListOpen] =
+		React.useState(false);
 	const isNarrow = useMediaQuery(MOBILE_WORKSPACE_QUERY);
 	const isPopup = isPopupSurface();
 	const runtimeCount = useRuntimeSessionsStore((state) =>
@@ -80,6 +82,31 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 	const refreshRuntimeSessions = useRuntimeSessionsStore(
 		(state) => state.refresh,
 	);
+	const effectiveChatShellCollapsed =
+		!rightPanelCollapsed && chatShellCollapsed;
+	const chatPanelNarrowQuery = rightPanelCollapsed
+		? "(max-width: 695px)"
+		: effectiveChatShellCollapsed
+			? "(min-width: 0px)"
+			: `(max-width: ${Math.floor(64000 / Math.max(chatShellWidth, 1))}px)`;
+	const isNarrowChatPanel = useMediaQuery(chatPanelNarrowQuery);
+	const chatPanelWidth = isNarrow
+		? "100%"
+		: rightPanelCollapsed
+			? "calc(100vw - 56px)"
+			: effectiveChatShellCollapsed
+				? "56px"
+				: `${chatShellWidth}vw`;
+	const rightPanelWidth = rightPanelCollapsed
+		? "56px"
+		: effectiveChatShellCollapsed
+			? "calc(100vw - 56px)"
+			: `calc(100vw - ${chatShellWidth}vw)`;
+	const panelTransitionClass = isResizing
+		? ""
+		: "transition-[width,flex-basis] duration-300 ease-out";
+	const isMobileWorkspaceOpen =
+		isNarrow && workspaceNavigationPaths.has(location.pathname);
 
 	React.useEffect(() => {
 		void refreshRuntimeSessions();
@@ -106,26 +133,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 			/>
 		);
 	}
-
-	const effectiveChatShellCollapsed =
-		!rightPanelCollapsed && chatShellCollapsed;
-	const chatPanelWidth = isNarrow
-		? "100%"
-		: rightPanelCollapsed
-			? "calc(100vw - 56px)"
-			: effectiveChatShellCollapsed
-				? "56px"
-				: `${chatShellWidth}vw`;
-	const rightPanelWidth = rightPanelCollapsed
-		? "56px"
-		: effectiveChatShellCollapsed
-			? "calc(100vw - 56px)"
-			: `calc(100vw - ${chatShellWidth}vw)`;
-	const panelTransitionClass = isResizing
-		? ""
-		: "transition-[width,flex-basis] duration-300 ease-out";
-	const isMobileWorkspaceOpen =
-		isNarrow && workspaceNavigationPaths.has(location.pathname);
 
 	const handleResizeMouseDown = (event: React.MouseEvent) => {
 		event.preventDefault();
@@ -225,17 +232,39 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 							: "h-full"
 					}
 				>
-					<ChatPage
-						hideWideSidePanelCollapsedToggle={effectiveChatShellCollapsed}
-						onOpenAgentWorkspace={() => setRightWorkspaceTab("agent")}
-						useIconOnlyHistoryButton={isNarrow && !isMobileWorkspaceOpen}
-					/>
+					{effectiveChatShellCollapsed ? (
+						<div className="flex h-full w-[56px] flex-col items-center border-r bg-background">
+							<div className="flex h-12 w-full items-center justify-center">
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									onClick={() => setChatShellCollapsed(false)}
+									className="h-9 w-9 text-muted-foreground hover:text-foreground"
+									aria-label="Restore chat panel"
+									title="Restore chat panel"
+								>
+									<ChevronsRight size={16} />
+								</Button>
+							</div>
+						</div>
+					) : (
+						<ChatPage
+							hideWideSidePanelCollapsedToggle={effectiveChatShellCollapsed}
+							isNarrowChatPanel={isNarrowChatPanel}
+							onCompactChatListOpenChange={setIsCompactChatListOpen}
+							onOpenAgentWorkspace={() => setRightWorkspaceTab("agent")}
+							useIconOnlyHistoryButton={isNarrow && !isMobileWorkspaceOpen}
+						/>
+					)}
 				</div>
 				<div
 					onMouseDown={handleResizeMouseDown}
 					className="absolute bottom-0 right-0 top-0 hidden w-1 cursor-col-resize transition-colors hover:bg-primary/40 min-[641px]:block"
 				/>
-				{!rightPanelCollapsed ? (
+				{!rightPanelCollapsed &&
+				!effectiveChatShellCollapsed &&
+				!(isNarrowChatPanel && isCompactChatListOpen) ? (
 					<Button
 						type="button"
 						variant="ghost"

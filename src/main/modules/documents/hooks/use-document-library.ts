@@ -359,6 +359,16 @@ export function useDocumentLibrary() {
 		}
 	}, []);
 
+	const handleOpenDocumentByPath = useCallback((path: string) => {
+		const normalizedPath = path.replace(/\\/g, "/");
+		setSelectedSection("documents");
+		const node = findNodeByPath(treeRef.current, normalizedPath);
+		if (node) {
+			setTree((prev) => expandNodePath(prev, normalizedPath));
+			setSelectedNode(node);
+		}
+	}, []);
+
 	/** Go to parent folder when closing a file viewer. */
 	const handleCloseViewer = useCallback(() => {
 		const path = currentPathRef.current;
@@ -873,6 +883,7 @@ export function useDocumentLibrary() {
 		handleToggleExpandWorkspace,
 		handleSelectNodeInActiveTree,
 		handleOpenFolderByPath,
+		handleOpenDocumentByPath,
 		handleCloseViewer,
 		handleUploadFiles,
 		triggerFileUpload,

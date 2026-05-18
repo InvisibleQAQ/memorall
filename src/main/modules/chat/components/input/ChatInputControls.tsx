@@ -52,6 +52,7 @@ export interface ChatInputControlsProps {
 	onCreateAgentFlow?: () => void;
 	onDeleteChat: () => void;
 	onOpenAgentSettings?: () => void;
+	compactControls?: boolean;
 	isCustomMode: boolean;
 	onAttachFileClick: () => void;
 	onAttachDocumentClick: () => void;
@@ -75,6 +76,7 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 	onCreateAgentFlow,
 	onDeleteChat,
 	onOpenAgentSettings,
+	compactControls = false,
 	isCustomMode,
 	onAttachFileClick,
 	onAttachDocumentClick,
@@ -280,22 +282,24 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 									</TooltipContent>
 								</Tooltip>
 
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											onClick={onOpenAgentSettings}
-											className="h-8 min-w-8 rounded-xl px-2 text-xs text-muted-foreground hover:text-foreground"
-										>
-											<Settings2 size={12} />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent>
-										<p className="text-xs">{t("tooltips.agentSettings")}</p>
-									</TooltipContent>
-								</Tooltip>
+								{!compactControls ? (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												onClick={onOpenAgentSettings}
+												className="h-8 min-w-8 rounded-xl px-2 text-xs text-muted-foreground hover:text-foreground"
+											>
+												<Settings2 size={12} />
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent>
+											<p className="text-xs">{t("tooltips.agentSettings")}</p>
+										</TooltipContent>
+									</Tooltip>
+								) : null}
 							</>
 						)}
 					</PromptInputTools>
@@ -338,6 +342,15 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 								</DropdownMenuTrigger>
 							</TooltipTrigger>
 							<DropdownMenuContent align="end">
+								{compactControls && isCustomMode && onOpenAgentSettings ? (
+									<DropdownMenuItem
+										onClick={onOpenAgentSettings}
+										className="flex items-center gap-2"
+									>
+										<Settings2 size={14} />
+										<span>{t("tooltips.agentSettings")}</span>
+									</DropdownMenuItem>
+								) : null}
 								<DropdownMenuItem
 									onClick={onDeleteChat}
 									className="flex items-center gap-2 text-red-600 hover:text-red-700"
