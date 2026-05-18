@@ -558,6 +558,7 @@ interface AgentConfigState {
 	setMCPServers: (servers: MCPServerConfig[]) => void;
 	toggleSkill: (skillName: string) => void;
 	setEnabledSkills: (skillNames: string[]) => void;
+	patchStepConfig: (stepName: string, patch: Record<string, unknown>) => void;
 	save: () => Promise<void>;
 	convertToUnified: () => Promise<void>;
 	revert: () => void;
@@ -1017,6 +1018,28 @@ export const useAgentConfigStore = create<AgentConfigState>((set, get) => {
 
 		convertToUnified: async () => {
 			await persistUnifiedConfig();
+		},
+
+		patchStepConfig: (stepName, patch) => {
+			const { savedUnifiedConfig } = get();
+			if (!savedUnifiedConfig) return;
+			set({
+				savedUnifiedConfig: {
+					...savedUnifiedConfig,
+					steps: savedUnifiedConfig.steps.map((step) =>
+						step.name === stepName
+							? {
+									...step,
+									config: {
+										...(step.config ?? {}),
+										...patch,
+									},
+								}
+							: step,
+					),
+				},
+				isDirty: true,
+			});
 		},
 
 		revert: () => {

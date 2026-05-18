@@ -31,6 +31,7 @@ import {
 	type RunnerMemoryHint,
 } from "../utils/runner-memory-hints";
 import { getModel } from "../registry/model-registry";
+import { IframeRuntime } from "./iframe-runtime";
 
 interface ServeRequest {
 	model: string;
@@ -91,9 +92,17 @@ export class WebLLMLLM implements BaseLLM {
 		ReturnType<typeof detectSystemSpecs>
 	> | null> | null = null;
 	private url: string;
+	private iframeRuntime: IframeRuntime;
 
 	constructor(url = LLM_RUNNER_URLS.webllm) {
 		this.url = url;
+		this.iframeRuntime = new IframeRuntime({
+			provider: this.name,
+			ensureReady: () => this.initialize(),
+			isReady: () => this.ready,
+			destroyIframe: () => this.destroy(),
+			fetchModels: () => this.send("models") as Promise<ModelsResponse>,
+		});
 	}
 
 	async initialize(): Promise<void> {
@@ -142,6 +151,9 @@ export class WebLLMLLM implements BaseLLM {
 				}
 				throw initError;
 			}
+		} catch (error) {
+			this.destroy();
+			throw error;
 		} finally {
 			this.loading = false;
 		}
@@ -160,12 +172,10 @@ export class WebLLMLLM implements BaseLLM {
 	}
 
 	async models(): Promise<ModelsResponse> {
-		if (!this.ready) await this.initialize();
-		const response = (await this.send("models")) as ModelsResponse;
-		response.data.forEach((model) => {
-			model.provider = "webllm";
-		});
-		return response;
+		return (
+			(await this.iframeRuntime.cachedModelsWhenNotCurrent()) ??
+			(await this.iframeRuntime.run(() => this.iframeRuntime.refreshModels()))
+		);
 	}
 
 	chatCompletions(
@@ -189,39 +199,41 @@ export class WebLLMLLM implements BaseLLM {
 	private async createCompletion(
 		request: ChatCompletionRequest,
 	): Promise<ChatCompletionResponse> {
-		if (!this.ready) await this.initialize();
-
-		const capability = await this.getToolCapabilities(request.model);
-		const shouldNormalizePromptMessages =
-			capability.mode === "prompt_injection";
-		const usePromptToolParsing =
-			shouldNormalizePromptMessages && !!request.tools?.length;
-		const processedRequest = shouldNormalizePromptMessages
-			? preparePromptToolRequest(request)
-			: request;
-
-		const { signal, ...serializableRequest } = processedRequest;
-		const requestPayload =
-			capability.mode === "native"
-				? serializableRequest
-				: (() => {
-						const {
-							tools,
-							tool_choice,
-							parallel_tool_calls,
-							...promptRequestPayload
-						} = serializableRequest;
-						return promptRequestPayload;
-					})();
-
 		let signalId: string | undefined;
-		if (signal) {
-			signalId = Math.random().toString(36).slice(2);
-			this.signalMap.set(signalId, signal);
-		}
-		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+		this.iframeRuntime.beginOperation();
 
 		try {
+			if (!this.ready) await this.initialize();
+
+			const capability = await this.getToolCapabilities(request.model);
+			const shouldNormalizePromptMessages =
+				capability.mode === "prompt_injection";
+			const usePromptToolParsing =
+				shouldNormalizePromptMessages && !!request.tools?.length;
+			const processedRequest = shouldNormalizePromptMessages
+				? preparePromptToolRequest(request)
+				: request;
+
+			const { signal, ...serializableRequest } = processedRequest;
+			const requestPayload =
+				capability.mode === "native"
+					? serializableRequest
+					: (() => {
+							const {
+								tools,
+								tool_choice,
+								parallel_tool_calls,
+								...promptRequestPayload
+							} = serializableRequest;
+							return promptRequestPayload;
+						})();
+
+			if (signal) {
+				signalId = Math.random().toString(36).slice(2);
+				this.signalMap.set(signalId, signal);
+			}
+			const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+
 			let response = (await this.send("chat/completions", payloadWithHints, {
 				signalId,
 			})) as ChatCompletionResponse;
@@ -245,45 +257,48 @@ export class WebLLMLLM implements BaseLLM {
 			if (signalId) {
 				this.signalMap.delete(signalId);
 			}
+			await this.iframeRuntime.finishOperation();
 		}
 	}
 
 	private async *createStreamingCompletion(
 		request: ChatCompletionRequest,
 	): AsyncIterableIterator<ChatCompletionChunk> {
-		if (!this.ready) await this.initialize();
-
-		const capability = await this.getToolCapabilities(request.model);
-		const shouldNormalizePromptMessages =
-			capability.mode === "prompt_injection";
-		const usePromptToolParsing =
-			shouldNormalizePromptMessages && !!request.tools?.length;
-		const processedRequest = shouldNormalizePromptMessages
-			? preparePromptToolRequest(request)
-			: request;
-
-		const { signal, ...serializableRequest } = processedRequest;
-		const requestPayload =
-			capability.mode === "native"
-				? serializableRequest
-				: (() => {
-						const {
-							tools,
-							tool_choice,
-							parallel_tool_calls,
-							...promptRequestPayload
-						} = serializableRequest;
-						return promptRequestPayload;
-					})();
-
 		let signalId: string | undefined;
-		if (signal) {
-			signalId = Math.random().toString(36).slice(2);
-			this.signalMap.set(signalId, signal);
-		}
-		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+		this.iframeRuntime.beginOperation();
 
 		try {
+			if (!this.ready) await this.initialize();
+
+			const capability = await this.getToolCapabilities(request.model);
+			const shouldNormalizePromptMessages =
+				capability.mode === "prompt_injection";
+			const usePromptToolParsing =
+				shouldNormalizePromptMessages && !!request.tools?.length;
+			const processedRequest = shouldNormalizePromptMessages
+				? preparePromptToolRequest(request)
+				: request;
+
+			const { signal, ...serializableRequest } = processedRequest;
+			const requestPayload =
+				capability.mode === "native"
+					? serializableRequest
+					: (() => {
+							const {
+								tools,
+								tool_choice,
+								parallel_tool_calls,
+								...promptRequestPayload
+							} = serializableRequest;
+							return promptRequestPayload;
+						})();
+
+			if (signal) {
+				signalId = Math.random().toString(36).slice(2);
+				this.signalMap.set(signalId, signal);
+			}
+			const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+
 			const chunks: ChatCompletionChunk[] = [];
 			let streamEnded = false;
 			let streamError: Error | null = null;
@@ -364,21 +379,34 @@ export class WebLLMLLM implements BaseLLM {
 			if (signalId) {
 				this.signalMap.delete(signalId);
 			}
+			await this.iframeRuntime.finishOperation();
 		}
 	}
 
 	async unload(modelId: string): Promise<void> {
-		if (!this.ready) await this.initialize();
-		// WebLLM models use different validation - check against prebuiltAppConfig.model_list
-		const request: UnloadRequest = { model: modelId };
-		await this.send("unload", request);
+		this.iframeRuntime.beginOperation();
+		try {
+			if (!this.ready) await this.initialize();
+			// WebLLM models use different validation - check against prebuiltAppConfig.model_list
+			const request: UnloadRequest = { model: modelId };
+			await this.send("unload", request);
+			await this.iframeRuntime.refreshModelsAfterMutation();
+		} finally {
+			await this.iframeRuntime.finishOperation();
+		}
 	}
 
 	async delete(modelId: string): Promise<void> {
-		if (!this.ready) await this.initialize();
-		// WebLLM models use different validation - check against prebuiltAppConfig.model_list
-		const request: DeleteRequest = { model: modelId };
-		await this.send("delete", request);
+		this.iframeRuntime.beginOperation();
+		try {
+			if (!this.ready) await this.initialize();
+			// WebLLM models use different validation - check against prebuiltAppConfig.model_list
+			const request: DeleteRequest = { model: modelId };
+			await this.send("delete", request);
+			await this.iframeRuntime.refreshModelsAfterMutation();
+		} finally {
+			await this.iframeRuntime.finishOperation();
+		}
 	}
 
 	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
@@ -402,12 +430,22 @@ export class WebLLMLLM implements BaseLLM {
 		model: string,
 		onProgress?: (progress: ProgressEvent) => void,
 	): Promise<ModelInfo> {
-		if (!this.ready) await this.initialize();
-		// WebLLM models must be validated against prebuiltAppConfig.model_list
-		// No need to validate format here - runner will handle validation
-		const request: ServeRequest = { model };
-		const response = await this.send("serve", request, { onProgress });
-		return response as ModelInfo;
+		let keepAlive = false;
+		this.iframeRuntime.beginOperation();
+		try {
+			if (!this.ready) await this.initialize();
+			// WebLLM models must be validated against prebuiltAppConfig.model_list
+			// No need to validate format here - runner will handle validation
+			const request: ServeRequest = { model };
+			const response = await this.send("serve", request, { onProgress });
+			const modelInfo = this.iframeRuntime.upsertCachedModel(
+				response as ModelInfo,
+			);
+			keepAlive = await this.iframeRuntime.shouldKeepAliveFor(modelInfo);
+			return modelInfo;
+		} finally {
+			await this.iframeRuntime.finishOperation({ keepAlive });
+		}
 	}
 
 	async loadModelFromHF(
@@ -452,6 +490,7 @@ export class WebLLMLLM implements BaseLLM {
 	}
 
 	destroy(): void {
+		this.iframeRuntime.cancelIdleDestroy();
 		this.iframe?.remove();
 		this.iframe = null;
 		window.removeEventListener("message", this.onMessage);

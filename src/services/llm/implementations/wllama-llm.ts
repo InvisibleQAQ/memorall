@@ -34,6 +34,7 @@ import {
 	type RunnerMemoryHint,
 } from "../utils/runner-memory-hints";
 import { getModel } from "../registry/model-registry";
+import { IframeRuntime } from "./iframe-runtime";
 
 interface ServeRequest {
 	model: string;
@@ -107,9 +108,17 @@ export class WllamaLLM implements BaseLLM {
 		ReturnType<typeof detectSystemSpecs>
 	> | null> | null = null;
 	private url: string;
+	private iframeRuntime: IframeRuntime;
 
 	constructor(url = LLM_RUNNER_URLS?.wllama) {
 		this.url = url;
+		this.iframeRuntime = new IframeRuntime({
+			provider: this.name,
+			ensureReady: () => this.initialize(),
+			isReady: () => this.ready,
+			destroyIframe: () => this.destroy(),
+			fetchModels: () => this.send("models") as Promise<ModelsResponse>,
+		});
 	}
 
 	async initialize(): Promise<void> {
@@ -144,6 +153,9 @@ export class WllamaLLM implements BaseLLM {
 
 			await this.send("init");
 			this.ready = true;
+		} catch (error) {
+			this.destroy();
+			throw error;
 		} finally {
 			this.loading = false;
 		}
@@ -162,12 +174,10 @@ export class WllamaLLM implements BaseLLM {
 	}
 
 	async models(): Promise<ModelsResponse> {
-		if (!this.ready) await this.initialize();
-		const response = (await this.send("models")) as ModelsResponse;
-		response.data.forEach((model) => {
-			model.provider = "wllama";
-		});
-		return response;
+		return (
+			(await this.iframeRuntime.cachedModelsWhenNotCurrent()) ??
+			(await this.iframeRuntime.run(() => this.iframeRuntime.refreshModels()))
+		);
 	}
 
 	chatCompletions(
@@ -191,34 +201,41 @@ export class WllamaLLM implements BaseLLM {
 	private async createCompletion(
 		request: ChatCompletionRequest,
 	): Promise<ChatCompletionResponse> {
-		if (!this.ready) await this.initialize();
-
-		const capability = await this.getToolCapabilities(request.model);
-		const shouldNormalizePromptMessages =
-			capability.mode === "prompt_injection";
-		const usePromptToolParsing =
-			shouldNormalizePromptMessages && !!request.tools?.length;
-		const processedRequest = shouldNormalizePromptMessages
-			? preparePromptToolRequest(request)
-			: request;
-
-		const { signal, tools, tool_choice, parallel_tool_calls, ...basePayload } =
-			processedRequest;
-
-		// Pass tools to the runner only when the model natively supports them
-		const requestPayload =
-			capability.mode === "native"
-				? { ...basePayload, tools, tool_choice }
-				: basePayload;
-
 		let signalId: string | undefined;
-		if (signal) {
-			signalId = Math.random().toString(36).slice(2);
-			this.signalMap.set(signalId, signal);
-		}
-		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+		this.iframeRuntime.beginOperation();
 
 		try {
+			if (!this.ready) await this.initialize();
+
+			const capability = await this.getToolCapabilities(request.model);
+			const shouldNormalizePromptMessages =
+				capability.mode === "prompt_injection";
+			const usePromptToolParsing =
+				shouldNormalizePromptMessages && !!request.tools?.length;
+			const processedRequest = shouldNormalizePromptMessages
+				? preparePromptToolRequest(request)
+				: request;
+
+			const {
+				signal,
+				tools,
+				tool_choice,
+				parallel_tool_calls,
+				...basePayload
+			} = processedRequest;
+
+			// Pass tools to the runner only when the model natively supports them
+			const requestPayload =
+				capability.mode === "native"
+					? { ...basePayload, tools, tool_choice }
+					: basePayload;
+
+			if (signal) {
+				signalId = Math.random().toString(36).slice(2);
+				this.signalMap.set(signalId, signal);
+			}
+			const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+
 			let response = (await this.send("chat/completions", payloadWithHints, {
 				signalId,
 			})) as ChatCompletionResponse;
@@ -241,40 +258,48 @@ export class WllamaLLM implements BaseLLM {
 			if (signalId) {
 				this.signalMap.delete(signalId);
 			}
+			await this.iframeRuntime.finishOperation();
 		}
 	}
 
 	private async *createStreamingCompletion(
 		request: ChatCompletionRequest,
 	): AsyncIterableIterator<ChatCompletionChunk> {
-		if (!this.ready) await this.initialize();
-
-		const capability = await this.getToolCapabilities(request.model);
-		const shouldNormalizePromptMessages =
-			capability.mode === "prompt_injection";
-		const usePromptToolParsing =
-			shouldNormalizePromptMessages && !!request.tools?.length;
-		const processedRequest = shouldNormalizePromptMessages
-			? preparePromptToolRequest(request)
-			: request;
-
-		const { signal, tools, tool_choice, parallel_tool_calls, ...basePayload } =
-			processedRequest;
-
-		// Pass tools to the runner only when the model natively supports them
-		const requestPayload =
-			capability.mode === "native"
-				? { ...basePayload, tools, tool_choice }
-				: basePayload;
-
 		let signalId: string | undefined;
-		if (signal) {
-			signalId = Math.random().toString(36).slice(2);
-			this.signalMap.set(signalId, signal);
-		}
-		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+		this.iframeRuntime.beginOperation();
 
 		try {
+			if (!this.ready) await this.initialize();
+
+			const capability = await this.getToolCapabilities(request.model);
+			const shouldNormalizePromptMessages =
+				capability.mode === "prompt_injection";
+			const usePromptToolParsing =
+				shouldNormalizePromptMessages && !!request.tools?.length;
+			const processedRequest = shouldNormalizePromptMessages
+				? preparePromptToolRequest(request)
+				: request;
+
+			const {
+				signal,
+				tools,
+				tool_choice,
+				parallel_tool_calls,
+				...basePayload
+			} = processedRequest;
+
+			// Pass tools to the runner only when the model natively supports them
+			const requestPayload =
+				capability.mode === "native"
+					? { ...basePayload, tools, tool_choice }
+					: basePayload;
+
+			if (signal) {
+				signalId = Math.random().toString(36).slice(2);
+				this.signalMap.set(signalId, signal);
+			}
+			const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+
 			const chunks: ChatCompletionChunk[] = [];
 			let streamEnded = false;
 			let streamError: Error | null = null;
@@ -355,27 +380,40 @@ export class WllamaLLM implements BaseLLM {
 			if (signalId) {
 				this.signalMap.delete(signalId);
 			}
+			await this.iframeRuntime.finishOperation();
 		}
 	}
 
 	async unload(modelId: string): Promise<void> {
-		if (!this.ready) await this.initialize();
-		const parts = modelId.split("/");
-		if (parts.length < 3) {
-			throw new Error('Model ID must be in format "username/repo/filename"');
+		this.iframeRuntime.beginOperation();
+		try {
+			if (!this.ready) await this.initialize();
+			const parts = modelId.split("/");
+			if (parts.length < 3) {
+				throw new Error('Model ID must be in format "username/repo/filename"');
+			}
+			const request: UnloadRequest = { model: modelId };
+			await this.send("unload", request);
+			await this.iframeRuntime.refreshModelsAfterMutation();
+		} finally {
+			await this.iframeRuntime.finishOperation();
 		}
-		const request: UnloadRequest = { model: modelId };
-		await this.send("unload", request);
 	}
 
 	async delete(modelId: string): Promise<void> {
-		if (!this.ready) await this.initialize();
-		const parts = modelId.split("/");
-		if (parts.length < 3) {
-			throw new Error('Model ID must be in format "username/repo/filename"');
+		this.iframeRuntime.beginOperation();
+		try {
+			if (!this.ready) await this.initialize();
+			const parts = modelId.split("/");
+			if (parts.length < 3) {
+				throw new Error('Model ID must be in format "username/repo/filename"');
+			}
+			const request: DeleteRequest = { model: modelId };
+			await this.send("delete", request);
+			await this.iframeRuntime.refreshModelsAfterMutation();
+		} finally {
+			await this.iframeRuntime.finishOperation();
 		}
-		const request: DeleteRequest = { model: modelId };
-		await this.send("delete", request);
 	}
 
 	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
@@ -403,40 +441,50 @@ export class WllamaLLM implements BaseLLM {
 		model: string,
 		onProgress?: (progress: ProgressEvent) => void,
 	): Promise<ModelInfo> {
-		if (!this.ready) await this.initialize();
-		const parts = model.split("/");
-		if (parts.length < 3) {
-			throw new Error('Model must be in format "username/repo/filename"');
-		}
-
-		// Avoid reloading a model that's already active inside the runner
-		const existingModels = await this.models();
-		const existingModel = existingModels.data.find(
-			(m) => m.loaded && m.id.toLowerCase() === model.toLowerCase(),
-		);
-		if (existingModel) {
-			if (onProgress) {
-				onProgress({
-					loaded: existingModel.size ?? 0,
-					total: existingModel.size ?? 0,
-					percent: 100,
-				});
+		let keepAlive = false;
+		this.iframeRuntime.beginOperation();
+		try {
+			if (!this.ready) await this.initialize();
+			const parts = model.split("/");
+			if (parts.length < 3) {
+				throw new Error('Model must be in format "username/repo/filename"');
 			}
-			return existingModel;
+
+			// Avoid reloading a model that's already active inside the runner
+			const existingModels = await this.iframeRuntime.refreshModels();
+			const existingModel = existingModels.data.find(
+				(m) => m.loaded && m.id.toLowerCase() === model.toLowerCase(),
+			);
+			if (existingModel) {
+				if (onProgress) {
+					onProgress({
+						loaded: existingModel.size ?? 0,
+						total: existingModel.size ?? 0,
+						percent: 100,
+					});
+				}
+				keepAlive = await this.iframeRuntime.shouldKeepAliveFor(existingModel);
+				return existingModel;
+			}
+
+			const request: ServeRequest = { model };
+			const response = (await this.send(
+				"serve",
+				await this.withRunnerMemoryHint(request),
+				{ onProgress },
+			)) as ModelInfo & { capabilities?: DetectedCapabilities };
+
+			const modelInfo = this.iframeRuntime.upsertCachedModel(response);
+			keepAlive = await this.iframeRuntime.shouldKeepAliveFor(modelInfo);
+
+			if (response.capabilities) {
+				this.modelCapabilities.set(model, response.capabilities);
+			}
+
+			return modelInfo;
+		} finally {
+			await this.iframeRuntime.finishOperation({ keepAlive });
 		}
-
-		const request: ServeRequest = { model };
-		const response = (await this.send(
-			"serve",
-			await this.withRunnerMemoryHint(request),
-			{ onProgress },
-		)) as ModelInfo & { capabilities?: DetectedCapabilities };
-
-		if (response.capabilities) {
-			this.modelCapabilities.set(model, response.capabilities);
-		}
-
-		return response;
 	}
 
 	async loadModelFromHF(
@@ -487,6 +535,7 @@ export class WllamaLLM implements BaseLLM {
 	}
 
 	destroy(): void {
+		this.iframeRuntime.cancelIdleDestroy();
 		this.iframe?.remove();
 		this.iframe = null;
 		window.removeEventListener("message", this.onMessage);

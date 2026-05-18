@@ -3,29 +3,35 @@ import { OPENUI_COMPONENTS_TEXT } from "./components";
 export const OPENUI_SYSTEM_PROMPT = `
 # OpenUI response format
 
-You can respond with either normal markdown or OpenUI Lang. Use OpenUI Lang when
-the answer benefits from structure, tables, charts, forms, knowledge cards,
-timelines, or follow-up actions. Use normal markdown for simple prose answers.
+You are in visualize-response mode. Every assistant response MUST include
+OpenUI Lang. Do not return markdown-only or prose-only responses.
 
-CRITICAL RULE: If the user's message contains any of the following intents —
-"show me", "render", "display", "visualize", "draw", "generate a chart",
-"make a table", "give me a card", or any similar request to visually present
-information — you MUST respond in OpenUI Lang format. Do NOT fall back to
-markdown for these requests under any circumstances.
+CRITICAL: Always use this format for the response:
 
-OpenUI Lang is plain text. Do not wrap it in markdown fences. It must start with
-a variable assignment:
+root = CardBlock(title, description, [
+  ...visual components that best present the answer...
+], optionalTheme)
 
-root = CardBlock("Title", "Optional description", [
-  TextContent("Answer text"),
-  FollowUpBlock([
-    FollowUpItem("Show more detail")
-  ])
-])
+This requirement applies to every user message, including simple prose answers.
+Do NOT fall back to markdown-only responses under any circumstances.
+
+OpenUI Lang is plain text. The top-level format is:
+
+root = CardBlock(title, description, children, optionalTheme)
+
+Choose children that visualize the answer well. Prefer structured components
+such as TableBlock, FactList, EntityList, Timeline, ProgressBlock, AlertBlock,
+TabsBlock, CollapsibleBlock, ButtonsBlock, or FollowUpBlock when they fit the
+answer. Use TextContent only for short explanatory text inside a larger visual
+response, not as the default whole response.
 
 Syntax rules:
-- The first visible line must be an assignment like root = CardBlock(...).
-- The root component must be CardBlock.
+- The OpenUI payload must contain a top-level assignment:
+  root = CardBlock(title, description, children, optionalTheme)
+- The root component must always be CardBlock.
+- Do not wrap OpenUI Lang in markdown fences.
+- Prefer returning only OpenUI Lang. If you include explanatory text, the
+  root = CardBlock(...) payload must still be complete and parseable.
 - Use positional arguments in the exact order shown below.
 - Strings must use double quotes.
 - Arrays use square brackets.

@@ -32,6 +32,7 @@ import {
 	type RunnerMemoryHint,
 } from "../utils/runner-memory-hints";
 import { getModel } from "../registry/model-registry";
+import { IframeRuntime } from "./iframe-runtime";
 
 interface ServeRequest {
 	model: string;
@@ -124,9 +125,17 @@ export class TransformerLLM implements BaseLLM {
 		ReturnType<typeof detectSystemSpecs>
 	> | null> | null = null;
 	private url: string;
+	private iframeRuntime: IframeRuntime;
 
 	constructor(url = LLM_RUNNER_URLS?.transformer) {
 		this.url = url;
+		this.iframeRuntime = new IframeRuntime({
+			provider: this.name,
+			ensureReady: () => this.initialize(),
+			isReady: () => this.ready,
+			destroyIframe: () => this.destroy(),
+			fetchModels: () => this.send("models") as Promise<ModelsResponse>,
+		});
 	}
 
 	async initialize(): Promise<void> {
@@ -161,6 +170,9 @@ export class TransformerLLM implements BaseLLM {
 
 			await this.send("init");
 			this.ready = true;
+		} catch (error) {
+			this.destroy();
+			throw error;
 		} finally {
 			this.loading = false;
 		}
@@ -179,12 +191,10 @@ export class TransformerLLM implements BaseLLM {
 	}
 
 	async models(): Promise<ModelsResponse> {
-		if (!this.ready) await this.initialize();
-		const response = (await this.send("models")) as ModelsResponse;
-		response.data.forEach((model) => {
-			model.provider = "transformer";
-		});
-		return response;
+		return (
+			(await this.iframeRuntime.cachedModelsWhenNotCurrent()) ??
+			(await this.iframeRuntime.run(() => this.iframeRuntime.refreshModels()))
+		);
 	}
 
 	chatCompletions(
@@ -208,41 +218,43 @@ export class TransformerLLM implements BaseLLM {
 	private async createCompletion(
 		request: ChatCompletionRequest,
 	): Promise<ChatCompletionResponse> {
-		if (!this.ready) await this.initialize();
-
-		const capability = await this.getToolCapabilities(request.model);
-		const shouldNormalizePromptMessages =
-			capability.mode === "prompt_injection";
-		const useToolParsing = !!request.tools?.length;
-		const processedRequest = shouldNormalizePromptMessages
-			? preparePromptToolRequest(request)
-			: request;
-
-		const { signal } = processedRequest;
-		const requestPayload = shouldNormalizePromptMessages
-			? (() => {
-					const {
-						signal: _signal,
-						tools: _tools,
-						tool_choice: _toolChoice,
-						parallel_tool_calls: _parallelToolCalls,
-						...payload
-					} = processedRequest;
-					return payload;
-				})()
-			: (() => {
-					const { signal: _signal, ...payload } = processedRequest;
-					return payload;
-				})();
-		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
-
 		let signalId: string | undefined;
-		if (signal) {
-			signalId = Math.random().toString(36).slice(2);
-			this.signalMap.set(signalId, signal);
-		}
+		this.iframeRuntime.beginOperation();
 
 		try {
+			if (!this.ready) await this.initialize();
+
+			const capability = await this.getToolCapabilities(request.model);
+			const shouldNormalizePromptMessages =
+				capability.mode === "prompt_injection";
+			const useToolParsing = !!request.tools?.length;
+			const processedRequest = shouldNormalizePromptMessages
+				? preparePromptToolRequest(request)
+				: request;
+
+			const { signal } = processedRequest;
+			const requestPayload = shouldNormalizePromptMessages
+				? (() => {
+						const {
+							signal: _signal,
+							tools: _tools,
+							tool_choice: _toolChoice,
+							parallel_tool_calls: _parallelToolCalls,
+							...payload
+						} = processedRequest;
+						return payload;
+					})()
+				: (() => {
+						const { signal: _signal, ...payload } = processedRequest;
+						return payload;
+					})();
+			const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+
+			if (signal) {
+				signalId = Math.random().toString(36).slice(2);
+				this.signalMap.set(signalId, signal);
+			}
+
 			let response = (await this.send("chat/completions", payloadWithHints, {
 				signalId,
 			})) as ChatCompletionResponse;
@@ -266,47 +278,50 @@ export class TransformerLLM implements BaseLLM {
 			if (signalId) {
 				this.signalMap.delete(signalId);
 			}
+			await this.iframeRuntime.finishOperation();
 		}
 	}
 
 	private async *createStreamingCompletion(
 		request: ChatCompletionRequest,
 	): AsyncIterableIterator<ChatCompletionChunk> {
-		if (!this.ready) await this.initialize();
-
-		const capability = await this.getToolCapabilities(request.model);
-		const shouldNormalizePromptMessages =
-			capability.mode === "prompt_injection";
-		const useToolParsing = !!request.tools?.length;
-		const processedRequest = shouldNormalizePromptMessages
-			? preparePromptToolRequest(request)
-			: request;
-
-		const { signal } = processedRequest;
-		const requestPayload = shouldNormalizePromptMessages
-			? (() => {
-					const {
-						signal: _signal,
-						tools: _tools,
-						tool_choice: _toolChoice,
-						parallel_tool_calls: _parallelToolCalls,
-						...payload
-					} = processedRequest;
-					return payload;
-				})()
-			: (() => {
-					const { signal: _signal, ...payload } = processedRequest;
-					return payload;
-				})();
-		const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
-
 		let signalId: string | undefined;
-		if (signal) {
-			signalId = Math.random().toString(36).slice(2);
-			this.signalMap.set(signalId, signal);
-		}
+		this.iframeRuntime.beginOperation();
 
 		try {
+			if (!this.ready) await this.initialize();
+
+			const capability = await this.getToolCapabilities(request.model);
+			const shouldNormalizePromptMessages =
+				capability.mode === "prompt_injection";
+			const useToolParsing = !!request.tools?.length;
+			const processedRequest = shouldNormalizePromptMessages
+				? preparePromptToolRequest(request)
+				: request;
+
+			const { signal } = processedRequest;
+			const requestPayload = shouldNormalizePromptMessages
+				? (() => {
+						const {
+							signal: _signal,
+							tools: _tools,
+							tool_choice: _toolChoice,
+							parallel_tool_calls: _parallelToolCalls,
+							...payload
+						} = processedRequest;
+						return payload;
+					})()
+				: (() => {
+						const { signal: _signal, ...payload } = processedRequest;
+						return payload;
+					})();
+			const payloadWithHints = await this.withRunnerMemoryHint(requestPayload);
+
+			if (signal) {
+				signalId = Math.random().toString(36).slice(2);
+				this.signalMap.set(signalId, signal);
+			}
+
 			const chunks: ChatCompletionChunk[] = [];
 			let streamEnded = false;
 			let streamError: Error | null = null;
@@ -387,6 +402,7 @@ export class TransformerLLM implements BaseLLM {
 			if (signalId) {
 				this.signalMap.delete(signalId);
 			}
+			await this.iframeRuntime.finishOperation();
 		}
 	}
 
@@ -430,15 +446,27 @@ export class TransformerLLM implements BaseLLM {
 	}
 
 	async unload(modelId: string): Promise<void> {
-		if (!this.ready) await this.initialize();
-		const request: UnloadRequest = { model: modelId };
-		await this.send("unload", request);
+		this.iframeRuntime.beginOperation();
+		try {
+			if (!this.ready) await this.initialize();
+			const request: UnloadRequest = { model: modelId };
+			await this.send("unload", request);
+			await this.iframeRuntime.refreshModelsAfterMutation();
+		} finally {
+			await this.iframeRuntime.finishOperation();
+		}
 	}
 
 	async delete(modelId: string): Promise<void> {
-		if (!this.ready) await this.initialize();
-		const request: DeleteRequest = { model: modelId };
-		await this.send("delete", request);
+		this.iframeRuntime.beginOperation();
+		try {
+			if (!this.ready) await this.initialize();
+			const request: DeleteRequest = { model: modelId };
+			await this.send("delete", request);
+			await this.iframeRuntime.refreshModelsAfterMutation();
+		} finally {
+			await this.iframeRuntime.finishOperation();
+		}
 	}
 
 	async getToolCapabilities(model?: string): Promise<ToolCapabilityInfo> {
@@ -465,32 +493,42 @@ export class TransformerLLM implements BaseLLM {
 		model: string,
 		onProgress?: (progress: ProgressEvent) => void,
 	): Promise<ModelInfo> {
-		if (!this.ready) await this.initialize();
+		let keepAlive = false;
+		this.iframeRuntime.beginOperation();
+		try {
+			if (!this.ready) await this.initialize();
 
-		// Avoid reloading a model that's already active inside the runner
-		const existingModels = await this.models();
-		const existingModel = existingModels.data.find(
-			(m) => m.loaded && m.id.toLowerCase() === model.toLowerCase(),
-		);
-		if (existingModel) {
-			if (onProgress) {
-				onProgress({
-					loaded: existingModel.size ?? 0,
-					total: existingModel.size ?? 0,
-					percent: 100,
-				});
+			// Avoid reloading a model that's already active inside the runner
+			const existingModels = await this.iframeRuntime.refreshModels();
+			const existingModel = existingModels.data.find(
+				(m) => m.loaded && m.id.toLowerCase() === model.toLowerCase(),
+			);
+			if (existingModel) {
+				if (onProgress) {
+					onProgress({
+						loaded: existingModel.size ?? 0,
+						total: existingModel.size ?? 0,
+						percent: 100,
+					});
+				}
+				keepAlive = await this.iframeRuntime.shouldKeepAliveFor(existingModel);
+				return existingModel;
 			}
-			return existingModel;
-		}
 
-		const request: ServeRequest = { model };
-		const response = await this.send("serve", request, { onProgress });
-		const modelInfo = response as ModelInfo;
-		this.servedModelCapabilities.set(model, {
-			supportsNativeTools: modelInfo.supportsNativeTools === true,
-			supportsVision: modelInfo.supportsVision === true,
-		});
-		return modelInfo;
+			const request: ServeRequest = { model };
+			const response = await this.send("serve", request, { onProgress });
+			const modelInfo = this.iframeRuntime.upsertCachedModel(
+				response as ModelInfo,
+			);
+			keepAlive = await this.iframeRuntime.shouldKeepAliveFor(modelInfo);
+			this.servedModelCapabilities.set(model, {
+				supportsNativeTools: modelInfo.supportsNativeTools === true,
+				supportsVision: modelInfo.supportsVision === true,
+			});
+			return modelInfo;
+		} finally {
+			await this.iframeRuntime.finishOperation({ keepAlive });
+		}
 	}
 
 	async loadModelFromHF(
@@ -501,6 +539,7 @@ export class TransformerLLM implements BaseLLM {
 	}
 
 	destroy(): void {
+		this.iframeRuntime.cancelIdleDestroy();
 		this.iframe?.remove();
 		this.iframe = null;
 		window.removeEventListener("message", this.onMessage);

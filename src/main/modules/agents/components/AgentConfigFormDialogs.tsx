@@ -108,7 +108,12 @@ export const AgentDeleteDialog = NiceModal.create<AgentDeleteDialogProps>(
 									</span>
 								</span>
 							</label>
-						) : null}
+						) : (
+							<div className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 p-3 text-sm text-muted-foreground">
+								<Network size={14} className="shrink-0" />
+								{ta("delete.noLinkedMemory")}
+							</div>
+						)}
 					</div>
 
 					<DialogFooter className="border-t px-5 py-4">
