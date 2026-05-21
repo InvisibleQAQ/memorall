@@ -118,6 +118,31 @@ Image rules:
 - Animate images with Ken Burns, parallax drift, mask reveals, or subtle float. Never leave a still image completely static for its whole scene.
 - If no relevant asset exists, create a clean CSS/SVG mark inside the HTML instead of referencing a missing filename.
 
+### Using Lucide icons
+
+Use Lucide icons for simple interface symbols, not hand-authored SVG paths. Include the Lucide browser package in the HTML and place icons with simple \`data-lucide\` markup:
+
+\`\`\`html
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.542.0/dist/umd/lucide.js"></script>
+
+<i data-lucide="sparkles" class="hf-icon"></i>
+<i data-lucide="chart-no-axes-combined" class="hf-icon"></i>
+\`\`\`
+
+Then call Lucide before creating GSAP tweens:
+
+\`\`\`js
+if (window.lucide) window.lucide.createIcons();
+\`\`\`
+
+Icon rules:
+
+- Prefer Lucide icons for UI metaphors, stats, feature bullets, arrows, controls, alerts, and decorative line symbols.
+- Do not invent SVG path data for icons. Use \`<i data-lucide="icon-name">\` and style the generated SVG with CSS.
+- Use lowercase kebab-case Lucide names, for example \`sparkles\`, \`arrow-right\`, \`circle-check\`, \`play\`, \`zap\`, \`shield-check\`, \`chart-no-axes-combined\`.
+- Size and color with CSS: \`width\`, \`height\`, \`color\`, \`stroke-width\`. Do not use CSS masks for Lucide icons.
+- Animate the icon element or generated SVG with GSAP after \`lucide.createIcons()\`.
+
 ---
 
 ## Step 2: Pick a skeleton
@@ -165,6 +190,7 @@ tl.from("#s3-title", { y: 40, autoAlpha: 0, duration: 0.6, ease: "power3.out" },
 | SVG line | Draws in | SVG stroke draw |
 | Title | Characters enter | Character stagger |
 | Logo | Subtle drift | Breathing float |
+| Lucide icon | Pop, drift, pulse, rotate | Icon motion |
 | Chart bars | Fill sequentially | Bar chart fill |
 | Image | Slow zoom | Ken Burns |
 | Accent | Sweep across | Highlight sweep |
@@ -266,6 +292,7 @@ Tell the user: what you built, what to refine next (be specific — "scene 4's c
 - [ ] Scene windows tile end-to-end (no gaps)
 - [ ] No transition < 0.3s, no exit tweens except final scene
 - [ ] \`window.__timelines["main"] = tl\` matches \`data-composition-id\`
+- [ ] Lucide icons use \`<i data-lucide="...">\`, \`lucide.createIcons()\` runs before GSAP tweens, and no invented SVG icon paths are present
 
 ---
 
@@ -280,6 +307,7 @@ Tell the user: what you built, what to refine next (be specific — "scene 4's c
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1080, height=1920" />
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.542.0/dist/umd/lucide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -322,6 +350,7 @@ Tell the user: what you built, what to refine next (be specific — "scene 4's c
     </div>
     <script>
       window.__timelines = window.__timelines || {};
+      if (window.lucide) window.lucide.createIcons();
       var tl = gsap.timeline({ paused: true });
       tl.set("#s1",{ autoAlpha:0 },2.5);
       tl.set("#s2",{ autoAlpha:1 },2.5); tl.set("#s2",{ autoAlpha:0 },5.0);
@@ -349,6 +378,7 @@ Tell the user: what you built, what to refine next (be specific — "scene 4's c
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.542.0/dist/umd/lucide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -398,6 +428,7 @@ Tell the user: what you built, what to refine next (be specific — "scene 4's c
     </div>
     <script>
       window.__timelines = window.__timelines || {};
+      if (window.lucide) window.lucide.createIcons();
       var tl = gsap.timeline({ paused: true });
       tl.set("#s1",{autoAlpha:0},3.0);
       tl.set("#s2",{autoAlpha:1},3.0); tl.set("#s2",{autoAlpha:0},6.0);
@@ -458,6 +489,19 @@ tl.from(".char",{y:60,autoAlpha:0,duration:0.5,ease:"power3.out",stagger:{each:0
 ### Breathing float
 \`\`\`js
 tl.to("#s4-logo",{y:-5,duration:1.5,ease:"sine.inOut",yoyo:true,repeat:1},15.0);
+\`\`\`
+
+### Lucide icon motion
+\`\`\`html
+<i data-lucide="sparkles" class="hf-icon" id="s2-spark"></i>
+\`\`\`
+\`\`\`css
+.hf-icon{width:72px;height:72px;color:var(--accent);stroke-width:2.5}
+\`\`\`
+\`\`\`js
+if (window.lucide) window.lucide.createIcons();
+tl.from("#s2-spark",{scale:0.7,rotate:-12,autoAlpha:0,duration:0.5,ease:"back.out(1.6)"},3.2);
+tl.to("#s2-spark",{y:-6,duration:1.2,ease:"sine.inOut",yoyo:true,repeat:1},3.8);
 \`\`\`
 
 ### Bar chart fill
