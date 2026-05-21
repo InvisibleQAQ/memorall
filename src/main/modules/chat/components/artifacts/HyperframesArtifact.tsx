@@ -17,6 +17,16 @@ const mimeForPath = (path: string): string =>
 	IMAGE_MIME_TYPES[path.split(/[?#]/)[0]?.split(".").pop()?.toLowerCase() ?? ""] ??
 	"application/octet-stream";
 
+const safeFilenameBase = (value?: string): string => {
+	const cleaned = (value?.trim() || "hyperframes-composition")
+		.replace(/[<>:"/\\|?*\x00-\x1f]+/g, "-")
+		.replace(/\s+/g, "-")
+		.replace(/-+/g, "-")
+		.replace(/^-|-$/g, "")
+		.slice(0, 80);
+	return cleaned || "hyperframes-composition";
+};
+
 const blobToDataUrl = async (url: string): Promise<string | null> => {
 	try {
 		const response = await fetch(url);
@@ -247,6 +257,7 @@ const ensureHyperframesPlayer = (): Promise<void> => {
 
 export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 	content,
+	identifier,
 	title,
 }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -256,7 +267,7 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 	// contentDocument probing for this URL, keeping cross-origin postMessage as
 	// the only communication channel (which works fine).
 	const previewUrl =
-		"https://zrg-team.github.io/memorall/sandbox/hyperframes-preview.html";
+		"https://zrg-team.github.io/memorall/hyperframes-preview.html";
 	const [previewHtml, setPreviewHtml] = useState<NormalizedComposition | null>(null);
 
 	// Normalise the composition HTML (inline stale blob scripts, convert images).
@@ -278,7 +289,12 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 	//   the composition HTML, so we only need one message listener here — no
 	//   manual retry loop required.
 	const postComposition = useCallback(
-		(player: HyperframesPlayerElement, key: string, composition: NormalizedComposition): void => {
+		(
+			player: HyperframesPlayerElement,
+			key: string,
+			composition: NormalizedComposition,
+			filenameBase: string,
+		): void => {
 			try {
 				player.iframeElement?.contentWindow?.postMessage(
 					{
@@ -286,6 +302,7 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 						key,
 						html: composition.html,
 						inlineScripts: composition.inlineScripts,
+						filenameBase,
 					},
 					"*",
 				);
@@ -308,6 +325,7 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 		const compositionUrl = new URL(previewUrl);
 		compositionUrl.hash = `composition=${encodeURIComponent(key)}`;
 		const composition = previewHtml; // capture non-null for closure
+		const filenameBase = safeFilenameBase(title || identifier || key);
 
 		void ensureHyperframesPlayer().then(() => {
 			if (cancelled) return;
@@ -330,7 +348,7 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 					event.data?.type === "memorall:hyperframes-composition-ready" &&
 					event.data.key === key
 				) {
-					postComposition(player, key, composition);
+					postComposition(player, key, composition, filenameBase);
 				}
 			};
 			window.addEventListener("message", onMessage);
@@ -345,7 +363,7 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 			removeMessageListener?.();
 			container.textContent = "";
 		};
-	}, [postComposition, previewHtml, previewUrl]);
+	}, [identifier, postComposition, previewHtml, previewUrl, title]);
 
 	return (
 		<div

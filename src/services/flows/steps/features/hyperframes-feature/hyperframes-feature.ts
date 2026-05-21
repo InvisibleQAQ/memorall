@@ -55,7 +55,6 @@ Everything runs in the browser — no CLI, no Node.js required.
 | \`hyperframes_validate(project_path)\` | Lint for structural errors |
 | \`hyperframes_show(project_path)\` | Preview with play/pause + scrub bar |
 | \`hyperframes_capture_frame(project_path, time)\` | Capture a single frame as an image at a specific timestamp |
-| \`hyperframes_export_video(project_path, output_path)\` | Render to MP4 and save to any /documents path |
 
 All tools use \`project_path\` — a workspace path like \`/workspaces/product-launch\`.
 The composition file is always \`{project_path}/index.html\`.
@@ -68,7 +67,7 @@ The composition file is always \`{project_path}/index.html\`.
 | **Update / edit** | read → write (updated HTML) → validate → show |
 | **Verify a scene** | capture_frame(project_path, time) → inspect visually |
 | **Show the user** | show |
-| **Build to MP4** | export_video(project_path, output_path) |
+| **Build to MP4** | show, then use the in-preview Download MP4 button |
 
 ---
 
@@ -461,11 +460,10 @@ export const HYPERFRAMES_FEATURE_TOOLS = [
 	"hyperframes_validate",
 	"hyperframes_show",
 	"hyperframes_capture_frame",
-	"hyperframes_export_video",
 ] as const;
 
 export const HYPERFRAMES_FEATURE_DESCRIPTION =
-	"Enable HyperFrames video composition — agent writes, previews, and exports HTML+GSAP video compositions entirely in the browser.";
+	"Enable HyperFrames video composition — agent writes, previews, and captures HTML+GSAP video compositions entirely in the browser.";
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -536,7 +534,7 @@ featureCatalogRegistry.register({
 		{
 			name: "tools",
 			type: "Tool[]",
-			description: "HyperFrames tools: write, validate, show, export.",
+			description: "HyperFrames tools: write, validate, show, capture.",
 		},
 	],
 	metadata: {
