@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Download, Loader2 } from "lucide-react";
 import { documentFileSystemService } from "@/services/filesystem/document-filesystem";
 import {
 	FILESYSTEM_MOUNT_PATH,
@@ -355,6 +356,20 @@ type HyperframesPlayerElement = HTMLElement & {
 	iframeElement?: HTMLIFrameElement;
 };
 
+type ExportPhase = "idle" | "preparing" | "exporting" | "complete" | "failed";
+
+type ExportState = {
+	phase: ExportPhase;
+	frame?: number;
+	total?: number;
+	error?: string;
+};
+
+type PendingDownload = {
+	url: string;
+	filename: string;
+};
+
 let hyperframesPlayerLoad: Promise<void> | null = null;
 
 const ensureHyperframesPlayer = (): Promise<void> => {
@@ -378,20 +393,38 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 	title,
 }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
+	const playerRef = useRef<HyperframesPlayerElement | null>(null);
+	const compositionKeyRef = useRef<string | null>(null);
+	const filenameBaseRef = useRef<string>("hyperframes-composition");
+	const pendingDownloadRef = useRef<PendingDownload | null>(null);
 	// Use the GitHub Pages runner — no extension CSP applies there, so inline
 	// animation scripts execute without restriction. The "/sandbox/" path segment
 	// matches the player patch that removes the iframe sandbox attribute and skips
 	// contentDocument probing for this URL, keeping cross-origin postMessage as
 	// the only communication channel (which works fine).
 	const previewUrl =
-		"https://zrg-team.github.io/memorall/hyperframes-preview.html?v=20260522-download-mp4-2";
+		"https://zrg-team.github.io/memorall/hyperframes-preview.html?v=20260522-download-mp4-3";
 	const [previewHtml, setPreviewHtml] = useState<NormalizedComposition | null>(
 		null,
 	);
+	const [exportState, setExportState] = useState<ExportState>({
+		phase: "idle",
+	});
+	const [pendingDownload, setPendingDownload] =
+		useState<PendingDownload | null>(null);
+
+	const clearPendingDownload = useCallback(() => {
+		const pending = pendingDownloadRef.current;
+		if (pending) URL.revokeObjectURL(pending.url);
+		pendingDownloadRef.current = null;
+		setPendingDownload(null);
+	}, []);
 
 	// Normalise the composition HTML (inline stale blob scripts, convert images).
 	useEffect(() => {
 		let cancelled = false;
+		clearPendingDownload();
+		setExportState({ phase: "idle" });
 		setPreviewHtml(null);
 		void normalizeHyperframesHtml(content).then((result) => {
 			if (!cancelled) setPreviewHtml(result);
@@ -399,7 +432,7 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 		return () => {
 			cancelled = true;
 		};
-	}, [content]);
+	}, [clearPendingDownload, content]);
 
 	// Deliver the composition to the GitHub Pages runner via postMessage.
 	//
@@ -438,18 +471,23 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 
 		let cancelled = false;
 		let removeMessageListener: (() => void) | null = null;
+		clearPendingDownload();
+		setExportState({ phase: "idle" });
 		const key = `memorall-hyperframes:${Date.now()}:${Math.random()
 			.toString(36)
 			.slice(2)}`;
+		compositionKeyRef.current = key;
 		const compositionUrl = new URL(previewUrl);
 		compositionUrl.hash = `composition=${encodeURIComponent(key)}`;
 		const composition = previewHtml; // capture non-null for closure
 		const filenameBase = safeFilenameBase(title || identifier || key);
+		filenameBaseRef.current = filenameBase;
 
 		void ensureHyperframesPlayer().then(() => {
 			if (cancelled) return;
 
 			container.textContent = "";
+			playerRef.current = null;
 			const player = document.createElement(
 				"hyperframes-player",
 			) as HyperframesPlayerElement;
@@ -458,6 +496,7 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 			player.setAttribute("muted", "");
 			player.style.cssText = "display:block;width:100%;height:100%";
 			container.appendChild(player);
+			playerRef.current = player;
 
 			// Listen for the "ready" signal from the GitHub Pages runner.
 			// The runner re-sends "ready" every 100 ms so there is no race
@@ -468,6 +507,57 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 					event.data.key === key
 				) {
 					postComposition(player, key, composition, filenameBase);
+					return;
+				}
+
+				if (
+					event.data?.type === "memorall:hyperframes-export-status" &&
+					event.data.key === key
+				) {
+					const status = event.data.status;
+					if (status === "idle") {
+						setExportState({ phase: "idle" });
+					} else if (status === "preparing" || status === "busy") {
+						clearPendingDownload();
+						setExportState({ phase: "preparing" });
+					} else if (status === "exporting") {
+						setExportState({
+							phase: "exporting",
+							frame:
+								typeof event.data.frame === "number"
+									? event.data.frame
+									: undefined,
+							total:
+								typeof event.data.total === "number"
+									? event.data.total
+									: undefined,
+						});
+					} else if (status === "complete") {
+						const blob =
+							event.data.blob instanceof Blob ? event.data.blob : null;
+						const filename =
+							typeof event.data.filename === "string"
+								? event.data.filename
+								: `${filenameBase}.mp4`;
+						if (blob) {
+							clearPendingDownload();
+							const next = {
+								url: URL.createObjectURL(blob),
+								filename,
+							};
+							pendingDownloadRef.current = next;
+							setPendingDownload(next);
+							setExportState({ phase: "complete" });
+						}
+					} else if (status === "failed") {
+						setExportState({
+							phase: "failed",
+							error:
+								typeof event.data.error === "string"
+									? event.data.error
+									: "Export failed",
+						});
+					}
 				}
 			};
 			window.addEventListener("message", onMessage);
@@ -481,16 +571,93 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 		return () => {
 			cancelled = true;
 			removeMessageListener?.();
+			playerRef.current = null;
+			if (compositionKeyRef.current === key) {
+				compositionKeyRef.current = null;
+			}
 			container.textContent = "";
 		};
-	}, [identifier, postComposition, previewHtml, previewUrl, title]);
+	}, [
+		clearPendingDownload,
+		identifier,
+		postComposition,
+		previewHtml,
+		previewUrl,
+		title,
+	]);
+
+	useEffect(() => {
+		return () => clearPendingDownload();
+	}, [clearPendingDownload]);
+
+	const handleExportClick = useCallback(() => {
+		if (pendingDownloadRef.current) {
+			const link = document.createElement("a");
+			link.href = pendingDownloadRef.current.url;
+			link.download = pendingDownloadRef.current.filename;
+			document.body.appendChild(link);
+			link.click();
+			link.remove();
+			return;
+		}
+
+		const key = compositionKeyRef.current;
+		const target = playerRef.current?.iframeElement?.contentWindow;
+		if (!key || !target) return;
+
+		clearPendingDownload();
+		setExportState({ phase: "preparing" });
+		target.postMessage(
+			{
+				type: "memorall:hyperframes-export-mp4",
+				key,
+				filenameBase: filenameBaseRef.current,
+			},
+			"*",
+		);
+	}, [clearPendingDownload]);
+
+	const exportBusy =
+		exportState.phase === "preparing" || exportState.phase === "exporting";
+	const exportLabel =
+		exportState.phase === "preparing"
+			? "Preparing MP4"
+			: exportState.phase === "exporting"
+				? exportState.total
+					? `Exporting ${exportState.frame ?? 0}/${exportState.total}`
+					: "Exporting MP4"
+				: exportState.phase === "failed"
+					? "Export failed"
+					: pendingDownload || exportState.phase === "complete"
+						? "Download MP4"
+						: "Export MP4";
 
 	return (
-		<div
-			ref={containerRef}
-			className="my-2 overflow-hidden rounded-md bg-black"
-			style={{ display: "block", width: "100%", height: "60vh" }}
-			aria-label={title || "HyperFrames composition"}
-		/>
+		<div className="my-2 overflow-hidden rounded-md bg-black">
+			<div
+				className="flex items-center justify-end border-b border-white/10 bg-black px-3 py-2"
+				data-html2canvas-ignore="true"
+			>
+				<button
+					type="button"
+					onClick={handleExportClick}
+					disabled={exportBusy || !previewHtml}
+					className="inline-flex h-8 items-center gap-2 rounded-md border border-white/15 bg-white/10 px-3 text-xs font-medium text-white hover:bg-white/15 disabled:cursor-progress disabled:opacity-60"
+					title={exportState.error || "Export this HyperFrames composition as MP4"}
+				>
+					{exportBusy ? (
+						<Loader2 className="h-3.5 w-3.5 animate-spin" />
+					) : (
+						<Download className="h-3.5 w-3.5" />
+					)}
+					<span>{exportLabel}</span>
+				</button>
+			</div>
+			<div
+				ref={containerRef}
+				style={{ display: "block", width: "100%", height: "60vh" }}
+				aria-label={title || "HyperFrames composition"}
+			/>
+		</div>
 	);
 };
