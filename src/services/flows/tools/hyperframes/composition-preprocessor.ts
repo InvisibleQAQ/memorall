@@ -1,50 +1,5 @@
 import type { DocumentFileSystem } from "@/services/filesystem/document-filesystem";
 
-// ── CDN → local extension URL ─────────────────────────────────────────────────
-// All HyperFrames CDN scripts are bundled locally under vendors/hyperframes/
-// (copied by tools/copy-bundled-assets.mjs) and served from the extension's own
-// origin — covered by `script-src 'self'` without any manifest CSP additions.
-
-const CDN_TO_LOCAL: Record<string, string> = {
-	"https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js":
-		"vendors/hyperframes/gsap.min.js",
-	"https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js":
-		"vendors/hyperframes/hyperframe.runtime.iife.js",
-	"https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js":
-		"vendors/hyperframes/shader-transitions.global.js",
-	// html2canvas injected by withCaptureScript in capture/export tools
-	"https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js":
-		"vendors/hyperframes/html2canvas.min.js",
-};
-
-const rewriteCdnToLocal = (html: string): string => {
-	let result = html;
-	for (const [cdn, local] of Object.entries(CDN_TO_LOCAL)) {
-		const localUrl = chrome.runtime.getURL(local);
-		result = result.replaceAll(cdn, localUrl);
-	}
-	return result;
-};
-
-// ── Inline script → blob URL ──────────────────────────────────────────────────
-// Extension pages cannot execute inline scripts. This helper is kept for
-// non-extension contexts, but preview rendering should use the declared
-// sandbox page instead of blob scripts because extension CSP blocks them.
-
-const inlineScriptsToBlobUrls = (html: string): string =>
-	html.replace(
-		// Match <script> without a src= attribute (i.e. inline scripts)
-		/<script(?![^>]*\bsrc\s*=)([^>]*)>([\s\S]*?)<\/script>/gi,
-		(_, attrs: string, body: string) => {
-			const code = body.trim();
-			if (!code) return `<script${attrs}></script>`;
-			const blobUrl = URL.createObjectURL(
-				new Blob([code], { type: "application/javascript" }),
-			);
-			return `<script${attrs} src="${blobUrl}"></script>`;
-		},
-	);
-
 // ── Local image → data URL ────────────────────────────────────────────────────
 // Images referenced as src="/documents/..." can't load inside the player iframe
 // because the /documents/ path isn't a real URL. Read the file from FS and
@@ -125,12 +80,7 @@ const injectLocalImages = async (
 export const preprocessComposition = async (
 	html: string,
 	dfs: DocumentFileSystem,
-	options: { convertInlineScripts?: boolean } = {},
 ): Promise<string> => {
-	let processed = rewriteCdnToLocal(html);
-	if (options.convertInlineScripts) {
-		processed = inlineScriptsToBlobUrls(processed);
-	}
-	processed = await injectLocalImages(processed, dfs);
+	const processed = await injectLocalImages(html, dfs);
 	return processed;
 };
