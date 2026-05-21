@@ -311,7 +311,11 @@ export async function handleActivateSmartSelector(
 						context: JSON.stringify(item),
 					});
 				} else {
-					createFolderPickerOverlay(item, () => {}, () => {});
+					createFolderPickerOverlay(
+						item,
+						() => {},
+						() => {},
+					);
 				}
 			},
 			() => {},

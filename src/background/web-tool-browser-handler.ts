@@ -617,7 +617,11 @@ const handleFetchImageCommand = async (
 	try {
 		const response = await sendContentCommand(
 			request.tabId,
-			{ source: WEB_CONTENT_COMMAND_SOURCE, type: "web-tool:fetch-image", url: request.url },
+			{
+				source: WEB_CONTENT_COMMAND_SOURCE,
+				type: "web-tool:fetch-image",
+				url: request.url,
+			},
 			15_000,
 		);
 		if (response.type !== "web-tool:fetch-image-result") {

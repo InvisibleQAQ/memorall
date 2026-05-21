@@ -11,7 +11,13 @@ import { preprocessComposition } from "./hyperframes/composition-preprocessor";
 const TOOL_NAME = "render_memorall_artifact" as const;
 
 const schema = z.object({
-	type: z.enum(["text/html", "text/uri-list", "html", "url", "application/hyperframes"]),
+	type: z.enum([
+		"text/html",
+		"text/uri-list",
+		"html",
+		"url",
+		"application/hyperframes",
+	]),
 	content: z.string().min(1),
 	identifier: z.string().optional(),
 	title: z.string().optional(),
@@ -73,7 +79,10 @@ const preprocessArtifactContent = async (input: Input): Promise<Input> => {
 
 	return {
 		...input,
-		content: await preprocessComposition(input.content, documentFileSystemService),
+		content: await preprocessComposition(
+			input.content,
+			documentFileSystemService,
+		),
 	};
 };
 

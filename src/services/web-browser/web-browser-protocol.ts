@@ -357,7 +357,9 @@ export const isWebContentCommandResponse = (
 		case "web-tool:wait-selector-result":
 			return typeof value.matched === "boolean" && isRecord(value.snapshot);
 		case "web-tool:fetch-image-result":
-			return typeof value.base64 === "string" && typeof value.mimeType === "string";
+			return (
+				typeof value.base64 === "string" && typeof value.mimeType === "string"
+			);
 		default:
 			return false;
 	}

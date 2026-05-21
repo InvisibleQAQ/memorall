@@ -61,7 +61,8 @@ const EXT_MIME: Record<string, string> = {
 };
 
 const mimeFor = (path: string): string =>
-	EXT_MIME[path.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
+	EXT_MIME[path.split(".").pop()?.toLowerCase() ?? ""] ??
+	"application/octet-stream";
 
 const toBase64 = (bytes: Uint8Array): string => {
 	let binary = "";
@@ -75,10 +76,9 @@ const toBase64 = (bytes: Uint8Array): string => {
 
 const documentPathCandidates = (docPath: string): string[] => {
 	const stripped = docPath.replace(/^\/documents/, "") || "/";
-	return [
-		stripped,
-		docPath,
-	].filter((path, index, paths) => path && paths.indexOf(path) === index);
+	return [stripped, docPath].filter(
+		(path, index, paths) => path && paths.indexOf(path) === index,
+	);
 };
 
 const injectLocalImages = async (

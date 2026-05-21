@@ -39,7 +39,8 @@ export async function handleRememberThis(
 	} catch (error) {
 		sendResponse({
 			success: false,
-			error: error instanceof Error ? error.message : "Failed to extract content",
+			error:
+				error instanceof Error ? error.message : "Failed to extract content",
 		});
 	}
 }
@@ -96,8 +97,7 @@ export function handleLetRemember(
 	} catch (error) {
 		sendResponse({
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Failed to store context",
+			error: error instanceof Error ? error.message : "Failed to store context",
 		});
 	}
 }

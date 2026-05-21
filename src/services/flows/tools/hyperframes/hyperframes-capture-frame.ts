@@ -1,5 +1,9 @@
 import z from "zod";
-import type { Tool, ToolFactory, AllServices } from "@/services/flows/interfaces/tool";
+import type {
+	Tool,
+	ToolFactory,
+	AllServices,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import {
 	appendAssistantOutputToState,
@@ -18,11 +22,10 @@ const schema = z.object({
 	project_path: z
 		.string()
 		.min(1)
-		.describe("Workspace path to the project directory, e.g. /workspaces/product-launch"),
-	time: z
-		.number()
-		.min(0)
-		.describe("Timestamp in seconds to capture, e.g. 3.5"),
+		.describe(
+			"Workspace path to the project directory, e.g. /workspaces/product-launch",
+		),
+	time: z.number().min(0).describe("Timestamp in seconds to capture, e.g. 3.5"),
 });
 
 type Input = z.infer<typeof schema>;
@@ -42,7 +45,9 @@ type Html2CanvasFn = (
 const withCaptureScript = (html: string): string => {
 	const tag = `<script src="${HTML2CANVAS_CDN}"></script>`;
 	const idx = html.lastIndexOf("</body>");
-	return idx !== -1 ? `${html.slice(0, idx)}${tag}\n${html.slice(idx)}` : `${html}\n${tag}`;
+	return idx !== -1
+		? `${html.slice(0, idx)}${tag}\n${html.slice(idx)}`
+		: `${html}\n${tag}`;
 };
 
 const parseDimensions = (html: string): { width: number; height: number } => {
@@ -63,8 +68,14 @@ const pollUntil = (check: () => boolean, timeoutMs = 15_000): Promise<void> =>
 	new Promise((resolve, reject) => {
 		const start = Date.now();
 		const tick = (): void => {
-			if (check()) { resolve(); return; }
-			if (Date.now() - start > timeoutMs) { reject(new Error("Timed out")); return; }
+			if (check()) {
+				resolve();
+				return;
+			}
+			if (Date.now() - start > timeoutMs) {
+				reject(new Error("Timed out"));
+				return;
+			}
 			setTimeout(tick, 150);
 		};
 		tick();
@@ -111,7 +122,9 @@ export const createHyperframesCaptureFrameTool: ToolFactory<Input, Services> = (
 		].join(";");
 		document.body.appendChild(container);
 
-		const player = document.createElement("hyperframes-player") as HyperframesPlayer;
+		const player = document.createElement(
+			"hyperframes-player",
+		) as HyperframesPlayer;
 		player.setAttribute("src", blobUrl);
 		player.setAttribute("muted", "");
 		player.setAttribute("width", String(width));
@@ -130,12 +143,23 @@ export const createHyperframesCaptureFrameTool: ToolFactory<Input, Services> = (
 					() => reject(new Error("Player ready timeout (20s)")),
 					20_000,
 				);
-				player.addEventListener("ready", () => { clearTimeout(timeout); resolve(); }, { once: true });
-				player.addEventListener("error", (e) => {
-					clearTimeout(timeout);
-					const detail = (e as unknown as CustomEvent).detail;
-					reject(new Error(String(detail?.message ?? "Player load error")));
-				}, { once: true });
+				player.addEventListener(
+					"ready",
+					() => {
+						clearTimeout(timeout);
+						resolve();
+					},
+					{ once: true },
+				);
+				player.addEventListener(
+					"error",
+					(e) => {
+						clearTimeout(timeout);
+						const detail = (e as unknown as CustomEvent).detail;
+						reject(new Error(String(detail?.message ?? "Player load error")));
+					},
+					{ once: true },
+				);
 			});
 
 			const duration = player.duration;
@@ -150,20 +174,25 @@ export const createHyperframesCaptureFrameTool: ToolFactory<Input, Services> = (
 				return "Error: Cannot access composition iframe.";
 			}
 
-			const iframeWin = iframe.contentWindow as Window & { html2canvas?: Html2CanvasFn };
+			const iframeWin = iframe.contentWindow as Window & {
+				html2canvas?: Html2CanvasFn;
+			};
 			await pollUntil(() => typeof iframeWin.html2canvas === "function");
 
-			const frameCanvas = await iframeWin.html2canvas!(iframe.contentDocument.body, {
-				useCORS: true,
-				allowTaint: false,
-				scale: 0.5, // half-res for frame preview to keep artifact small
-				width,
-				height,
-				scrollX: 0,
-				scrollY: 0,
-				x: 0,
-				y: 0,
-			});
+			const frameCanvas = await iframeWin.html2canvas!(
+				iframe.contentDocument.body,
+				{
+					useCORS: true,
+					allowTaint: false,
+					scale: 0.5, // half-res for frame preview to keep artifact small
+					width,
+					height,
+					scrollX: 0,
+					scrollY: 0,
+					x: 0,
+					y: 0,
+				},
+			);
 
 			// Render as PNG data URL displayed inline as an HTML artifact
 			const dataUrl = frameCanvas.toDataURL("image/png");

@@ -55,6 +55,10 @@ Everything runs in the browser — no CLI, no Node.js required.
 | \`hyperframes_validate(project_path)\` | Lint for structural errors |
 | \`hyperframes_show(project_path)\` | Preview with play/pause + scrub bar |
 | \`hyperframes_capture_frame(project_path, time)\` | Capture a single frame as an image at a specific timestamp |
+| \`fs_ls(path)\` | List available project/document folders and asset directories |
+| \`fs_glob(path, pattern)\` | Find image, logo, brand, and source files across \`/documents\` and \`/workspaces\` |
+| \`fs_grep(path, pattern)\` | Search text files for brand names, color tokens, copy, or asset references |
+| \`fs_read(path)\` | Read text files such as briefs, markdown, CSS, SVG, manifests, or brand notes |
 
 All tools use \`project_path\` — a workspace path like \`/workspaces/product-launch\`.
 The composition file is always \`{project_path}/index.html\`.
@@ -84,6 +88,35 @@ You create ALL animations, transitions, and mid-scene activity. Every scene ship
 Extract palette, typography, and tone from: attachments (strongest), pasted content, research, URLs.
 
 If the prompt has none of: an attachment, hex code, named typeface, named aesthetic, or "just build" / "surprise me" — ask one short clarifying question with concrete options.
+
+### Using image and brand assets
+
+Before inventing visuals, look for existing assets when the user mentions a product, brand, logo, screenshot, app, file, folder, or prior project:
+
+1. Use \`fs_ls\` on likely roots such as \`/documents\`, \`/workspaces\`, and the target \`project_path\`.
+2. Use \`fs_glob\` for assets:
+   - \`**/*.{png,jpg,jpeg,webp,gif,svg,ico}\`
+   - \`**/*{logo,icon,brand,mark,screenshot,hero,asset}*\`
+   - \`**/*.{md,txt,json,css,html}\` for brand notes and source references.
+3. Use \`fs_grep\` for product names, color variables, slogans, image filenames, or CSS tokens before reading large files.
+4. Use \`fs_read\` only for text-like files. Do not read binary images with \`fs_read\`.
+
+Use discovered images directly in the composition:
+
+\`\`\`html
+<img src="/documents/brand/logo.png" alt="Brand logo" />
+<img src="/workspaces/product-launch/assets/screenshot.webp" alt="Product screenshot" />
+\`\`\`
+
+Image rules:
+
+- Prefer real user/project assets over generic placeholders.
+- Preserve the exact filesystem path returned by \`fs_ls\` or \`fs_glob\`.
+- Valid image paths can live under \`/documents/...\`, \`/workspaces/...\`, or legacy \`/workspace/...\`.
+- Always include descriptive \`alt\` text.
+- For logos/icons, use \`object-fit: contain\`; for screenshots/product images, use \`object-fit: cover\` or \`contain\` based on whether cropping would hide important UI.
+- Animate images with Ken Burns, parallax drift, mask reveals, or subtle float. Never leave a still image completely static for its whole scene.
+- If no relevant asset exists, create a clean CSS/SVG mark inside the HTML instead of referencing a missing filename.
 
 ---
 
@@ -451,7 +484,8 @@ tl.to("#s5-headline",{backgroundSize:"100% 30%",duration:0.6,ease:"power2.out"},
 \`\`\`
 `;
 
-export const HYPERFRAMES_FEATURE_SYSTEM_PROMPT = SYSTEM_PROMPT_INSTRUCTION.trim();
+export const HYPERFRAMES_FEATURE_SYSTEM_PROMPT =
+	SYSTEM_PROMPT_INSTRUCTION.trim();
 
 export const HYPERFRAMES_FEATURE_TOOLS = [
 	"hyperframes_init",
@@ -460,6 +494,10 @@ export const HYPERFRAMES_FEATURE_TOOLS = [
 	"hyperframes_validate",
 	"hyperframes_show",
 	"hyperframes_capture_frame",
+	"fs_ls",
+	"fs_glob",
+	"fs_grep",
+	"fs_read",
 ] as const;
 
 export const HYPERFRAMES_FEATURE_DESCRIPTION =
@@ -508,10 +546,10 @@ const definition = defineStep<
 
 type HyperframesFeatureSpec = StepSpecFromDefinition<typeof definition>;
 
-export const createHyperframesFeatureStep: StepFactoryFromSpec<HyperframesFeatureSpec> = (
-	services: HyperframesFeatureServices,
-	config?: HyperframesFeatureConfig,
-) => bindStep(definition, services, config);
+export const createHyperframesFeatureStep: StepFactoryFromSpec<
+	HyperframesFeatureSpec
+> = (services: HyperframesFeatureServices, config?: HyperframesFeatureConfig) =>
+	bindStep(definition, services, config);
 
 stepRegistry.register(STEP_NAME, createHyperframesFeatureStep, {
 	description: HYPERFRAMES_FEATURE_DESCRIPTION,

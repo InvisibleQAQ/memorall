@@ -250,7 +250,7 @@ A `blob:` URL is owned by the creating origin, so scripts loaded inside it (CDN 
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  hyperframes_export_video tool (browser context)    │
+│  HyperFrames preview runner (browser context)       │
 ├─────────────────────────────────────────────────────┤
 │ 1. Read HTML from FS (documentFileSystem service)   │
 │ 2. Inject HF runtime IIFE via loadHyperframeRuntimeSource() │
@@ -306,50 +306,33 @@ encoder.configure({
 });
 ```
 
-### New tool file
+### In-preview download implementation
 
 ```
-src/services/flows/tools/hyperframes/
-  hyperframes-export-video.ts    — hyperframes_export_video tool
+runner/js/hyperframes-preview.js
+  Download MP4 button — browser-side capture and encode
 ```
 
-**Tool contract:**
+**Download behavior:**
 ```typescript
-// Input
 {
-  path: string,        // workspace path to composition HTML, e.g. /workspaces/proj/index.html
-  output_path: string, // where to save the MP4, e.g. /workspaces/proj/output.mp4
-  fps?: number,        // default: 30
-  bitrate?: number,    // default: 5_000_000 (5 Mbps)
+  fps: 30,
+  format: "mp4",
+  destination: "browser download"
 }
-
-// Output (tool result string)
-"Exported to /workspaces/proj/output.mp4 (duration: 15.0s, frames: 450, size: 3.2 MB)"
 ```
 
-**Services needed:**
-```typescript
-type Services = Pick<AllServices, "documentFileSystem">;
-```
-
-The tool uses `documentFileSystem` to read the source HTML and write the output MP4 bytes.
+The runner lazy-loads `html2canvas` and Mediabunny from jsDelivr when the user clicks the button.
 
 ### Feature step update for Phase 3
-
-Add to `HYPERFRAMES_FEATURE_TOOLS`:
-```typescript
-"hyperframes_export_video",
-```
 
 Add a system prompt section:
 ```
 ## VIDEO EXPORT
 
-Use `hyperframes_export_video` to render a composition to MP4 in the browser.
-- Only do this when the user explicitly requests a video file
-- Preview first with `render_memorall_artifact` — export is slow (real-time × frames)
-- Output saves to the workspace filesystem
-- Users can also run `npx hyperframes render index.html -o output.mp4` locally (faster, CLI)
+Use `hyperframes_show` to preview the composition. The preview contains a Download MP4 button inside the iframe.
+- Export is slow (real-time × frames)
+- Output downloads through the browser
 ```
 
 ### Known limitations of the browser export approach
@@ -406,7 +389,7 @@ src/services/flows/tools/hyperframes/
   hyperframes-update-element.ts Phase 2 — hyperframes_update_element
   hyperframes-remove-element.ts Phase 2 — hyperframes_remove_element
   hyperframes-validate.ts       Phase 2 — hyperframes_validate
-  hyperframes-export-video.ts   Phase 3 — hyperframes_export_video
+  hyperframes-preview.js        Phase 3 — in-preview MP4 download
 ```
 
 **Changes to existing files:**

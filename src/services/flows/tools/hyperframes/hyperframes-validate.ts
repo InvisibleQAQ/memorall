@@ -1,5 +1,9 @@
 import z from "zod";
-import type { Tool, ToolFactory, AllServices } from "@/services/flows/interfaces/tool";
+import type {
+	Tool,
+	ToolFactory,
+	AllServices,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import {
 	lintHyperframeHtml,
@@ -13,7 +17,9 @@ const schema = z.object({
 	project_path: z
 		.string()
 		.min(1)
-		.describe("Workspace path to the project directory, e.g. /workspaces/product-launch"),
+		.describe(
+			"Workspace path to the project directory, e.g. /workspaces/product-launch",
+		),
 });
 
 type Input = z.infer<typeof schema>;
@@ -30,19 +36,29 @@ const SUPPRESSED_CODES = new Set([
 ]);
 
 const filterFindings = (result: HyperframeLintResult): HyperframeLintResult => {
-	const findings = result.findings.filter((f) => !SUPPRESSED_CODES.has(f.code ?? ""));
+	const findings = result.findings.filter(
+		(f) => !SUPPRESSED_CODES.has(f.code ?? ""),
+	);
 	const errorCount = findings.filter((f) => f.severity === "error").length;
 	const warningCount = findings.filter((f) => f.severity === "warning").length;
-	return { ...result, findings, ok: errorCount === 0, errorCount, warningCount };
+	return {
+		...result,
+		findings,
+		ok: errorCount === 0,
+		errorCount,
+		warningCount,
+	};
 };
 
 const formatResult = (result: HyperframeLintResult, file: string): string => {
-	const errPart = result.errorCount > 0
-		? `${result.errorCount} error${result.errorCount === 1 ? "" : "s"}`
-		: "";
-	const warnPart = result.warningCount > 0
-		? `${result.warningCount} warning${result.warningCount === 1 ? "" : "s"}`
-		: "";
+	const errPart =
+		result.errorCount > 0
+			? `${result.errorCount} error${result.errorCount === 1 ? "" : "s"}`
+			: "";
+	const warnPart =
+		result.warningCount > 0
+			? `${result.warningCount} warning${result.warningCount === 1 ? "" : "s"}`
+			: "";
 	const summary = result.ok
 		? `✓ Valid${warnPart ? ` (${warnPart})` : ""}`
 		: `✗ ${[errPart, warnPart].filter(Boolean).join(", ")}`;

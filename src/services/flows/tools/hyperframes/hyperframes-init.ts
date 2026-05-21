@@ -1,5 +1,9 @@
 import z from "zod";
-import type { Tool, ToolFactory, AllServices } from "@/services/flows/interfaces/tool";
+import type {
+	Tool,
+	ToolFactory,
+	AllServices,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import { compositionFile } from "./util";
 
@@ -75,7 +79,9 @@ const schema = z.object({
 	project_path: z
 		.string()
 		.min(1)
-		.describe("Workspace path for the new project, e.g. /workspaces/product-launch"),
+		.describe(
+			"Workspace path for the new project, e.g. /workspaces/product-launch",
+		),
 	force: z
 		.boolean()
 		.optional()

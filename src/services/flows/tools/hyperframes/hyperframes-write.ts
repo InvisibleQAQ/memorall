@@ -1,5 +1,9 @@
 import z from "zod";
-import type { Tool, ToolFactory, AllServices } from "@/services/flows/interfaces/tool";
+import type {
+	Tool,
+	ToolFactory,
+	AllServices,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import { compositionFile } from "./util";
 
@@ -9,7 +13,9 @@ const schema = z.object({
 	project_path: z
 		.string()
 		.min(1)
-		.describe("Workspace path to the project directory, e.g. /workspaces/product-launch"),
+		.describe(
+			"Workspace path to the project directory, e.g. /workspaces/product-launch",
+		),
 	content: z.string().min(1).describe("Full HyperFrames composition HTML"),
 });
 

@@ -4,6 +4,7 @@
  */
 
 import fs, { initializeFs, refreshFsCache } from "@/services/filesystem/fs";
+import type { FilesystemScope } from "@/services/filesystem/filesystem-paths";
 import { logInfo, logError, logDebug } from "@/utils/logger";
 import type {
 	DocumentFile,
@@ -24,7 +25,7 @@ export interface SandboxDocumentsMountSnapshot {
 	files: string[];
 }
 
-export type FilesystemChangeScope = "documents" | "workspace";
+export type FilesystemChangeScope = FilesystemScope;
 
 export type FilesystemChangeOperation =
 	| "write"

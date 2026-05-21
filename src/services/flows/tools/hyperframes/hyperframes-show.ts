@@ -1,5 +1,9 @@
 import z from "zod";
-import type { Tool, ToolFactory, AllServices } from "@/services/flows/interfaces/tool";
+import type {
+	Tool,
+	ToolFactory,
+	AllServices,
+} from "@/services/flows/interfaces/tool";
 import { toolRegistry } from "@/services/flows/tool-registry";
 import {
 	appendAssistantOutputToState,
@@ -14,14 +18,20 @@ const schema = z.object({
 	project_path: z
 		.string()
 		.min(1)
-		.describe("Workspace path to the project directory, e.g. /workspaces/product-launch"),
+		.describe(
+			"Workspace path to the project directory, e.g. /workspaces/product-launch",
+		),
 });
 
 type Input = z.infer<typeof schema>;
 type Services = Pick<AllServices, "documentFileSystem">;
 
 const escapeAttr = (v: string): string =>
-	v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	v
+		.replace(/&/g, "&amp;")
+		.replace(/"/g, "&quot;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
 
 export const createHyperframesShowTool: ToolFactory<Input, Services> = (
 	services,
@@ -48,7 +58,8 @@ export const createHyperframesShowTool: ToolFactory<Input, Services> = (
 		// Preprocess CDN scripts and local document images before previewing.
 		const html = await preprocessComposition(raw_html, dfs);
 		// Derive a display name from the last path segment
-		const name = input.project_path.split("/").filter(Boolean).pop() ?? "composition";
+		const name =
+			input.project_path.split("/").filter(Boolean).pop() ?? "composition";
 
 		const artifact = [
 			`\n\n<artifact`,

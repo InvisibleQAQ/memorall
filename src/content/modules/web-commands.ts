@@ -152,7 +152,11 @@ const executeDomAction = (
 	}
 
 	if (action === "scrollBottom") {
-		window.scrollTo({ top: document.body?.scrollHeight ?? 0, left: 0, behavior: "smooth" });
+		window.scrollTo({
+			top: document.body?.scrollHeight ?? 0,
+			left: 0,
+			behavior: "smooth",
+		});
 		return createElementRecord(element);
 	}
 
