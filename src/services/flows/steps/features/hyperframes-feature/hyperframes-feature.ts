@@ -54,7 +54,6 @@ Everything runs in the browser — no CLI, no Node.js required.
 | \`hyperframes_read(project_path)\` | Read the current composition HTML |
 | \`hyperframes_validate(project_path)\` | Lint for structural errors |
 | \`hyperframes_show(project_path)\` | Preview with play/pause + scrub bar |
-| \`hyperframes_capture_frame(project_path, time)\` | Capture a single frame as an image at a specific timestamp |
 | \`fs_ls(path)\` | List available project/document folders and asset directories |
 | \`fs_glob(path, pattern)\` | Find image, logo, brand, and source files across \`/documents\` and \`/workspaces\` |
 | \`fs_grep(path, pattern)\` | Search text files for brand names, color tokens, copy, or asset references |
@@ -537,7 +536,6 @@ export const HYPERFRAMES_FEATURE_TOOLS = [
 	"hyperframes_read",
 	"hyperframes_validate",
 	"hyperframes_show",
-	"hyperframes_capture_frame",
 	"fs_ls",
 	"fs_glob",
 	"fs_grep",
