@@ -1,30 +1,44 @@
+import { FILESYSTEM_MOUNT_PATH } from "@/services/filesystem/filesystem-paths";
+
 /** Strip trailing slashes for consistent path handling. */
 const normalize = (p: string): string =>
 	p.trim().replace(/\\/g, "/").replace(/\/+$/, "");
 
-const WORKSPACE_PREFIX = "/workspaces";
-const LEGACY_WORKSPACE_PREFIX = "/workspace";
-const INTERNAL_WORKSPACE_PREFIX = "/home/workspace";
+const INTERNAL_WORKSPACE_LEGACY_PREFIX = `/home/${FILESYSTEM_MOUNT_PATH.WORKSPACE_LEGACY}`;
+const INTERNAL_WORKSPACE_PREFIX = `/home/${FILESYSTEM_MOUNT_PATH.WORKSPACES}`;
 
 /** Normalize project paths into the public workspace namespace. */
 export const normalizeProjectPath = (projectPath: string): string => {
 	const normalized = normalize(projectPath);
-	if (!normalized) return WORKSPACE_PREFIX;
-	if (normalized === INTERNAL_WORKSPACE_PREFIX) return WORKSPACE_PREFIX;
+	if (!normalized) return FILESYSTEM_MOUNT_PATH.WORKSPACES;
+	if (normalized === INTERNAL_WORKSPACE_PREFIX)
+		return FILESYSTEM_MOUNT_PATH.WORKSPACES;
 	if (normalized.startsWith(`${INTERNAL_WORKSPACE_PREFIX}/`)) {
-		return `${WORKSPACE_PREFIX}${normalized.slice(
+		return `${FILESYSTEM_MOUNT_PATH.WORKSPACES}${normalized.slice(
 			INTERNAL_WORKSPACE_PREFIX.length,
 		)}`;
 	}
-	if (normalized === LEGACY_WORKSPACE_PREFIX) return WORKSPACE_PREFIX;
-	if (normalized.startsWith(`${LEGACY_WORKSPACE_PREFIX}/`)) {
-		return `${WORKSPACE_PREFIX}${normalized.slice(
-			LEGACY_WORKSPACE_PREFIX.length,
+
+	if (normalized === INTERNAL_WORKSPACE_LEGACY_PREFIX)
+		return FILESYSTEM_MOUNT_PATH.WORKSPACE_LEGACY;
+	if (normalized.startsWith(`${INTERNAL_WORKSPACE_LEGACY_PREFIX}/`)) {
+		return `${FILESYSTEM_MOUNT_PATH.WORKSPACE_LEGACY}${normalized.slice(
+			INTERNAL_WORKSPACE_LEGACY_PREFIX.length,
 		)}`;
 	}
-	if (normalized === WORKSPACE_PREFIX) return normalized;
-	if (normalized.startsWith(`${WORKSPACE_PREFIX}/`)) return normalized;
-	return `${WORKSPACE_PREFIX}/${normalized.replace(/^\/+/, "")}`;
+
+	if (normalized === FILESYSTEM_MOUNT_PATH.WORKSPACE_LEGACY)
+		return FILESYSTEM_MOUNT_PATH.WORKSPACE_LEGACY;
+	if (normalized.startsWith(`${FILESYSTEM_MOUNT_PATH.WORKSPACE_LEGACY}/`)) {
+		return `${FILESYSTEM_MOUNT_PATH.WORKSPACE_LEGACY}${normalized.slice(
+			FILESYSTEM_MOUNT_PATH.WORKSPACE_LEGACY.length,
+		)}`;
+	}
+	if (normalized === FILESYSTEM_MOUNT_PATH.WORKSPACES)
+		return FILESYSTEM_MOUNT_PATH.WORKSPACES;
+	if (normalized.startsWith(`${FILESYSTEM_MOUNT_PATH.WORKSPACES}/`))
+		return `${FILESYSTEM_MOUNT_PATH.WORKSPACES}${normalized.slice(FILESYSTEM_MOUNT_PATH.WORKSPACES.length)}`;
+	return `${FILESYSTEM_MOUNT_PATH.WORKSPACES}/${normalized.replace(/^\/+/, "")}`;
 };
 
 /** The composition HTML file inside a project directory. */
