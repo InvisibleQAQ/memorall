@@ -123,6 +123,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 	const [showPreviousGroups, setShowPreviousGroups] = React.useState(false);
 	const [isCompactSidePanelOpen, setIsCompactSidePanelOpen] =
 		React.useState(false);
+	const [isChatFullWidth, setIsChatFullWidth] = React.useState(false);
 	const [expandedMessageGroupId, setExpandedMessageGroupId] = React.useState<
 		string | null
 	>(null);
@@ -838,7 +839,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 						</div>
 					) : null}
 					<ConversationContent
-						className={`mx-auto flex w-full max-w-4xl flex-col ${
+						className={`mx-auto flex w-full flex-col ${
+							isChatFullWidth ? "max-w-full" : "max-w-4xl"
+						} ${
 							isCompactEmptyLanding
 								? "chat-conversation-content h-full min-h-0 space-y-3 pb-2 pt-12"
 								: isCompactChatSurface
@@ -916,6 +919,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 					attachedDocumentRefs={attachedDocumentRefs}
 					onAttachedDocumentRefsChange={setAttachedDocumentRefs}
 					isModelReady={isChatInputModelReady}
+					isFullWidth={isChatFullWidth}
+					onToggleFullWidth={() => setIsChatFullWidth((value) => !value)}
 					compactControls={isNarrowChatPanel}
 					onOpenAgentSettings={() => {
 						open(selectedAgentFlowId);

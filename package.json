@@ -29,7 +29,7 @@
     "package:edge": "node -e \"const{existsSync}=require('fs');const d='dist/edge';if(!existsSync(d)){throw new Error('dist/edge not found; run yarn run build:edge first')}require('child_process').execSync('tar -a -c -f ../../memorall-edge.zip *',{cwd:d,stdio:'inherit'})\"",
     "package:all": "yarn run build:prod && yarn run package:chrome && yarn run package:edge",
     "package": "node tools/build-manifest.mjs && node ./tools/build-publish.mjs",
-    "build:landing_page": "node tools/deploy-runner.mjs",
+    "build:sites": "node tools/deploy-runner.mjs",
     "type-check": "tsc --noEmit",
     "clean": "extension clean",
     "lint": "extension lint",

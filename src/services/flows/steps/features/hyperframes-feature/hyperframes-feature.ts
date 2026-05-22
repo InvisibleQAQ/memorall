@@ -55,7 +55,7 @@ Everything runs in the browser — no CLI, no Node.js required.
 | \`hyperframes_validate(project_path)\` | Lint for structural errors |
 | \`hyperframes_show(project_path)\` | Preview with play/pause + scrub bar |
 | \`hyperframes_remote_assets_explore(query, kind?)\` | Find free remote visual candidates from supported sources with fallback |
-| \`web_fetch_image(url, sessionId?, file_path?)\` | Import a chosen remote image/SVG into \`/documents\` |
+| \`hyperframes_remote_asset_import(project_path, url, sessionId?, asset_path?)\` | Import a chosen remote image/SVG into \`{project_path}/resources\` |
 | \`fs_ls(path)\` | List available project/document folders and asset directories |
 | \`fs_glob(path, pattern)\` | Find image, logo, brand, and source files across \`/documents\` and \`/workspaces\` |
 | \`fs_grep(path, pattern)\` | Search text files for brand names, color tokens, copy, or asset references |
@@ -128,8 +128,8 @@ Workflow:
 1. Call \`hyperframes_remote_assets_explore({ query, kind })\`.
 2. The tool tries supported sources in the best order and falls back automatically when a source is blocked or has too few candidates.
 3. Pick a strong \`candidate.url\` from the result.
-4. Call \`web_fetch_image({ url: candidate.url, sessionId, file_path })\` using the returned \`sessionId\`.
-5. Use the returned \`/documents/...\` path in the HyperFrames HTML. Prefer imported document paths over remote hotlinks.
+4. Call \`hyperframes_remote_asset_import({ project_path, url: candidate.url, sessionId, asset_path })\` using the returned \`sessionId\`.
+5. Save remote assets inside \`{project_path}/resources/...\`, then use the returned \`html_src\` such as \`./resources/images/vietnam-hero.jpg\` in the HyperFrames HTML. Prefer imported project-local assets over remote hotlinks.
 
 Remote source strategy:
 
@@ -142,8 +142,8 @@ Remote source strategy:
 Rules:
 
 - Use remote assets for drafts only when no better project asset exists.
-- Import assets into \`/documents/resources/images/...\` with \`web_fetch_image\`; then reference the local \`/documents\` path.
-- Keep filenames meaningful when passing \`file_path\`, e.g. \`/resources/images/vietnam-hero.jpg\`.
+- Import assets into \`{project_path}/resources/images/...\` with \`hyperframes_remote_asset_import\`; then reference the returned \`./resources/...\` path.
+- Keep filenames meaningful when passing \`asset_path\`, e.g. \`images/vietnam-hero.jpg\`.
 - Avoid direct Wikimedia Commons or Pixabay search pages in automated workflows; they often block browser automation. Use the remote-assets tool instead.
 - Always include descriptive \`alt\` text and animate the image in-scene.
 
@@ -580,7 +580,7 @@ export const HYPERFRAMES_FEATURE_TOOLS = [
 	"hyperframes_validate",
 	"hyperframes_show",
 	"hyperframes_remote_assets_explore",
-	"web_fetch_image",
+	"hyperframes_remote_asset_import",
 	"fs_ls",
 	"fs_glob",
 	"fs_grep",

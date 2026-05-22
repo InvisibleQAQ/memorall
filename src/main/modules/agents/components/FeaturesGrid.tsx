@@ -26,8 +26,8 @@ const BOTTOM_FEATURE_NAMES = new Set([
 	"documents-feature",
 	"documents-fs-feature",
 ]);
+const TOP_OTHER_FEATURE_ORDER = ["hyperframes-feature"] as const;
 const CORE_FEATURE_ORDER = [
-	"hyperframes-feature",
 	"knowledge-retrieval",
 	"fs-feature",
 	"nodejs-sandbox-feature",
@@ -41,6 +41,9 @@ const CORE_FEATURE_ORDER = [
 const CORE_FEATURE_NAMES = new Set<string>(CORE_FEATURE_ORDER);
 const CORE_FEATURE_RANK = new Map<string, number>(
 	CORE_FEATURE_ORDER.map((name, index) => [name, index]),
+);
+const TOP_OTHER_FEATURE_RANK = new Map<string, number>(
+	TOP_OTHER_FEATURE_ORDER.map((name, index) => [name, index]),
 );
 
 const getFeatureEnabled = (
@@ -169,7 +172,16 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ summary }) => {
 		);
 	const otherFeatures = filteredFeatures.filter(
 		(feature) => !CORE_FEATURE_NAMES.has(feature.name),
-	);
+	).sort((a, b) => {
+		const aRank = TOP_OTHER_FEATURE_RANK.get(a.name);
+		const bRank = TOP_OTHER_FEATURE_RANK.get(b.name);
+
+		if (aRank !== undefined || bRank !== undefined) {
+			return (aRank ?? Number.MAX_SAFE_INTEGER) - (bRank ?? Number.MAX_SAFE_INTEGER);
+		}
+
+		return 0;
+	});
 	const visibleOtherFeatures = showAll
 		? otherFeatures
 		: otherFeatures.slice(0, FEATURES_DEFAULT_VISIBLE);

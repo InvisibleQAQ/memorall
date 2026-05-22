@@ -25,10 +25,10 @@ const MIME_TO_EXT: Record<string, string> = {
 	"image/tiff": ".tiff",
 };
 
-const extFromMime = (mimeType: string): string =>
+export const extFromMime = (mimeType: string): string =>
 	MIME_TO_EXT[mimeType] ?? ".png";
 
-const filenameFromUrl = (url: string, mimeType: string): string => {
+export const filenameFromUrl = (url: string, mimeType: string): string => {
 	try {
 		const { pathname } = new URL(url);
 		const base = pathname.split("/").filter(Boolean).pop() ?? "";
@@ -37,6 +37,38 @@ const filenameFromUrl = (url: string, mimeType: string): string => {
 		// invalid URL — fall through
 	}
 	return `image-${crypto.randomUUID()}${extFromMime(mimeType)}`;
+};
+
+export const fetchImageBytesFromBrowserSession = async (
+	url: string,
+	sessionId?: string,
+): Promise<{
+	sessionId: string;
+	bytes: Uint8Array;
+	mimeType: string;
+}> => {
+	let resolvedSessionId: string | undefined = sessionId;
+	if (!resolvedSessionId) {
+		const latest = getLatestTabSession();
+		if (!latest) {
+			throw new Error(
+				"No active browser tab session found. Open a web session with web_open first.",
+			);
+		}
+		resolvedSessionId = latest.sessionId;
+	}
+
+	const { base64, mimeType } = await fetchImageFromSession(
+		resolvedSessionId,
+		url,
+	);
+	const binaryStr = atob(base64);
+	const bytes = new Uint8Array(binaryStr.length);
+	for (let i = 0; i < binaryStr.length; i++) {
+		bytes[i] = binaryStr.charCodeAt(i);
+	}
+
+	return { sessionId: resolvedSessionId, bytes, mimeType };
 };
 
 const ensureFolderExists = async (
@@ -92,32 +124,10 @@ export const createWebFetchImageTool: ToolFactory<Input, Services> = (
 		}
 
 		try {
-			// Resolve which session to use
-			let resolvedSessionId: string | undefined = input.sessionId;
-			if (!resolvedSessionId) {
-				const latest = getLatestTabSession();
-				if (!latest) {
-					return createDefaultWebErrorResult(
-						new Error(
-							"No active browser tab session found. Open a web session with web_open first.",
-						),
-					);
-				}
-				resolvedSessionId = latest.sessionId;
-			}
-
-			// Fetch image bytes via content script in the session's tab
-			const { base64, mimeType } = await fetchImageFromSession(
-				resolvedSessionId,
+			const { bytes, mimeType } = await fetchImageBytesFromBrowserSession(
 				input.url,
+				input.sessionId,
 			);
-
-			// Decode base64 → Uint8Array
-			const binaryStr = atob(base64);
-			const bytes = new Uint8Array(binaryStr.length);
-			for (let i = 0; i < binaryStr.length; i++) {
-				bytes[i] = binaryStr.charCodeAt(i);
-			}
 
 			// Resolve output path
 			const filename = filenameFromUrl(input.url, mimeType);
@@ -129,7 +139,11 @@ export const createWebFetchImageTool: ToolFactory<Input, Services> = (
 
 			await ensureFolderExists(dfs, parentPath);
 
-			const file = new File([bytes], fileName, { type: mimeType });
+			const fileBytes = bytes.buffer.slice(
+				bytes.byteOffset,
+				bytes.byteOffset + bytes.byteLength,
+			) as ArrayBuffer;
+			const file = new File([fileBytes], fileName, { type: mimeType });
 			await dfs.uploadFile(file, parentPath);
 
 			return createWebResult({

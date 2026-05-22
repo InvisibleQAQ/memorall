@@ -311,7 +311,7 @@ export const createHyperframesRemoteAssetsExploreTool: ToolFactory<
 > = (services): Tool<Input> => ({
 	name: TOOL_NAME,
 	description:
-		"Explore free remote visual assets for HyperFrames. Tries supported sources in best order (Openverse, Pexels, Unsplash, SVG Repo for vectors), falls back when a source is blocked or has too few candidates, and returns candidate image/SVG URLs to import with web_fetch_image.",
+		"Explore free remote visual assets for HyperFrames. Tries supported sources in best order (Openverse, Pexels, Unsplash, SVG Repo for vectors), falls back when a source is blocked or has too few candidates, and returns candidate image/SVG URLs to import with hyperframes_remote_asset_import.",
 	schema,
 	execute: async (input) => {
 		const webBrowser = requireWebBrowserService(services);
@@ -401,7 +401,7 @@ export const createHyperframesRemoteAssetsExploreTool: ToolFactory<
 							candidates,
 							attempts,
 							nextStep:
-								"Pick a candidate.url and call web_fetch_image with this sessionId to save it under /documents/resources/images, then use the /documents path in HyperFrames HTML.",
+								"Pick a candidate.url and call hyperframes_remote_asset_import with project_path, candidate.url, and this sessionId. Save under {project_path}/resources and use the returned ./resources/... html_src in HyperFrames HTML.",
 						});
 					}
 
@@ -433,8 +433,8 @@ export const createHyperframesRemoteAssetsExploreTool: ToolFactory<
 						candidateCount: 0,
 					});
 				} finally {
-					// Keep only the latest successful provider session available for
-					// web_fetch_image. Failed provider tabs are noisy and not useful.
+					// Keep only the useful provider session available for follow-up
+					// import. Failed provider tabs are noisy and not useful.
 					const shouldKeep = sessionId && keepSessionId === sessionId;
 					if (sessionId && !shouldKeep) {
 						await webBrowser.closeSession(sessionId).catch(() => undefined);
@@ -455,7 +455,7 @@ export const createHyperframesRemoteAssetsExploreTool: ToolFactory<
 					candidates: bestPartial.candidates,
 					attempts,
 					nextStep:
-						"These are the best partial candidates found. Pick a candidate.url and call web_fetch_image with this sessionId to save it under /documents/resources/images, then use the /documents path in HyperFrames HTML.",
+						"These are the best partial candidates found. Pick a candidate.url and call hyperframes_remote_asset_import with project_path, candidate.url, and this sessionId. Save under {project_path}/resources and use the returned ./resources/... html_src in HyperFrames HTML.",
 				});
 			}
 

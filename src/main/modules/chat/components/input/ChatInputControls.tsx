@@ -13,6 +13,8 @@ import {
 	Paperclip,
 	FileText,
 	Check,
+	Maximize2,
+	Minimize2,
 } from "lucide-react";
 
 import {
@@ -57,6 +59,8 @@ export interface ChatInputControlsProps {
 	onAttachFileClick: () => void;
 	onAttachDocumentClick: () => void;
 	canSubmit: boolean;
+	isFullWidth?: boolean;
+	onToggleFullWidth?: () => void;
 }
 
 export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
@@ -81,6 +85,8 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 	onAttachFileClick,
 	onAttachDocumentClick,
 	canSubmit,
+	isFullWidth = false,
+	onToggleFullWidth,
 }) => {
 	const { t } = useTranslation("chat");
 	const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
@@ -306,6 +312,44 @@ export const ChatInputControls: React.FC<ChatInputControlsProps> = ({
 				</div>
 
 				<div className="ml-auto flex shrink-0 items-center gap-1">
+					{onToggleFullWidth ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									disabled={isLoading}
+									onClick={onToggleFullWidth}
+									aria-label={
+										isFullWidth
+											? "Constrain chat width"
+											: "Expand chat to full width"
+									}
+									title={
+										isFullWidth
+											? "Constrain chat width"
+											: "Expand chat to full width"
+									}
+									className="h-8 w-8 rounded-xl px-0 text-xs text-muted-foreground hover:text-foreground"
+								>
+									{isFullWidth ? (
+										<Minimize2 size={12} />
+									) : (
+										<Maximize2 size={12} />
+									)}
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>
+								<p className="text-xs">
+									{isFullWidth
+										? "Constrain chat width"
+										: "Expand chat to full width"}
+								</p>
+							</TooltipContent>
+						</Tooltip>
+					) : null}
+
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button

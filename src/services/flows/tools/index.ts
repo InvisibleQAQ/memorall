@@ -78,3 +78,4 @@ import "./hyperframes/hyperframes-read";
 import "./hyperframes/hyperframes-show";
 import "./hyperframes/hyperframes-validate";
 import "./hyperframes/hyperframes-remote-assets-explore";
+import "./hyperframes/hyperframes-remote-asset-import";
