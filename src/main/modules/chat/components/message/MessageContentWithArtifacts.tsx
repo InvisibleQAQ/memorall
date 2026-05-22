@@ -40,13 +40,15 @@ export const MessageContentWithArtifacts: React.FC<{
 				}
 
 				return (
-					<ArtifactRenderer
-						key={key}
-						type={seg.type}
-						content={seg.content}
-						identifier={seg.identifier}
-						title={seg.title}
-					/>
+					<div key={key} className="space-y-3">
+						<ArtifactRenderer
+							type={seg.type}
+							content={seg.content}
+							identifier={seg.identifier}
+							title={seg.title}
+						/>
+						<div className="border-t border-border/40" />
+					</div>
 				);
 			}
 			const text = seg.text;

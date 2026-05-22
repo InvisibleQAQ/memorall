@@ -332,6 +332,10 @@
 				"name": "Bộ nhớ chủ động",
 				"description": "Ghi nhớ, truy xuất, cập nhật, xóa và giải thích các bộ nhớ lâu dài trong đồ thị chủ đề đang chọn."
 			},
+			"hyperframesFeature": {
+				"name": "Tạo video",
+				"description": "Tạo bản nháp video hoạt họa chạy trong trình duyệt với bố cục cảnh, xem trước và xuất MP4."
+			},
 			"visualizeResponse": {
 				"name": "Trực quan hóa phản hồi",
 				"description": "Tạo trực quan OpenUI tương tác dựa trên công cụ dữ liệu đồ thị tri thức."

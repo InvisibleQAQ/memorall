@@ -54,6 +54,8 @@ Everything runs in the browser — no CLI, no Node.js required.
 | \`hyperframes_read(project_path)\` | Read the current composition HTML |
 | \`hyperframes_validate(project_path)\` | Lint for structural errors |
 | \`hyperframes_show(project_path)\` | Preview with play/pause + scrub bar |
+| \`hyperframes_remote_assets_explore(query, kind?)\` | Find free remote visual candidates from supported sources with fallback |
+| \`web_fetch_image(url, sessionId?, file_path?)\` | Import a chosen remote image/SVG into \`/documents\` |
 | \`fs_ls(path)\` | List available project/document folders and asset directories |
 | \`fs_glob(path, pattern)\` | Find image, logo, brand, and source files across \`/documents\` and \`/workspaces\` |
 | \`fs_grep(path, pattern)\` | Search text files for brand names, color tokens, copy, or asset references |
@@ -117,6 +119,34 @@ Image rules:
 - Animate images with Ken Burns, parallax drift, mask reveals, or subtle float. Never leave a still image completely static for its whole scene.
 - If no relevant asset exists, create a clean CSS/SVG mark inside the HTML instead of referencing a missing filename.
 
+### Using remote free assets
+
+If local/user assets are missing or too weak for the video, use \`hyperframes_remote_assets_explore\` before writing placeholders.
+
+Workflow:
+
+1. Call \`hyperframes_remote_assets_explore({ query, kind })\`.
+2. The tool tries supported sources in the best order and falls back automatically when a source is blocked or has too few candidates.
+3. Pick a strong \`candidate.url\` from the result.
+4. Call \`web_fetch_image({ url: candidate.url, sessionId, file_path })\` using the returned \`sessionId\`.
+5. Use the returned \`/documents/...\` path in the HyperFrames HTML. Prefer imported document paths over remote hotlinks.
+
+Remote source strategy:
+
+| Need | Query kind | Source priority |
+|---|---|---|
+| Editorial/photo backgrounds | \`image\` or \`photo\` | Openverse → Pexels → Unsplash |
+| Icons, simple SVGs, vector symbols | \`svg\` or \`icon\` | SVG Repo → Openverse → Pexels → Unsplash |
+| Flexible visual fallback | \`any\` | Best supported order from the tool |
+
+Rules:
+
+- Use remote assets for drafts only when no better project asset exists.
+- Import assets into \`/documents/resources/images/...\` with \`web_fetch_image\`; then reference the local \`/documents\` path.
+- Keep filenames meaningful when passing \`file_path\`, e.g. \`/resources/images/vietnam-hero.jpg\`.
+- Avoid direct Wikimedia Commons or Pixabay search pages in automated workflows; they often block browser automation. Use the remote-assets tool instead.
+- Always include descriptive \`alt\` text and animate the image in-scene.
+
 ### Using Lucide icons
 
 Use Lucide icons for simple interface symbols, not hand-authored SVG paths. Include the Lucide browser package in the HTML and place icons with simple \`data-lucide\` markup:
@@ -141,6 +171,51 @@ Icon rules:
 - Use lowercase kebab-case Lucide names, for example \`sparkles\`, \`arrow-right\`, \`circle-check\`, \`play\`, \`zap\`, \`shield-check\`, \`chart-no-axes-combined\`.
 - Size and color with CSS: \`width\`, \`height\`, \`color\`, \`stroke-width\`. Do not use CSS masks for Lucide icons.
 - Animate the icon element or generated SVG with GSAP after \`lucide.createIcons()\`.
+
+### Using D3 and Three.js
+
+Use D3 and Three.js as optional visual power tools. GSAP remains the timeline owner.
+
+Include only the runtime you need:
+
+\`\`\`html
+<!-- D3: data-driven 2D SVG/canvas scenes -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+
+<!-- Three.js: procedural 3D scenes; use this pinned global build for plain HTML -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+\`\`\`
+
+Runtime choice:
+
+| Need | Use | Best visual style |
+|---|---|---|
+| Premium abstract depth, particles, glass panels, camera movement | Three.js | Procedural 3D hero, orbiting panels, particle fields, wave grids, holographic stacks |
+| Data story, stats, charts, maps, networks, timelines | D3 | Editorial data viz, animated bars/lines, radial stats, force networks, flow diagrams |
+| Icons, labels, UI metaphors | Lucide + GSAP | Crisp SVG icons with pop/drift/pulse |
+| Scene sequencing and all timing | GSAP | Main timeline, deterministic seeking |
+
+D3 rules:
+
+- Use D3 to generate data-driven SVG/canvas geometry. Use GSAP for animation timing.
+- Do not use \`d3.transition()\`, \`d3.timer()\`, \`setInterval\`, or \`requestAnimationFrame\`.
+- Favor polished templates: animated bar ranks, radial KPI rings, line-chart reveals, node networks, swimlanes, map-like grids, Sankey-style flows.
+- Keep generated SVG readable: named groups, classes, simple shapes, no giant hand-authored path blobs unless D3 computes them from data.
+
+Three.js rules:
+
+- Use Three.js for procedural 3D only: primitives, particles, lights, fog, camera moves, gradients, panels, rings, grids, and simple materials.
+- Do not require external models, GLB/GLTF, textures, HDRIs, loaders, module imports, or import maps.
+- Do not use \`requestAnimationFrame\`, \`Date.now()\`, \`performance.now()\`, clocks, or async render loops.
+- Render from explicit timeline time: \`renderThree(tl.time())\` or a GSAP \`onUpdate\`.
+- Always size the renderer from the composition dimensions, use \`alpha:true\`, and call \`renderer.render(scene,camera)\` after every seek/update.
+- Use Three sparingly: one strong procedural 3D scene is better than every scene becoming a canvas.
+
+Use case guidance:
+
+- Use Three for first-impression scenes: opening hero, product reveal, abstract brand world, futuristic transition bed, final CTA depth scene.
+- Use D3 for proof scenes: traction metrics, comparison, process explanation, market map, before/after numbers, roadmap, architecture flow.
+- Combine them by scene, not inside the same element: for example Three hero → hard cut → D3 proof chart → shader transition → CTA.
 
 ---
 
@@ -190,6 +265,8 @@ tl.from("#s3-title", { y: 40, autoAlpha: 0, duration: 0.6, ease: "power3.out" },
 | Title | Characters enter | Character stagger |
 | Logo | Subtle drift | Breathing float |
 | Lucide icon | Pop, drift, pulse, rotate | Icon motion |
+| D3 chart | Generate shapes, animate with GSAP | Data reveal |
+| Three scene | Render procedural 3D from GSAP time | 3D motion |
 | Chart bars | Fill sequentially | Bar chart fill |
 | Image | Slow zoom | Ken Burns |
 | Accent | Sweep across | Highlight sweep |
@@ -292,6 +369,8 @@ Tell the user: what you built, what to refine next (be specific — "scene 4's c
 - [ ] No transition < 0.3s, no exit tweens except final scene
 - [ ] \`window.__timelines["main"] = tl\` matches \`data-composition-id\`
 - [ ] Lucide icons use \`<i data-lucide="...">\`, \`lucide.createIcons()\` runs before GSAP tweens, and no invented SVG icon paths are present
+- [ ] D3, if used, generates geometry only; no \`d3.transition()\`, timers, or independent animation clocks
+- [ ] Three.js, if used, is procedural, asset-free, and rendered from GSAP/HyperFrames time; no \`requestAnimationFrame\` loop
 
 ---
 
@@ -369,87 +448,7 @@ Tell the user: what you built, what to refine next (be specific — "scene 4's c
 \`\`\`
 
 ### Skeleton B — Launch Teaser (1920×1080, 25s, 8 scenes)
-
-\`\`\`html
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1920, height=1080" />
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lucide@0.542.0/dist/umd/lucide.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- FILL: Google Fonts -->
-    <style>
-      :root{--bg:#0a0a0d;--ink:#f5f5f7;--accent:#7c6cff;--muted:#5a6270;--accent-dim:#3d3680;--font-display:"Space Grotesk",sans-serif;--font-data:"JetBrains Mono",monospace}
-      *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-      html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--ink)}
-      .scene{position:absolute;top:0;left:0;width:1920px;height:1080px;overflow:hidden}
-      .scene-content{width:100%;height:100%;padding:100px 160px;display:flex;flex-direction:column;justify-content:center;gap:24px;box-sizing:border-box;position:relative;z-index:1}
-      .display{font-family:var(--font-display);font-weight:700;line-height:1.1}
-      .body-text{font-family:var(--font-display);font-weight:300;line-height:1.4;color:var(--muted)}
-      .data-text{font-family:var(--font-data);font-weight:400;font-variant-numeric:tabular-nums}
-      .grain{position:absolute;inset:0;pointer-events:none;z-index:50;opacity:0.18;background-image:radial-gradient(rgba(255,255,255,0.08) 1px,transparent 1.2px),radial-gradient(rgba(0,0,0,0.18) 1px,transparent 1.2px);background-size:3px 3px,5px 5px;background-position:0 0,1px 2px;mix-blend-mode:overlay}
-      .vignette{position:absolute;inset:0;pointer-events:none;z-index:49;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.4) 100%)}
-    </style>
-  </head>
-  <body>
-    <div id="main" data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="25">
-      <div class="scene clip" id="s1" data-start="0" data-duration="3" data-track-index="0">
-        <div class="grain"></div><div class="vignette"></div><div class="scene-content"><!-- FILL: hook --></div>
-      </div>
-      <div class="scene clip" id="s2" data-start="3" data-duration="3" data-track-index="0" style="visibility:hidden;">
-        <div class="grain"></div><div class="vignette"></div><div class="scene-content"><!-- FILL: context --></div>
-      </div>
-      <div class="scene clip" id="s3" data-start="6" data-duration="3" data-track-index="0" style="visibility:hidden;">
-        <div class="grain"></div><div class="vignette"></div><div class="scene-content"><!-- FILL: build --></div>
-      </div>
-      <!-- SHADER ANCHOR GROUP 1 -->
-      <div class="scene clip" id="s4" data-start="9" data-duration="3.5" data-track-index="0" style="opacity:0;">
-        <div class="grain"></div><div class="vignette"></div><div class="scene-content"><!-- FILL: build to hero --></div>
-      </div>
-      <div class="scene clip" id="s5" data-start="12.5" data-duration="3" data-track-index="0" style="opacity:0;">
-        <div class="grain"></div><div class="vignette"></div><div class="scene-content"><!-- FILL: hero --></div>
-      </div>
-      <div class="scene clip" id="s6" data-start="15.5" data-duration="3" data-track-index="0" style="visibility:hidden;">
-        <div class="grain"></div><div class="vignette"></div><div class="scene-content"><!-- FILL: proof --></div>
-      </div>
-      <!-- SHADER ANCHOR GROUP 2 -->
-      <div class="scene clip" id="s7" data-start="18.5" data-duration="3" data-track-index="0" style="opacity:0;">
-        <div class="grain"></div><div class="vignette"></div><div class="scene-content"><!-- FILL: build to CTA --></div>
-      </div>
-      <div class="scene clip" id="s8" data-start="21.5" data-duration="3.5" data-track-index="0" style="opacity:0;">
-        <div class="grain"></div><div class="vignette"></div><div class="scene-content"><!-- FILL: CTA --></div>
-      </div>
-    </div>
-    <script>
-      window.__timelines = window.__timelines || {};
-      if (window.lucide) window.lucide.createIcons();
-      var tl = gsap.timeline({ paused: true });
-      tl.set("#s1",{autoAlpha:0},3.0);
-      tl.set("#s2",{autoAlpha:1},3.0); tl.set("#s2",{autoAlpha:0},6.0);
-      tl.set("#s3",{autoAlpha:1},6.0); tl.set("#s3",{autoAlpha:0},9.0);
-      tl.set("#s4",{opacity:1},9.0);   // first anchor group 1
-      tl.set("#s6",{autoAlpha:1},15.5); tl.set("#s6",{autoAlpha:0},18.5);
-      tl.set("#s7",{opacity:1},18.5);   // first anchor group 2
-      // === FILL: scene animations ===
-      window.HyperShader.init({
-        bgColor:getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#0a0a0d",
-        scenes:["s4","s5","s7","s8"],timeline:tl,
-        transitions:[
-          {time:12.25,shader:"cinematic-zoom",duration:0.5},
-          {time:15.25,shader:"light-leak",duration:0.5},
-          {time:21.25,shader:"cross-warp-morph",duration:0.5},
-        ],
-      });
-      window.__timelines["main"] = tl;
-    </script>
-  </body>
-</html>
-\`\`\`
+Same structure as A but landscape 1920×1080. 8 scenes totaling 25s. 2 shader anchor groups (s4–s5, s7–s8). Rhythm: \`3-3-3-3.5-3-3-3-3.5\`.
 
 ### Skeleton C — Product Explainer (1920×1080, 45s, 12 scenes)
 Same structure as B. 12 scenes totaling 45s. Mix durations: 3s, 3.5s, 4s, 5s. Rhythm: \`3-3-4-3.5-4-5-3.5-4-3.5-4-4-3.5\`.
@@ -503,6 +502,50 @@ tl.from("#s2-spark",{scale:0.7,rotate:-12,autoAlpha:0,duration:0.5,ease:"back.ou
 tl.to("#s2-spark",{y:-6,duration:1.2,ease:"sine.inOut",yoyo:true,repeat:1},3.8);
 \`\`\`
 
+### D3 data reveal
+\`\`\`html
+<svg id="s4-chart" class="hf-d3" width="760" height="360" viewBox="0 0 760 360"></svg>
+\`\`\`
+\`\`\`js
+var data=[42,68,91,76,105];
+var svg=d3.select("#s4-chart");
+svg.selectAll("rect").data(data).join("rect")
+  .attr("x",function(d,i){return 40+i*135})
+  .attr("y",function(d){return 320-d*2.4})
+  .attr("width",84).attr("height",function(d){return d*2.4})
+  .attr("rx",10).attr("fill","var(--accent)");
+tl.from("#s4-chart rect",{scaleY:0,transformOrigin:"bottom",duration:0.8,ease:"expo.out",stagger:0.08},12.8);
+\`\`\`
+
+### Three procedural hero
+\`\`\`html
+<canvas id="s1-three" class="hf-three"></canvas>
+\`\`\`
+\`\`\`js
+var canvas=document.getElementById("s1-three");
+var renderer=new THREE.WebGLRenderer({canvas:canvas,alpha:true,antialias:true});
+renderer.setSize(1920,1080,false);
+var scene=new THREE.Scene();
+var camera=new THREE.PerspectiveCamera(45,1920/1080,0.1,100);
+camera.position.z=7;
+var group=new THREE.Group(); scene.add(group);
+for(var i=0;i<48;i++){
+  var geo=new THREE.BoxGeometry(0.22,0.22,0.22);
+  var mat=new THREE.MeshBasicMaterial({color:i%3===0?0x7c6cff:0xf5f5f7,transparent:true,opacity:0.78});
+  var cube=new THREE.Mesh(geo,mat);
+  cube.position.set(Math.sin(i*1.7)*2.8,Math.cos(i*1.1)*1.5,(i%12)*0.18-1.1);
+  group.add(cube);
+}
+function renderThree(t){
+  group.rotation.x=t*0.18;
+  group.rotation.y=t*0.42;
+  camera.position.z=7+Math.sin(t*0.7)*0.35;
+  renderer.render(scene,camera);
+}
+renderThree(0);
+tl.to({},{duration:4,onUpdate:function(){renderThree(tl.time())}},0);
+\`\`\`
+
 ### Bar chart fill
 \`\`\`js
 ["#bar1","#bar2","#bar3","#bar4"].forEach(function(sel,i){
@@ -536,6 +579,8 @@ export const HYPERFRAMES_FEATURE_TOOLS = [
 	"hyperframes_read",
 	"hyperframes_validate",
 	"hyperframes_show",
+	"hyperframes_remote_assets_explore",
+	"web_fetch_image",
 	"fs_ls",
 	"fs_glob",
 	"fs_grep",
@@ -543,7 +588,7 @@ export const HYPERFRAMES_FEATURE_TOOLS = [
 ] as const;
 
 export const HYPERFRAMES_FEATURE_DESCRIPTION =
-	"Enable HyperFrames video composition — agent writes, previews, and captures HTML+GSAP video compositions entirely in the browser.";
+	"Create browser-rendered video drafts with animated scenes, previews, and MP4 export-ready HyperFrames compositions.";
 
 // ============================================================================
 // STEP IMPLEMENTATION
@@ -620,7 +665,7 @@ featureCatalogRegistry.register({
 	metadata: {
 		description: HYPERFRAMES_FEATURE_DESCRIPTION,
 		descriptionKey: "flowBuilder.features.hyperframesFeature.description",
-		displayName: "HyperFrames",
+		displayName: "Video Creator",
 		nameKey: "flowBuilder.features.hyperframesFeature.name",
 		tools: [...HYPERFRAMES_FEATURE_TOOLS],
 		systemPrompt: HYPERFRAMES_FEATURE_SYSTEM_PROMPT,

@@ -27,6 +27,7 @@ const BOTTOM_FEATURE_NAMES = new Set([
 	"documents-fs-feature",
 ]);
 const CORE_FEATURE_ORDER = [
+	"hyperframes-feature",
 	"knowledge-retrieval",
 	"fs-feature",
 	"nodejs-sandbox-feature",
