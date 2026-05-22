@@ -57,7 +57,9 @@ const normalizeResourceAssetPath = (
 	const parts = raw.split("/").filter(Boolean);
 	if (!parts.length) return `images/${defaultFilename}`;
 	if (parts.some((part) => part === "." || part === "..")) {
-		throw new Error("asset_path must stay inside the project resources folder.");
+		throw new Error(
+			"asset_path must stay inside the project resources folder.",
+		);
 	}
 	return parts
 		.map((part, index) =>

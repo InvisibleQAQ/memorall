@@ -170,18 +170,21 @@ export const FeaturesGrid: React.FC<FeaturesGridProps> = ({ summary }) => {
 				(CORE_FEATURE_RANK.get(a.name) ?? Number.MAX_SAFE_INTEGER) -
 				(CORE_FEATURE_RANK.get(b.name) ?? Number.MAX_SAFE_INTEGER),
 		);
-	const otherFeatures = filteredFeatures.filter(
-		(feature) => !CORE_FEATURE_NAMES.has(feature.name),
-	).sort((a, b) => {
-		const aRank = TOP_OTHER_FEATURE_RANK.get(a.name);
-		const bRank = TOP_OTHER_FEATURE_RANK.get(b.name);
+	const otherFeatures = filteredFeatures
+		.filter((feature) => !CORE_FEATURE_NAMES.has(feature.name))
+		.sort((a, b) => {
+			const aRank = TOP_OTHER_FEATURE_RANK.get(a.name);
+			const bRank = TOP_OTHER_FEATURE_RANK.get(b.name);
 
-		if (aRank !== undefined || bRank !== undefined) {
-			return (aRank ?? Number.MAX_SAFE_INTEGER) - (bRank ?? Number.MAX_SAFE_INTEGER);
-		}
+			if (aRank !== undefined || bRank !== undefined) {
+				return (
+					(aRank ?? Number.MAX_SAFE_INTEGER) -
+					(bRank ?? Number.MAX_SAFE_INTEGER)
+				);
+			}
 
-		return 0;
-	});
+			return 0;
+		});
 	const visibleOtherFeatures = showAll
 		? otherFeatures
 		: otherFeatures.slice(0, FEATURES_DEFAULT_VISIBLE);

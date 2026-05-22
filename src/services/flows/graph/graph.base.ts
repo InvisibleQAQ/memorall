@@ -439,6 +439,27 @@ export class GraphBase<N extends string, T extends BaseStateBase, S = unknown> {
 				(message) =>
 					message.role === "tool" && message.tool_call_id === toolCallId,
 			),
+		injectUserContext: (
+			messages: ChatCompletionMessageParam[],
+			content: string,
+		): ChatCompletionMessageParam[] => {
+			const lastUserIdx = messages.findLastIndex((m) => m.role === "user");
+			if (lastUserIdx === -1) return messages;
+			const lastUser = messages[lastUserIdx];
+			const updated = [...messages];
+			updated[lastUserIdx] = (
+				typeof lastUser.content === "string"
+					? { ...lastUser, content: `${lastUser.content}\n\n${content}` }
+					: {
+							...lastUser,
+							content: [
+								...((lastUser.content as ChatCompletionContentPart[]) ?? []),
+								{ type: "text" as const, text: content },
+							],
+						}
+			) as ChatCompletionMessageParam;
+			return updated;
+		},
 		addTool,
 		removeTool: (current: GraphTool[], ...names: ToolName[]): GraphTool[] =>
 			current.filter(

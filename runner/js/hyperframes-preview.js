@@ -23,9 +23,9 @@ const THREE_GLOBAL_URL =
 	"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js";
 const GSAP_URL = "https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js";
 const HYPERFRAMES_RUNTIME_URL =
-	"https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js";
+	"https://cdn.jsdelivr.net/npm/@hyperframes/core@0.6.33/dist/hyperframe.runtime.iife.js";
 const HYPERFRAMES_SHADER_URL =
-	"https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js";
+	"https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions@0.6.33/dist/index.global.js";
 const HTML2CANVAS_URL =
 	"https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
 

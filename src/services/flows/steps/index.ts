@@ -33,6 +33,8 @@ import "./common/agent-completion";
 import "./common/add-system";
 import "./common/add-skill-context";
 import "./common/context-to-system";
+import "./common/current-time";
+import "./common/gpt-boost";
 
 // Feature steps
 import "./features";

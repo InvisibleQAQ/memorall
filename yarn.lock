@@ -1614,9 +1614,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@hyperframes/core@npm:^0.6.25":
-  version: 0.6.25
-  resolution: "@hyperframes/core@npm:0.6.25"
+"@hyperframes/core@npm:^0.6.33":
+  version: 0.6.33
+  resolution: "@hyperframes/core@npm:0.6.33"
   dependencies:
     "@chenglou/pretext": "npm:^0.0.5"
     esbuild: "npm:^0.25.12"
@@ -1632,23 +1632,23 @@ __metadata:
   peerDependenciesMeta:
     hono:
       optional: true
-  checksum: 10c0/83bdc730b901771da98b8a64f8248f9a69815a9f0c373d3043dd78bd5d6851b73a7532d56a4c8c7625598a53a56a61e3b81c7583ff9b2444f6e9449ea1c2897c
+  checksum: 10c0/d0767a88888756fe2a99c5255e6e4198bfd09df8d31f9382ee6d2eb289ee0fee508e1e854e3dc475602ac9854590608984f322cd9c093841e80ea36c6e4ce052
   languageName: node
   linkType: hard
 
-"@hyperframes/player@npm:^0.6.25":
-  version: 0.6.25
-  resolution: "@hyperframes/player@npm:0.6.25"
-  checksum: 10c0/71c667aa0891e0d19f35565d765121269941e6aa368a2bd623f7772e51fffd34f4342f1031fc09dcc2cb6bb4d3b185fdcac456011f07dd04965050a5cd581f6e
+"@hyperframes/player@npm:^0.6.33":
+  version: 0.6.33
+  resolution: "@hyperframes/player@npm:0.6.33"
+  checksum: 10c0/bbd54d5378f846121829ab0bdcce240eb43473965e2cc79a3732a6baab36d626f4152e4530b9d62a8d8ea21a6e30fdc0690a85da0f67cc4940db4c1cae4f9e78
   languageName: node
   linkType: hard
 
-"@hyperframes/shader-transitions@npm:^0.6.25":
-  version: 0.6.25
-  resolution: "@hyperframes/shader-transitions@npm:0.6.25"
+"@hyperframes/shader-transitions@npm:^0.6.33":
+  version: 0.6.33
+  resolution: "@hyperframes/shader-transitions@npm:0.6.33"
   dependencies:
     html2canvas: "npm:^1.4.1"
-  checksum: 10c0/44d830adab73dc8a35987920234e3b6eb83702d748d89627b73afb73b5ad14d60399fc7b20b8a88e57a9048811d3a1a0725560eb4882816100cc2b5ec6ce6365
+  checksum: 10c0/7fec15b9b6a262013e45740f8fb37587a4d80c3a7d53fd7e4bab72a567aee6cd1d3032613a258c14e2f1be7447463ae8e5c7c79d8c29f89f5ca9c389aac99306
   languageName: node
   linkType: hard
 
@@ -11709,9 +11709,9 @@ __metadata:
     "@fontsource/ibm-plex-mono": "npm:^5.2.7"
     "@fontsource/space-grotesk": "npm:^5.2.10"
     "@huggingface/transformers": "npm:^4.2.0"
-    "@hyperframes/core": "npm:^0.6.25"
-    "@hyperframes/player": "npm:^0.6.25"
-    "@hyperframes/shader-transitions": "npm:^0.6.25"
+    "@hyperframes/core": "npm:^0.6.33"
+    "@hyperframes/player": "npm:^0.6.33"
+    "@hyperframes/shader-transitions": "npm:^0.6.33"
     "@icons-pack/react-simple-icons": "npm:^13.7.0"
     "@langchain/community": "npm:^1.1.28"
     "@langchain/core": "npm:^1.1.44"

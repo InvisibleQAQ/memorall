@@ -94,6 +94,14 @@ const imageBasename = (value: string): string => {
 	}
 };
 
+const normalizeImageLookupPath = (value: string): string => {
+	const clean = value.split(/[?#]/)[0]?.replace(/\\/g, "/") ?? "";
+	const segments = clean
+		.split("/")
+		.filter((segment) => segment && segment !== ".");
+	return segments.join("/").toLowerCase();
+};
+
 const imageReferenceCandidates = (src: string): ImageReferenceCandidate[] => {
 	const path = src.split(/[?#]/)[0]?.replace(/\\/g, "/") ?? src;
 	if (!path) return [];
@@ -182,12 +190,12 @@ const findImageReferenceByRelativePath = async (
 		...collectImageReferences(workspaceTree, FILESYSTEM_SCOPE.WORKSPACE),
 	];
 	const srcName = imageBasename(src);
-	const normalizedSrc =
-		src.split(/[?#]/)[0]?.replace(/\\/g, "/").toLowerCase() ?? srcName;
+	const normalizedSrc = normalizeImageLookupPath(src);
 	const matches = images.filter((image) => {
-		const imagePath = image.path.replace(/\\/g, "/").toLowerCase();
+		const imagePath = normalizeImageLookupPath(image.path);
 		return (
 			image.name.toLowerCase() === srcName ||
+			imagePath === normalizedSrc ||
 			imagePath.endsWith(`/${normalizedSrc}`)
 		);
 	});
@@ -233,6 +241,17 @@ const replaceCssImageUrls = async (css: string): Promise<string> => {
 		next = next.replace(full, `url("${dataUrl}")`);
 	}
 	return next;
+};
+
+const replaceImageAttribute = async (
+	el: Element,
+	attributeName: string,
+): Promise<void> => {
+	const src = el.getAttribute(attributeName);
+	if (!src) return;
+
+	const dataUrl = await resolveImageReference(src);
+	if (dataUrl) el.setAttribute(attributeName, dataUrl);
 };
 
 const AUTHORED_HYPERFRAMES_SCRIPT_PATTERN =
@@ -314,6 +333,15 @@ const normalizeHyperframesHtml = async (
 				if (dataUrl) img.setAttribute("src", dataUrl);
 			}),
 		);
+	}
+
+	for (const svgImage of Array.from(doc.querySelectorAll("image"))) {
+		jobs.push(replaceImageAttribute(svgImage, "href"));
+		jobs.push(replaceImageAttribute(svgImage, "xlink:href"));
+	}
+
+	for (const video of Array.from(doc.querySelectorAll("video[poster]"))) {
+		jobs.push(replaceImageAttribute(video, "poster"));
 	}
 
 	for (const el of Array.from(doc.querySelectorAll<HTMLElement>("[style]"))) {
@@ -403,7 +431,7 @@ export const HyperframesArtifact: React.FC<ArtifactProps> = ({
 	// contentDocument probing for this URL, keeping cross-origin postMessage as
 	// the only communication channel (which works fine).
 	const previewUrl =
-		"https://zrg-team.github.io/memorall/hyperframes-preview.html?v=20260522-lucide-icons-1";
+		"https://zrg-team.github.io/memorall/hyperframes-preview.html?v=20260522-hyperframes-0-6-33-1";
 	const [previewHtml, setPreviewHtml] = useState<NormalizedComposition | null>(
 		null,
 	);
