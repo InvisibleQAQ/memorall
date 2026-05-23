@@ -12,13 +12,6 @@ import type {
 } from "./types";
 import { backgroundProcessFactory } from "./process-factory";
 import type { ChatCompletionRequest } from "@/types/openai";
-import {
-	checkProviderNeedsRestore,
-	restoreAuthProvider,
-	restoreAllProviders,
-	getEncryptedProviders,
-} from "@/utils/auth-provider-restore";
-import { unlockAndRestoreProvidersWithPasskey } from "@/utils/provider-passkey-unlock";
 import { detectSystemSpecs } from "@/main/modules/llm/utils/system-detection";
 
 const JOB_NAMES = {
@@ -32,12 +25,8 @@ const JOB_NAMES = {
 	deleteModel: "delete-model",
 	createLLMService: "create-llm-service",
 	chatCompletion: "chat-completion",
-	restoreAuthProvider: "restore-auth-provider",
-	restoreAllProviders: "restore-all-providers",
-	unlockAndRestoreAllProviders: "unlock-and-restore-all-providers",
 	removeAuthProvider: "remove-auth-provider",
 	detectSystemSpecs: "detect-system-specs",
-	checkProviderNeedsRestore: "check-provider-needs-restore",
 } as const;
 
 export interface GetCurrentModelPayload {
@@ -89,26 +78,13 @@ export interface ChatCompletionPayload {
 	request: Record<string, unknown>; // ChatCompletionRequest from @/types/openai
 }
 
-export interface RestoreAuthProviderPayload {
-	provider: "openai" | "openrouter";
-	passkey: string;
-}
 
 export interface RemoveAuthProviderPayload {
 	provider: "openai" | "openrouter";
 }
 
-export interface CheckProviderNeedsRestorePayload {
-	provider: "openai" | "openrouter";
-}
 
-export interface RestoreAllProvidersPayload {
-	masterStrongPassword: string;
-}
 
-export interface UnlockAndRestoreAllProvidersPayload {
-	passkey: string;
-}
 
 export interface GetCurrentModelResult extends Record<string, unknown> {
 	modelInfo: unknown;
@@ -155,32 +131,14 @@ export interface ChatCompletionResult extends Record<string, unknown> {
 	response: unknown;
 }
 
-export interface RestoreAuthProviderResult extends Record<string, unknown> {
-	restored: boolean;
-	provider: string;
-}
 
 export interface RemoveAuthProviderResult extends Record<string, unknown> {
 	removed: boolean;
 	provider: string;
 }
 
-export interface CheckProviderNeedsRestoreResult
-	extends Record<string, unknown> {
-	needsRestore: boolean;
-	provider: string;
-}
 
-export interface RestoreAllProvidersResult extends Record<string, unknown> {
-	restored: boolean;
-	providers: string[];
-}
 
-export interface UnlockAndRestoreAllProvidersResult
-	extends Record<string, unknown> {
-	restored: boolean;
-	providers: string[];
-}
 
 export interface DetectSystemSpecsPayload {
 	// No payload needed
@@ -212,13 +170,9 @@ export type LLMModelsJob = BaseJob & {
 		| DeleteModelPayload
 		| CreateLLMServicePayload
 		| ChatCompletionPayload
-		| RestoreAuthProviderPayload
-		| RestoreAllProvidersPayload
-		| UnlockAndRestoreAllProvidersPayload
 		| RemoveAuthProviderPayload
 		| GetMaxResponseTokensPayload
 		| DetectSystemSpecsPayload
-		| CheckProviderNeedsRestorePayload;
 };
 
 export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
@@ -246,28 +200,12 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 				return await this.handleCreateLLMService(jobId, job, dependencies);
 			case JOB_NAMES.chatCompletion:
 				return await this.handleChatCompletion(jobId, job, dependencies);
-			case JOB_NAMES.restoreAuthProvider:
-				return await this.handleRestoreAuthProvider(jobId, job, dependencies);
-			case JOB_NAMES.restoreAllProviders:
-				return await this.handleRestoreAllProviders(jobId, job, dependencies);
-			case JOB_NAMES.unlockAndRestoreAllProviders:
-				return await this.handleUnlockAndRestoreAllProviders(
-					jobId,
-					job,
-					dependencies,
-				);
 			case JOB_NAMES.removeAuthProvider:
 				return await this.handleRemoveAuthProvider(jobId, job, dependencies);
 			case JOB_NAMES.getMaxResponseTokens:
 				return await this.handleGetMaxResponseTokens(jobId, job, dependencies);
 			case JOB_NAMES.detectSystemSpecs:
 				return await this.handleDetectSystemSpecs(jobId, job, dependencies);
-			case JOB_NAMES.checkProviderNeedsRestore:
-				return await this.handleCheckProviderNeedsRestore(
-					jobId,
-					job,
-					dependencies,
-				);
 			default:
 				throw new Error(`Unknown LLM job type: ${job.jobType}`);
 		}
@@ -852,126 +790,8 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 		return { response };
 	}
 
-	private async handleRestoreAuthProvider(
-		jobId: string,
-		job: BaseJob,
-		dependencies: ProcessDependencies,
-	): Promise<ItemHandlerResult> {
-		const { logger, updateJobProgress } = dependencies;
-		const payload = job.payload as RestoreAuthProviderPayload;
 
-		await logger.info(
-			`Starting restore-auth-provider job for: ${payload.provider}`,
-			{ jobId },
-		);
 
-		await updateJobProgress(jobId, {
-			stage: `Restoring ${payload.provider} authentication`,
-			progress: 30,
-		});
-
-		// Restore provider in background thread (main mode)
-		await restoreAuthProvider(payload.provider, payload.passkey);
-
-		await updateJobProgress(jobId, {
-			stage: `${payload.provider} authentication restored`,
-			progress: 90,
-		});
-
-		await logger.info(`Restore-auth-provider job completed`, {
-			jobId,
-			provider: payload.provider,
-		});
-
-		return {
-			restored: true,
-			provider: payload.provider,
-		};
-	}
-
-	private async handleRestoreAllProviders(
-		jobId: string,
-		job: BaseJob,
-		dependencies: ProcessDependencies,
-	): Promise<ItemHandlerResult> {
-		const { logger, updateJobProgress } = dependencies;
-		const payload = job.payload as RestoreAllProvidersPayload;
-
-		await logger.info(`Starting restore-all-providers job`, { jobId });
-
-		await updateJobProgress(jobId, {
-			stage: "Restoring all provider authentications",
-			progress: 20,
-		});
-
-		// Get list of encrypted providers
-		const providers = await getEncryptedProviders();
-
-		await updateJobProgress(jobId, {
-			stage: `Found ${providers.length} providers to restore`,
-			progress: 40,
-		});
-
-		// Restore all providers using master key
-		await restoreAllProviders(payload.masterStrongPassword);
-
-		await updateJobProgress(jobId, {
-			stage: "All providers restored",
-			progress: 90,
-		});
-
-		await logger.info(`Restore-all-providers job completed`, {
-			jobId,
-			providers,
-		});
-
-		return {
-			restored: true,
-			providers,
-		};
-	}
-
-	private async handleUnlockAndRestoreAllProviders(
-		jobId: string,
-		job: BaseJob,
-		dependencies: ProcessDependencies,
-	): Promise<ItemHandlerResult> {
-		const { logger, updateJobProgress } = dependencies;
-		const payload = job.payload as UnlockAndRestoreAllProvidersPayload;
-
-		await logger.info("Starting unlock-and-restore-all-providers job", {
-			jobId,
-		});
-
-		await updateJobProgress(jobId, {
-			stage: "Unlocking provider configurations",
-			progress: 20,
-		});
-
-		const { providers } = await unlockAndRestoreProvidersWithPasskey(
-			payload.passkey,
-		);
-
-		await updateJobProgress(jobId, {
-			stage: `Restored ${providers.length} provider authentications`,
-			progress: 50,
-		});
-
-		await updateJobProgress(jobId, {
-			stage: "All providers restored",
-			progress: 90,
-		});
-
-		await logger.info("Unlock-and-restore-all-providers job completed", {
-			jobId,
-			providers,
-		});
-
-		return {
-			restored: true,
-			providers,
-		} satisfies UnlockAndRestoreAllProvidersResult;
-	}
 
 	private async handleRemoveAuthProvider(
 		jobId: string,
@@ -1054,37 +874,6 @@ export class LLMOperationsHandler implements ProcessHandler<BaseJob> {
 		return { specs };
 	}
 
-	private async handleCheckProviderNeedsRestore(
-		jobId: string,
-		job: BaseJob,
-		dependencies: ProcessDependencies,
-	): Promise<ItemHandlerResult> {
-		const { logger, updateJobProgress } = dependencies;
-		const payload = job.payload as CheckProviderNeedsRestorePayload;
-
-		await logger.info(
-			`Starting check-provider-needs-restore job for: ${payload.provider}`,
-			{ jobId },
-		);
-
-		await updateJobProgress(jobId, {
-			stage: `Checking if ${payload.provider} needs passkey restoration`,
-			progress: 50,
-		});
-
-		const needsRestore = await checkProviderNeedsRestore(payload.provider);
-
-		await logger.info(`Check-provider-needs-restore job completed`, {
-			jobId,
-			provider: payload.provider,
-			needsRestore,
-		});
-
-		return {
-			needsRestore,
-			provider: payload.provider,
-		};
-	}
 }
 
 // Self-register the handler
@@ -1105,13 +894,9 @@ declare global {
 		"delete-model": DeleteModelPayload;
 		"create-llm-service": CreateLLMServicePayload;
 		"chat-completion": ChatCompletionPayload;
-		"restore-auth-provider": RestoreAuthProviderPayload;
-		"restore-all-providers": RestoreAllProvidersPayload;
-		"unlock-and-restore-all-providers": UnlockAndRestoreAllProvidersPayload;
 		"remove-auth-provider": RemoveAuthProviderPayload;
 		"get-max-response-tokens": GetMaxResponseTokensPayload;
 		"detect-system-specs": DetectSystemSpecsPayload;
-		"check-provider-needs-restore": CheckProviderNeedsRestorePayload;
 	}
 
 	interface JobResultRegistry {
@@ -1124,12 +909,8 @@ declare global {
 		"delete-model": DeleteModelResult;
 		"create-llm-service": CreateLLMServiceResult;
 		"chat-completion": ChatCompletionResult;
-		"restore-auth-provider": RestoreAuthProviderResult;
-		"restore-all-providers": RestoreAllProvidersResult;
-		"unlock-and-restore-all-providers": UnlockAndRestoreAllProvidersResult;
 		"remove-auth-provider": RemoveAuthProviderResult;
 		"get-max-response-tokens": GetMaxResponseTokensResult;
 		"detect-system-specs": DetectSystemSpecsResult;
-		"check-provider-needs-restore": CheckProviderNeedsRestoreResult;
 	}
 }

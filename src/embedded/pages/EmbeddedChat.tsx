@@ -17,7 +17,6 @@ import { useEmbeddedTranslation } from "@/embedded/hooks/use-embedded-language";
 import { customStyles } from "@/embedded/styles/customStyles";
 import type { ChatModalProps } from "@/embedded/types";
 import { createShadowPage } from "@/embedded/utils/create-shadow-page";
-import { backgroundJob } from "@/services/background-jobs/background-job";
 
 export const EMBEDDED_CHAT_MODAL_STATE_EVENT =
 	"memorall:embedded-chat-modal-state";
@@ -56,15 +55,8 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 
 	const { currentDisplayMode, toggleDisplayMode } =
 		useEmbeddedChatDisplayMode(displayMode);
-	const {
-		selectedModel,
-		selectedProvider,
-		modelAvailable,
-		needsPasskey,
-		noModelConfig,
-		encryptedProviders,
-		refreshModelStatus,
-	} = useEmbeddedModelStatus();
+	const { selectedModel, selectedProvider, modelAvailable, noModelConfig } =
+		useEmbeddedModelStatus();
 	const {
 		topics,
 		agentFlows,
@@ -199,25 +191,6 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 		onClose();
 	}, [onClose]);
 
-	const handlePasskeySubmit = useCallback(
-		async (passkey: string) => {
-			const result = await backgroundJob.execute(
-				"unlock-and-restore-all-providers",
-				{ passkey },
-				{ stream: false },
-			);
-			if (!("promise" in result)) {
-				throw new Error("Passkey unlock did not start");
-			}
-			const response = await result.promise;
-			if (response.status !== "completed") {
-				throw new Error(response.error || "Failed to unlock providers");
-			}
-			await refreshModelStatus();
-		},
-		[refreshModelStatus],
-	);
-
 	const toggleCoAgent = useCallback(() => {
 		setCoAgentEnabled((current) => {
 			const next = !current;
@@ -285,10 +258,7 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 							conversationRef={conversationRef}
 							onScroll={handleScroll}
 							onWheel={handleWheel}
-							needsPasskey={needsPasskey}
 							noModelConfig={noModelConfig}
-							encryptedProviders={encryptedProviders}
-							selectedProvider={selectedProvider}
 							messages={messages}
 							selectedTopic={selectedTopic}
 							pageHost={pageHost}
@@ -297,7 +267,6 @@ const EmbeddedChat: React.FC<ChatModalProps> = ({
 							onAttachContext={attachContext}
 							onSelectPrompt={setInputValue}
 							onOpenMainApp={handleOpenFullPageAndClose}
-							onPasskeySubmit={handlePasskeySubmit}
 						/>
 					)}
 

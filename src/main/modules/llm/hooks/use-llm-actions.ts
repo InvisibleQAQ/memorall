@@ -6,11 +6,12 @@ import type {
 } from "@/types/openai";
 import { RECOMMENDATION_WEBLLM_LLMS } from "@/constants/webllm";
 import { logError } from "@/utils/logger";
-import secureSession from "@/utils/secure-session";
 import { serviceManager } from "@/services";
-import { eq } from "drizzle-orm";
-import { FIXED_ENCRYPTION_KEY } from "@/config/security";
-import { deriveAesKeyFromString, decryptStringAes } from "@/utils/aes";
+import {
+	clearProviderReadyState,
+	isProviderReadyInSession,
+	loadProviderConfig,
+} from "@/utils/provider-config";
 import type { FileInfo, ProgressData } from "./use-llm-state";
 import { DEFAULT_SERVICES } from "@/services/llm/constants";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
@@ -310,8 +311,8 @@ export const useLLMActions = ({
 	);
 
 	// OpenAI-specific actions
-	// Note: Persistent save is handled by OpenAITab with passkey and DB.
-	// This helper only stores base URL in session for convenience and logs.
+	// Persistent save is handled by OpenAITab using plain provider config storage.
+	// This helper only mirrors base URL into session/UI state for convenience.
 	const saveOpenAIConfig = useCallback(
 		async (apiKey: string, baseUrl: string) => {
 			setLoading(true);
@@ -319,8 +320,6 @@ export const useLLMActions = ({
 			setLogs((l) => [...l, "[ui] updating OpenAI base URL in memory"]);
 
 			try {
-				await secureSession.set("openai_base_url", baseUrl);
-
 				// Update state
 				setOpenaiApiKey(""); // Never store plain key in state
 				setOpenaiBaseUrl(baseUrl);
@@ -387,10 +386,7 @@ export const useLLMActions = ({
 		setStatus("OpenAI configuration cleared");
 		setLogs((l) => [...l, "[ui] OpenAI configuration cleared from memory"]);
 
-		// Clear from secure session
-		secureSession.set("openai_base_url", "");
-		secureSession.set("openai_combined_key", "");
-		secureSession.set("openai_passkey", "");
+		void clearProviderReadyState("openai");
 	}, [
 		setOpenaiApiKey,
 		setOpenaiBaseUrl,
@@ -440,69 +436,29 @@ export const useLLMActions = ({
 	]);
 
 	const getDecryptedOpenAIKey = useCallback(async (): Promise<string> => {
-		// Try to use combined key from session (preferred)
-		let combinedSecret = await secureSession.get("openai_combined_key");
-
-		if (!combinedSecret) {
-			// Fallback: derive from passkey + stored advanced seed
-			const passkey = await secureSession.get("openai_passkey");
-			if (!passkey) throw new Error("Missing OpenAI passkey in session");
-
-			const row = (
-				await serviceManager.databaseService.use(({ db, schema }) => {
-					return db
-						.select()
-						.from(schema.encryption)
-						.where(eq(schema.encryption.key, "openai_config"));
-				})
-			)[0];
-			if (!row?.advancedSeed)
-				throw new Error("No advanced seed found for OpenAI config");
-
-			const passkeyKey = await deriveAesKeyFromString(passkey);
-			const strongPassword = await decryptStringAes(
-				row.advancedSeed,
-				passkeyKey,
-			);
-			combinedSecret = strongPassword + FIXED_ENCRYPTION_KEY;
-			await secureSession.set("openai_combined_key", combinedSecret);
+		const config = await loadProviderConfig("openai");
+		if (!config?.apiKey) {
+			throw new Error("No OpenAI configuration found");
 		}
-
-		// Fetch encrypted data from DB and decrypt with combined key
-		const encryptedRow = (
-			await serviceManager.databaseService.use(({ db, schema }) => {
-				return db
-					.select()
-					.from(schema.encryption)
-					.where(eq(schema.encryption.key, "openai_config"));
-			})
-		)[0];
-		if (!encryptedRow?.encryptedData)
-			throw new Error("No encrypted OpenAI data found");
-
-		const aesKey = await deriveAesKeyFromString(combinedSecret);
-		const decryptedJSON = await decryptStringAes(
-			encryptedRow.encryptedData,
-			aesKey,
-		);
-		const parsed = JSON.parse(decryptedJSON);
-		if (!parsed?.apiKey) throw new Error("Invalid decrypted OpenAI config");
-		return parsed.apiKey as string;
+		return config.apiKey;
 	}, []);
 
 	const handleOpenAITabSelect = useCallback(() => {
-		// Load existing configuration from secure session if available
 		const loadExistingConfig = async () => {
 			try {
-				const ready = await secureSession.exists("openai_ready");
-				const baseUrl = await secureSession.get("openai_base_url");
+				const ready = await isProviderReadyInSession("openai");
+				const savedConfig = await loadProviderConfig("openai");
 
-				if (ready && baseUrl) {
+				if (savedConfig) {
 					setIsOpenaiConfigured(true);
-					setOpenaiBaseUrl(baseUrl);
-					setStatus("OpenAI configuration loaded from secure memory");
+					setOpenaiBaseUrl(savedConfig.baseUrl);
+					setStatus(
+						ready
+							? "OpenAI configuration loaded from local storage"
+							: "OpenAI configuration available",
+					);
 				}
-			} catch (err) {
+			} catch {
 				// Ignore errors loading config
 			}
 		};

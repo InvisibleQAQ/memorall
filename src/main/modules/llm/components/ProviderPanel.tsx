@@ -1,6 +1,5 @@
 import React from "react";
 import { Settings } from "lucide-react";
-import { eq } from "drizzle-orm";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/main/components/ui/button";
@@ -23,7 +22,12 @@ import { useDownloadProgress } from "../hooks/use-download-progress";
 import { useLocalModels } from "../hooks/use-local-models";
 import { useModelOperations } from "../hooks/use-model-operations";
 import { serviceManager } from "@/services";
-import secureSession from "@/utils/secure-session";
+import { eq } from "drizzle-orm";
+import {
+	hasProviderConfig,
+	isProviderReadyInSession,
+	type AuthProvider,
+} from "@/utils/provider-config";
 import type { FileInfo, ProgressData } from "../hooks/use-llm-state";
 import type { ServiceProvider } from "@/services/llm/interfaces/llm-service.interface";
 
@@ -75,16 +79,14 @@ const PROVIDERS: ServiceProvider[] = [
 ];
 
 const CONFIG_KEYS: Partial<Record<ServiceProvider, string>> = {
-	openai: "openai_config",
-	openrouter: "openrouter_config",
 	lmstudio: "lmstudio_config",
 	ollama: "ollama_config",
 };
 
-const READY_KEYS: Partial<Record<ServiceProvider, string>> = {
-	openai: "openai_ready",
-	openrouter: "openrouter_ready",
-};
+const AUTH_PROVIDERS = new Set<ServiceProvider>(["openai", "openrouter"]);
+
+const isAuthProvider = (provider: ServiceProvider): provider is AuthProvider =>
+	AUTH_PROVIDERS.has(provider);
 
 export const ProviderPanel: React.FC<ProviderPanelProps> = ({
 	repo,
@@ -177,28 +179,25 @@ export const ProviderPanel: React.FC<ProviderPanelProps> = ({
 					continue;
 				}
 
-				const readyKey = READY_KEYS[provider];
 				const configKey = CONFIG_KEYS[provider];
 				const hasService = serviceManager.llmService.has(provider);
-				const hasReadySession = readyKey
-					? await secureSession.exists(readyKey)
+				const hasReadySession = isAuthProvider(provider)
+					? await isProviderReadyInSession(provider)
 					: false;
-				const hasSavedConfig = configKey
-					? await serviceManager.databaseService
-							.use(({ db, schema }) => {
-								const table =
-									provider === "openai" || provider === "openrouter"
-										? schema.encryption
-										: schema.configurations;
-								return db
-									.select()
-									.from(table)
-									.where(eq(table.key, configKey))
-									.limit(1);
-							})
-							.then((rows) => rows.length > 0)
-							.catch(() => false)
-					: false;
+				const hasSavedConfig = isAuthProvider(provider)
+					? await hasProviderConfig(provider)
+					: configKey
+						? await serviceManager.databaseService
+								.use(({ db, schema }) =>
+									db
+										.select()
+										.from(schema.configurations)
+										.where(eq(schema.configurations.key, configKey))
+										.limit(1),
+								)
+								.then((rows) => rows.length > 0)
+								.catch(() => false)
+						: false;
 				nextStatuses[provider] =
 					hasService || hasReadySession || hasSavedConfig
 						? "configured"

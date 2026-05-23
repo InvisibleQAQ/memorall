@@ -40,10 +40,9 @@ export const CoAgentOverlay: React.FC<CoAgentOverlayProps> = ({
 		Boolean(document.getElementById("memorall-embedded-chat-modal")),
 	);
 	const promptInputRef = useRef<HTMLTextAreaElement | null>(null);
-	const { needsPasskey, modelAvailable, selectedModel } =
-		useEmbeddedModelStatus();
+	const { modelAvailable, selectedModel } = useEmbeddedModelStatus();
 	const t = useEmbeddedTranslation("coAgent");
-	const showAuthAction = needsPasskey;
+	const showAuthAction = false;
 	const speechMessage = showAuthAction
 		? t("unlockRequired")
 		: isSubmitting
