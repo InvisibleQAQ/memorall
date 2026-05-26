@@ -176,3 +176,7 @@ sandbox
 
 manifest.json
 
+.ace-tool/
+.lazygophers/
+.claude/
+docs/superpowers/
