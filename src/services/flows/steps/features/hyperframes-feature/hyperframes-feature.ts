@@ -82,7 +82,7 @@ Asset path rules for this app:
 - **Static HTML only.** Memorall converts \`<img src>\`, SVG \`<image href>\`, \`video poster\`, and CSS \`url(...)\` to base64 — only static HTML attributes, never JavaScript-assigned values.
 - **No JS asset loading of any kind.** Never build, assemble, fetch, or assign an image path in JavaScript. Helper functions (\`fixIconPath\`, \`getAssetUrl\`), path concatenation (\`'./resources/' + name\`), \`fetch()\`, \`new Image()\`, and \`img.src = anyPath\` are all forbidden. If JavaScript must reference an asset: declare it once as \`<img id="pre" src="/documents/..." hidden>\` in HTML, then read \`document.getElementById('pre').src\` in JS — Memorall has already replaced it with base64 by that point. For repeated icons, prefer inline SVG markup.
 - **No remote hotlinks.** Import remote media with \`hyperframes_remote_asset_import\` first; use the returned workspace path.
-- **No manual \`<script>\` tags for managed libraries.** GSAP, HyperFrames runtime, shader-transitions, Lucide, D3, and Three.js are auto-injected by the runner. Writing CDN URLs from memory produces malformed URLs (\`gsapgsap.min.js\`, \`d3d3.min.js\`). If you include them explicitly, copy-paste the exact pinned tags from the skeleton templates only.
+- **No manual \`<script>\` tags or external \`<link>\` tags.** GSAP, HyperFrames runtime, shader-transitions, Lucide, D3, and Three.js are auto-injected by the runner based on usage detection. Never include CDN script tags or Google Fonts link tags in compositions — the runner handles all of this automatically.
 
 **Path quick-reference — wrong vs right:**
 
@@ -93,8 +93,6 @@ Asset path rules for this app:
 | \`<img src="./resources/images/bg.jpg">\` | \`<img src="/workspaces/my-project/resources/images/bg.jpg">\` |
 | \`function fixIconPath(n){ return './resources/icons/'+n; }\` | Forbidden — inline SVG in HTML, or \`<img hidden>\` + read \`.src\` in JS |
 | \`img.src = './resources/icons/' + name\` | \`img.src = document.getElementById('pre').src\` |
-| \`<script src="https://cdn.jsdelivr.net/npm/gsapgsap.min.js">\` | No tag needed — Memorall auto-injects GSAP |
-| \`<script src="https://cdn.jsdelivr.net/npm/d3d3.min.js">\` | No tag needed — Memorall auto-injects D3 |
 
 ## Agent goals
 
@@ -251,10 +249,10 @@ Use case guidance:
 
 | Type | Duration | Scenes | Skeleton |
 |---|---|---|---|
-| Social reel (9:16) | 10–15s | 5–7 | A |
-| Launch teaser (16:9) | 15–25s | 7–10 | B |
-| Product explainer (16:9) | 30–60s | 10–18 | C |
-| Cinematic title (16:9) | 45–90s | 7–12 | D |
+| Social reel (9:16) | 10-15s | 5-7 | A |
+| Launch teaser (16:9) | 15-25s | 7-10 | B |
+| Product explainer (16:9) | 30-60s | 10-18 | C |
+| Cinematic title (16:9) | 45-90s | 7-12 | D |
 
 Fill \`:root\` CSS custom properties immediately:
 
@@ -279,7 +277,7 @@ Work scene by scene. For each:
 
 **Content** — put text, images, layout inside \`.scene-content\`. Keep decoratives (grain, glow) OUTSIDE it.
 
-**Entrance tweens** — animate FROM offscreen/invisible. Offset first tween 0.1–0.3s into scene:
+**Entrance tweens** — animate FROM offscreen/invisible. Offset first tween 0.1-0.3s into scene:
 \`\`\`js
 tl.from("#s3-title", { y: 40, autoAlpha: 0, duration: 0.6, ease: "power3.out" }, 10.3);
 \`\`\`
@@ -303,11 +301,11 @@ tl.from("#s3-title", { y: 40, autoAlpha: 0, duration: 0.6, ease: "power3.out" },
 
 | Text | Duration |
 |---|---|
-| No text | 1.5–2s |
-| 1–3 words | 2–3s |
-| 4–10 words | 3–4s |
-| 11–20 words | 4–6s |
-| 21–35 words | 6–8s |
+| No text | 1.5-2s |
+| 1-3 words | 2-3s |
+| 4-10 words | 3-4s |
+| 11-20 words | 4-6s |
+| 21-35 words | 6-8s |
 | 35+ words | Split scene |
 
 **Hard ceiling: 5s per scene** unless you name a reason.
@@ -319,7 +317,7 @@ tl.from("#s3-title", { y: 40, autoAlpha: 0, duration: 0.6, ease: "power3.out" },
 
 ## Step 4: Transitions
 
-**~95% of cuts are hard cuts.** Reserve shader transitions for 2–3 key moments (hero reveal, energy shift, CTA).
+**~95% of cuts are hard cuts.** Reserve shader transitions for 2-3 key moments (hero reveal, energy shift, CTA).
 
 **14 shaders:** \`domain-warp\` · \`ridged-burn\` · \`whip-pan\` · \`sdf-iris\` · \`ripple-waves\` · \`gravitational-lens\` · \`cinematic-zoom\` · \`chromatic-split\` · \`swirl-vortex\` · \`thermal-distortion\` · \`flash-through-white\` · \`cross-warp-morph\` · \`light-leak\` · \`glitch\`
 
@@ -409,7 +407,7 @@ After showing, write one short sentence to the user: what the composition covers
 
 ## Skeletons
 
-### Skeleton A — Social Reel (1080×1920, 15s, 6 scenes)
+### Skeleton A — Social Reel (1080X1920, 15s, 6 scenes)
 
 \`\`\`html
 <!doctype html>
@@ -473,14 +471,14 @@ After showing, write one short sentence to the user: what the composition covers
 </html>
 \`\`\`
 
-### Skeleton B — Launch Teaser (1920×1080, 25s, 8 scenes)
-Same structure as A but landscape 1920×1080. 8 scenes totaling 25s. 2 shader anchor groups (s4–s5, s7–s8). Rhythm: \`3-3-3-3.5-3-3-3-3.5\`.
+### Skeleton B — Launch Teaser (1920X1080, 25s, 8 scenes)
+Same structure as A but landscape 1920X1080. 8 scenes totaling 25s. 2 shader anchor groups (s4-s5, s7-s8). Rhythm: \`3-3-3-3.5-3-3-3-3.5\`.
 
-### Skeleton C — Product Explainer (1920×1080, 45s, 12 scenes)
+### Skeleton C — Product Explainer (1920X1080, 45s, 12 scenes)
 Same structure as B. 12 scenes totaling 45s. Mix durations: 3s, 3.5s, 4s, 5s. Rhythm: \`3-3-4-3.5-4-5-3.5-4-3.5-4-4-3.5\`.
 
-### Skeleton D — Cinematic Title (1920×1080, 60s, 7 scenes)
-Same structure as B. 7 scenes, longer durations (6–10s each). Restrained shaders: \`cross-warp-morph\`, \`thermal-distortion\`. Rhythm: \`8-7-8-10-9-10-8\`.
+### Skeleton D — Cinematic Title (1920X1080, 60s, 7 scenes)
+Same structure as B. 7 scenes, longer durations (6-10s each). Restrained shaders: \`cross-warp-morph\`, \`thermal-distortion\`. Rhythm: \`8-7-8-10-9-10-8\`.
 
 ---
 

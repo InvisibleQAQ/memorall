@@ -56,7 +56,7 @@ Messages that should activate this feature:
 
 ## CRITICAL RULE — YOU MUST READ ACTUAL ARTICLES
 Summarizing from search result snippets alone is NOT acceptable.
-Snippets are only 1–2 sentences and do not contain full information.
+Snippets are only 1-2 sentences and do not contain full information.
 You MUST open each article URL and call web_read on it to get the real content.
 
 ## HOW TO USE WEB TOOLS
@@ -95,9 +95,9 @@ If web_open returns renderReady=false, check partialContent first.
 If useful, continue. Otherwise:
 1. web_wait  { sessionId, waitMode: "render" }
 2. web_read  { sessionId, contentMode: "text" }
-Repeat up to 2–3 times. Skip the page only if all retries return empty content.
+Repeat up to 2-3 times. Skip the page only if all retries return empty content.
 
-### Step 5 — Collect 3–5 articles then summarize
+### Step 5 — Collect 3-5 articles then summarize
 Read at least 3 full article pages before producing the final summary.
 
 ## REQUIRED OUTPUT FORMAT
@@ -128,7 +128,7 @@ Read at least 3 full article pages before producing the final summary.
 ---
 
 ### Overall Summary
-[2–4 paragraphs synthesizing all articles. Every fact must be followed by the source in parentheses: "(BBC)", "(Reuters)", "(AP News)". Never state a fact without a source.]
+[2-4 paragraphs synthesizing all articles. Every fact must be followed by the source in parentheses: "(BBC)", "(Reuters)", "(AP News)". Never state a fact without a source.]
 
 ### Common Themes
 - [theme] — reported by: [Source A], [Source B]
@@ -190,7 +190,7 @@ export const NEWS_COLLECTION_FEATURE_TOOLS = [
 ] as const;
 
 export const NEWS_COLLECTION_FEATURE_DESCRIPTION =
-	"Research and summarize news on a topic by searching the web and reading 3–5 news articles.";
+	"Research and summarize news on a topic by searching the web and reading 3-5 news articles.";
 
 const definition = defineStep<
 	NewsCollectionFeatureInput,

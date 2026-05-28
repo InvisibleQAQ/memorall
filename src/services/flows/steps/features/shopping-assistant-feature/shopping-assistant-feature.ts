@@ -72,7 +72,7 @@ Run all of these searches simultaneously (replace <product> with the actual prod
   web_search { query: "<product> user reviews pros cons", engines: ["google"] }
 
 ### Step 2 — Deep-read product pages
-For each promising URL from the searches (target 6–10 pages total):
+For each promising URL from the searches (target 6-10 pages total):
   web_open { url: "<url>", browserMode: "tab" }
   web_read  { sessionId: "<id>", contentMode: "clean_html" }
 
@@ -91,11 +91,11 @@ Retry once; skip and move to the next URL if still empty.
 
 ### Step 4 — Extract product images
 From the manufacturer page and top review, extract high-quality product image URLs from <img src="..."> tags.
-Collect 2–4 representative images (main product shot, side/back, in-use if available).
+Collect 2-4 representative images (main product shot, side/back, in-use if available).
 
 ### Step 5 — Compare alternatives
 If the user did not specify a particular variant, or if alternatives exist:
-- Search and read 2–3 competing products following the same Steps 2–4.
+- Search and read 2-3 competing products following the same Steps 2-4.
 - Build a side-by-side comparison table in the final report.
 
 ### Step 6 — Find best deal
@@ -130,7 +130,7 @@ Use a URL-safe slug for the filename (lowercase, hyphens instead of spaces, e.g.
 ![Product image](<image_url_1>)
 ![Product image 2](<image_url_2>)
 
-[2–3 paragraph summary: what the product is, who it's for, what makes it notable, current market position]
+[2-3 paragraph summary: what the product is, who it's for, what makes it notable, current market position]
 
 ---
 
@@ -169,7 +169,7 @@ Use a URL-safe slug for the filename (lowercase, hyphens instead of spaces, e.g.
 - [con 1]
 - [con 2]
 
-**Verdict:** [1–2 sentence summary of their conclusion]
+**Verdict:** [1-2 sentence summary of their conclusion]
 *(Source: [URL])*
 
 ### [Review Site 2] — [Score]

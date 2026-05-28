@@ -12,13 +12,6 @@ const TOOL_NAME = "hyperframes_init" as const;
 const TPL_NEON_LAUNCH = `<!doctype html>
 <html lang="en"><head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=1920, height=1080" />
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.542.0/dist/umd/lucide.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700;900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
   <style>
     :root{--bg:#08080f;--ink:#f0eeff;--accent:#c840f0;--accent2:#7c6cff;--muted:#6b6880;--font-display:"Space Grotesk",sans-serif;--font-data:"JetBrains Mono",monospace}
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -119,13 +112,6 @@ const TPL_NEON_LAUNCH = `<!doctype html>
 const TPL_SOCIAL_REEL = `<!doctype html>
 <html lang="en"><head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=1080, height=1920" />
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.542.0/dist/umd/lucide.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;700;900&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
   <style>
     :root{--bg:#0d0d0d;--ink:#ffffff;--accent:#ff3c3c;--muted:#888;--font-display:"Barlow Condensed",sans-serif;--font-data:"JetBrains Mono",monospace}
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -216,13 +202,6 @@ const TPL_SOCIAL_REEL = `<!doctype html>
 const TPL_CLEAN_MINIMAL = `<!doctype html>
 <html lang="en"><head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=1920, height=1080" />
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.542.0/dist/umd/lucide.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet" />
   <style>
     :root{--bg:#f7f5f0;--ink:#1a1814;--accent:#d97b2a;--muted:#8a8278;--font-display:"DM Serif Display",serif;--font-body:"DM Sans",sans-serif}
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -302,14 +281,6 @@ const TPL_CLEAN_MINIMAL = `<!doctype html>
 const TPL_TECH_DATA = `<!doctype html>
 <html lang="en"><head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=1920, height=1080" />
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.542.0/dist/umd/lucide.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <style>
     :root{--bg:#040d0f;--ink:#e8f8f5;--accent:#00e5c0;--accent2:#0066ff;--muted:#3d6b64;--font-display:"Space Grotesk",sans-serif;--font-data:"JetBrains Mono",monospace}
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -417,13 +388,6 @@ const TPL_TECH_DATA = `<!doctype html>
 const TPL_WARM_CINEMA = `<!doctype html>
 <html lang="en"><head>
   <meta charset="UTF-8" /><meta name="viewport" content="width=1920, height=1080" />
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.542.0/dist/umd/lucide.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,600;1,300;1,600&family=Space+Grotesk:wght@400&display=swap" rel="stylesheet" />
   <style>
     :root{--bg:#100c07;--ink:#f5ead6;--accent:#c9892a;--accent2:#e8b86d;--muted:#7a6a52;--font-display:"Cormorant",serif;--font-body:"Space Grotesk",sans-serif}
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}

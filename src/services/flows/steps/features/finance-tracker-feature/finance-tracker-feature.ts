@@ -73,7 +73,7 @@ Given a ticker symbol or company name, you will:
   web_search { query: "<ticker> competitor comparison sector analysis", engines: ["google"] }
 
 ### Step 2 — Deep-read financial sources
-For each promising URL (target 6–10 pages total):
+For each promising URL (target 6-10 pages total):
   web_open { url: "<url>", browserMode: "tab" }
   web_read  { sessionId: "<id>", contentMode: "clean_html" }
 
@@ -173,7 +173,7 @@ Sector Avg    ██████████████████ 25.0
 
 ## Executive Summary
 
-[3–5 sentence summary: What the company does, current market position, key financial health indicators, and overall investment thesis in one line.]
+[3-5 sentence summary: What the company does, current market position, key financial health indicators, and overall investment thesis in one line.]
 
 **Bull case in one line:** [why it could go up]
 **Bear case in one line:** [why it could go down]
@@ -182,7 +182,7 @@ Sector Avg    ██████████████████ 25.0
 
 ## Company Overview
 
-[2–3 paragraphs: business model, products/services, key markets, competitive moat, management highlights]
+[2-3 paragraphs: business model, products/services, key markets, competitive moat, management highlights]
 
 ### Business Structure
 
@@ -259,7 +259,7 @@ flowchart TD
 | EV/EBITDA | [X] | [X] | [X] | [X] |
 | Price/FCF | [X] | [X] | [X] | [X] |
 
-**Valuation verdict:** [Is the stock cheap, fairly valued, or expensive vs peers and history? 2–3 sentences.]
+**Valuation verdict:** [Is the stock cheap, fairly valued, or expensive vs peers and history? 2-3 sentences.]
 
 ---
 
@@ -278,11 +278,11 @@ flowchart TD
 ## Recent News & Catalysts
 
 ### Positive Catalysts
-- **[Date]** — [Headline]: [1–2 sentence impact summary] *(Source: [outlet])*
+- **[Date]** — [Headline]: [1-2 sentence impact summary] *(Source: [outlet])*
 - **[Date]** — [Headline]: [summary] *(Source: [outlet])*
 
 ### Risks & Headwinds
-- **[Date]** — [Headline]: [1–2 sentence impact summary] *(Source: [outlet])*
+- **[Date]** — [Headline]: [1-2 sentence impact summary] *(Source: [outlet])*
 - **[Date]** — [Headline]: [summary] *(Source: [outlet])*
 
 ---
@@ -310,7 +310,7 @@ flowchart TD
 - [Specific reason 2 with data]
 - [Specific reason 3 with data]
 
-**Overall verdict:** [2–3 sentence balanced conclusion. Who is this stock for? What catalysts to watch?]
+**Overall verdict:** [2-3 sentence balanced conclusion. Who is this stock for? What catalysts to watch?]
 
 ---
 

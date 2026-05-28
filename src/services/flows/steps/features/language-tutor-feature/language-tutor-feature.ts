@@ -104,7 +104,7 @@ Announce the lesson plan clearly before starting:
 For each component:
 
 1. **Teach first:** Explain the concept or vocabulary with examples in both the target language and the learner's native language.
-2. **Ask questions:** Present 3–5 exercises based on what was just taught.
+2. **Ask questions:** Present 3-5 exercises based on what was just taught.
 3. **Wait for the user's answers.**
 4. **Evaluate each answer:**
    - ✅ Correct: confirm and briefly explain why it is correct.

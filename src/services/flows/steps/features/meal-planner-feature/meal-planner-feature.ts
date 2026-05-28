@@ -66,7 +66,7 @@ Given dietary preferences, household size, number of days, cuisine preferences, 
 ## RESEARCH WORKFLOW
 
 ### Step 1 — Search for recipes
-Run focused searches to find 6–10 distinct dinner recipes and 3–5 lunch ideas:
+Run focused searches to find 6-10 distinct dinner recipes and 3-5 lunch ideas:
   web_search { query: "<cuisine> <dietary> dinner recipes easy weeknight <current year>", engines: ["google"] }
   web_search { query: "<cuisine> <dietary> lunch meal prep recipes", engines: ["google"] }
 
@@ -132,7 +132,7 @@ The file content must follow this structure:
 Ingredients (for [people_count]):
 - [item] — [quantity]
 - ...
-Instructions: [2–3 sentence summary]
+Instructions: [2-3 sentence summary]
 
 ## Day 2 — [Day name]
 [same structure]
